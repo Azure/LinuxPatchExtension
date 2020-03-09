@@ -1,0 +1,9 @@
+{
+	"coreSequence": {
+		"number":  1234,
+		"action": "Assessment",
+		"completed": "True",
+		"lastHeartbeat": "2019-07-20T12:12:14Z",
+		"processIds": ["11111","22232"]
+	}
+}

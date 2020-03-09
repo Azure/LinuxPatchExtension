@@ -1,0 +1,18 @@
+{
+    "runtimeSettings": [{
+        "handlerSettings": {
+            "protectedSettingsCertThumbprint": "",
+            "protectedSettings": "",
+            "publicSettings": {
+                "operation": "Deployment",
+                "activityId": "12345-2312-1234-23245-32112",
+                "startTime": "2019-07-20T12:12:14Z",
+                "maximumDuration": "20",
+                "rebootSetting": "IfRequired",
+                "classificationsToInclude":["Critical","Security"],
+                "patchesToInclude": ["*", "test*","*ern*=1.2*", "kern*=1.23.45"],
+                "patchesToExclude": ["*", "test", "*test"]
+            }
+        }
+    }]
+}

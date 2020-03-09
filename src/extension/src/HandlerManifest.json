@@ -1,0 +1,16 @@
+[
+  {
+    "version": 1.0,
+    "handlerManifest": {
+      "disableCommand": "MsftLinuxUpdateExtShim.sh -d",
+      "enableCommand": "MsftLinuxUpdateExtShim.sh -e",
+      "installCommand": "MsftLinuxUpdateExtShim.sh -i",
+      "uninstallCommand": "MsftLinuxUpdateExtShim.sh -u",
+      "updateCommand": "MsftLinuxUpdateExtShim.sh -p",
+      "resetStateCommand": "MsftLinuxUpdateExtShim.sh -r",
+      "rebootAfterInstall": false,
+      "reportHeartbeat": false,
+      "updateMode": "UpdateWithoutInstall"
+    }
+  }
+]
