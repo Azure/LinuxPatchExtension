@@ -14,7 +14,7 @@ class Constants(object):
     # Runtime environments
     TEST = 'Test'
     DEV = 'Dev'
-    PROD_V2 = 'Prod_V2'         # Azure Native Patch Management
+    PROD = 'Prod'         # Azure Native Patch Management
     UNKNOWN_ENV = 'Unknown'     # Non-functional code placeholder prior to compile
 
     # File Constants
@@ -25,7 +25,7 @@ class Constants(object):
     HANDLER_ENVIRONMENT_FILE_PATH = os.getcwd()
     CONFIG_SETTINGS_FILE_EXTENSION = '.settings'
     STATUS_FILE_EXTENSION = '.status'
-    CORE_CODE_FILE_NAME = 'MsftLinuxUpdateCore.py'
+    CORE_CODE_FILE_NAME = 'MsftLinuxPatchCore.py'
     LOG_FILE_EXTENSION = '.log'
     LOG_FILES_TO_RETAIN = 10
     MAX_LOG_FILES_ALLOWED = 40

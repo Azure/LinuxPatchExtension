@@ -1,4 +1,4 @@
-""" Merges individual python modules from src to the PatchMicrosoftOMSLinuxComputer.py and MsftLinuxUpdateCore.py files in the out directory.
+""" Merges individual python modules from src to the PatchMicrosoftOMSLinuxComputer.py and MsftLinuxPatchCore.py files in the out directory.
 Relative source and destination paths for the patch runbook are auto-detected if the optional src parameter is not present.
 How to use: python Package.py <optional: full path to runbook 'src' folder>"""
 
@@ -12,16 +12,14 @@ import datetime
 VERY_FIRST_IMPORTS = [
     'from __future__ import print_function\n',
     'from abc import ABCMeta, abstractmethod\n',
-    'from datetime import timedelta\n',
-    'try: import automationassets\n',
-    'except ImportError: pass\n']
+    'from datetime import timedelta\n']
 GLOBAL_IMPORTS = set()
 
 
 def read_python_module(source_code_path, module_name):
     module_full_path = os.path.join(source_code_path, module_name)
     imports = []
-    codes = "\n\n# region ########## {0} ##########\n".format(os.path.basename(module_name))
+    codes = "\n\n# region ########## {0} ##########\n".format(os.path.basename(module_name).replace('.py',''))
     is_code_body = False
     if os.path.exists(module_full_path):
         with open(module_full_path) as py_file:
@@ -33,7 +31,7 @@ def read_python_module(source_code_path, module_name):
 
                 if is_code_body is True:
                     codes = codes + line
-    codes = codes + "\n# endregion ########## {0} ##########\n".format(os.path.basename(module_name))
+    codes = codes + "\n# endregion ########## {0} ##########\n".format(os.path.basename(module_name).replace('.py',''))
     return imports, codes
 
 
@@ -90,9 +88,9 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
                 file_path = os.path.join(root, file_name)
                 if '__main__.py' in file_path:
                     modules_to_be_merged.append(file_path)
-                elif os.path.basename(file_path) in ('__init__.py', 'automationrunbooktracer.py', 'automationassets.py'):
+                elif os.path.basename(file_path) in ('__init__.py'):
                     continue
-                elif os.path.basename(file_path) in ('base_log_processor.py', 'PackageManager.py', 'UpdateRunProgressWriter.py'):
+                elif os.path.basename(file_path) in ('base_log_processor.py', 'PackageManager.py'):
                     modules_to_be_merged.insert(0, file_path)
                 else:
                     if len(modules_to_be_merged) > 0 and '__main__.py' in modules_to_be_merged[-1]:
@@ -115,7 +113,6 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
         timestamp = datetime.datetime.utcnow().strftime("%y%m%d-%H%M")
         replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name.split('.')[0])
         replace_text_in_file(merged_file_full_path, '[%exec_sub_ver%]', timestamp)
-        replace_text_in_file(merged_file_full_path, 'Constants.UNKNOWN_ENV', environment)
         replace_text_in_file(merged_file_full_path, '\r\n', '\n')
 
         print("========== Merged core code was saved to:\n{0}\n".format(merged_file_full_path))
@@ -141,7 +138,7 @@ def main(argv):
         else:
             # explicit src path parameter
             source_code_path = argv[1]
-            if os.path.exists(os.path.join(source_code_path, "UpdateRun.py")) is False:
+            if os.path.exists(os.path.join(source_code_path, "PatchInstaller.py")) is False:
                 print("Invalid core source code path. Check src parameter.\n")
                 return
 
@@ -155,7 +152,7 @@ def main(argv):
                 raise
 
         # Generated compiled scripts at the destination
-        merged_file_details = [('MsftLinuxUpdateCore.py', 'Constants.PROD_V2')]
+        merged_file_details = [('MsftLinuxPatchCore.py', 'Constants.PROD')]
         for merged_file_detail in merged_file_details:
             merged_file_destination = os.path.join(working_directory, 'out', merged_file_detail[0])
             generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1])

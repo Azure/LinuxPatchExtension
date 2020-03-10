@@ -7,7 +7,7 @@ class TelemetryWriter(object):
 
     def __init__(self):
         self.data_transports = []
-        self.correlation_id = None
+        self.activity_id = None
 
         # Init state report
         self.send_ext_state_info('Started Linux patch extension execution.')

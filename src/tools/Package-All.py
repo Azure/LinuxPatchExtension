@@ -1,4 +1,4 @@
-""" Merges individual python modules from src to the MsftLinuxUpdateExt files in the out directory.
+""" Merges individual python modules from src to the MsftLinuxPatchExt files in the out directory.
 Relative source and destination paths for the extension are auto-detected if the optional src parameter is not present.
 How to use: python Package.py <optional: full path to extension 'src' folder>"""
 
@@ -159,13 +159,13 @@ def main(argv):
         subprocess.call('python ' + exec_core_build_path, shell=True)
 
         # Generated compiled scripts at the destination
-        merged_file_details = [('MsftLinuxUpdateExt.py', 'Constants.PROD_V2')]
+        merged_file_details = [('MsftLinuxPatchExt.py', 'Constants.PROD')]
         for merged_file_detail in merged_file_details:
             merged_file_destination = os.path.join(working_directory, 'out', merged_file_detail[0])
             generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1])
 
         # GENERATING EXTENSION
-        print('\n\n=============================== GENERATING MsftLinuxUpdateExt.zip... =============================================================\n')
+        print('\n\n=============================== GENERATING LinuxPatchExtension.zip... =============================================================\n')
         # Rev handler version
         print('\n========== Revising extension version.')
         manifest_xml_file_path = os.path.join(working_directory, 'extension', 'src', 'manifest.xml')
@@ -182,7 +182,7 @@ def main(argv):
 
         # Copy extension files
         print('\n========== Copying extension files + enforcing UNIX style line endings.\n')
-        ext_files = ['HandlerManifest.json', 'manifest.xml', 'MsftLinuxUpdateExtShim.sh']
+        ext_files = ['HandlerManifest.json', 'manifest.xml', 'MsftLinuxPatchExtShim.sh']
         for ext_file in ext_files:
             ext_file_src = os.path.join(working_directory, 'extension', 'src', ext_file)
             ext_file_destination = os.path.join(working_directory, 'out', ext_file)

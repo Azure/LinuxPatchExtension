@@ -22,7 +22,7 @@ def main(argv):
     logger = Logger()
     try:
         # initializing action handler
-        # args will have values install, uninstall, etc, as given in MsftLinuxUpdateExtShim.sh in the operation var
+        # args will have values install, uninstall, etc, as given in MsftLinuxPatchExtShim.sh in the operation var
         cmd_exec_start_time = datetime.datetime.utcnow()
         utility = Utility(logger)
         runtime_context_handler = RuntimeContextHandler(logger)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Keeping the default command
-COMMAND="MsftLinuxUpdateExt.py"
+COMMAND="MsftLinuxPatchExt.py"
 PYTHON=""
 
 USAGE="$(basename "$0") [-h] [-i|--install] [-u|--uninstall] [-d|--disable] [-e|--enable] [-p|--update] [-r|--reset]
