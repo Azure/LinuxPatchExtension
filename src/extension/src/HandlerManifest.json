@@ -1,0 +1,16 @@
+[
+  {
+    "version": 1.0,
+    "handlerManifest": {
+      "disableCommand": "MsftLinuxPatchExtShim.sh -d",
+      "enableCommand": "MsftLinuxPatchExtShim.sh -e",
+      "installCommand": "MsftLinuxPatchExtShim.sh -i",
+      "uninstallCommand": "MsftLinuxPatchExtShim.sh -u",
+      "updateCommand": "MsftLinuxPatchExtShim.sh -p",
+      "resetStateCommand": "MsftLinuxPatchExtShim.sh -r",
+      "rebootAfterInstall": false,
+      "reportHeartbeat": false,
+      "updateMode": "UpdateWithoutInstall"
+    }
+  }
+]

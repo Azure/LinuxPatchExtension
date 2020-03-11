@@ -1,0 +1,53 @@
+from __future__ import print_function
+import os
+
+from src.Constants import Constants
+
+class Logger(object):
+    def __init__(self, file_logger=None, current_env=None):
+        self.file_logger = file_logger
+        self.ERROR = "ERROR:"
+        self.WARNING = "WARNING:"
+        self.DEBUG = "DEBUG:"
+        self.VERBOSE = "VERBOSE:"
+        self.current_env = current_env
+        self.NEWLINE_REPLACE_CHAR = " "
+
+    def log(self, message):
+        """log output"""
+        for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
+            print(line)
+            if self.file_logger is not None:
+                self.file_logger.write(line)
+
+    def log_error(self, message):
+        """log errors"""
+        message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
+        print(self.ERROR + " " + message)
+        if self.file_logger is not None:
+            self.file_logger.write(self.ERROR + " " + message)
+
+    def log_error_and_raise_new_exception(self, message, exception):
+        """log errors and raise exception passed in as an arg"""
+        self.log_error(repr(message))
+        raise exception(message)
+
+    def log_warning(self, message):
+        """log warning"""
+        message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
+        print(self.WARNING + " " + message)
+        if self.file_logger is not None:
+            self.file_logger.write(self.WARNING + " " + message)
+
+    def log_debug(self, message):
+        """log debug"""
+        message = message.strip()
+        if self.current_env in (Constants.DEV, Constants.TEST):
+            print(self.current_env + ": " + message)  # send to standard output if dev or test env
+        if self.file_logger is not None:
+            self.file_logger.write(self.DEBUG + " " + "\n\t".join(message.splitlines()).strip())
+
+    def log_verbose(self, message):
+        """log verbose"""
+        if self.file_logger is not None:
+            self.file_logger.write(self.VERBOSE + " " + "\n\t".join(message.strip().splitlines()).strip())
