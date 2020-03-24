@@ -66,6 +66,7 @@ class EnvLayer(object):
             start = time.time()
             code, output = self.__run_command_output_raw(cmd, no_output, chk_err)
             self.__write_record(operation, code, output, delay=(time.time()-start))
+            return code, output
         else:
             return self.__read_record(operation)
 
@@ -271,7 +272,7 @@ class EnvLayer(object):
         def __obtain_file_handle(self, file_path_or_handle, mode='a+'):
             """ Pass-through for handle. For path, resolution and handle open with retry. """
             is_path = False
-            if isinstance(file_path_or_handle, str):
+            if isinstance(file_path_or_handle, str) or isinstance(file_path_or_handle, unicode):
                 is_path = True
                 file_path_or_handle = self.open(file_path_or_handle, mode)
             file_handle = file_path_or_handle
@@ -300,6 +301,7 @@ class EnvLayer(object):
             for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
                 try:
                     file_handle.write(str(data))
+                    break
                 except Exception as error:
                     if i <= Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                         time.sleep(i + 1)
@@ -359,7 +361,7 @@ class EnvLayer(object):
         @staticmethod
         def utc_to_standard_datetime(utc_datetime):
             """ Converts string of format '"%Y-%m-%dT%H:%M:%SZ"' to datetime object """
-            return datetime.datetime.strptime(utc_datetime.split(".")[0], "%Y-%m-%dT%H:%M:%SZ")
+            return datetime.datetime.strptime(utc_datetime.split(".")[0], "%Y-%m-%dT%H:%M:%S")
 # endregion - DateTime emulator and extensions
 
 # region - Core Emulator support functions
