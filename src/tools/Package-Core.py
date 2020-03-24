@@ -26,7 +26,7 @@ def read_python_module(source_code_path, module_name):
             for line in py_file:
                 if line.startswith('import'):
                     imports.append(line)
-                elif line.strip().startswith('class') or line.strip().startswith('def main(argv):'):
+                elif line.strip().startswith('class') or line.strip().startswith('def main(argv):') or line.strip().startswith('if __name__ == "__main__"'):
                     is_code_body = True
 
                 if is_code_body is True:
