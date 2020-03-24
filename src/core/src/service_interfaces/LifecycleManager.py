@@ -62,7 +62,7 @@ class LifecycleManager(object):
         # Read (with retries for only IO Errors)
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
-                with self.env_layer.file_system.open(self.ext_state_file_path) as file_handle:
+                with self.env_layer.file_system.open(self.ext_state_file_path, mode="r") as file_handle:
                     return json.load(file_handle)['extensionSequence']
             except Exception as error:
                 if i <= Constants.MAX_FILE_OPERATION_RETRY_COUNT:
@@ -85,7 +85,7 @@ class LifecycleManager(object):
         # Read (with retries for only IO Errors) - TODO: Refactor common code
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
-                with self.env_layer.file_system.open(self.core_state_file_path) as file_handle:
+                with self.env_layer.file_system.open(self.core_state_file_path, mode="r") as file_handle:
                     core_sequence = json.load(file_handle)['coreSequence']
                     print(str(core_sequence))
                     return core_sequence

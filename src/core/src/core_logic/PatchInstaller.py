@@ -28,7 +28,7 @@ class PatchInstaller(object):
         """ Kick off a patch installation run """
         self.composite_logger.log('\nStarting patch installation...')
 
-        self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.machine_id)
+        self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
         self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
         self.composite_logger.log("Operation request time: " + self.execution_config.start_time + ",               Maintenance Window Duration: " + self.execution_config.duration)
 

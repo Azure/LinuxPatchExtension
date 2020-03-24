@@ -1,4 +1,5 @@
 """The is base package manager, which defines the package management relevant operations"""
+import os
 from abc import ABCMeta, abstractmethod
 from src.bootstrap.Constants import Constants
 import time
@@ -300,3 +301,15 @@ class PackageManager(object):
     def do_processes_require_restart(self):
         """Signals whether processes require a restart due to updates to files"""
         pass
+
+    def is_reboot_pending(self):
+        """ Checks if there is a pending reboot on the machine. """
+        try:
+            pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)
+            pending_processes_exists = self.do_processes_require_restart()
+            self.composite_logger.log_debug(" - Reboot required debug flags: " + str(pending_file_exists) + ", " + str(pending_processes_exists) + ".")
+            return pending_file_exists or pending_processes_exists
+        except Exception as error:
+            self.composite_logger.log_error('Error while checking for reboot pending: ' + repr(error))
+            return True     # defaults for safety
+
