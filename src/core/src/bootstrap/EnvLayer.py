@@ -123,9 +123,9 @@ class EnvLayer(object):
                 print("Error: CalledProcessError.  Command string was: " + e.cmd, file=sys.stdout)
                 print("Error: CalledProcessError.  Command result was: " + (e.output[:-1]).decode('utf8', 'ignore').encode("ascii", "ignore"), file=sys.stdout)
             if no_output:
-                return e.returncode, None
+                return e.return_code, None
             else:
-                return e.returncode, e.output.decode('utf8', 'ignore').encode('ascii', 'ignore')
+                return e.return_code, e.output.decode('utf8', 'ignore').encode('ascii', 'ignore')
         except Exception as error:
             message = "Exception during cmd execution. [Exception={0}][Cmd={1}]".format(repr(error),str(cmd))
             print(message)

@@ -65,7 +65,7 @@ class RebootManager(object):
                 self.composite_logger.log_debug("Waiting for machine reboot. [ElapsedTimeInMinutes={0}] [MaxTimeInMinutes={1}]".format(str(elapsed_time_in_minutes), str(max_allowable_time_to_reboot_in_minutes)))
                 time.sleep(60)
 
-    def start_reboot_if_required_and_time_available(self, current_time_available, package_manager=None):
+    def start_reboot_if_required_and_time_available(self, current_time_available):
         """ Starts a reboot if required. Happens only at the end of the run if required. """
         self.composite_logger.log("\nReboot Management")
         reboot_pending = self.package_manager.is_reboot_pending()
