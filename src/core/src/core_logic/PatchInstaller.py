@@ -43,7 +43,7 @@ class PatchInstaller(object):
                                                   "    Consider re-running the patch installation after a reboot if any packages fail to install due to this.")
             else:
                 self.composite_logger.log_debug("Attempting to reboot the machine prior to patch installation as there is a reboot pending...")
-                reboot_manager.start_reboot_if_required_and_time_available()
+                reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
 
         # Install Updates
         installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
