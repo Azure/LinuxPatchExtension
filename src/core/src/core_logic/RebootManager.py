@@ -57,7 +57,7 @@ class RebootManager(object):
         max_allowable_time_to_reboot_in_minutes = int(self.minutes_to_shutdown) + Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES
         while 1:
             current_time = self.env_layer.datetime.datetime_utcnow()
-            elapsed_time_in_minutes = self.env_layer.total_minutes_from_time_delta(current_time - reboot_init_time)
+            elapsed_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(current_time - reboot_init_time)
             if elapsed_time_in_minutes >= max_allowable_time_to_reboot_in_minutes:
                 self.status_handler.set_installation_reboot_status(Constants.RebootStatus.FAILED)
                 raise Exception("Reboot failed to proceed on the machine in a timely manner.")
