@@ -167,18 +167,18 @@ def main(argv):
         # GENERATING EXTENSION
         print('\n\n=============================== GENERATING LinuxPatchExtension.zip... =============================================================\n')
         # Rev handler version
-        print('\n========== Revising extension version.')
-        manifest_xml_file_path = os.path.join(working_directory, 'extension', 'src', 'manifest.xml')
-        manifest_tree = et.parse(manifest_xml_file_path)
-        manifest_root = manifest_tree.getroot()
-        for i in range(0, len(manifest_root)):
-            if 'Version' in str(manifest_root[i]):
-                current_version = manifest_root[i].text
-                version_split = current_version.split('.')
-                version_split[len(version_split)-1] = str(int(version_split[len(version_split)-1]) + 1)
-                new_version = '.'.join(version_split)
-                print("Changing extension version from {0} to {1}.".format(current_version, new_version))
-                replace_text_in_file(manifest_xml_file_path, current_version, new_version)
+        # print('\n========== Revising extension version.')
+        # manifest_xml_file_path = os.path.join(working_directory, 'extension', 'src', 'manifest.xml')
+        # manifest_tree = et.parse(manifest_xml_file_path)
+        # manifest_root = manifest_tree.getroot()
+        # for i in range(0, len(manifest_root)):
+        #     if 'Version' in str(manifest_root[i]):
+        #         current_version = manifest_root[i].text
+        #         version_split = current_version.split('.')
+        #         version_split[len(version_split)-1] = str(int(version_split[len(version_split)-1]) + 1)
+        #         new_version = '.'.join(version_split)
+        #         print("Changing extension version from {0} to {1}.".format(current_version, new_version))
+        #         replace_text_in_file(manifest_xml_file_path, current_version, new_version)
 
         # Copy extension files
         print('\n========== Copying extension files + enforcing UNIX style line endings.\n')
