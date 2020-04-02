@@ -131,3 +131,6 @@ dmypy.json
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+# Linux Patch Extension specific
+/src/core/tests/scratch/
