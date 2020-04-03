@@ -7,8 +7,8 @@ from src.bootstrap.Constants import Constants
 class ZypperPackageManager(PackageManager):
     """Implementation of SUSE package management operations"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer):
-        super(ZypperPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer)
+    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler):
+        super(ZypperPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         self.repo_clean = 'sudo zypper clean -a'
         self.repo_refresh = 'sudo zypper refresh'
@@ -49,6 +49,7 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.telemetry_writer.send_execution_error(command, code, out)
+            self.status_handler.add_error_to_summary('Unexpected return code (' + str(code) + ') from package manager on command: ' + command, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception('Unexpected return code (' + str(code) + ') from package manager on command: ' + command)
         else:  # verbose diagnostic log
             self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")

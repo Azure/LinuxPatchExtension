@@ -7,8 +7,8 @@ from src.bootstrap.Constants import Constants
 class YumPackageManager(PackageManager):
     """Implementation of Redhat/CentOS package management operations"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer):
-        super(YumPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer)
+    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler):
+        super(YumPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         # There is no command as this is a no op.
 
@@ -53,6 +53,7 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.telemetry_writer.send_execution_error(command, code, out)
+            self.status_handler.add_error_to_summary('Unexpected return code (' + str(code) + ') from package manager on command: ' + command, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception('Unexpected return code (' + str(code) + ') from package manager on command: ' + command)
             # more return codes should be added as appropriate
         else:  # verbose diagnostic log
@@ -98,6 +99,8 @@ class YumPackageManager(PackageManager):
         security_packages, security_package_versions = self.get_security_updates()
         if len(security_packages) == 0 and 'CentOS' in str(self.env_layer.platform.linux_distribution()):  # deliberately terminal - erring on the side of caution to avoid dissat in uninformed customers
             self.composite_logger.log_error("Please review patch management documentation for information on classification-based patching on YUM.")
+            self.status_handler.add_error_to_summary("Classification-based patching is only supported on YUM if the computer is independently configured to receive classification information." +
+                                                             "Please remove classifications from update deployments to CentOS machines to bypass this error.", Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception("Classification-based patching is only supported on YUM if the computer is independently configured to receive classification information." +
                             "Please remove classifications from update deployments to CentOS machines to bypass this error.")
 

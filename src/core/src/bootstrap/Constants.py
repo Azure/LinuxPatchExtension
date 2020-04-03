@@ -119,6 +119,19 @@ class Constants(object):
     # Package Manager Setting
     PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION = "RepeatUpdateRun"
 
+    # Settings for Error Objects logged in status file
+    STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128
+    STATUS_ERROR_LIMIT = 5
+
+    class PatchOperationTopLevelErrorCode(EnumBackport):
+        success = 0
+        error = 1
+
+    class PatchOperationErrorCodes(EnumBackport):
+        # todo: finalize these error codes
+        PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
+        DEFAULT_ERROR = "ERROR"  # default error code
+
     # Telemetry Categories
     TELEMETRY_OPERATION_STATE = "State"
     TELEMETRY_CONFIG = "Config"

@@ -18,6 +18,7 @@ class PatchAssessor(object):
     def start_assessment(self):
         """ Start an update assessment """
         self.composite_logger.log('\nStarting patch assessment...')
+        self.status_handler.set_current_operation(Constants.ASSESSMENT)
 
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
@@ -41,9 +42,11 @@ class PatchAssessor(object):
             except Exception as error:
                 if i <= Constants.MAX_ASSESSMENT_RETRY_COUNT:
                     self.composite_logger.log_warning('Retryable error retrieving available patches: ' + repr(error))
+                    self.status_handler.add_error_to_summary('Retryable error retrieving available patches: ' + repr(error), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                     time.sleep(2*(i + 1))
                 else:
                     self.composite_logger.log_error('Error retrieving available patches: ' + repr(error))
+                    self.status_handler.add_error_to_summary('Error retrieving available patches: ' + repr(error), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                     self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
                     raise
 

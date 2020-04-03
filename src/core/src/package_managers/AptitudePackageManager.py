@@ -9,8 +9,8 @@ class AptitudePackageManager(PackageManager):
     """Implementation of Debian/Ubuntu based package management operations"""
 
     # For more details, try `man apt-get` on any Debian/Ubuntu based box.
-    def __init__(self, env_layer, composite_logger, telemetry_writer):
-        super(AptitudePackageManager, self).__init__(env_layer, composite_logger, telemetry_writer)
+    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler):
+        super(AptitudePackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         self.repo_refresh = 'sudo apt-get -q update'
 
@@ -52,12 +52,14 @@ class AptitudePackageManager(PackageManager):
                                             'command and perform any configuration steps necessary on the machine to return it to a healthy state: '
                                             'sudo dpkg --configure -a')
             self.telemetry_writer.send_execution_error(command, code, out)
+            self.status_handler.add_error_to_summary('Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a', Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception('Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a')
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.telemetry_writer.send_execution_error(command, code, out)
+            self.status_handler.add_error_to_summary('Unexpected return code (' + str(code) + ') from package manager on command: ' + command, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception('Unexpected return code (' + str(code) + ') from package manager on command: ' + command)
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
@@ -75,6 +77,7 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log('[ERROR] apt-cache was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from apt-cache: " + str(code))
             self.composite_logger.log_warning(" - Output from apt-cache: \n|\t" + "\n|\t".join(out.splitlines()))
+            self.status_handler.add_error_to_summary('Unexpected return code (' + str(code) + ') from apt-cache on command: ' + command, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception('Unexpected return code (' + str(code) + ') from apt-cache on command: ' + command)
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
