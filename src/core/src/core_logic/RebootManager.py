@@ -68,7 +68,6 @@ class RebootManager(object):
     def start_reboot_if_required_and_time_available(self, current_time_available):
         """ Starts a reboot if required. Happens only at the end of the run if required. """
         self.composite_logger.log("\nReboot Management")
-        # reboot_pending = self.package_manager.is_reboot_pending()
         reboot_pending = False if not self.status_handler else self.status_handler.is_reboot_pending
 
         # return if never

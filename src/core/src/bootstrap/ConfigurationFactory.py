@@ -137,7 +137,6 @@ class ConfigurationFactory(object):
             },
             'status_handler': {
                 'component': StatusHandler,
-                # 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'package_manager'],
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
                 'component_kwargs': {}
             },
@@ -148,7 +147,6 @@ class ConfigurationFactory(object):
             },
             'package_manager': {
                 'component': package_manager_component,
-                # 'component_args': ['env_layer', 'composite_logger', 'telemetry_writer'],
                 'component_args': ['env_layer', 'composite_logger', 'telemetry_writer', 'status_handler'],
                 'component_kwargs': {}
             },
