@@ -38,11 +38,11 @@ class Bootstrapper(object):
     @staticmethod
     def get_current_env():
         """ Decides what environment to bootstrap with """
-        current_env = os.getenv(Constants.LPE_ENV_VARIABLE, Constants.PROD)
-        if str(current_env) not in [Constants.DEV, Constants.TEST, Constants.PROD]:
-            print("Unknown environment requested:")
+        current_env = str(os.getenv(Constants.LPE_ENV_VARIABLE, Constants.PROD))
+        if current_env not in [Constants.DEV, Constants.TEST, Constants.PROD]:
+            print("Unknown environment requested: {0}".format(current_env))
             current_env = Constants.PROD
-        print("Bootstrap environment: " + str(current_env))
+        print("Bootstrap environment: {0}".format(current_env))
         return current_env
 
     def get_log_file_and_real_record_paths(self, argv):

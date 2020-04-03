@@ -27,6 +27,7 @@ class LegacyEnvLayerExtensions():
         """return passed in package manager name"""
         return self.legacy_package_manager_name
 
+    # To be deprecated over time
     def run_command_output(self, cmd, no_output=False, chk_err=True):
         if no_output:
             return 0, None
