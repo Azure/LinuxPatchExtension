@@ -2,6 +2,7 @@ import base64
 import datetime
 import json
 import os
+import shutil
 from src.bootstrap.Constants import Constants
 
 
@@ -9,6 +10,12 @@ class ArgumentComposer(object):
     """ Helps encapsulate argument composition for Core from default settings that can be customized as desired prior to composition """
 
     def __init__(self):
+        # Constants
+        self.__EXEC = "MsftLinuxPatchCore.py"
+        self.__TESTS_FOLDER = "tests"
+        self.__SCRATCH_FOLDER = "scratch"
+        self.__ARG_TEMPLATE = "{0} {1} {2} {3} \'{4}\' {5} \'{6}\'"
+
         # sequence number
         self.sequence_number = 1
 
@@ -20,7 +27,7 @@ class ArgumentComposer(object):
         self.activity_id = 'c365ab46-a12a-4388-853b-5240a0702124'
         self.start_time = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         self.maximum_duration = 'PT2H'
-        self.reboot_setting = Constants.REBOOT_NEVER
+        self.reboot_setting = 'Never'
         self.classifications_to_include = []
         self.patches_to_include = []
         self.patches_to_exclude = []
@@ -28,11 +35,6 @@ class ArgumentComposer(object):
         # REAL environment settings
         self.emulator_enabled = False
 
-        # Constants
-        self.__EXEC = "MsftLinuxPatchCore.py"
-        self.__TESTS_FOLDER = "tests"
-        self.__SCRATCH_FOLDER = "scratch"
-        self.__ARG_TEMPLATE = "{0} {1} {2} {3} \'{4}\' {5} \'{6}\'"
 
     def get_composed_arguments(self):
         """ Serializes state into arguments for consumption """
@@ -57,7 +59,7 @@ class ArgumentComposer(object):
                                               Constants.ARG_ENVIRONMENT_SETTINGS, self.__get_encoded_json_str(environment_settings),
                                               Constants.ARG_CONFIG_SETTINGS, self.__get_encoded_json_str(config_settings),
                                               Constants.ARG_INTERNAL_RECORDER_ENABLED, str(False),
-                                              Constants.ARG_INTERNAL_EMULATOR_ENABLED, str(self.emulator_enabled)))
+                                              Constants.ARG_INTERNAL_EMULATOR_ENABLED, str(self.emulator_enabled))).split(' ')
 
     @staticmethod
     def __get_encoded_json_str(obj):
@@ -68,7 +70,7 @@ class ArgumentComposer(object):
         tests_folder = self.__try_get_tests_folder()
         scratch_folder = os.path.join(tests_folder, self.__SCRATCH_FOLDER)
         if os.path.exists(scratch_folder):
-            os.rmdir(scratch_folder)
+            shutil.rmtree(scratch_folder, ignore_errors=True)
         os.mkdir(scratch_folder)
         return scratch_folder
 

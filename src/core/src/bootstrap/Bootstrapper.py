@@ -10,7 +10,7 @@ from src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 
 class Bootstrapper(object):
-    def __init__(self, argv):
+    def __init__(self, argv, capture_stdout=True):
         # Environment awareness
         self.current_env = self.get_current_env()
         self.argv = argv
@@ -28,17 +28,19 @@ class Bootstrapper(object):
 
         # Logging initializations
         self.file_logger = self.container.get('file_logger')
-        self.stdout_file_mirror = StdOutFileMirror(self.env_layer, self.file_logger)
+        if capture_stdout:
+            self.stdout_file_mirror = StdOutFileMirror(self.env_layer, self.file_logger)
         self.composite_logger = self.container.get('composite_logger')
         self.telemetry_writer = None
 
-        print("Completed building bootstrap container configuration.\n")
+        print("\nCompleted building bootstrap container configuration.\n")
 
     @staticmethod
     def get_current_env():
         """ Decides what environment to bootstrap with """
         current_env = os.getenv(Constants.LPE_ENV_VARIABLE, Constants.PROD)
         if str(current_env) not in [Constants.DEV, Constants.TEST, Constants.PROD]:
+            print("Unknown environment requested:")
             current_env = Constants.PROD
         print("Bootstrap environment: " + str(current_env))
         return current_env

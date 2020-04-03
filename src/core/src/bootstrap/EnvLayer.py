@@ -430,3 +430,17 @@ class EnvLayer(object):
         for x in range(1, self.__real_record_pointer):
             self.__real_record_handle.readline()
 # endregion - Core Emulator support functions
+
+# region - Legacy mode extensions
+    def set_legacy_test_mode(self):
+        print("Switching env layer to legacy test mode...")
+        self.datetime = self.DateTime(False, False, self.__write_record, self.__read_record)
+        self.file_system = self.FileSystem(False, False, self.__write_record, self.__read_record,
+                                           emulator_root_path=os.path.dirname(self.__real_record_path))
+
+    def set_legacy_test_settings(self, test_type, package_manager_name=Constants.DEFAULT_UNSPECIFIED_VALUE):
+        if package_manager_name != Constants.DEFAULT_UNSPECIFIED_VALUE:
+            self.legacy_package_manager_name = package_manager_name
+        print("Setting legacy test settings... {0} - {1}".format(test_type, self.legacy_package_manager_name))
+        self.legacy_test_type = test_type
+# endregion - Legacy mode extensions
