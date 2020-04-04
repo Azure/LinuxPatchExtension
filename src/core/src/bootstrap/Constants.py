@@ -124,8 +124,8 @@ class Constants(object):
     STATUS_ERROR_LIMIT = 5
 
     class PatchOperationTopLevelErrorCode(EnumBackport):
-        success = 0
-        error = 1
+        SUCCESS = 0
+        ERROR = 1
 
     class PatchOperationErrorCodes(EnumBackport):
         # todo: finalize these error codes

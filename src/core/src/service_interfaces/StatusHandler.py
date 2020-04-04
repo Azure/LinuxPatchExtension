@@ -45,8 +45,7 @@ class StatusHandler(object):
         if self.__installation_reboot_status == Constants.RebootStatus.STARTED:
             self.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)  # switching to completed after the reboot
 
-        # ToDo: NOTE for PR review(Remove later): setting the default to False and not 'Unknown' as discussed earlier, as status file can only have false or true in json as per Agent team arch, this was there's no risk of failure due to incorrect status json
-        # Tracker for reboot pending status, the value is updated externally(UpdateRun.py) whenever package is installed
+        # Tracker for reboot pending status, the value is updated externally(PatchInstaller.py) whenever package is installed. As this var is directly written in status file, setting the default to False, instead of Empty/Unknown, to maintain a true bool field as per Agent team's architecture
         self.is_reboot_pending = False
 
         # Discovers OS name and version for package id composition
@@ -158,6 +157,7 @@ class StatusHandler(object):
 
     def set_reboot_pending(self, is_reboot_pending, log_message):
         log_message = "Updating reboot pending status" if not log_message else log_message
+        log_message += " to: " + str(is_reboot_pending)
         self.composite_logger.log_debug(log_message)
         self.is_reboot_pending = is_reboot_pending
     # endregion
@@ -416,7 +416,7 @@ class StatusHandler(object):
         if not message:
             return
 
-        formatted_message = self.__format_message(message)
+        formatted_message = self.__ensure_error_message_restriction_compliance(message)
         # Compose error detail
         error_detail = {
             "code": str(error_code),
@@ -434,16 +434,16 @@ class StatusHandler(object):
         else:
             return
 
-    def __format_message(self, full_message):
+    def __ensure_error_message_restriction_compliance(self, full_message):
         """ Removes line breaks, tabs and restricts message to a character limit """
-        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
+        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS - 3
         formatted_message = re.sub(r"\s+", " ", str(full_message))
-        return formatted_message[:message_size_limit] + '..' if len(formatted_message) > message_size_limit else formatted_message
+        return formatted_message[:message_size_limit] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
     def __add_error(self, add_to, detail):
         """ Add formatted error object to given errors list """
-        if len(add_to) > 0:
-            errors_to_remove = Constants.STATUS_ERROR_LIMIT - len(add_to)
+        if len(add_to) >= Constants.STATUS_ERROR_LIMIT:
+            errors_to_remove = len(add_to) - Constants.STATUS_ERROR_LIMIT + 1
             for x in range(0, errors_to_remove):
                 add_to.pop()
         add_to.insert(0, detail)
@@ -451,8 +451,8 @@ class StatusHandler(object):
     def __set_errors_json(self, error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
         return {
-            "code": Constants.PatchOperationTopLevelErrorCode.success if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.error,
+            "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
             "details": errors_by_operation,
-            "message": "{0} error/s reported. The latest {1} error/s are shared in detail. To view all errors, review this log file on the machine:{2}".format(error_count_by_operation, len(errors_by_operation), self.__log_file_path)
+            "message": "{0} error/s reported. The latest {1} error/s are shared in detail. To view all errors, review this log file on the machine: {2}".format(error_count_by_operation, len(errors_by_operation), self.__log_file_path)
         }
     # endregion

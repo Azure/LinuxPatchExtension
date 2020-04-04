@@ -139,7 +139,7 @@ class ExtOutputStatusHandler(object):
         if not message:
             return
 
-        formatted_message = self.__format_message(message)
+        formatted_message = self.__ensure_error_message_restriction_compliance(message)
         # Compose error detail
         error_detail = {
             "code": str(error_code),
@@ -152,11 +152,11 @@ class ExtOutputStatusHandler(object):
         else:
             return
 
-    def __format_message(self, full_message):
+    def __ensure_error_message_restriction_compliance(self, full_message):
         """ Removes line breaks, tabs and restricts message to a character limit """
-        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
+        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS - 3
         formatted_message = re.sub(r"\s+", " ", str(full_message))
-        return formatted_message[:message_size_limit] + '..' if len(formatted_message) > message_size_limit else formatted_message
+        return formatted_message[:message_size_limit] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
     def __add_error(self, add_to, detail):
         """ Add formatted error object to given errors list """
@@ -169,8 +169,8 @@ class ExtOutputStatusHandler(object):
     def __set_errors_json(self, error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
         return {
-            "code": Constants.PatchOperationTopLevelErrorCode.success if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.error,
+            "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
             "details": errors_by_operation,
-            "message": "{0} error/s reported. The latest {1} error/s are shared in detail. To view all errors, review this log file on the machine:{2}".format(error_count_by_operation, len(errors_by_operation), self.__log_file_path)
+            "message": "{0} error/s reported. The latest {1} error/s are shared in detail. To view all errors, review this log file on the machine: {2}".format(error_count_by_operation, len(errors_by_operation), self.__log_file_path)
         }
     # endregion

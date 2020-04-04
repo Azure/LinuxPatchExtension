@@ -171,7 +171,7 @@ class PatchInstaller(object):
                         time.sleep(i + 1)
                         self.composite_logger.log_warning("Retrying installation of package. [Package={0}]".format(package_manager.get_product_name(package_and_dependencies[0])))
 
-            # Update reboot pending status in progress_status_writer
+            # Update reboot pending status in status_handler
             self.status_handler.set_reboot_pending(self.is_reboot_pending(), "Updating reboot pending status after installation attempt for package: " + str(package_manager.get_product_name(package_and_dependencies[0])))
 
             if install_result == Constants.FAILED:

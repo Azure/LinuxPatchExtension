@@ -53,11 +53,10 @@ class PackageManager(object):
     def get_updates_for_classification(self, package_filter):
         """Get missing updates for classifications"""
         if package_filter.is_invalid_classification_combination():
-            self.status_handler.add_error_to_summary("Invalid classification combination selection detected. Please edit the update deployment configuration, "
-                                                             "unselect + reselect the desired classifications and save.", Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-
-            raise Exception("Invalid classification combination selection detected. Please edit the update deployment configuration, "
-                            "unselect + reselect the desired classifications and save.")
+            error_msg = "Invalid classification combination selection detected. Please edit the update deployment configuration, " \
+                            "unselect + reselect the desired classifications and save."
+            self.status_handler.add_error_to_summary(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg)
 
         if package_filter.is_msft_critsec_classification_only():
             return self.get_security_updates()
