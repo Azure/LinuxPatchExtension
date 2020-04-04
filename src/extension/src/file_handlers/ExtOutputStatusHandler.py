@@ -154,9 +154,9 @@ class ExtOutputStatusHandler(object):
 
     def __ensure_error_message_restriction_compliance(self, full_message):
         """ Removes line breaks, tabs and restricts message to a character limit """
-        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS - 3
+        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
         formatted_message = re.sub(r"\s+", " ", str(full_message))
-        return formatted_message[:message_size_limit] + '...' if len(formatted_message) > message_size_limit else formatted_message
+        return formatted_message[:message_size_limit-3] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
     def __add_error(self, add_to, detail):
         """ Add formatted error object to given errors list """
