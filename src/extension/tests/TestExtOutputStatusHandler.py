@@ -26,7 +26,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         file_name = "test"
         dir_path = tempfile.mkdtemp()
         operation = "Assessment"
-        ext_status_handler = ExtOutputStatusHandler(self.logger, self.json_file_handler)
+        ext_status_handler = ExtOutputStatusHandler(self.logger, self.json_file_handler, "test.log")
         ext_status_handler.write_status_file(file_name, dir_path, operation, [], self.status.Transitioning.lower())
 
         with open(dir_path + "\\" + file_name + ext_status_handler.file_ext) as status_file:
@@ -43,7 +43,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         dir_path = tempfile.mkdtemp()
         operation = "Assessment"
 
-        ext_status_handler = ExtOutputStatusHandler(self.logger, self.json_file_handler)
+        ext_status_handler = ExtOutputStatusHandler(self.logger, self.json_file_handler, "test.log")
         ext_status_handler.write_status_file(file_name, dir_path, operation, [], self.status.Transitioning.lower())
         status_json = ext_status_handler.read_file(file_name, dir_path)
         parent_key = self.status_file_fields.status
@@ -58,7 +58,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         dir_path = tempfile.mkdtemp()
         operation = "Assessment"
 
-        ext_status_handler = ExtOutputStatusHandler(self.logger, self.json_file_handler)
+        ext_status_handler = ExtOutputStatusHandler(self.logger, self.json_file_handler, "test.log")
         ext_status_handler.write_status_file(file_name, dir_path, operation, [], self.status.Success.lower())
         status_json = ext_status_handler.read_file(file_name, dir_path)
         prev_timestamp = status_json[0][self.status_file_fields.timestamp_utc]
@@ -76,6 +76,38 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         self.assertNotEqual(prev_modified_time, modified_time)
         updated_status_json = ext_status_handler.read_file(file_name, dir_path)
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_status], self.status.Transitioning.lower())
+        shutil.rmtree(dir_path)
+
+    def test_add_error_to_summary(self):
+        file_name = "test"
+        dir_path = tempfile.mkdtemp()
+        operation = "Assessment"
+        ext_status_handler = ExtOutputStatusHandler(self.logger, self.json_file_handler, "test.log")
+        ext_status_handler.set_current_operation(Constants.NOOPERATION)
+
+        # Unexpected input
+        self.assertTrue(ext_status_handler.add_error_to_summary(None) == None)
+
+        ext_status_handler.add_error_to_summary("Adding test exception", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_status_handler.set_nooperation_substatus_json(file_name, dir_path, Constants.NOOPERATION, "", self.status.Success.lower())
+        updated_status_json = ext_status_handler.read_file(file_name, dir_path)
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
+        self.assertNotEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"], None)
+        self.assertEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["code"], 1)
+        self.assertEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+
+        ext_status_handler.add_error_to_summary("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_status_handler.add_error_to_summary("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_status_handler.add_error_to_summary("exception3", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_status_handler.add_error_to_summary("exception4", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_status_handler.add_error_to_summary("exception5", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_status_handler.add_error_to_summary("exception6", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_status_handler.set_nooperation_substatus_json(file_name, dir_path, Constants.NOOPERATION, "", self.status.Success.lower())
+        updated_status_json = ext_status_handler.read_file(file_name, dir_path)
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
+        self.assertNotEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"], None)
+        self.assertEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["code"], 1)
+        self.assertTrue(len(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"]), 5)
         shutil.rmtree(dir_path)
 
 

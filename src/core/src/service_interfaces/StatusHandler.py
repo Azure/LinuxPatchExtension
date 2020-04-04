@@ -357,6 +357,7 @@ class StatusHandler(object):
                 self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
                 self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
                 errors = self.__installation_summary_json['errors']
+                print("before reading error")
                 if errors is not None and errors['details'] is not None:
                     self.__installation_errors = errors['details']
                     self.__installation_total_error_count = len(self.__installation_errors)
