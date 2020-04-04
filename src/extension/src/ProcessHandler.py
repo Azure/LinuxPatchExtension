@@ -8,8 +8,9 @@ from src.Constants import Constants
 
 
 class ProcessHandler(object):
-    def __init__(self, logger):
+    def __init__(self, logger, ext_output_status_handler):
         self.logger = logger
+        self.ext_output_status_handler = ext_output_status_handler
 
     def get_public_config_settings(self, config_settings):
         """ Fetches only public settings from given config_settings and returns them in json format """
@@ -87,4 +88,5 @@ class ProcessHandler(object):
                 os.kill(pid, signal.SIGTERM)
         except OSError as error:
             self.logger.log_error("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)))
+            self.ext_output_status_handler.add_error_to_summary("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise

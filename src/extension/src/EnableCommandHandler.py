@@ -30,7 +30,6 @@ class EnableCommandHandler(object):
 
             # if NoOperation is requested, terminate all running processes from previous operation and update status file
             if config_settings.__getattribute__(self.config_public_settings.operation) == Constants.NOOPERATION:
-                self.logger.log("NoOperation requested. Terminating older patch operation, if still in progress.")
                 self.process_nooperation(config_settings, core_state_content)
             else:
                 # if any of the other operations are requested, verify if request is a new request or a re-enable, by comparing sequence number from the prev request and current one
@@ -86,6 +85,8 @@ class EnableCommandHandler(object):
         exit(Constants.ExitCode.Okay)
 
     def process_nooperation(self, config_settings, core_state_content):
+        self.logger.log("NoOperation requested. Terminating older patch operation, if still in progress.")
+        self.ext_output_status_handler.set_current_operation(Constants.NOOPERATION)
         activity_id = config_settings.__getattribute__(self.config_public_settings.activity_id)
         operation = config_settings.__getattribute__(self.config_public_settings.operation)
         start_time = config_settings.__getattribute__(self.config_public_settings.start_time)
@@ -98,7 +99,8 @@ class EnableCommandHandler(object):
             self.logger.log("exiting extension handler")
             exit(Constants.ExitCode.Okay)
         except Exception as error:
-            self.logger.log("Error executing NoOperation.")
+            self.logger.log("Error executing NoOperation: " + repr(error))
+            self.ext_output_status_handler.add_error_to_summary("Error executing NoOperation: " + repr(error), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             self.ext_output_status_handler.set_nooperation_substatus_json(self.seq_no, self.ext_env_handler.status_folder, operation, activity_id, start_time, status=Constants.Status.Error)
 
 

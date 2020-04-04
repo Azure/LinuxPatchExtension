@@ -8,10 +8,11 @@ import time
 class PackageManager(object):
     """Base class of package manager"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer):
+    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
+        self.status_handler = status_handler
         self.single_package_upgrade_cmd = ''
         self.single_package_upgrade_simulation_cmd = 'simulate-install'
         self.package_manager_settings = {}
@@ -25,7 +26,6 @@ class PackageManager(object):
         self.STR_ONLY_UPGRADES = "Skipping <PACKAGE>, it is not installed and only upgrades are requested."
         self.STR_OBSOLETED = "Package <PACKAGE> is obsoleted"
         self.STR_REPLACED = "\nReplaced:\n"
-        self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
 
     __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
 
@@ -53,8 +53,10 @@ class PackageManager(object):
     def get_updates_for_classification(self, package_filter):
         """Get missing updates for classifications"""
         if package_filter.is_invalid_classification_combination():
-            raise Exception("Invalid classification combination selection detected. Please edit the update deployment configuration, "
-                            "unselect + reselect the desired classifications and save.")
+            error_msg = "Invalid classification combination selection detected. Please edit the update deployment configuration, " \
+                            "unselect + reselect the desired classifications and save."
+            self.status_handler.add_error_to_summary(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg)
 
         if package_filter.is_msft_critsec_classification_only():
             return self.get_security_updates()
@@ -301,15 +303,4 @@ class PackageManager(object):
     def do_processes_require_restart(self):
         """Signals whether processes require a restart due to updates to files"""
         pass
-
-    def is_reboot_pending(self):
-        """ Checks if there is a pending reboot on the machine. """
-        try:
-            pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)
-            pending_processes_exists = self.do_processes_require_restart()
-            self.composite_logger.log_debug(" - Reboot required debug flags: " + str(pending_file_exists) + ", " + str(pending_processes_exists) + ".")
-            return pending_file_exists or pending_processes_exists
-        except Exception as error:
-            self.composite_logger.log_error('Error while checking for reboot pending: ' + repr(error))
-            return True     # defaults for safety
 

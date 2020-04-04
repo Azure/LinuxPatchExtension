@@ -53,6 +53,19 @@ class Constants(object):
     NOOPERATION = "NoOperation"
     PATCH_NOOPERATION_SUMMARY = "PatchNoOperationSummary"
 
+    # Settings for Error Objects logged in status file
+    STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128
+    STATUS_ERROR_LIMIT = 5
+
+    class PatchOperationTopLevelErrorCode(EnumBackport):
+        SUCCESS = 0
+        ERROR = 1
+
+    class PatchOperationErrorCodes(EnumBackport):
+        # todo: finalize these error codes
+        PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
+        DEFAULT_ERROR = "ERROR"  # default error code
+
     # HandlerEnvironment constants
     class EnvSettingsFields(EnumBackport):
         version = "version"
@@ -98,6 +111,7 @@ class Constants(object):
         status_formatted_message_lang = "lang"
         status_formatted_message_message = "message"
         status_substatus = "substatus"
+        substatus_errors = "errors"
 
     # CoreState.json keys
     class CoreStateFields(EnumBackport):

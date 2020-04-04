@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import re
 import shutil
 import time
 from src.bootstrap.Constants import Constants
@@ -9,14 +10,14 @@ from src.bootstrap.Constants import Constants
 class StatusHandler(object):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, package_manager):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
         # Map supporting components for operation
         self.env_layer = env_layer
         self.execution_config = execution_config
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
-        self.package_manager = package_manager
         self.status_file_path = self.execution_config.status_file_path
+        self.__log_file_path = self.execution_config.log_file_path
 
         # Status components
         self.__high_level_status_message = ""
@@ -25,6 +26,8 @@ class StatusHandler(object):
         self.__installation_substatus_json = None
         self.__installation_summary_json = None
         self.__installation_packages = []
+        self.__installation_errors = []
+        self.__installation_total_error_count = 0  # All errors during install, includes errors not in error objects due to size limit
         self.__maintenance_window_exceeded = False
         self.__installation_reboot_status = Constants.RebootStatus.NOT_NEEDED
 
@@ -32,6 +35,8 @@ class StatusHandler(object):
         self.__assessment_substatus_json = None
         self.__assessment_summary_json = None
         self.__assessment_packages = []
+        self.__assessment_errors = []
+        self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
 
         # Load the currently persisted status file into memory
         self.__load_status_file_components(initial_load=True)
@@ -40,8 +45,13 @@ class StatusHandler(object):
         if self.__installation_reboot_status == Constants.RebootStatus.STARTED:
             self.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)  # switching to completed after the reboot
 
+        # Tracker for reboot pending status, the value is updated externally(PatchInstaller.py) whenever package is installed. As this var is directly written in status file, setting the default to False, instead of Empty/Unknown, to maintain a true bool field as per Agent team's architecture
+        self.is_reboot_pending = False
+
         # Discovers OS name and version for package id composition
         self.__os_name_and_version = self.get_os_name_and_version()
+
+        self.__current_operation = None
 
     # region - Package Data
     def reset_assessment_data(self):
@@ -140,10 +150,16 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Checking if reboot status needs to reflect machine reboot status.")
         if self.__installation_reboot_status in [Constants.RebootStatus.NOT_NEEDED, Constants.RebootStatus.COMPLETED]:
             # Checks only if it's a state transition we allow
-            reboot_needed = self.package_manager.is_reboot_pending()
+            reboot_needed = self.is_reboot_pending
             if reboot_needed:
                 self.composite_logger.log_debug("Machine reboot status has changed to 'Required'.")
                 self.__installation_reboot_status = Constants.RebootStatus.REQUIRED
+
+    def set_reboot_pending(self, is_reboot_pending, log_message):
+        log_message = "Updating reboot pending status" if not log_message else log_message
+        log_message += " to: " + str(is_reboot_pending)
+        self.composite_logger.log_debug(log_message)
+        self.is_reboot_pending = is_reboot_pending
     # endregion
 
     # region - Substatus generation
@@ -182,13 +198,13 @@ class StatusHandler(object):
         # Compose substatus message
         return {
             "assessmentActivityId": str(self.execution_config.activity_id),
-            "rebootPending": self.package_manager.is_reboot_pending(),
+            "rebootPending": self.is_reboot_pending,
             "criticalAndSecurityPatchCount": critsec_patch_count,
             "otherPatchCount": other_patch_count,
             "patches": assessment_packages_json,
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
-            "errors": {"code": 0}  # TODO: Implement this to spec
+            "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
         }
 
     def set_installation_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0):
@@ -246,7 +262,7 @@ class StatusHandler(object):
             "patches": installation_packages_json,
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
-            "errors": {"code": 0}    # TODO: Implement this to spec
+            "errors": self.__set_errors_json(self.__installation_total_error_count, self.__installation_errors)
         }
 
     @staticmethod
@@ -296,9 +312,11 @@ class StatusHandler(object):
         self.__installation_substatus_json = None
         self.__installation_summary_json = None
         self.__installation_packages = []
+        self.__installation_errors = []
         self.__assessment_substatus_json = None
         self.__assessment_summary_json = None
         self.__assessment_packages = []
+        self.__assessment_errors = []
 
         # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.status_file_path) and initial_load:
@@ -338,10 +356,19 @@ class StatusHandler(object):
                 self.__installation_packages = self.__installation_summary_json['patches']
                 self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
                 self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
+                errors = self.__installation_summary_json['errors']
+                print("before reading error")
+                if errors is not None and errors['details'] is not None:
+                    self.__installation_errors = errors['details']
+                    self.__installation_total_error_count = len(self.__installation_errors)
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__assessment_summary_json = json.loads(message)
                 self.__assessment_packages = self.__assessment_summary_json['patches']
+                errors = self.__assessment_summary_json['errors']
+                if errors is not None and errors['details'] is not None:
+                    self.__assessment_errors = errors['details']
+                    self.__assessment_total_error_count = len(self.__assessment_errors)
 
     def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
@@ -378,4 +405,54 @@ class StatusHandler(object):
             shutil.rmtree(self.status_file_path)
 
         self.env_layer.file_system.write_with_retry(self.status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+    # endregion
+
+    # region - Error objects
+    def set_current_operation(self, operation):
+        self.__current_operation = operation
+
+    def add_error_to_summary(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR):
+        """ Add error to the respective error objects """
+        if not message:
+            return
+
+        formatted_message = self.__ensure_error_message_restriction_compliance(message)
+        # Compose error detail
+        error_detail = {
+            "code": str(error_code),
+            "message": str(formatted_message)
+        }
+
+        if self.__current_operation == Constants.ASSESSMENT:
+            self.__add_error(self.__assessment_errors, error_detail)
+            self.__assessment_total_error_count += 1
+            self.set_assessment_substatus_json()
+        elif self.__current_operation == Constants.INSTALLATION:
+            self.__add_error(self.__installation_errors, error_detail)
+            self.__installation_total_error_count += 1
+            self.set_installation_substatus_json()
+        else:
+            return
+
+    def __ensure_error_message_restriction_compliance(self, full_message):
+        """ Removes line breaks, tabs and restricts message to a character limit """
+        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
+        formatted_message = re.sub(r"\s+", " ", str(full_message))
+        return formatted_message[:message_size_limit-3] + '...' if len(formatted_message) > message_size_limit else formatted_message
+
+    def __add_error(self, add_to, detail):
+        """ Add formatted error object to given errors list """
+        if len(add_to) >= Constants.STATUS_ERROR_LIMIT:
+            errors_to_remove = len(add_to) - Constants.STATUS_ERROR_LIMIT + 1
+            for x in range(0, errors_to_remove):
+                add_to.pop()
+        add_to.insert(0, detail)
+
+    def __set_errors_json(self, error_count_by_operation, errors_by_operation):
+        """ Compose the error object json to be added in 'errors' in given operation's summary """
+        return {
+            "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
+            "details": errors_by_operation,
+            "message": "{0} error/s reported. The latest {1} error/s are shared in detail. To view all errors, review this log file on the machine: {2}".format(error_count_by_operation, len(errors_by_operation), self.__log_file_path)
+        }
     # endregion

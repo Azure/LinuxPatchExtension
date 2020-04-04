@@ -1,5 +1,6 @@
 import datetime
 import json
+import re
 
 from src.Constants import Constants
 
@@ -25,12 +26,19 @@ For the extension wrapper, the status structure is simply the following (no subs
 
 class ExtOutputStatusHandler(object):
     """ Responsible for managing <sequence number>.status file in the status folder path given in HandlerEnvironment.json """
-    def __init__(self, logger, json_file_handler):
+    def __init__(self, logger, json_file_handler, log_file_path):
         self.logger = logger
         self.json_file_handler = json_file_handler
+        self.__log_file_path = log_file_path
         self.file_ext = Constants.STATUS_FILE_EXTENSION
         self.file_keys = Constants.StatusFileFields
         self.status = Constants.Status
+
+        # Internal in-memory representation of Patch NoOperation data
+        self.__nooperation_errors = []
+        self.__nooperation_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
+
+        self.__current_operation = None
 
     def write_status_file(self, seq_no, dir_path, operation, substatus_json, status=Constants.Status.Transitioning.lower()):
         self.logger.log("Writing status file to provide patch management data for [Sequence={0}]".format(str(seq_no)))
@@ -60,7 +68,7 @@ class ExtOutputStatusHandler(object):
         return status_json
 
     def update_key_value_safely(self, status_json, key, value_to_update, parent_key=None):
-        if status_json is not None and len(status_json) is not 0:
+        if status_json != None and len(status_json) is not 0:
             if parent_key is None:
                 status_json[0].update({key: value_to_update})
             else:
@@ -106,7 +114,7 @@ class ExtOutputStatusHandler(object):
             "activityId": str(activity_id),
             "startTime": str(start_time),
             "lastModifiedTime": str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")),
-            "errors": ""  # TODO: Implement this to spec
+            "errors": self.__set_errors_json(self.__nooperation_total_error_count, self.__nooperation_errors)
         }
 
     def new_substatus_json_for_operation(self, operation_name, status="Transitioning", code=0, message=json.dumps("{}")):
@@ -121,3 +129,48 @@ class ExtOutputStatusHandler(object):
                 "message": str(message)
             }
         }
+
+    # region - Error objects
+    def set_current_operation(self, operation):
+        self.__current_operation = operation
+
+    def add_error_to_summary(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR):
+        """ Add error to the respective error objects """
+        if not message:
+            return
+
+        formatted_message = self.__ensure_error_message_restriction_compliance(message)
+        # Compose error detail
+        error_detail = {
+            "code": str(error_code),
+            "message": str(formatted_message)
+        }
+
+        if self.__current_operation == Constants.NOOPERATION:
+            self.__add_error(self.__nooperation_errors, error_detail)
+            self.__nooperation_total_error_count += 1
+        else:
+            return
+
+    def __ensure_error_message_restriction_compliance(self, full_message):
+        """ Removes line breaks, tabs and restricts message to a character limit """
+        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
+        formatted_message = re.sub(r"\s+", " ", str(full_message))
+        return formatted_message[:message_size_limit-3] + '...' if len(formatted_message) > message_size_limit else formatted_message
+
+    def __add_error(self, add_to, detail):
+        """ Add formatted error object to given errors list """
+        if len(add_to) >= Constants.STATUS_ERROR_LIMIT:
+            errors_to_remove = len(add_to) - Constants.STATUS_ERROR_LIMIT + 1
+            for x in range(0, errors_to_remove):
+                add_to.pop()
+        add_to.insert(0, detail)
+
+    def __set_errors_json(self, error_count_by_operation, errors_by_operation):
+        """ Compose the error object json to be added in 'errors' in given operation's summary """
+        return {
+            "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
+            "details": errors_by_operation,
+            "message": "{0} error/s reported. The latest {1} error/s are shared in detail. To view all errors, review this log file on the machine: {2}".format(error_count_by_operation, len(errors_by_operation), self.__log_file_path)
+        }
+    # endregion
