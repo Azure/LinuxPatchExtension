@@ -26,26 +26,43 @@ For the extension wrapper, the status structure is simply the following (no subs
 
 class ExtOutputStatusHandler(object):
     """ Responsible for managing <sequence number>.status file in the status folder path given in HandlerEnvironment.json """
-    def __init__(self, logger, json_file_handler, log_file_path):
+    def __init__(self, logger, utility, json_file_handler, log_file_path, seq_no, dir_path):
         self.logger = logger
+        self.utility = utility
         self.json_file_handler = json_file_handler
         self.__log_file_path = log_file_path
+        self.__seq_no = seq_no
+        self.__dir_path = dir_path
         self.file_ext = Constants.STATUS_FILE_EXTENSION
+        self.__file_name = str(self.__seq_no) + self.file_ext
         self.file_keys = Constants.StatusFileFields
         self.status = Constants.Status
 
         # Internal in-memory representation of Patch NoOperation data
+        self.__nooperation_substatus_json = None
+        self.__nooperation_summary_json = None
         self.__nooperation_errors = []
         self.__nooperation_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
 
         self.__current_operation = None
 
-    def write_status_file(self, seq_no, dir_path, operation, substatus_json, status=Constants.Status.Transitioning.lower()):
-        self.logger.log("Writing status file to provide patch management data for [Sequence={0}]".format(str(seq_no)))
-        file_name = str(seq_no) + self.file_ext
-        content = [{
-            self.file_keys.version: "1.0",
-            self.file_keys.timestamp_utc: str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")),
+        # Load the currently persisted status file into memory
+        self.read_file()
+
+    def write_status_file(self, operation, status=Constants.Status.Transitioning.lower()):
+        self.logger.log("Writing status file to provide patch management data for [Sequence={0}]".format(str(self.__seq_no)))
+
+        status_file_payload = self.__new_basic_status_json(operation, status)
+
+        if self.__nooperation_substatus_json is not None:
+            status_file_payload['status']['substatus'].append(self.__nooperation_substatus_json)
+
+        self.json_file_handler.write_to_json_file(self.__dir_path, self.__file_name, [status_file_payload])
+
+    def __new_basic_status_json(self, operation, status):
+        return {
+            self.file_keys.version: 1.0,
+            self.file_keys.timestamp_utc: str(self.utility.get_str_from_datetime(datetime.datetime.utcnow())),
             self.file_keys.status: {
                 self.file_keys.status_name: "Azure Patch Management",
                 self.file_keys.status_operation: str(operation),
@@ -55,16 +72,29 @@ class ExtOutputStatusHandler(object):
                     self.file_keys.status_formatted_message_lang: "en-US",
                     self.file_keys.status_formatted_message_message: ""
                 },
-                self.file_keys.status_substatus: substatus_json
+                self.file_keys.status_substatus: []
             }
-        }]
-        self.json_file_handler.write_to_json_file(dir_path, file_name, content)
+        }
 
-    def read_file(self, seq_no, dir_path):
-        file_name = str(seq_no) + self.file_ext
-        status_json = self.json_file_handler.get_json_file_content(file_name, dir_path)
+    def read_file(self):
+        self.__nooperation_substatus_json = None
+        self.__nooperation_summary_json = None
+        self.__nooperation_errors = []
+
+        status_json = self.json_file_handler.get_json_file_content(self.__file_name, self.__dir_path)
         if status_json is None:
             return None
+
+        for i in range(0, len(status_json[0]['status']['substatus'])):
+            name = status_json[0]['status']['substatus'][i]['name']
+            if name == Constants.PATCH_NOOPERATION_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
+                message = status_json[0]['status']['substatus'][i]['formattedMessage']['message']
+                self.__nooperation_summary_json = json.loads(message)
+                errors = self.__nooperation_summary_json['errors']
+                if errors is not None and errors['details'] is not None:
+                    self.__nooperation_errors = errors['details']
+                    self.__nooperation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
+
         return status_json
 
     def update_key_value_safely(self, status_json, key, value_to_update, parent_key=None):
@@ -82,7 +112,7 @@ class ExtOutputStatusHandler(object):
         try:
             file_name = str(seq_no) + self.file_ext
             self.logger.log("Updating file. [File={0}]".format(file_name))
-            status_json = self.read_file(str(seq_no), dir_path)
+            status_json = self.read_file()
 
             if status_json is None:
                 self.logger.log_error("Error processing file. [File={0}]".format(file_name))
@@ -96,16 +126,16 @@ class ExtOutputStatusHandler(object):
             self.logger.log_error(error_message)
             raise
 
-    def set_nooperation_substatus_json(self, seq_no, dir_path, operation, activity_id, start_time, status=Constants.Status.Transitioning, code=0):
+    def set_nooperation_substatus_json(self, operation, activity_id, start_time, status=Constants.Status.Transitioning, code=0):
         """ Prepare the nooperation substatus json including the message containing nooperation summary """
         # Wrap patches into nooperation summary
-        nooperation_summary_json = self.new_nooperation_summary_json(activity_id, start_time)
+        self.__nooperation_summary_json = self.new_nooperation_summary_json(activity_id, start_time)
 
         # Wrap nooperation summary into nooperation substatus
-        nooperation_substatus_json = self.new_substatus_json_for_operation(Constants.PATCH_NOOPERATION_SUMMARY, status, code, json.dumps(nooperation_summary_json))
+        self.__nooperation_substatus_json = self.new_substatus_json_for_operation(Constants.PATCH_NOOPERATION_SUMMARY, status, code, json.dumps(self.__nooperation_summary_json))
 
         # Update status on disk
-        self.write_status_file(seq_no, dir_path, operation, nooperation_substatus_json, status)
+        self.write_status_file(operation, status)
 
     def new_nooperation_summary_json(self, activity_id, start_time):
         """ This is the message inside the nooperation substatus """
@@ -133,6 +163,12 @@ class ExtOutputStatusHandler(object):
     # region - Error objects
     def set_current_operation(self, operation):
         self.__current_operation = operation
+
+    def __get_total_error_count_from_prev_status(self, error_message):
+        try:
+            return int(re.search('(.+?) error/s reported.', error_message).group(1))
+        except AttributeError:
+            return 0
 
     def add_error_to_summary(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR):
         """ Add error to the respective error objects """

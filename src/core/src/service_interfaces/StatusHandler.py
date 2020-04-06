@@ -155,9 +155,8 @@ class StatusHandler(object):
                 self.composite_logger.log_debug("Machine reboot status has changed to 'Required'.")
                 self.__installation_reboot_status = Constants.RebootStatus.REQUIRED
 
-    def set_reboot_pending(self, is_reboot_pending, log_message):
-        log_message = "Updating reboot pending status" if not log_message else log_message
-        log_message += " to: " + str(is_reboot_pending)
+    def set_reboot_pending(self, is_reboot_pending):
+        log_message = "Setting reboot pending status. [RebootPendingStatus={0}]".format(str(is_reboot_pending))
         self.composite_logger.log_debug(log_message)
         self.is_reboot_pending = is_reboot_pending
     # endregion
@@ -357,10 +356,9 @@ class StatusHandler(object):
                 self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
                 self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
                 errors = self.__installation_summary_json['errors']
-                print("before reading error")
                 if errors is not None and errors['details'] is not None:
                     self.__installation_errors = errors['details']
-                    self.__installation_total_error_count = len(self.__installation_errors)
+                    self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__assessment_summary_json = json.loads(message)
@@ -368,7 +366,7 @@ class StatusHandler(object):
                 errors = self.__assessment_summary_json['errors']
                 if errors is not None and errors['details'] is not None:
                     self.__assessment_errors = errors['details']
-                    self.__assessment_total_error_count = len(self.__assessment_errors)
+                    self.__assessment_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
     def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
@@ -399,7 +397,6 @@ class StatusHandler(object):
             status_file_payload['status']['substatus'].append(self.__assessment_substatus_json)
         if self.__installation_substatus_json is not None:
             status_file_payload['status']['substatus'].append(self.__installation_substatus_json)
-
         if os.path.isdir(self.status_file_path):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.status_file_path)
@@ -410,6 +407,12 @@ class StatusHandler(object):
     # region - Error objects
     def set_current_operation(self, operation):
         self.__current_operation = operation
+
+    def __get_total_error_count_from_prev_status(self, error_message):
+        try:
+            return int(re.search('(.+?) error/s reported.', error_message).group(1))
+        except AttributeError:
+            return 0
 
     def add_error_to_summary(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR):
         """ Add error to the respective error objects """

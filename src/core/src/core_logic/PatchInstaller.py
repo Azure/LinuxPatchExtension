@@ -43,7 +43,7 @@ class PatchInstaller(object):
 
         # Early reboot if reboot is allowed by settings and required by the machine
         reboot_pending = self.is_reboot_pending()
-        self.status_handler.set_reboot_pending(reboot_pending, "Updating reboot pending status at the start of install")
+        self.status_handler.set_reboot_pending(reboot_pending)
         if reboot_pending:
             if reboot_manager.is_setting(Constants.REBOOT_NEVER):
                 self.composite_logger.log_warning("/!\\ There was a pending reboot on the machine before any package installations started.\n" +
