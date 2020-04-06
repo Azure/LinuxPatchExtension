@@ -62,6 +62,7 @@ class AptitudePackageManager(PackageManager):
             self.telemetry_writer.send_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
             self.status_handler.add_error_to_summary(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            error_msg += " " + Constants.ERROR_ALREADY_REPORTED
             raise Exception(error_msg)
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log

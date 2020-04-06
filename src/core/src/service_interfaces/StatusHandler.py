@@ -412,11 +412,12 @@ class StatusHandler(object):
         try:
             return int(re.search('(.+?) error/s reported.', error_message).group(1))
         except AttributeError:
+            self.composite_logger.log("Unable to fetch error count from error message reported in status. Attempted to read [Message={0}]".format(error_message))
             return 0
 
     def add_error_to_summary(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR):
         """ Add error to the respective error objects """
-        if not message:
+        if not message or Constants.ERROR_ALREADY_REPORTED in message:
             return
 
         formatted_message = self.__ensure_error_message_restriction_compliance(message)
@@ -427,12 +428,12 @@ class StatusHandler(object):
         }
 
         if self.__current_operation == Constants.ASSESSMENT:
-            error_added = self.__check_for_duplicate_error_and_add(self.__assessment_errors, error_detail)
-            self.__assessment_total_error_count += 1 if error_added else self.__assessment_total_error_count
+            self.__add_error(self.__assessment_errors, error_detail)
+            self.__assessment_total_error_count += 1
             self.set_assessment_substatus_json()
         elif self.__current_operation == Constants.INSTALLATION:
-            error_added = self.__check_for_duplicate_error_and_add(self.__installation_errors, error_detail)
-            self.__installation_total_error_count += 1 if error_added else self.__installation_total_error_count
+            self.__add_error(self.__installation_errors, error_detail)
+            self.__installation_total_error_count += 1
             self.set_installation_substatus_json()
         else:
             return
@@ -443,27 +444,21 @@ class StatusHandler(object):
         formatted_message = re.sub(r"\s+", " ", str(full_message))
         return formatted_message[:message_size_limit-3] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
-    def __check_for_duplicate_error_and_add(self, add_to, detail):
+    def __add_error(self, add_to, detail):
         """ Add formatted error object to given errors list """
-
-        # check for duplicate error_message. Determines duplicate based on previously added error
-        if len(add_to) > 0:
-            if add_to[0]['message'] == detail['message'] and add_to[0]['code'] == detail['code']:
-                return False
-
-        # Add error to list if it's wasn't added before
         if len(add_to) >= Constants.STATUS_ERROR_LIMIT:
             errors_to_remove = len(add_to) - Constants.STATUS_ERROR_LIMIT + 1
             for x in range(0, errors_to_remove):
                 add_to.pop()
         add_to.insert(0, detail)
-        return True
 
     def __set_errors_json(self, error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
+        message = "{0} error/s reported.".format(error_count_by_operation)
+        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
         return {
             "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
             "details": errors_by_operation,
-            "message": "{0} error/s reported. The latest {1} error/s are shared in detail. To view all errors, review this log file on the machine: {2}".format(error_count_by_operation, len(errors_by_operation), self.__log_file_path)
+            "message": message
         }
     # endregion

@@ -132,6 +132,8 @@ class Constants(object):
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         DEFAULT_ERROR = "ERROR"  # default error code
 
+    ERROR_ALREADY_REPORTED = "Error_Already_Reported"
+
     # Telemetry Categories
     TELEMETRY_OPERATION_STATE = "State"
     TELEMETRY_CONFIG = "Config"

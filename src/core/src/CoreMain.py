@@ -51,8 +51,9 @@ class CoreMain(object):
                 raise
 
             # General handling
-            composite_logger.log_error('\nEXCEPTION during patch operation: ' + repr(error))
-            composite_logger.log_error('TO TROUBLESHOOT, please save this file before the next invocation: ' + bootstrapper.log_file_path)
+            if Constants.ERROR_ALREADY_REPORTED in repr(error):
+                composite_logger.log_error('\nEXCEPTION during patch operation: ' + repr(error))
+                composite_logger.log_error('TO TROUBLESHOOT, please save this file before the next invocation: ' + bootstrapper.log_file_path)
 
             composite_logger.log_debug("Safely completing required operations after exception...")
             if telemetry_writer is not None:

@@ -91,7 +91,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         self.assertTrue(ext_status_handler.add_error_to_summary(None) == None)
 
         ext_status_handler.add_error_to_summary("Adding test exception", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        ext_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, "", self.status.Success.lower())
+        ext_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, "", "", self.status.Success.lower())
         updated_status_json = ext_status_handler.read_file()
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
         self.assertNotEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"], None)
@@ -104,7 +104,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         ext_status_handler.add_error_to_summary("exception4", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_status_handler.add_error_to_summary("exception5", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_status_handler.add_error_to_summary("exception6", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        ext_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, "", self.status.Success.lower())
+        ext_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, "", "", self.status.Success.lower())
         updated_status_json = ext_status_handler.read_file()
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
         self.assertNotEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"], None)
