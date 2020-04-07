@@ -65,7 +65,7 @@ class PatchInstaller(object):
 
             if package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # We should not see this again
                 error_msg = "Unexpected repeated package manager update occurred. Please re-run the update deployment."
-                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
                 error_msg += " [{0}]".format(Constants.ERROR_ADDED_TO_STATUS)
                 raise Exception(error_msg)
 
@@ -135,7 +135,7 @@ class PatchInstaller(object):
             if maintenance_window.is_package_install_time_available(remaining_time) is False:
                 error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
                 self.composite_logger.log_error("\n" + error_msg)
-                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                 maintenance_window_exceeded = True
                 self.status_handler.set_maintenance_window_exceeded(True)
                 break
