@@ -35,7 +35,9 @@ class RebootManager(object):
         try:
             reboot_setting = Constants.REBOOT_SETTINGS[reboot_setting_key]
         except KeyError:
-            self.composite_logger.log_error('Invalid reboot setting detected in update configuration: ' + str(reboot_setting_key))
+            error_msg = 'Invalid reboot setting detected in update configuration: ' + str(reboot_setting_key)
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             self.composite_logger.log_warning('Defaulting reboot setting to: ' + str(default_reboot_setting))
         finally:
             return reboot_setting
@@ -60,7 +62,10 @@ class RebootManager(object):
             elapsed_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(current_time - reboot_init_time)
             if elapsed_time_in_minutes >= max_allowable_time_to_reboot_in_minutes:
                 self.status_handler.set_installation_reboot_status(Constants.RebootStatus.FAILED)
-                raise Exception("Reboot failed to proceed on the machine in a timely manner.")
+                error_msg = "Reboot failed to proceed on the machine in a timely manner."
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+                error_msg += " [{0}]".format(Constants.ERROR_ADDED_TO_STATUS)
+                raise Exception(error_msg)
             else:
                 self.composite_logger.log_debug("Waiting for machine reboot. [ElapsedTimeInMinutes={0}] [MaxTimeInMinutes={1}]".format(str(elapsed_time_in_minutes), str(max_allowable_time_to_reboot_in_minutes)))
                 time.sleep(60)

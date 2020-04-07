@@ -5,7 +5,6 @@ import tempfile
 import time
 import unittest
 from datetime import datetime
-from os import path
 from unittest import mock
 from src.Constants import Constants
 from src.RuntimeContextHandler import RuntimeContextHandler
@@ -27,7 +26,7 @@ class TestEnableCommandHandler(unittest.TestCase):
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         # create tempdir which will have all the required files
-        self.dir_path = tempfile.mkdtemp()
+        self.temp_dir = tempfile.mkdtemp()
 
         self.logger = Logger()
         self.utility = Utility(self.logger)
@@ -38,7 +37,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, self.config_folder)
         self.core_state_handler = CoreStateHandler(self.config_folder, self.json_file_handler)
         self.ext_state_handler = ExtStateHandler(self.config_folder, self.utility, self.json_file_handler)
-        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, "test.log", 1234, self.dir_path)
+        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, "test.log", 1234, self.temp_dir)
         self.process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         self.enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 1234)
         self.constants = Constants
@@ -46,13 +45,13 @@ class TestEnableCommandHandler(unittest.TestCase):
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         # delete tempdir
-        shutil.rmtree(self.dir_path)
+        shutil.rmtree(self.temp_dir)
 
     @mock.patch('tests.TestEnableCommandHandler.ProcessHandler.start_daemon', autospec=True, return_value=None)
     @mock.patch('builtins.exit', autospec=True, return_value=None)
     @mock.patch('src.file_handlers.JsonFileHandler.time.sleep', autospec=True)
     def test_enable_command_first_request(self, start_daemon_result, exit_return, time_sleep):
-        config_file_path, config_folder_path = self.setup_for_enable_handler(self.dir_path)
+        config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)
         self.enable_command_handler.execute_handler_action()
         self.assertTrue(os.path.exists(config_file_path))
         self.assertTrue(os.path.exists(os.path.join(config_folder_path, self.constants.EXT_STATE_FILE)))
@@ -65,7 +64,7 @@ class TestEnableCommandHandler(unittest.TestCase):
     @mock.patch('tests.TestEnableCommandHandler.RuntimeContextHandler.check_if_patch_completes_in_time', autospec=True, return_value=False)
     @mock.patch('src.file_handlers.JsonFileHandler.time.sleep', autospec=True)
     def test_process_reenable_when_previous_req_complete(self, start_daemon_result, exit_return, wait_prev_ops_return, time_sleep):
-        config_file_path, config_folder_path = self.setup_for_enable_handler(self.dir_path)
+        config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)
         shutil.copy(os.path.join("helpers", self.constants.EXT_STATE_FILE), config_folder_path)
         shutil.copy(os.path.join("helpers", self.constants.CORE_STATE_FILE), config_folder_path)
         prev_ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
@@ -82,7 +81,7 @@ class TestEnableCommandHandler(unittest.TestCase):
     @mock.patch('src.file_handlers.JsonFileHandler.time.sleep', autospec=True)
     def test_process_enable_request(self, start_daemon_result, exit_return, wait_prev_ops_return, time_sleep):
         # setup to mock environment when enable is triggered with a different sequence number than the prev operation
-        config_file_path, config_folder_path = self.setup_for_enable_handler(self.dir_path)
+        config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)
         new_settings_file = self.create_helpers_for_enable_request(config_folder_path)
 
         prev_ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
@@ -97,7 +96,7 @@ class TestEnableCommandHandler(unittest.TestCase):
     @mock.patch('src.file_handlers.JsonFileHandler.time.sleep', autospec=True)
     def test_process_nooperation_enable_request(self, exit_return, time_sleep):
         # setup to mock environment when enable is triggered with a nooperation request
-        config_file_path, config_folder_path = self.setup_for_enable_handler(self.dir_path)
+        config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)
         new_settings_file = self.create_helpers_for_enable_request(config_folder_path)
 
         # update operation to 'NoOperation' since it is set to Assessment in the original helper file

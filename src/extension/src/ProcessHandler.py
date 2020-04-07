@@ -88,5 +88,7 @@ class ProcessHandler(object):
                 os.kill(pid, signal.SIGTERM)
         except OSError as error:
             self.logger.log_error("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)))
-            self.ext_output_status_handler.add_error_to_summary("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.ext_output_status_handler.add_error_to_status("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
+                error.args = (error.args, Constants.ERROR_ADDED_TO_STATUS)
             raise

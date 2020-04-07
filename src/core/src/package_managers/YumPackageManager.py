@@ -53,8 +53,10 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.telemetry_writer.send_execution_error(command, code, out)
-            self.status_handler.add_error_to_summary('Unexpected return code (' + str(code) + ') from package manager on command: ' + command, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception('Unexpected return code (' + str(code) + ') from package manager on command: ' + command)
+            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            error_msg += " [{0}]".format(Constants.ERROR_ADDED_TO_STATUS)
+            raise Exception(error_msg)
             # more return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
@@ -101,7 +103,8 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_error("Please review patch management documentation for information on classification-based patching on YUM.")
             error_msg = "Classification-based patching is only supported on YUM if the computer is independently configured to receive classification information." \
                         "Please remove classifications from update deployments to CentOS machines to bypass this error."
-            self.status_handler.add_error_to_summary(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            error_msg += " [{0}]".format(Constants.ERROR_ADDED_TO_STATUS)
             raise Exception(error_msg)
 
         for index, package in enumerate(all_packages):

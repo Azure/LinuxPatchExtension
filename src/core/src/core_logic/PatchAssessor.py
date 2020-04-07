@@ -42,11 +42,13 @@ class PatchAssessor(object):
             except Exception as error:
                 if i <= Constants.MAX_ASSESSMENT_RETRY_COUNT:
                     self.composite_logger.log_warning('Retryable error retrieving available patches: ' + repr(error))
-                    self.status_handler.add_error_to_summary('Retryable error retrieving available patches: ' + repr(error), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+                    self.status_handler.add_error_to_status('Retryable error retrieving available patches: ' + repr(error), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                     time.sleep(2*(i + 1))
                 else:
                     self.composite_logger.log_error('Error retrieving available patches: ' + repr(error))
-                    self.status_handler.add_error_to_summary('Error retrieving available patches: ' + repr(error), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+                    self.status_handler.add_error_to_status('Error retrieving available patches: ' + repr(error), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+                    if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
+                        error.args = (error.args, Constants.ERROR_ADDED_TO_STATUS)
                     self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
                     raise
 

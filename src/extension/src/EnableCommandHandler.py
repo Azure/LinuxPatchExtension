@@ -99,8 +99,12 @@ class EnableCommandHandler(object):
             self.logger.log("exiting extension handler")
             exit(Constants.ExitCode.Okay)
         except Exception as error:
-            self.logger.log("Error executing NoOperation: " + repr(error))
-            self.ext_output_status_handler.add_error_to_summary("Error executing NoOperation: " + repr(error), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            error_msg = "Error executing NoOperation: " + repr(error)
+            self.logger.log(error_msg)
+            if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
+                self.ext_output_status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            else:
+                self.ext_output_status_handler.add_error_to_status("Error executing NoOperation due to last reported error.", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, status=Constants.Status.Error)
 
 

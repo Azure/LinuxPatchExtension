@@ -415,9 +415,9 @@ class StatusHandler(object):
             self.composite_logger.log("Unable to fetch error count from error message reported in status. Attempted to read [Message={0}]".format(error_message))
             return 0
 
-    def add_error_to_summary(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR):
+    def add_error_to_status(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR):
         """ Add error to the respective error objects """
-        if not message or Constants.ERROR_ALREADY_REPORTED in message:
+        if not message or Constants.ERROR_ADDED_TO_STATUS in message:
             return
 
         formatted_message = self.__ensure_error_message_restriction_compliance(message)
