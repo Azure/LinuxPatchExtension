@@ -76,7 +76,7 @@ class EnableCommandHandler(object):
         """ Creates <sequence number>.status to report the current request's status and launches core code to handle the requested operation """
         # create Status file
         if create_status_output_file:
-            self.ext_output_status_handler.write_status_file(self.seq_no, self.ext_env_handler.status_folder, config_settings.__getattribute__(self.config_public_settings.operation), substatus_json=[], status=self.status.Transitioning.lower())
+            self.ext_output_status_handler.write_status_file(config_settings.__getattribute__(self.config_public_settings.operation), status=self.status.Transitioning.lower())
         else:
             self.ext_output_status_handler.update_file(self.seq_no, self.ext_env_handler.status_folder)
         # launch core code in a process and exit extension handler
@@ -91,16 +91,20 @@ class EnableCommandHandler(object):
         operation = config_settings.__getattribute__(self.config_public_settings.operation)
         start_time = config_settings.__getattribute__(self.config_public_settings.start_time)
         try:
-            self.ext_output_status_handler.set_nooperation_substatus_json(self.seq_no, self.ext_env_handler.status_folder, operation, activity_id, start_time, status=Constants.Status.Transitioning)
+            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, status=Constants.Status.Transitioning)
             self.runtime_context_handler.terminate_processes_from_previous_operation(self.process_handler, core_state_content)
             self.utility.delete_file(self.core_state_handler.dir_path, self.core_state_handler.file, raise_if_not_found=False)
             # ToDo: log prev activity id later
-            self.ext_output_status_handler.set_nooperation_substatus_json(self.seq_no, self.ext_env_handler.status_folder, operation, activity_id, start_time, status=Constants.Status.Success)
+            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, status=Constants.Status.Success)
             self.logger.log("exiting extension handler")
             exit(Constants.ExitCode.Okay)
         except Exception as error:
-            self.logger.log("Error executing NoOperation: " + repr(error))
-            self.ext_output_status_handler.add_error_to_summary("Error executing NoOperation: " + repr(error), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            self.ext_output_status_handler.set_nooperation_substatus_json(self.seq_no, self.ext_env_handler.status_folder, operation, activity_id, start_time, status=Constants.Status.Error)
+            error_msg = "Error executing NoOperation: " + repr(error)
+            self.logger.log(error_msg)
+            if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
+                self.ext_output_status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            else:
+                self.ext_output_status_handler.add_error_to_status("Error executing NoOperation due to last reported error.", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, status=Constants.Status.Error)
 
 

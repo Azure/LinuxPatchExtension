@@ -19,7 +19,9 @@ class TestProcessHandler(unittest.TestCase):
         self.logger = Logger()
         self.utility = Utility(self.logger)
         self.json_file_handler = JsonFileHandler(self.logger)
-        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.json_file_handler, "test.log")
+        seq_no = 1234
+        dir_path = os.path.join(os.path.pardir, "tests", "helpers")
+        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, "test.log", seq_no, dir_path)
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")

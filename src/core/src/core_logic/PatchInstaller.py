@@ -43,7 +43,7 @@ class PatchInstaller(object):
 
         # Early reboot if reboot is allowed by settings and required by the machine
         reboot_pending = self.is_reboot_pending()
-        self.status_handler.set_reboot_pending(reboot_pending, "Updating reboot pending status at the start of install")
+        self.status_handler.set_reboot_pending(reboot_pending)
         if reboot_pending:
             if reboot_manager.is_setting(Constants.REBOOT_NEVER):
                 self.composite_logger.log_warning("/!\\ There was a pending reboot on the machine before any package installations started.\n" +
@@ -64,7 +64,9 @@ class PatchInstaller(object):
             installed_update_count += new_installed_update_count
 
             if package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # We should not see this again
-                raise Exception("Unexpected repeated package manager update occurred. Please re-run the update deployment.")
+                error_msg = "Unexpected repeated package manager update occurred. Please re-run the update deployment."
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         self.composite_logger.log("\nInstalled update count: " + str(installed_update_count) + " (including dependencies)")
 
@@ -130,7 +132,9 @@ class PatchInstaller(object):
             # maintenance window check
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
             if maintenance_window.is_package_install_time_available(remaining_time) is False:
-                self.composite_logger.log_error("\nStopped patch installation as it is past the maintenance window cutoff time.")
+                error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
+                self.composite_logger.log_error("\n" + error_msg)
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                 maintenance_window_exceeded = True
                 self.status_handler.set_maintenance_window_exceeded(True)
                 break
@@ -220,7 +224,7 @@ class PatchInstaller(object):
         message = "\n\nOperation status was marked as failed because: "
         message += "[X] a failure occurred during the operation  " if not patch_installation_successful else ""
         message += "[X] maintenance window exceeded " if maintenance_window_exceeded else ""
-        self.status_handler.add_error_to_summary(message, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+        self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
         self.composite_logger.log_error(message)
 
         return installed_update_count, patch_installation_successful, maintenance_window_exceeded

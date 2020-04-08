@@ -65,6 +65,12 @@ class CoreMain(object):
                 if not patch_assessment_successful:
                     status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
                     composite_logger.log_debug('  -- Persisted failed assessment substatus.')
+
+                if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
+                    status_handler.add_error_to_status("Terminal exception {0}".format(repr(error)), Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+                else:
+                    status_handler.add_error_to_status("Execution terminated due to last reported error.", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+
             else:
                 composite_logger.log_error(' - Status handler is not initialized, and status data cannot be written.')
             composite_logger.log_debug("Completed exception handling.\n")

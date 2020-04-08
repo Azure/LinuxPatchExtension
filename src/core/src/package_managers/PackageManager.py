@@ -1,5 +1,4 @@
 """The is base package manager, which defines the package management relevant operations"""
-import os
 from abc import ABCMeta, abstractmethod
 from src.bootstrap.Constants import Constants
 import time
@@ -55,8 +54,8 @@ class PackageManager(object):
         if package_filter.is_invalid_classification_combination():
             error_msg = "Invalid classification combination selection detected. Please edit the update deployment configuration, " \
                             "unselect + reselect the desired classifications and save."
-            self.status_handler.add_error_to_summary(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         if package_filter.is_msft_critsec_classification_only():
             return self.get_security_updates()
@@ -291,7 +290,9 @@ class PackageManager(object):
         elif default_value != 'd5414abb-62f9-40e3-96e1-d579f85a79ba':  # this is the way it is because of a limitation of the packager script - the guid could have been Constants.DEFAULT_UNSPECIFIED_VALUE
             return default_value
         else:
-            raise Exception("Setting key [" + setting_key + "] does not exist in package manager settings.")
+            error_msg = "Setting key [" + setting_key + "] does not exist in package manager settings."
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
     def set_package_manager_setting(self, setting_key, setting_value=""):
         # type: (str, object) -> ""  # type hinting to remove a warning

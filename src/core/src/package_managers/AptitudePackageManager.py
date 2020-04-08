@@ -53,16 +53,16 @@ class AptitudePackageManager(PackageManager):
                                             'sudo dpkg --configure -a')
             self.telemetry_writer.send_execution_error(command, code, out)
             error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
-            self.status_handler.add_error_to_summary(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.telemetry_writer.send_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-            self.status_handler.add_error_to_summary(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
@@ -80,8 +80,8 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_warning(" - Return code from apt-cache: " + str(code))
             self.composite_logger.log_warning(" - Output from apt-cache: \n|\t" + "\n|\t".join(out.splitlines()))
             error_msg = 'Unexpected return code (' + str(code) + ') from apt-cache on command: ' + command
-            self.status_handler.add_error_to_summary(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")

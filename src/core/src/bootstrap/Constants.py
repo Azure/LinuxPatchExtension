@@ -130,7 +130,10 @@ class Constants(object):
     class PatchOperationErrorCodes(EnumBackport):
         # todo: finalize these error codes
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
+        OPERATION_FAILED = "OPERATION_FAILED"
         DEFAULT_ERROR = "ERROR"  # default error code
+
+    ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
     # Telemetry Categories
     TELEMETRY_OPERATION_STATE = "State"

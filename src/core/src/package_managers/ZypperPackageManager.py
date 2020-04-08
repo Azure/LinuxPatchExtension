@@ -50,8 +50,8 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.telemetry_writer.send_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-            self.status_handler.add_error_to_summary(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:  # verbose diagnostic log
             self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
