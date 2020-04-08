@@ -50,7 +50,7 @@ class PatchAssessor(object):
                     self.composite_logger.log_error(error_msg)
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                     if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
-                        error.args = (error.args, Constants.ERROR_ADDED_TO_STATUS)
+                        error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
                     self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
                     raise
 

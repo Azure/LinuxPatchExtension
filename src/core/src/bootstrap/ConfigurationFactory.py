@@ -174,7 +174,7 @@ class ConfigurationFactory(object):
             },
             'maintenance_window': {
                 'component': MaintenanceWindow,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'status_handler'],
                 'component_kwargs': {}
             }
         }

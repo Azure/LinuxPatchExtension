@@ -55,8 +55,7 @@ class PackageManager(object):
             error_msg = "Invalid classification combination selection detected. Please edit the update deployment configuration, " \
                             "unselect + reselect the desired classifications and save."
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            error_msg += " [{0}]".format(Constants.ERROR_ADDED_TO_STATUS)
-            raise Exception(error_msg)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         if package_filter.is_msft_critsec_classification_only():
             return self.get_security_updates()
@@ -293,8 +292,7 @@ class PackageManager(object):
         else:
             error_msg = "Setting key [" + setting_key + "] does not exist in package manager settings."
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            error_msg += " [{0}]".format(Constants.ERROR_ADDED_TO_STATUS)
-            raise Exception(error_msg)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
     def set_package_manager_setting(self, setting_key, setting_value=""):
         # type: (str, object) -> ""  # type hinting to remove a warning

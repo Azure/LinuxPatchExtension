@@ -18,21 +18,25 @@ class CompositeLogger(object):
     @staticmethod
     def log(message):
         """log output"""
+        message = CompositeLogger.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
             print(line)
 
     def log_error(self, message):
         """log errors"""
+        message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = self.ERROR + (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         self.log(message)
 
     def log_warning(self, message):
         """log warning"""
+        message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = self.WARNING + (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         self.log(message)
 
     def log_debug(self, message):
         """log debug"""
+        message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = message.strip()
         if self.current_env in (Constants.DEV, Constants.TEST):
             self.log(self.current_env + ": " + message)  # send to standard output if dev or test env
@@ -41,5 +45,14 @@ class CompositeLogger(object):
 
     def log_verbose(self, message):
         """log verbose"""
+        message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         if self.file_logger is not None:
             self.file_logger.write("\n\t" + self.VERBOSE + " " + "\n\t".join(message.strip().splitlines()).strip())
+
+    @staticmethod
+    def __remove_substring_from_message(message, substring=Constants.ERROR_ADDED_TO_STATUS):
+        """Remove substring from a string"""
+        if substring in message:
+            message = message.replace("[{0}]".format(Constants.ERROR_ADDED_TO_STATUS), "")
+        return message
+

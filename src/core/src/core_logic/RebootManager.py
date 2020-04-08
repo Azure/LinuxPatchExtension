@@ -64,8 +64,7 @@ class RebootManager(object):
                 self.status_handler.set_installation_reboot_status(Constants.RebootStatus.FAILED)
                 error_msg = "Reboot failed to proceed on the machine in a timely manner."
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-                error_msg += " [{0}]".format(Constants.ERROR_ADDED_TO_STATUS)
-                raise Exception(error_msg)
+                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             else:
                 self.composite_logger.log_debug("Waiting for machine reboot. [ElapsedTimeInMinutes={0}] [MaxTimeInMinutes={1}]".format(str(elapsed_time_in_minutes), str(max_allowable_time_to_reboot_in_minutes)))
                 time.sleep(60)

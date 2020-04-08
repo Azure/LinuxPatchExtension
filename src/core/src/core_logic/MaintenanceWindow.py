@@ -7,12 +7,13 @@ from src.bootstrap.Constants import Constants
 class MaintenanceWindow(object):
     """Implements the maintenance window logic"""
 
-    def __init__(self, env_layer, execution_config, composite_logger):
+    def __init__(self, env_layer, execution_config, composite_logger, status_handler):
         self.execution_config = execution_config
         self.duration = self.execution_config.duration
         self.start_time = self.execution_config.start_time
         self.composite_logger = composite_logger
         self.env_layer = env_layer
+        self.status_handler = status_handler
 
     def get_remaining_time_in_minutes(self, current_time=None, log_to_stdout=False):
         """Calculate time remaining base on the given job start time"""
@@ -32,8 +33,12 @@ class MaintenanceWindow(object):
                 self.composite_logger.log(log_line)
             else:
                 self.composite_logger.log_debug(log_line)
-        except ValueError:
-            self.composite_logger.log_error("\nError calculating time remaining. Check patch operation input parameters.")
+        except ValueError as error:
+            error_msg = "Error calculating time remaining. Check patch operation input parameters."
+            self.composite_logger.log_error("\n" + error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
+                error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             raise
 
         return remaining_time_in_minutes

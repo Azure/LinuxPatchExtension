@@ -55,8 +55,7 @@ class YumPackageManager(PackageManager):
             self.telemetry_writer.send_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            error_msg += " [{0}]".format(Constants.ERROR_ADDED_TO_STATUS)
-            raise Exception(error_msg)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
@@ -104,8 +103,7 @@ class YumPackageManager(PackageManager):
             error_msg = "Classification-based patching is only supported on YUM if the computer is independently configured to receive classification information." \
                         "Please remove classifications from update deployments to CentOS machines to bypass this error."
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            error_msg += " [{0}]".format(Constants.ERROR_ADDED_TO_STATUS)
-            raise Exception(error_msg)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         for index, package in enumerate(all_packages):
             if package not in security_packages:
