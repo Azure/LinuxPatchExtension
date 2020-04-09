@@ -90,7 +90,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertEqual(package_versions[6], '3.10.0-862.11.6.el7')
 
         # test for get_dependent_list
-        # test_type ='Happy Path'
+        # legacy_test_type ='HappyPath'
         dependent_list = package_manager.get_dependent_list("selinux-policy.noarch")
         self.assertIsNotNone(dependent_list)
         self.assertEqual(len(dependent_list), 1)
@@ -130,7 +130,8 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for get_available_updates
-        # test_type ='Exception Path'
+        # legacy_test_type ='ExceptionPath'
+        self.runtime.set_legacy_test_type('ExceptionPath')
         try:
             package_manager.get_available_updates(package_filter)
         except Exception as exception:
@@ -139,7 +140,8 @@ class TestYumPackageManager(unittest.TestCase):
             self.assertFalse(1 != 2, 'Exception did not occur and test failed.')
 
         # test for get_dependent_list
-        # test_type ='Exception Path'
+        # legacy_test_type ='ExceptionPath'
+        self.runtime.set_legacy_test_type('ExceptionPath')
         try:
             package_manager.get_dependent_list("man")
         except Exception as exception:
@@ -266,7 +268,7 @@ class TestYumPackageManager(unittest.TestCase):
         argument_composer.patches_to_include = ["ssh", "tar*"]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
         self.container = self.runtime.container
-        
+
         package_filter = self.container.get('package_filter')
         self.assertIsNotNone(package_filter)
 
