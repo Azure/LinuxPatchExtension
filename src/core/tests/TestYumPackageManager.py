@@ -6,15 +6,388 @@ from tests.library.RuntimeCompositor import RuntimeCompositor
 
 class TestYumPackageManager(unittest.TestCase):
     def setUp(self):
-        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), Constants.YUM, True)
         self.container = self.runtime.container
 
     def tearDown(self):
         self.runtime.stop()
 
-    def test_something(self):
-        self.assertEqual(True, True)
+    def test_package_manager_no_updates(self):
+        """Unit test for yum package manager with no updates"""
+        # Path change
+        self.runtime.set_legacy_test_type('SadPath')
 
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertEqual(len(available_updates), 0)
+        self.assertEqual(len(package_versions), 0)
+
+    def test_package_manager_unaligned_updates(self):
+        """Unit test for yum package manager with multi-line updates"""
+        # Path change
+        self.runtime.set_legacy_test_type('UnalignedPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertEqual(len(available_updates), 6)
+        self.assertEqual(len(package_versions), 6)
+
+    def test_do_processes_require_restart(self):
+        """Unit test for yum package manager"""
+        self.runtime.set_legacy_test_type('HappyPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+
+        self.assertTrue(package_manager.do_processes_require_restart())
+
+    def test_package_manager(self):
+        """Unit test for yum package manager"""
+        self.runtime.set_legacy_test_type('HappyPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for get_available_updates
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
+        self.assertEqual(len(available_updates), 5)
+        self.assertEqual(len(package_versions), 5)
+        self.assertEqual(available_updates[0], "selinux-policy.noarch")
+        self.assertEqual(available_updates[1], "selinux-policy-targeted.noarch")
+        self.assertEqual(package_versions[0], "3.13.1-102.el7_3.16")
+        self.assertEqual(package_versions[1], "3.13.1-102.el7_3.16")
+
+        # test for get_package_size
+        cmd = package_manager.single_package_upgrade_cmd + "sudo"
+        code, out = self.runtime.env_layer.run_command_output(cmd, False, False)
+        size = package_manager.get_package_size(out)
+        self.assertEqual(size, "735 k")
+
+        telemetry_writer = self.container.get('telemetry_writer')
+        telemetry_writer.close_transports()
+
+        # test for all available versions
+        package_versions = package_manager.get_all_available_versions_of_package("kernel")
+        self.assertEqual(len(package_versions), 7)
+        self.assertEqual(package_versions[0], '3.10.0-862.el7')
+        self.assertEqual(package_versions[1], '3.10.0-862.2.3.el7')
+        self.assertEqual(package_versions[2], '3.10.0-862.3.2.el7')
+        self.assertEqual(package_versions[3], '3.10.0-862.3.3.el7')
+        self.assertEqual(package_versions[4], '3.10.0-862.6.3.el7')
+        self.assertEqual(package_versions[5], '3.10.0-862.9.1.el7')
+        self.assertEqual(package_versions[6], '3.10.0-862.11.6.el7')
+
+        # test for get_dependent_list
+        # test_type ='Happy Path'
+        dependent_list = package_manager.get_dependent_list("selinux-policy.noarch")
+        self.assertIsNotNone(dependent_list)
+        self.assertEqual(len(dependent_list), 1)
+        self.assertEqual(dependent_list[0], "selinux-policy-targeted.noarch")
+
+        # test for get_dependent_list with 'install' instead of update
+        dependent_list = package_manager.get_dependent_list("kmod-kvdo.x86_64")
+        self.assertIsNotNone(dependent_list)
+        self.assertEqual(len(dependent_list), 1)
+        self.assertEqual(dependent_list[0], "kernel.x86_64")
+
+        # test for epoch removal
+        self.assertEqual(package_manager.get_package_version_without_epoch('2.02.177-4.el7'), '2.02.177-4.el7')
+        self.assertEqual(package_manager.get_package_version_without_epoch('7:2.02.177-4.el7'), '2.02.177-4.el7')
+        self.assertEqual(package_manager.get_package_version_without_epoch('7:2.02.177-4.el7_5:56'), '2.02.177-4.el7_5:56')
+        self.assertEqual(package_manager.get_package_version_without_epoch(''), '')
+
+        # test install cmd
+        packages = ['kernel.x86_64', 'selinux-policy-targeted.noarch']
+        package_versions = ['2.02.177-4.el7', '3.10.0-862.el7']
+        cmd = package_manager.get_install_command('sudo yum -y install ', packages, package_versions)
+        self.assertEqual(cmd, 'sudo yum -y install kernel-2.02.177-4.el7.x86_64 selinux-policy-targeted-3.10.0-862.el7.noarch')
+        packages = ['kernel.x86_64']
+        package_versions = ['2.02.177-4.el7']
+        cmd = package_manager.get_install_command('sudo yum -y install ', packages, package_versions)
+        self.assertEqual(cmd, 'sudo yum -y install kernel-2.02.177-4.el7.x86_64')
+        packages = ['kernel.x86_64', 'kernel.i686']
+        package_versions = ['2.02.177-4.el7', '2.02.177-4.el7']
+        cmd = package_manager.get_install_command('sudo yum -y install ', packages, package_versions)
+        self.assertEqual(cmd, 'sudo yum -y install kernel-2.02.177-4.el7.x86_64 kernel-2.02.177-4.el7.i686')
+
+        self.runtime.set_legacy_test_type('ExceptionPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for get_available_updates
+        # test_type ='Exception Path'
+        try:
+            package_manager.get_available_updates(package_filter)
+        except Exception as exception:
+            self.assertTrue(str(exception))
+        else:
+            self.assertFalse(1 != 2, 'Exception did not occur and test failed.')
+
+        # test for get_dependent_list
+        # test_type ='Exception Path'
+        try:
+            package_manager.get_dependent_list("man")
+        except Exception as exception:
+            self.assertTrue(str(exception))
+        else:
+            self.assertFalse(1 != 2, 'Exception did not occur and test failed.')
+
+    def test_install_package_success(self):
+        """Unit test for install package success"""
+        self.runtime.set_legacy_test_type('HappyPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for successfully installing a package
+        self.assertEquals(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
+
+    def test_install_package_failure(self):
+        """Unit test for install package failure"""
+        self.runtime.set_legacy_test_type('FailInstallPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for unsuccessfully installing a package
+        self.assertEquals(package_manager.install_update_and_dependencies('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+
+    def test_install_package_obsoleted(self):
+        """Unit test for install package failure"""
+        self.runtime.set_legacy_test_type('FailInstallPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for unsuccessfully installing a package
+        self.assertEquals(package_manager.install_update_and_dependencies('rdma.noarch', '7.3_4.7_rc2-6.el7_3', simulate=True), Constants.INSTALLED)
+
+    def test_install_package_replaced(self):
+        """Unit test for install package failure"""
+        self.runtime.set_legacy_test_type('FailInstallPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for unsuccessfully installing a package
+        self.assertEquals(package_manager.install_update_and_dependencies('python-rhsm.x86_64', '1.19.10-1.el7_4', simulate=True), Constants.INSTALLED)
+
+    def test_get_product_name(self):
+        """Unit test for retrieving product Name"""
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+        print(package_manager.get_product_name("bash.x86_64"))
+        self.assertEqual(package_manager.get_product_name("bash.x86_64"), "bash.x86_64")
+        self.assertEqual(package_manager.get_product_name("firefox.x86_64"), "firefox.x86_64")
+        self.assertEqual(package_manager.get_product_name("test.noarch"), "test.noarch")
+        self.assertEqual(package_manager.get_product_name("noextension"), "noextension")
+        self.assertEqual(package_manager.get_product_name("noextension.ext"), "noextension.ext")
+
+    def test_get_product_name_without_arch(self):
+        """Unit test for retrieving product Name"""
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+        print(package_manager.get_product_name("bash.x86_64"))
+        self.assertEqual(package_manager.get_product_name_without_arch("bash.x86_64"), "bash")
+        self.assertEqual(package_manager.get_product_name_without_arch("firefox.x86_64"), "firefox")
+        self.assertEqual(package_manager.get_product_name_without_arch("test.noarch"), "test")
+        self.assertEqual(package_manager.get_product_name_without_arch("noextension"), "noextension")
+        self.assertEqual(package_manager.get_product_name_without_arch("noextension.ext"), "noextension.ext")
+
+    def test_inclusion_type_all(self):
+        """Unit test for yum package manager Classification = all and IncludedPackageNameMasks not specified."""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        self.runtime.stop()
+
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[0]]
+        argument_composer.patches_to_exclude = ["ssh*", "test"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.container = self.runtime.container
+
+        package_filter = self.container.get('package_filter')
+
+        # test for get_available_updates
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
+        self.assertEqual(len(available_updates), 5)
+        self.assertEqual(len(package_versions), 5)
+        self.assertEqual(available_updates[0], "selinux-policy.noarch")
+        self.assertEqual(package_versions[0], "3.13.1-102.el7_3.16")
+        self.assertEqual(available_updates[1], "selinux-policy-targeted.noarch")
+        self.assertEqual(package_versions[1], "3.13.1-102.el7_3.16")
+        self.assertEqual(available_updates[2], "libgcc.i686")
+        self.assertEqual(package_versions[2], "4.8.5-28.el7")
+        self.assertEqual(available_updates[3], "tar.x86_64")
+        self.assertEqual(package_versions[3], "2:1.26-34.el7")
+        self.assertEqual(available_updates[4], "tcpdump.x86_64")
+        self.assertEqual(package_versions[4], "14:4.9.2-3.el7")
+
+    def test_inclusion_type_critical(self):
+        """Unit test for yum package manager with inclusion and Classification = Critical"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        self.runtime.stop()
+
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[1]]
+        argument_composer.patches_to_exclude = ["ssh*", "test"]
+        argument_composer.patches_to_include = ["ssh", "tar*"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.container = self.runtime.container
+        
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for get_available_updates
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
+        self.assertEqual(len(available_updates), 2)
+        self.assertEqual(len(package_versions), 2)
+        self.assertEqual(available_updates[0], "libgcc.i686")
+        self.assertEqual(available_updates[1], "tar.x86_64")
+        self.assertEqual(package_versions[0], "4.8.5-28.el7")
+        self.assertEqual(package_versions[1], "2:1.26-34.el7")
+
+    def test_inclusion_type_other(self):
+        """Unit test for yum package manager with inclusion and Classification = Other"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        self.runtime.stop()
+
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[4]]
+        argument_composer.patches_to_include = ["ssh", "tcpdump"]
+        argument_composer.patches_to_exclude = ["ssh*", "test"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.container = self.runtime.container
+
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for get_available_updates
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
+        self.assertEqual(len(available_updates), 4)
+        self.assertEqual(len(package_versions), 4)
+        self.assertEqual(available_updates[0], "selinux-policy.noarch")
+        self.assertEqual(package_versions[0], "3.13.1-102.el7_3.16")
+        self.assertEqual(available_updates[1], "selinux-policy-targeted.noarch")
+        self.assertEqual(package_versions[1], "3.13.1-102.el7_3.16")
+        self.assertEqual(available_updates[2], "tar.x86_64")
+        self.assertEqual(package_versions[2], "2:1.26-34.el7")
+        self.assertEqual(available_updates[3], "tcpdump.x86_64")
+        self.assertEqual(package_versions[3], "14:4.9.2-3.el7")
+
+    def test_inclusion_only(self):
+        """Unit test for yum package manager with inclusion only and NotSelected Classifications"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        self.runtime.stop()
+
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[0]]
+        argument_composer.patches_to_include = ["ssh", "tar*"]
+        argument_composer.patches_to_exclude = ["ssh*", "test"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.container = self.runtime.container
+
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for get_available_updates
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
+        self.assertEqual(len(available_updates), 1)
+        self.assertEqual(len(package_versions), 1)
+        self.assertEqual(available_updates[0], "tar.x86_64")
+        self.assertEqual(package_versions[0], "2:1.26-34.el7")
+
+    def test_inclusion_dependency_only(self):
+        """Unit test for yum with test dependencies in Inclusion & NotSelected Classifications"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container. get('package_manager')
+        self.assertIsNotNone(package_manager)
+        self.runtime.stop()
+
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[0]]
+        argument_composer.patches_to_include = ["ssh", "selinux-policy-targeted.noarch"]
+        argument_composer.patches_to_exclude = ["ssh*", "test"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.container = self.runtime.container
+
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for get_available_updates
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
+        self.assertEqual(len(available_updates), 1)
+        self.assertEqual(len(package_versions), 1)
+        self.assertEqual(available_updates[0], "selinux-policy-targeted.noarch")
+        self.assertEqual(package_versions[0], "3.13.1-102.el7_3.16")
+
+    def test_inclusion_notexist(self):
+        """Unit test for yum with Inclusion which does not exist & NotSelected Classifications"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        self.runtime.stop()
+
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[0]]
+        argument_composer.patches_to_include = ["ssh"]
+        argument_composer.patches_to_exclude = ["ssh*", "test"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.container = self.runtime.container
+
+        package_filter = self.container.get('package_filter')
+        self.assertIsNotNone(package_filter)
+
+        # test for get_available_updates
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
+        self.assertEqual(len(available_updates), 0)
+        self.assertEqual(len(package_versions), 0)
 
 if __name__ == '__main__':
     unittest.main()
