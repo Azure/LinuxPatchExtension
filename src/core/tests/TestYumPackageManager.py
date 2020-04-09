@@ -130,8 +130,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for get_available_updates
-        # legacy_test_type ='ExceptionPath'
-        self.runtime.set_legacy_test_type('ExceptionPath')
+        # legacy_test_type ='Exception Path'
         try:
             package_manager.get_available_updates(package_filter)
         except Exception as exception:
@@ -140,8 +139,7 @@ class TestYumPackageManager(unittest.TestCase):
             self.assertFalse(1 != 2, 'Exception did not occur and test failed.')
 
         # test for get_dependent_list
-        # legacy_test_type ='ExceptionPath'
-        self.runtime.set_legacy_test_type('ExceptionPath')
+        # legacy_test_type ='Exception Path'
         try:
             package_manager.get_dependent_list("man")
         except Exception as exception:
