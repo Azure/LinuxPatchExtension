@@ -6,7 +6,7 @@ from tests.library.RuntimeCompositor import RuntimeCompositor
 
 class TestAptitudePackageManager(unittest.TestCase):
     def setUp(self):
-        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), Constants.APT, True)
         self.container = self.runtime.container
 
     def tearDown(self):

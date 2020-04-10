@@ -2,8 +2,8 @@ from src.bootstrap.Constants import Constants
 
 
 class LegacyEnvLayerExtensions():
-    def __init__(self):
-        self.legacy_package_manager_name = Constants.APT
+    def __init__(self, package_manager_name):
+        self.legacy_package_manager_name = package_manager_name
         self.legacy_test_type = "HappyPath"
 
     class LegacyPlatform(object):
