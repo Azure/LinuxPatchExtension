@@ -51,9 +51,11 @@ class RuntimeCompositor(object):
     @staticmethod
     def write_ext_state_file(path, sequence_number, achieve_enable_by, operation):
         data = {
-            "number": sequence_number,
-            "achieveEnableBy": achieve_enable_by,
-            "operation": operation
+            "extensionSequence": {
+                "number": sequence_number,
+                "achieveEnableBy": achieve_enable_by,
+                "operation": operation
+            }
         }
         with open(path, "w+") as file_handle:
             file_handle.write(json.dumps(data))

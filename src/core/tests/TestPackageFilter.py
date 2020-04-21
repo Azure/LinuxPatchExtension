@@ -93,7 +93,7 @@ class TestPackageFilter(unittest.TestCase):
         argument_composer.patches_to_exclude = []
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
 
-        self.assertEqual(runtime.package_filter.is_exclusion_list_present(), True)
+        self.assertEqual(runtime.package_filter.is_inclusion_list_present(), True)
 
         self.assertEqual(runtime.package_filter.check_for_inclusion("ssh"), True)
         self.assertEqual(runtime.package_filter.check_for_inclusion("ssh-client"), True)

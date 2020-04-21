@@ -12,7 +12,7 @@ class ExecutionConfig(object):
         self.execution_parameters = eval(execution_parameters)
 
         # Environment details
-        self.global_exclusion_list = str(Constants.GLOBAL_EXCLUSION_LIST)
+        self.global_exclusion_list = str(Constants.GLOBAL_EXCLUSION_LIST) if Constants.GLOBAL_EXCLUSION_LIST else None
 
         # Decoded input parameters
         self.composite_logger.log_debug(" - Decoding input parameters...")
