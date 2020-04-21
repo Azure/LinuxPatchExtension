@@ -35,6 +35,7 @@ class RuntimeCompositor(object):
         self.execution_config = self.container.get('execution_config')
         self.package_manager = self.container.get('package_manager')
         self.reboot_manager = self.container.get('reboot_manager')
+        self.reconfigure_reboot_manager()
         self.package_filter = self.container.get('package_filter')
         self.patch_assessor = self.container.get('patch_assessor')
         self.patch_installer = self.container.get('patch_installer')
@@ -68,3 +69,10 @@ class RuntimeCompositor(object):
         self.env_layer.platform = self.legacy_env_layer_extensions.LegacyPlatform()
         self.env_layer.set_legacy_test_mode()
         self.env_layer.run_command_output = self.legacy_env_layer_extensions.run_command_output
+
+    def reconfigure_reboot_manager(self):
+        self.reboot_manager.start_reboot = self.start_reboot
+
+    def start_reboot(self, message="Test initiated reboot mock"):
+        self.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+
