@@ -6,7 +6,7 @@ from tests.library.RuntimeCompositor import RuntimeCompositor
 
 class TestZypperPackageManager(unittest.TestCase):
     def setUp(self):
-        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), Constants.ZYPPER, True)
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.ZYPPER)
         self.container = self.runtime.container
 
     def tearDown(self):
@@ -54,7 +54,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.runtime.stop()
         argument_composer = ArgumentComposer()
         argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[2]]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.ZYPPER, True)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
@@ -71,7 +71,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.runtime.stop()
         argument_composer = ArgumentComposer()
         argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[4]]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.ZYPPER, True)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
@@ -99,7 +99,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertEqual(len(dependent_list), 16)
 
         self.runtime.stop()
-        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), Constants.ZYPPER, True)
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.ZYPPER)
         self.container = self.runtime.container
         self.runtime.set_legacy_test_type('ExceptionPath')
 

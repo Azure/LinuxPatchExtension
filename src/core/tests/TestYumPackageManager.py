@@ -6,7 +6,7 @@ from tests.library.RuntimeCompositor import RuntimeCompositor
 
 class TestYumPackageManager(unittest.TestCase):
     def setUp(self):
-        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), Constants.YUM, True)
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.YUM)
         self.container = self.runtime.container
 
     def tearDown(self):
@@ -231,7 +231,7 @@ class TestYumPackageManager(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[0]]
         argument_composer.patches_to_exclude = ["ssh*", "test"]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         self.container = self.runtime.container
 
         package_filter = self.container.get('package_filter')
@@ -264,7 +264,7 @@ class TestYumPackageManager(unittest.TestCase):
         argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[1]]
         argument_composer.patches_to_exclude = ["ssh*", "test"]
         argument_composer.patches_to_include = ["ssh", "tar*"]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         self.container = self.runtime.container
 
         package_filter = self.container.get('package_filter')
@@ -292,7 +292,7 @@ class TestYumPackageManager(unittest.TestCase):
         argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[4]]
         argument_composer.patches_to_include = ["ssh", "tcpdump"]
         argument_composer.patches_to_exclude = ["ssh*", "test"]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         self.container = self.runtime.container
 
         package_filter = self.container.get('package_filter')
@@ -324,7 +324,7 @@ class TestYumPackageManager(unittest.TestCase):
         argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[0]]
         argument_composer.patches_to_include = ["ssh", "tar*"]
         argument_composer.patches_to_exclude = ["ssh*", "test"]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         self.container = self.runtime.container
 
         package_filter = self.container.get('package_filter')
@@ -350,7 +350,7 @@ class TestYumPackageManager(unittest.TestCase):
         argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[0]]
         argument_composer.patches_to_include = ["ssh", "selinux-policy-targeted.noarch"]
         argument_composer.patches_to_exclude = ["ssh*", "test"]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         self.container = self.runtime.container
 
         package_filter = self.container.get('package_filter')
@@ -376,7 +376,7 @@ class TestYumPackageManager(unittest.TestCase):
         argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[0]]
         argument_composer.patches_to_include = ["ssh"]
         argument_composer.patches_to_exclude = ["ssh*", "test"]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         self.container = self.runtime.container
 
         package_filter = self.container.get('package_filter')

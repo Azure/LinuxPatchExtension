@@ -19,7 +19,7 @@ class TestRebootManager(unittest.TestCase):
     def test_reboot_setting(self, reboot_setting_in_api='Never', reboot_setting_in_code=Constants.REBOOT_NEVER):
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = reboot_setting_in_api
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         reboot_manager = runtime.reboot_manager
         self.assertEqual(reboot_manager.is_setting(reboot_setting_in_code), True)
         runtime.stop()
@@ -27,7 +27,7 @@ class TestRebootManager(unittest.TestCase):
     def test_reboot_setting_default_config(self):
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = ""
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         reboot_manager = runtime.reboot_manager
         self.assertEqual(reboot_manager.is_setting(Constants.REBOOT_IF_REQUIRED), True)
         runtime.stop()
@@ -44,7 +44,7 @@ class TestRebootManager(unittest.TestCase):
         reboot_setting_in_api = 'Never'
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = reboot_setting_in_api
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         reboot_manager = runtime.reboot_manager
         self.assertEqual(reboot_manager.start_reboot_if_required_and_time_available(20), False)
         runtime.stop()
@@ -53,7 +53,7 @@ class TestRebootManager(unittest.TestCase):
         reboot_setting_in_api = 'Always'
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = reboot_setting_in_api
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         reboot_manager = runtime.reboot_manager
         self.assertEqual(reboot_manager.start_reboot_if_required_and_time_available(20), True)
         runtime.stop()
@@ -62,7 +62,7 @@ class TestRebootManager(unittest.TestCase):
         reboot_setting_in_api = 'Always'
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = reboot_setting_in_api
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         reboot_manager = runtime.reboot_manager
         self.assertEqual(reboot_manager.start_reboot_if_required_and_time_available(10), False)
         runtime.stop()
