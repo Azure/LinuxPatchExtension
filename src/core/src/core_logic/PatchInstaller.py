@@ -221,11 +221,12 @@ class PatchInstaller(object):
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)  # final reconciliation
 
-        message = "\n\nOperation status was marked as failed because: "
-        message += "[X] a failure occurred during the operation  " if not patch_installation_successful else ""
-        message += "[X] maintenance window exceeded " if maintenance_window_exceeded else ""
-        self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-        self.composite_logger.log_error(message)
+        if not patch_installation_successful or maintenance_window_exceeded:
+            message = "\n\nOperation status was marked as failed because: "
+            message += "[X] a failure occurred during the operation  " if not patch_installation_successful else ""
+            message += "[X] maintenance window exceeded " if maintenance_window_exceeded else ""
+            self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            self.composite_logger.log_error(message)
 
         return installed_update_count, patch_installation_successful, maintenance_window_exceeded
 
