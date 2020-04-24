@@ -87,7 +87,6 @@ class LifecycleManager(object):
             try:
                 with self.env_layer.file_system.open(self.core_state_file_path, mode="r") as file_handle:
                     core_sequence = json.load(file_handle)['coreSequence']
-                    print(str(core_sequence))
                     return core_sequence
             except Exception as error:
                 if i <= Constants.MAX_FILE_OPERATION_RETRY_COUNT:
