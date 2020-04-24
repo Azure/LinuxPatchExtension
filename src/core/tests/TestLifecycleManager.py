@@ -1,5 +1,5 @@
+import os
 import unittest
-from src.bootstrap.Constants import Constants
 from tests.library.ArgumentComposer import ArgumentComposer
 from tests.library.RuntimeCompositor import RuntimeCompositor
 
@@ -8,12 +8,111 @@ class TestLifecycleManager(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
         self.container = self.runtime.container
+        self.lifecycle_manager = self.runtime.lifecycle_manager
 
     def tearDown(self):
         self.runtime.stop()
 
-    def test_something(self):
-        self.assertEqual(True, True)
+    def test_lifestyle_status_check(self):
+        # No change in Extension sequence number
+        self.lifecycle_manager.lifecycle_status_check()
+
+        # Extension sequence number changed
+        old_core_sequence_json = self.lifecycle_manager.read_core_sequence()
+        self.runtime.execution_config.sequence_number = 2
+        with self.assertRaises(SystemExit):
+            self.lifecycle_manager.lifecycle_status_check()
+        new_core_sequence_json = self.lifecycle_manager.read_core_sequence()
+        self.assertNotEqual(old_core_sequence_json["completed"], new_core_sequence_json["completed"])
+
+    def test_read_extension_sequence_fail(self):
+        old_ext_state_file_path = self.lifecycle_manager.ext_state_file_path
+
+        # File not found at location
+        self.lifecycle_manager.ext_state_file_path = "dummy"
+        self.assertRaises(Exception, self.lifecycle_manager.read_extension_sequence)
+
+        # file open throws exception
+        self.lifecycle_manager.ext_state_file_path = old_ext_state_file_path
+        self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
+        ext_state_json = self.lifecycle_manager.read_extension_sequence()
+        self.assertEquals(ext_state_json, None)
+
+    def test_read_extension_sequence_success(self):
+        ext_state_json = self.lifecycle_manager.read_extension_sequence()
+        self.assertTrue(ext_state_json is not None)
+        self.assertTrue("achieveEnableBy" in str(ext_state_json))
+
+    def test_read_core_sequence_fail(self):
+        # file open throws exception
+        self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
+        core_sequence_json = self.lifecycle_manager.read_core_sequence()
+        self.assertEquals(core_sequence_json, None)
+
+    def test_read_core_sequence_success(self):
+        old_core_state_file_path = self.lifecycle_manager.core_state_file_path
+
+        # file path is dir
+        if os.path.exists(self.lifecycle_manager.core_state_file_path) and os.path.isfile(self.lifecycle_manager.core_state_file_path):
+            os.remove(self.lifecycle_manager.core_state_file_path)
+        dummy_folder = os.path.join(self.runtime.execution_config.config_folder, "CoreExt_lifecycle_manager_test")
+        os.mkdir(dummy_folder)
+        self.lifecycle_manager.core_state_file_path = dummy_folder
+        core_sequence_json = self.lifecycle_manager.read_core_sequence()
+        self.assertTrue(core_sequence_json is not None)
+        self.assertTrue("processIds" in str(core_sequence_json))
+        os.remove(self.lifecycle_manager.core_state_file_path)
+        self.lifecycle_manager.core_state_file_path = old_core_state_file_path
+
+        # file not found at location
+        if os.path.exists(self.lifecycle_manager.core_state_file_path) and os.path.isfile(self.lifecycle_manager.core_state_file_path):
+            os.remove(self.lifecycle_manager.core_state_file_path)
+        core_sequence_json = self.lifecycle_manager.read_core_sequence()
+        self.assertTrue(core_sequence_json is not None)
+        self.assertTrue("processIds" in str(core_sequence_json))
+        os.remove(self.lifecycle_manager.core_state_file_path)
+
+    def test_update_core_sequence_fail(self):
+        # file open throws exception
+        self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
+        core_sequence_json = self.lifecycle_manager.update_core_sequence()
+        self.assertEquals(core_sequence_json, None)
+
+    def test_update_core_sequence_success(self):
+        old_core_state_file_path = self.lifecycle_manager.core_state_file_path
+
+        # file path is dir
+        if os.path.exists(self.lifecycle_manager.core_state_file_path) and os.path.isfile(self.lifecycle_manager.core_state_file_path):
+            os.remove(self.lifecycle_manager.core_state_file_path)
+        dummy_folder = os.path.join(self.runtime.execution_config.config_folder, "CoreExt_lifecycle_manager_test")
+        os.mkdir(dummy_folder)
+        self.lifecycle_manager.core_state_file_path = dummy_folder
+        self.lifecycle_manager.update_core_sequence()
+        self.assertTrue(os.path.exists(self.lifecycle_manager.core_state_file_path) and os.path.isfile(self.lifecycle_manager.core_state_file_path))
+        core_sequence_json = self.lifecycle_manager.read_core_sequence()
+        self.assertTrue(core_sequence_json is not None)
+        self.assertTrue("processIds" in str(core_sequence_json))
+        os.remove(self.lifecycle_manager.core_state_file_path)
+        self.lifecycle_manager.core_state_file_path = old_core_state_file_path
+
+        # file doesn't already exist
+        if os.path.exists(self.lifecycle_manager.core_state_file_path) and os.path.isfile(self.lifecycle_manager.core_state_file_path):
+            os.remove(self.lifecycle_manager.core_state_file_path)
+        self.lifecycle_manager.update_core_sequence()
+        self.assertTrue(os.path.exists(self.lifecycle_manager.core_state_file_path) and os.path.isfile(self.lifecycle_manager.core_state_file_path))
+        core_sequence_json = self.lifecycle_manager.read_core_sequence()
+        self.assertTrue(core_sequence_json is not None)
+        self.assertTrue("processIds" in str(core_sequence_json))
+
+        # file already exists
+        old_core_sequence_json = self.lifecycle_manager.read_core_sequence()
+        self.lifecycle_manager.update_core_sequence(completed=True)
+        new_core_sequence_json = self.lifecycle_manager.read_core_sequence()
+        self.assertNotEqual(old_core_sequence_json["completed"], new_core_sequence_json["completed"])
+        os.remove(self.lifecycle_manager.core_state_file_path)
+
+    def mock_file_open_throw_exception(self, file_path, mode):
+        raise Exception("Mock file read exception")
 
 
 if __name__ == '__main__':
