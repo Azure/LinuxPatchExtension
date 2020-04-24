@@ -19,7 +19,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
         argument_composer.start_time = job_start_time
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         # Path change
         runtime.set_legacy_test_type('FailInstallPath')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
@@ -35,7 +35,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
         argument_composer.start_time = job_start_time
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         # Path change
         runtime.set_legacy_test_type('SuccessInstallPath')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
@@ -51,7 +51,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
         argument_composer.start_time = job_start_time
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.YUM, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         # Path change
         runtime.set_legacy_test_type('FailInstallPath')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
@@ -67,7 +67,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
         argument_composer.start_time = job_start_time
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.ZYPPER, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         # Path change
         runtime.set_legacy_test_type('FailInstallPath')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
@@ -83,7 +83,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
         argument_composer.start_time = job_start_time
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.ZYPPER, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         # Path change
         runtime.set_legacy_test_type('SuccessInstallPath')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
@@ -99,7 +99,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
         argument_composer.start_time = job_start_time
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.ZYPPER, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         # Path change
         runtime.set_legacy_test_type('FailInstallPath')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
@@ -115,7 +115,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
         argument_composer.start_time = job_start_time
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.APT, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         # Path change
         runtime.set_legacy_test_type('FailInstallPath')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
@@ -131,7 +131,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
         argument_composer.start_time = job_start_time
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), Constants.APT, True)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         # Path change
         runtime.set_legacy_test_type('SuccessInstallPath')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)

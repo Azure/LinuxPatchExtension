@@ -11,7 +11,7 @@ from src.bootstrap.Constants import Constants
 
 
 class RuntimeCompositor(object):
-    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, package_manager_name=Constants.APT, legacy_mode=False):
+    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT):
         # Init data
         self.current_env = Constants.DEV
         os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
