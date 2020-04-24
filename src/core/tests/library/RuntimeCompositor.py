@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import time
 
 from tests.library.ArgumentComposer import ArgumentComposer
 from tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
@@ -44,6 +45,9 @@ class RuntimeCompositor(object):
         # Extension handler dependency
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
 
+        # Overriding time.sleep to avoid delays in test execution
+        time.sleep = self.mock_sleep
+
     def stop(self):
         self.telemetry_writer.close_transports()
         self.file_logger.close(message_at_close="<Runtime stopped>")
@@ -75,4 +79,7 @@ class RuntimeCompositor(object):
 
     def start_reboot(self, message="Test initiated reboot mock"):
         self.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+
+    def mock_sleep(self, seconds):
+        pass
 
