@@ -27,6 +27,9 @@ class LegacyEnvLayerExtensions():
         """return passed in package manager name"""
         return self.legacy_package_manager_name
 
+    def check_sudo_status(self, raise_if_not_sudo=True):
+        return True
+
     # To be deprecated over time
     def run_command_output(self, cmd, no_output=False, chk_err=True):
         if no_output:
