@@ -143,6 +143,7 @@ class StatusHandler(object):
         # Persisting new reboot status (with machine state incorporation)
         self.composite_logger.log_debug("Setting new installation reboot status. [NewRebootStatus={0}] [CurrentRebootStatus={1}]".format(str(new_reboot_status), self.__installation_reboot_status))
         self.__installation_reboot_status = new_reboot_status
+        self.set_installation_substatus_json()
         self.__write_status_file()
 
     def __refresh_installation_reboot_status(self):
@@ -164,6 +165,7 @@ class StatusHandler(object):
     # region - Substatus generation
     def set_maintenance_window_exceeded(self, maintenance_windows_exceeded):
         self.__maintenance_window_exceeded = maintenance_windows_exceeded
+        self.set_installation_substatus_json()
         self.__write_status_file()
 
     def set_assessment_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0):
