@@ -73,6 +73,7 @@ class RuntimeCompositor(object):
         self.env_layer.platform = self.legacy_env_layer_extensions.LegacyPlatform()
         self.env_layer.set_legacy_test_mode()
         self.env_layer.run_command_output = self.legacy_env_layer_extensions.run_command_output
+        self.env_layer.check_sudo_status = self.legacy_env_layer_extensions.check_sudo_status
 
     def reconfigure_reboot_manager(self):
         self.reboot_manager.start_reboot = self.start_reboot
