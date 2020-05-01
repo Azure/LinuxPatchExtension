@@ -1,0 +1,10 @@
+[
+  {
+    "version": 1.0,
+    "handlerEnvironment": {
+      "logFolder": "<Path to folder",
+      "configFolder": "<Path to folder>",
+      "statusFolder": "<Path to folder>"
+    }
+  }
+]
