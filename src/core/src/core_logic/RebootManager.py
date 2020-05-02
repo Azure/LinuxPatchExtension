@@ -95,6 +95,8 @@ class RebootManager(object):
                 self.start_reboot()
                 return True
             else:
-                self.composite_logger.log_error(' - There is not enough time to schedule a reboot as per patch installation configuration (' + str(self.reboot_setting) + '). Reboot-pending status: ' + str(reboot_pending))
+                error_msg = ' - There is not enough time to schedule a reboot as per patch installation configuration (' + str(self.reboot_setting) + '). Reboot-pending status: ' + str(reboot_pending)
+                self.composite_logger.log_error(error_msg)
+                self.status_handler.add_error_to_status("Reboot Management" + str(error_msg), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                 self.maintenance_window_exceeded_flag = True
                 return False

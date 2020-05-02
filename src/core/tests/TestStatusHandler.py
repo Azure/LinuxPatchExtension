@@ -1,6 +1,7 @@
 import json
 import unittest
 from src.bootstrap.Constants import Constants
+from src.service_interfaces.StatusHandler import StatusHandler
 from tests.library.ArgumentComposer import ArgumentComposer
 from tests.library.RuntimeCompositor import RuntimeCompositor
 
@@ -111,6 +112,12 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 1)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
+
+    def test_status_file_initial_load(self):
+        self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
+        self.assertTrue(status_handler is not None)
 
 
 if __name__ == '__main__':

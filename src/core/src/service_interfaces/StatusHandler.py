@@ -1,4 +1,3 @@
-import datetime
 import json
 import os
 import re
@@ -41,10 +40,6 @@ class StatusHandler(object):
         # Load the currently persisted status file into memory
         self.__load_status_file_components(initial_load=True)
 
-        # Enable reboot completion status capture
-        if self.__installation_reboot_status == Constants.RebootStatus.STARTED:
-            self.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)  # switching to completed after the reboot
-
         # Tracker for reboot pending status, the value is updated externally(PatchInstaller.py) whenever package is installed. As this var is directly written in status file, setting the default to False, instead of Empty/Unknown, to maintain a true bool field as per Agent team's architecture
         self.is_reboot_pending = False
 
@@ -52,6 +47,10 @@ class StatusHandler(object):
         self.__os_name_and_version = self.get_os_name_and_version()
 
         self.__current_operation = None
+
+        # Enable reboot completion status capture
+        if self.__installation_reboot_status == Constants.RebootStatus.STARTED:
+            self.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)  # switching to completed after the reboot
 
     # region - Package Data
     def reset_assessment_data(self):
