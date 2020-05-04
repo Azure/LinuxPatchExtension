@@ -2,9 +2,9 @@
   {
     "version": 1.0,
     "handlerEnvironment": {
-      "logFolder": "<Path to folder",
-      "configFolder": "<Path to folder>",
-      "statusFolder": "<Path to folder>"
+      "logFolder": "/home/linux-patch/log",
+      "configFolder": "/home/linux-patch/config",
+      "statusFolder": "/home/linux-patch/status"
     }
   }
 ]

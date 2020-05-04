@@ -1,5 +1,5 @@
 # Contributing to Azure/LinuxPatchExtension
-First, thank you for contributing to LinuxPatchExtension repository!
+First of all, thank you for considering contributing to the Azure LinuxPatchExtension repository!
 
 ## Basics
 If you would like to become an active contributor to this project, please follow the instructions provided in [Microsoft Azure Projects Contribution Guidelines](http://azure.github.io/guidelines/).
@@ -67,3 +67,11 @@ The following guidelines must be followed in **EVERY** pull request that is open
 The following guidelines must be followed in **EVERY** pull request that is opened.
 
 - Pull request includes test coverage for the included changes
+- All existing tests must continue to pass successfully.
+- Code must have been tested on all supported distributions and versions of those distributions that have not reached end of life. The distribution test matrix is as follows:
+
+Dist | Version |
+-----|---------|
+Ubuntu Server | 16.04-LTS, 18.04-LTS
+Red Hat Enterprise Linux | 7.7
+CentOS | 7.7
