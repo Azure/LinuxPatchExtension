@@ -36,8 +36,8 @@ NoOperation can be used to cancel an ongoing assess or patch operation. (**requi
 >   "maximumDuration": "PT2H",
 >   "rebootSetting": "IfRequired",
 >   "classificationsToInclude":["Critical","Security"],
->   "patchesToInclude": ["*", "test*","*ern*=1.2*", "kern*=1.23.45", "*"],
->   "patchesToExclude": ["*", "test", "*test"]
+>   "patchesToInclude": ["mysql-server", "snapd"],
+>   "patchesToExclude": ["kernel*"]
 > }
 > ```
 
