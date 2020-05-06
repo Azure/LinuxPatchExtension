@@ -72,6 +72,7 @@ The following guidelines must be followed in **EVERY** pull request that is open
 
 Dist | Version |
 -----|---------|
-Ubuntu Server | 16.04-LTS, 18.04-LTS
-Red Hat Enterprise Linux | 7.7
-CentOS | 7.7
+Ubuntu Server | 16.04-LTS, 18.04-LTS, 20.04-LTS
+Red Hat Enterprise Linux | 6 (x86/x64), 7 (x64), 8 (x64)
+CentOS | 6 (x86/x64), 7 (x64), 8 (x64)
+SUSE Linux Enterprise Server | 11 (x86/x64), 12 (x64), 15 (x64)
