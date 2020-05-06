@@ -1,0 +1,10 @@
+[
+  {
+    "version": 1.0,
+    "handlerEnvironment": {
+      "logFolder": "/home/linux-patch/log",
+      "configFolder": "/home/linux-patch/config",
+      "statusFolder": "/home/linux-patch/status"
+    }
+  }
+]
