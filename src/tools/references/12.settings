@@ -1,0 +1,18 @@
+{
+    "runtimeSettings": [{
+        "handlerSettings": {
+            "protectedSettingsCertThumbprint": "",
+            "protectedSettings": " ",
+            "publicSettings": {
+                "operation": "Installation",
+		        "activityId": "1612-2327-1324-23245-32192",
+		        "startTime": "2020-05-01T09:40:54.8862542Z",
+		        "maximumDuration": "PT2H",
+		        "rebootSetting": "IfRequired",
+		        "classificationsToInclude":["Critical","Security"],
+		        "patchesToInclude": ["mysql-server", "snapd"],
+		        "patchesToExclude": ["kernel*"]
+            }
+        }
+    }]
+}
