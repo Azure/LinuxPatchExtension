@@ -21,11 +21,9 @@ import tempfile
 import time
 import unittest
 from datetime import datetime
-from unittest import mock       #TODO: Remove dependency on mock.
 from src.Constants import Constants
-from src.file_handlers.JsonFileHandler import JsonFileHandler
 from src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
-from src.local_loggers.Logger import Logger
+from tests.helpers.RuntimeComposer import RuntimeComposer
 from tests.helpers.VirtualTerminal import VirtualTerminal
 
 
@@ -33,19 +31,25 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        self.logger = Logger()
-        self.json_file_handler = JsonFileHandler(self.logger)
+        tests_setup = RuntimeComposer()
+        self.logger = tests_setup.logger
+        self.json_file_handler = tests_setup.json_file_handler
         self.config_public_settings_fields = Constants.ConfigPublicSettingsFields
+        self.os_getenv = os.getenv
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        os.getenv = self.os_getenv
 
-    @mock.patch('src.file_handlers.ExtConfigSettingsHandler.os.getenv', autospec=True, return_value=1234)
-    def test_get_seq_no_from_env_variable(self, seq_no_from_env_var):
+    def mock_getenv(self, key):
+        return 1234
+
+    def test_get_seq_no_from_env_variable(self):
+        os.getenv = self.mock_getenv
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, "mockConfig")
         seq_no = ext_config_settings_handler.get_seq_no()
-        self.assertIsNotNone(seq_no)
-        self.assertEqual(seq_no, seq_no_from_env_var.return_value)
+        self.assertTrue(seq_no is not None)
+        self.assertEqual(seq_no, 1234)
 
     def test_seq_no_from_config_folder(self):
         files = [
@@ -74,7 +78,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         for file in files:
             file_path = os.path.join(test_dir, file["name"])
             with open(file_path, 'w') as f:
-                timestamp = time.mktime(datetime.strptime(file["lastModified"], '%Y-%m-%dT%H:%M:%S%z').timetuple())
+                timestamp = time.mktime(datetime.strptime(file["lastModified"], '%Y-%m-%dT%H:%M:%SZ').timetuple())
                 os.utime(file_path, (timestamp, timestamp))
                 f.close()
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
@@ -214,8 +218,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         self.assertEqual(config_values.__getattribute__(self.config_public_settings_fields.operation), "Deployment")
         self.assertEqual(config_values.__getattribute__(self.config_public_settings_fields.reboot_setting), "IfRequired")
 
-    @mock.patch('src.file_handlers.JsonFileHandler.time.sleep', autospec=True)
-    def test_read_file_failures(self, time_sleep):
+    def test_read_file_failures(self):
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
         # Seq_no invalid, none, -1, empty
         seq_no = None
@@ -251,10 +254,15 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         shutil.rmtree(test_dir)
 
         # file not valid
-        seq_no = "1234"
-        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
-        with mock.patch('tests.TestExtConfigSettingsHandler.ExtConfigSettingsHandler.are_config_settings_valid', autospec=True, return_value=False):
-            self.assertRaises(Exception, ext_config_settings_handler.read_file, seq_no)
+        test_dir = tempfile.mkdtemp()
+        seq_no = "1237"
+        file_name = seq_no + ".settings"
+        with open(os.path.join(test_dir, file_name), 'w') as f:
+            f.write('{"runtimeSettings": []}')
+            f.close()
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
+        self.assertRaises(Exception, ext_config_settings_handler.read_file, seq_no)
+        shutil.rmtree(test_dir)
 
 
 if __name__ == '__main__':
