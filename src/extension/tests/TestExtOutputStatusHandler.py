@@ -19,21 +19,19 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest import mock
 from src.Constants import Constants
-from src.Utility import Utility
-from src.file_handlers.JsonFileHandler import JsonFileHandler
 from src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
-from src.local_loggers.Logger import Logger
+from tests.helpers.RuntimeComposer import RuntimeComposer
 from tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestExtOutputStatusHandler(unittest.TestCase):
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        self.logger = Logger()
-        self.utility = Utility(self.logger)
-        self.json_file_handler = JsonFileHandler(self.logger)
+        runtime = RuntimeComposer()
+        self.logger = runtime.logger
+        self.utility = runtime.utility
+        self.json_file_handler = runtime.json_file_handler
         self.status_file_fields = Constants.StatusFileFields
         self.status = Constants.Status
 
@@ -50,7 +48,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         with open(dir_path + "\\" + file_name + ext_status_handler.file_ext) as status_file:
             content = json.load(status_file)
             parent_key = self.status_file_fields.status
-            self.assertIsNotNone(content)
+            self.assertTrue(content is not None)
             self.assertEqual(content[0][parent_key][self.status_file_fields.status_name], "Azure Patch Management")
             self.assertEqual(content[0][parent_key][self.status_file_fields.status_operation], operation)
             self.assertEqual(content[0][parent_key][self.status_file_fields.status_status], self.status.Transitioning.lower())
@@ -70,8 +68,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         self.assertEqual(status_json[0][parent_key][self.status_file_fields.status_status], self.status.Transitioning.lower())
         shutil.rmtree(dir_path)
 
-    @mock.patch('src.file_handlers.JsonFileHandler.time.sleep', autospec=True)
-    def test_update_file(self, time_sleep):
+    def test_update_file(self):
         file_name = "test"
         dir_path = tempfile.mkdtemp()
         operation = "Assessment"
@@ -104,7 +101,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         ext_status_handler.set_current_operation(Constants.NOOPERATION)
 
         # Unexpected input
-        self.assertTrue(ext_status_handler.add_error_to_status(None) == None)
+        self.assertTrue(ext_status_handler.add_error_to_status(None) is None)
 
         ext_status_handler.add_error_to_status("Adding test exception", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, activity_id="", start_time="", status=self.status.Success.lower())

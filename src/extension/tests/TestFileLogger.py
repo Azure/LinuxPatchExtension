@@ -41,7 +41,7 @@ class TestFileLogger(unittest.TestCase):
         shutil.rmtree(self.test_dir)
 
     def test_file_open(self):
-        self.assertIsNotNone(self.file_logger.log_file_handle)
+        self.assertTrue(self.file_logger.log_file_handle is not None)
         self.file_logger.close()
 
     def test_write_file_not_found_exception(self):
@@ -54,24 +54,22 @@ class TestFileLogger(unittest.TestCase):
         self.file_logger.write("Test log")
         self.file_logger.close()
         file_read = open(self.file_path, "r")
-        self.assertIsNotNone(file_read)
-        self.assertIn("Test log", file_read.readlines()[-1])
+        self.assertTrue(file_read is not None)
+        self.assertTrue("Test log" in file_read.readlines()[-1])
         file_read.close()
 
     def test_flush(self):
         self.file_logger.write("flush this")
         self.file_logger.flush()
         file_read = open(self.file_path, "r")
-        self.assertIsNotNone(file_read)
-        self.assertIn("flush this", file_read.readlines()[-1])
+        self.assertTrue(file_read is not None)
+        self.assertTrue("flush this" in file_read.readlines()[-1])
         file_read.close()
         self.file_logger.close()
 
     def test_close(self):
         self.file_logger.close()
         self.assertTrue(self.file_logger.log_file_handle.closed)
-        # with self.assertRaises(ValueError):
-        #     self.file_logger.write("write in closed file")
 
     def test_delete_older_log_files_success(self):
         files = [
@@ -99,14 +97,14 @@ class TestFileLogger(unittest.TestCase):
         for file in files:
             file_path = os.path.join(self.test_dir, file["name"])
             with open(file_path, 'w') as f:
-                timestamp = time.mktime(datetime.strptime(file["lastModified"], '%Y-%m-%dT%H:%M:%S%z').timetuple())
+                timestamp = time.mktime(datetime.strptime(file["lastModified"], '%Y-%m-%dT%H:%M:%SZ').timetuple())
                 os.utime(file_path, (timestamp, timestamp))
                 f.close()
 
         # modifying timestamp format of 127.log, to test with a diff time format
         file_path = os.path.join(self.test_dir, "127.log")
         with open(file_path, 'w') as f:
-            timestamp = time.mktime(datetime.strptime("21-07-2017T12:12:14Z", '%d-%m-%YT%H:%M:%S%z').timetuple())
+            timestamp = time.mktime(datetime.strptime("21-07-2017T12:12:14Z", '%d-%m-%YT%H:%M:%SZ').timetuple())
             os.utime(file_path, (timestamp, timestamp))
             f.close()
 

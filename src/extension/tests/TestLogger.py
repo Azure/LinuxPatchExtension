@@ -43,40 +43,40 @@ class TestLogger(unittest.TestCase):
         self.logger.log("Test message")
         self.file_logger.close()
         file_read = open(self.file_path, "r")
-        self.assertIsNotNone(file_read)
-        self.assertIn("Test message", file_read.readlines()[-1])
+        self.assertTrue(file_read is not None)
+        self.assertTrue("Test message" in file_read.readlines()[-1])
         file_read.close()
 
     def test_log_verbose(self):
         self.logger.log_verbose("Test verbose message")
         self.file_logger.close()
         file_read = open(self.file_path, "r")
-        self.assertIsNotNone(file_read)
-        self.assertIn(self.logger.VERBOSE + " Test verbose message", file_read.readlines()[-1])
+        self.assertTrue(file_read is not None)
+        self.assertTrue(self.logger.VERBOSE + " Test verbose message" in file_read.readlines()[-1])
         file_read.close()
 
     def test_log_error(self):
         self.logger.log_error("Test error message")
         self.file_logger.close()
         file_read = open(self.file_path, "r")
-        self.assertIsNotNone(file_read)
-        self.assertIn(self.logger.ERROR + " Test error message", file_read.readlines()[-1])
+        self.assertTrue(file_read is not None)
+        self.assertTrue(self.logger.ERROR + " Test error message" in file_read.readlines()[-1])
         file_read.close()
 
     def test_log_warning(self):
         self.logger.log_warning("Test warning message")
         self.file_logger.close()
         file_read = open(self.file_path, "r")
-        self.assertIsNotNone(file_read)
-        self.assertIn(self.logger.WARNING + " Test warning message", file_read.readlines()[-1])
+        self.assertTrue(file_read is not None)
+        self.assertTrue(self.logger.WARNING + " Test warning message" in file_read.readlines()[-1])
         file_read.close()
 
     def test_log_debug(self):
         self.logger.log_debug("Test debug message")
         self.file_logger.close()
         file_read = open(self.file_path, "r")
-        self.assertIsNotNone(file_read)
-        self.assertIn(self.logger.DEBUG + " Test debug message", file_read.readlines()[-1])
+        self.assertTrue(file_read is not None)
+        self.assertTrue(self.logger.DEBUG + " Test debug message" in file_read.readlines()[-1])
         file_read.close()
 
 if __name__ == '__main__':
