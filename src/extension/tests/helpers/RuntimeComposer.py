@@ -19,5 +19,4 @@ class RuntimeComposer(object):
         with open(os.path.join(test_dir, file_name), 'w') as f:
             if content is not None:
                 f.write(content)
-            f.close()
 
