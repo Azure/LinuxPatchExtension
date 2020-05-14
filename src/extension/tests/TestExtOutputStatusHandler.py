@@ -28,10 +28,10 @@ from tests.helpers.VirtualTerminal import VirtualTerminal
 class TestExtOutputStatusHandler(unittest.TestCase):
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.logger = tests_setup.logger
-        self.utility = tests_setup.utility
-        self.json_file_handler = tests_setup.json_file_handler
+        runtime = RuntimeComposer()
+        self.logger = runtime.logger
+        self.utility = runtime.utility
+        self.json_file_handler = runtime.json_file_handler
         self.status_file_fields = Constants.StatusFileFields
         self.status = Constants.Status
 
@@ -101,7 +101,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         ext_status_handler.set_current_operation(Constants.NOOPERATION)
 
         # Unexpected input
-        self.assertTrue(ext_status_handler.add_error_to_status(None) == None)
+        self.assertTrue(ext_status_handler.add_error_to_status(None) is None)
 
         ext_status_handler.add_error_to_status("Adding test exception", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, activity_id="", start_time="", status=self.status.Success.lower())

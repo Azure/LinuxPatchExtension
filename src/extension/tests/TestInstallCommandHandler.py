@@ -28,18 +28,18 @@ class TestInstallCommandHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.logger = tests_setup.logger
-        self.json_file_handler = tests_setup.json_file_handler
-        self.get_json_file_content = self.json_file_handler.get_json_file_content
-        self.json_file_handler.get_json_file_content = self.mock_get_json_file_content
+        runtime = RuntimeComposer()
+        self.logger = runtime.logger
+        self.json_file_handler = runtime.json_file_handler
+        self.get_json_file_content_backup = self.json_file_handler.get_json_file_content
+        self.json_file_handler.get_json_file_content = self.mock_get_json_file_content_to_return_none
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         # reseting mocks
-        self.json_file_handler.get_json_file_content = self.get_json_file_content
+        self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
 
-    def mock_get_json_file_content(self, file, dir_path, raise_if_not_found=False):
+    def mock_get_json_file_content_to_return_none(self, file, dir_path, raise_if_not_found=False):
         return None
 
     def test_validate_os_type_is_linux(self):
@@ -76,7 +76,7 @@ class TestInstallCommandHandler(unittest.TestCase):
 
         # Validating HandlerEnvironment.json file
         # reseting mock to original func def
-        self.json_file_handler.get_json_file_content = self.get_json_file_content
+        self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
         ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
         install_command_handler.validate_environment()
@@ -95,7 +95,7 @@ class TestInstallCommandHandler(unittest.TestCase):
     def test_execute_action_handler(self):
         sys.platform = 'linux'
         # reseting mock to original func def
-        self.json_file_handler.get_json_file_content = self.get_json_file_content
+        self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
         ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
         self.assertEqual(install_command_handler.execute_handler_action(), Constants.ExitCode.Okay)

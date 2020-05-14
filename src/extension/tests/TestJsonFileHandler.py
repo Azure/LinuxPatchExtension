@@ -27,13 +27,11 @@ class TestJsonFileHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.json_file_handler = tests_setup.json_file_handler
-        self.json_dump = json.dump
+        runtime = RuntimeComposer()
+        self.json_file_handler = runtime.json_file_handler
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        json.dump = self.json_dump
 
     def mock_json_dump_with_exception(self):
         raise Exception
@@ -72,8 +70,10 @@ class TestJsonFileHandler(unittest.TestCase):
                    'testKey2': {'testsubKey1': 'testsubVal1'},
                    'testKey3': [{'testsubKey2': 'testsubVal2'}]}
         self.assertRaises(Exception, self.json_file_handler.write_to_json_file, "test_dir", file, content)
+        json_dump_backup = json.dump
         json.dump = self.mock_json_dump_with_exception
         self.assertRaises(Exception, self.json_file_handler.write_to_json_file, test_dir, file, content)
+        json.dump = json_dump_backup
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 

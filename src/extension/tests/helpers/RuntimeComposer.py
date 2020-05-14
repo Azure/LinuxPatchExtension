@@ -1,3 +1,4 @@
+import os
 import time
 from src.Utility import Utility
 from src.file_handlers.JsonFileHandler import JsonFileHandler
@@ -13,4 +14,10 @@ class RuntimeComposer(object):
 
     def mock_sleep(self, seconds):
         pass
+
+    def create_temp_file(self, test_dir, file_name, content=None):
+        with open(os.path.join(test_dir, file_name), 'w') as f:
+            if content is not None:
+                f.write(content)
+            f.close()
 

@@ -31,25 +31,25 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.logger = tests_setup.logger
-        self.json_file_handler = tests_setup.json_file_handler
+        self.runtime = RuntimeComposer()
+        self.logger = self.runtime.logger
+        self.json_file_handler = self.runtime.json_file_handler
         self.config_public_settings_fields = Constants.ConfigPublicSettingsFields
-        self.os_getenv = os.getenv
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        os.getenv = self.os_getenv
 
     def mock_getenv(self, key):
         return 1234
 
     def test_get_seq_no_from_env_variable(self):
+        os_getenv_backup = os.getenv
         os.getenv = self.mock_getenv
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, "mockConfig")
         seq_no = ext_config_settings_handler.get_seq_no()
         self.assertTrue(seq_no is not None)
         self.assertEqual(seq_no, 1234)
+        os.getenv = os_getenv_backup
 
     def test_seq_no_from_config_folder(self):
         files = [
@@ -235,8 +235,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         # empty file
         test_dir = tempfile.mkdtemp()
         file_name = "123.settings"
-        with open(os.path.join(test_dir, file_name), 'w') as f:
-            f.close()
+        self.runtime.create_temp_file(test_dir, file_name, content=None)
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
         seq_no = "123"
         self.assertRaises(Exception, ext_config_settings_handler.read_file, seq_no)
@@ -245,9 +244,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         # empty valid file
         test_dir = tempfile.mkdtemp()
         file_name = "1237.settings"
-        with open(os.path.join(test_dir, file_name), 'w') as f:
-            f.write("{}")
-            f.close()
+        self.runtime.create_temp_file(test_dir, file_name, content="{}")
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
         seq_no = "1237"
         self.assertRaises(Exception, ext_config_settings_handler.read_file, seq_no)
@@ -257,9 +254,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         test_dir = tempfile.mkdtemp()
         seq_no = "1237"
         file_name = seq_no + ".settings"
-        with open(os.path.join(test_dir, file_name), 'w') as f:
-            f.write('{"runtimeSettings": []}')
-            f.close()
+        self.runtime.create_temp_file(test_dir, file_name, content='{"runtimeSettings": []}')
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
         self.assertRaises(Exception, ext_config_settings_handler.read_file, seq_no)
         shutil.rmtree(test_dir)

@@ -29,10 +29,10 @@ class TestExtStateHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.logger = tests_setup.logger
-        self.utility = tests_setup.utility
-        self.json_file_handler = tests_setup.json_file_handler
+        self.runtime = RuntimeComposer()
+        self.logger = self.runtime.logger
+        self.utility = self.runtime.utility
+        self.json_file_handler = self.runtime.json_file_handler
         self.ext_state_fields = Constants.ExtStateFields
 
     def tearDown(self):
@@ -66,10 +66,10 @@ class TestExtStateHandler(unittest.TestCase):
     def test_delete_file_failure(self):
         # Create a temporary directory
         test_dir = tempfile.mkdtemp()
-        file_path = os.path.join(test_dir, Constants.EXT_STATE_FILE)
+        file_name = Constants.EXT_STATE_FILE
+        file_path = os.path.join(test_dir, file_name)
         # create a file
-        test_file_handler = open(file_path, 'w')
-        test_file_handler.close()
+        self.runtime.create_temp_file(test_dir, file_name, content=None)
         # delete file
         ext_state_handler = ExtStateHandler('test', self.utility, self.json_file_handler)
         self.assertRaises(Exception, self.utility.delete_file, ext_state_handler.dir_path, ext_state_handler.file)
@@ -80,10 +80,10 @@ class TestExtStateHandler(unittest.TestCase):
     def test_delete_file_success(self):
         # Create a temporary directory
         test_dir = tempfile.mkdtemp()
-        file_path = os.path.join(test_dir, Constants.EXT_STATE_FILE)
+        file_name = Constants.EXT_STATE_FILE
+        file_path = os.path.join(test_dir, file_name)
         # create a file
-        test_file_handler = open(file_path, 'w')
-        test_file_handler.close()
+        self.runtime.create_temp_file(test_dir, file_name, content=None)
         # delete file
         ext_state_handler = ExtStateHandler(test_dir, self.utility, self.json_file_handler)
         self.utility.delete_file(ext_state_handler.dir_path, ext_state_handler.file)

@@ -29,9 +29,9 @@ class TestRuntimeContextHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.logger = tests_setup.logger
-        self.json_file_handler = tests_setup.json_file_handler
+        runtime = RuntimeComposer()
+        self.logger = runtime.logger
+        self.json_file_handler = runtime.json_file_handler
         self.runtime_context_handler = RuntimeContextHandler(self.logger)
         self.core_state_fields = Constants.CoreStateFields
 
@@ -50,13 +50,13 @@ class TestRuntimeContextHandler(unittest.TestCase):
 
         # patch still incomplete after wait
         time_for_prev_patch_to_complete = datetime.datetime.utcnow() + datetime.timedelta(hours=0, minutes=0, seconds=0.01)
-        core_state_read = CoreStateHandler.read_file
+        core_state_read_backup = CoreStateHandler.read_file
         CoreStateHandler.read_file = self.mock_read_core_state_operation_incomplete
         print(type(time_for_prev_patch_to_complete))
         self.assertFalse(
                 self.runtime_context_handler.check_if_patch_completes_in_time(time_for_prev_patch_to_complete, "2019-07-20T12:12:14Z", core_state_handler))
 
-        CoreStateHandler.read_file = core_state_read
+        CoreStateHandler.read_file = core_state_read_backup
 
     def mock_read_core_state_operation_incomplete(self):
         core_state_values = collections.namedtuple(Constants.CoreStateFields.parent_key, [self.core_state_fields.number, self.core_state_fields.action, self.core_state_fields.completed, self.core_state_fields.last_heartbeat, self.core_state_fields.process_ids])

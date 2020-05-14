@@ -28,9 +28,9 @@ class TestCoreStateHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.utility = tests_setup.utility
-        self.json_file_handler = tests_setup.json_file_handler
+        self.runtime = RuntimeComposer()
+        self.utility = self.runtime.utility
+        self.json_file_handler = self.runtime.json_file_handler
         self.core_state_fields = Constants.CoreStateFields
 
     def tearDown(self):
@@ -51,16 +51,15 @@ class TestCoreStateHandler(unittest.TestCase):
         test_dir = tempfile.mkdtemp()
         file_name = Constants.CORE_STATE_FILE
 
-        with open(os.path.join(test_dir, file_name), 'w+') as f:
-            f.close()
+        # test on empty file
+        self.runtime.create_temp_file(test_dir, file_name, content=None)
         core_state_handler = CoreStateHandler(os.path.join(test_dir), self.json_file_handler)
         core_state_json = core_state_handler.read_file()
         self.assertTrue(core_state_json is None)
         self.assertFalse(hasattr(core_state_json, self.core_state_fields.number))
 
-        with open(os.path.join(test_dir, file_name), 'w+') as f:
-            f.write("{}")
-            f.close()
+        # test on file with empty JSON
+        self.runtime.create_temp_file(test_dir, file_name, "{}")
         core_state_json = core_state_handler.read_file()
         self.assertTrue(hasattr(core_state_json, self.core_state_fields.number))
         self.assertTrue(hasattr(core_state_json, self.core_state_fields.action))
@@ -79,9 +78,7 @@ class TestCoreStateHandler(unittest.TestCase):
         }
         test_dir = tempfile.mkdtemp()
         file_name = Constants.CORE_STATE_FILE
-        with open(os.path.join(test_dir, file_name), 'w+') as f:
-            f.write("{}")
-            f.close()
+        self.runtime.create_temp_file(test_dir, file_name, "{}")
         core_state_handler = CoreStateHandler(os.path.join(test_dir), self.json_file_handler)
         core_state_handler.read_file()
         seq_no = self.core_state_fields.number
@@ -100,10 +97,10 @@ class TestCoreStateHandler(unittest.TestCase):
     def test_delete_file_failure(self):
         # Create a temporary directory
         test_dir = tempfile.mkdtemp()
-        file_path = os.path.join(test_dir, Constants.EXT_STATE_FILE)
+        file_name = Constants.EXT_STATE_FILE
+        file_path = os.path.join(test_dir, file_name)
         # create a file
-        test_file_handler = open(file_path, 'w')
-        test_file_handler.close()
+        self.runtime.create_temp_file(test_dir, file_name, content=None)
         # delete file
         core_state_handler = CoreStateHandler("test", self.json_file_handler)
         self.assertRaises(Exception, self.utility.delete_file, core_state_handler.dir_path, core_state_handler.file)
@@ -114,10 +111,10 @@ class TestCoreStateHandler(unittest.TestCase):
     def test_delete_file_success(self):
         # Create a temporary directory
         test_dir = tempfile.mkdtemp()
-        file_path = os.path.join(test_dir, Constants.CORE_STATE_FILE)
+        file_name = Constants.CORE_STATE_FILE
+        file_path = os.path.join(test_dir, file_name)
         # create a file
-        test_file_handler = open(file_path, 'w')
-        test_file_handler.close()
+        self.runtime.create_temp_file(test_dir, file_name, content=None)
         # delete file
         core_state_handler = CoreStateHandler(test_dir, self.json_file_handler)
         self.utility.delete_file(core_state_handler.dir_path, core_state_handler.file)

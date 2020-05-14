@@ -39,10 +39,10 @@ class TestEnableCommandHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         # create tempdir which will have all the required files
         self.temp_dir = tempfile.mkdtemp()
-        tests_setup = RuntimeComposer()
-        self.logger = tests_setup.logger
-        self.utility = tests_setup.utility
-        self.json_file_handler = tests_setup.json_file_handler
+        runtime = RuntimeComposer()
+        self.logger = runtime.logger
+        self.utility = runtime.utility
+        self.json_file_handler = runtime.json_file_handler
         self.runtime_context_handler = RuntimeContextHandler(self.logger)
         self.ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         self.config_folder = self.ext_env_handler.config_folder
@@ -53,26 +53,25 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         self.enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 1234)
         self.constants = Constants
-        self.start_daemon = ProcessHandler.start_daemon
-        ProcessHandler.start_daemon = self.mock_start_daemon
-        self.check_if_patch_completes_in_time = RuntimeContextHandler.check_if_patch_completes_in_time
-        RuntimeContextHandler.check_if_patch_completes_in_time = self.mock_check_if_patch_completes_in_time
+        self.start_daemon_backup = ProcessHandler.start_daemon
+        ProcessHandler.start_daemon = self.mock_start_daemon_to_return_true
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         # reseting mocks to their original definition
-        ProcessHandler.start_daemon = self.start_daemon
-        RuntimeContextHandler.check_if_patch_completes_in_time = self.check_if_patch_completes_in_time
+        ProcessHandler.start_daemon = self.start_daemon_backup
         # delete tempdir
         shutil.rmtree(self.temp_dir)
 
-    def mock_start_daemon(self, seq_no, config_settings, ext_env_handler):
+    def mock_start_daemon_to_return_true(self, seq_no, config_settings, ext_env_handler):
         return True
 
-    def mock_check_if_patch_completes_in_time(self, time_for_prev_patch_to_complete, core_state_last_heartbeat, core_state_handler):
+    def mock_patch_complete_time_check_to_return_true(self, time_for_prev_patch_to_complete, core_state_last_heartbeat, core_state_handler):
         return True
 
     def test_enable_command_first_request(self):
+        self.check_if_patch_completes_in_time_backup = RuntimeContextHandler.check_if_patch_completes_in_time
+        RuntimeContextHandler.check_if_patch_completes_in_time = self.mock_patch_complete_time_check_to_return_true
         config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)
         with self.assertRaises(SystemExit):
             self.enable_command_handler.execute_handler_action()
@@ -81,6 +80,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
         self.assertTrue(ext_state_json is not None)
         self.assertEqual(ext_state_json[self.constants.ExtStateFields.ext_seq][self.constants.ExtStateFields.ext_seq_number], 1234)
+        RuntimeContextHandler.check_if_patch_completes_in_time = self.check_if_patch_completes_in_time_backup
 
     def test_process_reenable_when_previous_req_complete(self):
         config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)

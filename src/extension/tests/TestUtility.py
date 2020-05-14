@@ -26,22 +26,22 @@ class TestUtility(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.utility = tests_setup.utility
+        self.runtime = RuntimeComposer()
+        self.utility = self.runtime.utility
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
 
-    def mock_os_remove(self, path):
+    def mock_os_remove_to_return_exception(self, path):
         raise Exception
 
     def test_delete_file_success(self):
         # Create a temporary directory
         test_dir = tempfile.mkdtemp()
-        file_path = os.path.join(test_dir, "test.json")
+        file_name = "test.json"
+        file_path = os.path.join(test_dir, file_name)
         # create a file
-        test_file_handler = open(file_path, 'w')
-        test_file_handler.close()
+        self.runtime.create_temp_file(test_dir, file_name, content=None)
         # delete file
         self.utility.delete_file(test_dir, "test.json")
         # once the file is deleted, os.path.exists on the ful file path will return False
@@ -63,14 +63,13 @@ class TestUtility(unittest.TestCase):
         self.assertRaises(Exception, self.utility.delete_file, test_dir, "test")
 
         # delete file
-        file_path = os.path.join(test_dir, "test.json")
+        file_name = "test.json"
         # create a file
-        test_file_handler = open(file_path, 'w')
-        test_file_handler.close()
-        os_remove = os.remove
-        os.remove = self.mock_os_remove
+        self.runtime.create_temp_file(test_dir, file_name, content=None)
+        os_remove_backup = os.remove
+        os.remove = self.mock_os_remove_to_return_exception
         self.assertRaises(Exception, self.utility.delete_file, test_dir, "test.json")
-        os.remove = os_remove
+        os.remove = os_remove_backup
 
         # Remove the directory after the test
         shutil.rmtree(test_dir)

@@ -27,8 +27,8 @@ from tests.helpers.VirtualTerminal import VirtualTerminal
 class TestExtEnvHandler(unittest.TestCase):
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.json_file_handler = tests_setup.json_file_handler
+        self.runtime = RuntimeComposer()
+        self.json_file_handler = self.runtime.json_file_handler
         self.env_settings_fields = Constants.EnvSettingsFields
 
     def tearDown(self):
@@ -44,8 +44,7 @@ class TestExtEnvHandler(unittest.TestCase):
         # empty file
         test_dir = tempfile.mkdtemp()
         file_name = "test_handler_env.json"
-        with open(os.path.join(test_dir, file_name), 'w') as f:
-            f.close()
+        self.runtime.create_temp_file(test_dir, file_name, content=None)
         self.assertRaises(Exception, ExtEnvHandler, self.json_file_handler, handler_env_file=file_name, handler_env_file_path=test_dir)
         shutil.rmtree(test_dir)
 
@@ -53,9 +52,7 @@ class TestExtEnvHandler(unittest.TestCase):
         json_content = [{"key1": "value"}, {"key2": "value2"}]
         test_dir = tempfile.mkdtemp()
         file_name = "test_handler_env.json"
-        with open(os.path.join(test_dir, file_name), 'w') as f:
-            f.write(str(json_content))
-            f.close()
+        self.runtime.create_temp_file(test_dir, file_name, str(json_content))
         self.assertRaises(Exception, ExtEnvHandler, self.json_file_handler, handler_env_file=file_name, handler_env_file_path=test_dir)
         shutil.rmtree(test_dir)
 
@@ -63,8 +60,7 @@ class TestExtEnvHandler(unittest.TestCase):
         json_content = [{}]
         test_dir = tempfile.mkdtemp()
         file_name = "test_handler_env.json"
-        with open(os.path.join(test_dir, file_name), 'w') as f:
-            f.write(str(json_content))
-            f.close()
+        self.runtime.create_temp_file(test_dir, file_name, str(json_content))
         self.assertRaises(Exception, ExtEnvHandler, self.json_file_handler, handler_env_file=file_name, handler_env_file_path=test_dir)
         shutil.rmtree(test_dir)
+

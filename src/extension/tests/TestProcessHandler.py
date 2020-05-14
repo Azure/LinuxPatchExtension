@@ -29,28 +29,21 @@ class TestProcessHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        tests_setup = RuntimeComposer()
-        self.logger = tests_setup.logger
-        self.utility = tests_setup.utility
-        self.json_file_handler = tests_setup.json_file_handler
+        runtime = RuntimeComposer()
+        self.logger = runtime.logger
+        self.utility = runtime.utility
+        self.json_file_handler = runtime.json_file_handler
         seq_no = 1234
         dir_path = os.path.join(os.path.pardir, "tests", "helpers")
         self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, "test.log", seq_no, dir_path)
-        self.is_process_running = ProcessHandler.is_process_running
-        ProcessHandler.is_process_running = self.mock_is_process_running
-        self.os_kill = os.kill
-        os.kill = self.mock_os_kill
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        # reseting mocks
-        ProcessHandler.is_process_running = self.is_process_running
-        os.kill = self.os_kill
 
-    def mock_is_process_running(self, pid):
+    def mock_is_process_running_to_return_true(self, pid):
         return True
 
-    def mock_os_kill(self, pid, sig):
+    def mock_os_kill_to_raise_exception(self, pid, sig):
         raise OSError
 
     def test_get_public_config_settings(self):
@@ -71,10 +64,20 @@ class TestProcessHandler(unittest.TestCase):
         self.assertEqual(env_settings.get(Constants.EnvSettingsFields.log_folder), "mockLog")
 
     def test_kill_process(self):
+        # setting mocks
+        is_process_running_backup = ProcessHandler.is_process_running
+        ProcessHandler.is_process_running = self.mock_is_process_running_to_return_true
+        os_kill_backup = os.kill
+        os.kill = self.mock_os_kill_to_raise_exception
+
+        # error in terminating process
         pid = 123
         process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         self.assertRaises(OSError, process_handler.kill_process, pid)
 
+        # reseting mocks
+        ProcessHandler.is_process_running = is_process_running_backup
+        os.kill = os_kill_backup
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestProcessHandler)
