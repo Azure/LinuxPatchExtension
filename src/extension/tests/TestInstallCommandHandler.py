@@ -15,13 +15,12 @@
 # Requires Python 2.7+
 
 import os
+import sys
 import unittest
-from unittest import mock
-from unittest.mock import patch
+from src.Constants import Constants
 from src.InstallCommandHandler import InstallCommandHandler
 from src.file_handlers.ExtEnvHandler import ExtEnvHandler
-from src.file_handlers.JsonFileHandler import JsonFileHandler
-from src.local_loggers.Logger import Logger
+from tests.helpers.RuntimeComposer import RuntimeComposer
 from tests.helpers.VirtualTerminal import VirtualTerminal
 
 
@@ -29,37 +28,39 @@ class TestInstallCommandHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        self.logger = Logger()
-        self.json_file_handler = JsonFileHandler(self.logger)
+        tests_setup = RuntimeComposer()
+        self.logger = tests_setup.logger
+        self.json_file_handler = tests_setup.json_file_handler
+        self.get_json_file_content = self.json_file_handler.get_json_file_content
+        self.json_file_handler.get_json_file_content = self.mock_get_json_file_content
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        # reseting mocks
+        self.json_file_handler.get_json_file_content = self.get_json_file_content
 
-    @patch('tests.TestInstallCommandHandler.JsonFileHandler.get_json_file_content')
-    def test_validate_os_type_is_linux(self, mock_ext_env_handler):
-        mock_ext_env_handler.return_value = None
+    def mock_get_json_file_content(self, file, dir_path, raise_if_not_found=False):
+        return None
+
+    def test_validate_os_type_is_linux(self):
         ext_env_handler = ExtEnvHandler(self.json_file_handler)
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
-        with mock.patch('src.InstallCommandHandler.sys.platform', 'linux'):
-            self.assertTrue(install_command_handler.validate_os_type())
+        sys.platform = 'linux'
+        self.assertTrue(install_command_handler.validate_os_type())
 
-    @patch('tests.TestInstallCommandHandler.JsonFileHandler.get_json_file_content')
-    def test_validate_os_type_not_linux(self, mock_ext_env_handler):
-        mock_ext_env_handler.return_value = None
+    def test_validate_os_type_not_linux(self):
         ext_env_handler = ExtEnvHandler(self.json_file_handler)
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
-        with mock.patch('src.InstallCommandHandler.sys.platform', 'win32'):
-            self.assertRaises(Exception, install_command_handler.validate_os_type)
+        sys.platform = 'win32'
+        self.assertRaises(Exception, install_command_handler.validate_os_type)
 
     def test_validate_environment(self):
         config_type = 'handlerEnvironment'
 
         # file has no content
-        handler_environment = None
-        with mock.patch('tests.TestInstallCommandHandler.JsonFileHandler.get_json_file_content', return_value=handler_environment):
-            ext_env_handler = ExtEnvHandler(self.json_file_handler)
-            install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
-            self.assertRaises(Exception, install_command_handler.validate_environment)
+        ext_env_handler = ExtEnvHandler(self.json_file_handler)
+        install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
+        self.assertRaises(Exception, install_command_handler.validate_environment)
 
         # Validating datatype for fields in HandlerEnvironment
         handler_environment = []
@@ -74,6 +75,8 @@ class TestInstallCommandHandler(unittest.TestCase):
         self.verify_key(handler_environment[0][config_type], 'statusFolder', 'test', 1.0, True, Exception, install_command_handler.validate_environment)
 
         # Validating HandlerEnvironment.json file
+        # reseting mock to original func def
+        self.json_file_handler.get_json_file_content = self.get_json_file_content
         ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
         install_command_handler.validate_environment()
@@ -82,23 +85,22 @@ class TestInstallCommandHandler(unittest.TestCase):
         # removing key value pair from handler if it exists
         config_type.pop(key, None)
         # required key not in config
-        if (is_required):
+        if is_required:
             self.assertRaises(exception_type, function_name)
         # key not of expected type
         config_type[key] = incorrect_value
         self.assertRaises(exception_type, function_name)
         config_type[key] = expected_value
 
-    @patch('src.InstallCommandHandler.InstallCommandHandler.validate_os_type')
-    @patch('src.InstallCommandHandler.InstallCommandHandler.validate_environment')
-    @patch('tests.TestInstallCommandHandler.JsonFileHandler.get_json_file_content')
-    def test_all_validate_methods_called_from_install_handler(self, mock_os_type, mock_validate_environment, mock_ext_env_handler):
-        ext_env_handler = ExtEnvHandler(self.json_file_handler)
+    def test_execute_action_handler(self):
+        sys.platform = 'linux'
+        # reseting mock to original func def
+        self.json_file_handler.get_json_file_content = self.get_json_file_content
+        ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
-        install_command_handler.execute_handler_action()
-        self.assertTrue(mock_os_type.called)
-        self.assertTrue(mock_validate_environment.called)
+        self.assertEqual(install_command_handler.execute_handler_action(), Constants.ExitCode.Okay)
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestInstallCommandHandler)
     unittest.TextTestRunner(verbosity=2).run(SUITE)
+
