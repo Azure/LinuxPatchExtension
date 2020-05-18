@@ -76,3 +76,5 @@ Ubuntu Server | 16.04-LTS, 18.04-LTS, 20.04-LTS
 Red Hat Enterprise Linux | 6 (x86/x64), 7 (x64), 8 (x64)
 CentOS | 6 (x86/x64), 7 (x64), 8 (x64)
 SUSE Linux Enterprise Server | 11 (x86/x64), 12 (x64), 15 (x64)
+
+NOTE: Code is not yet validated on Ubuntu Server 20.04-LTS, Red Hat Enterprise Linux 8 (x64), CentOS 8 (x64), SUSE Linux Enterprise Server 11 (x86/x64), 12 (x64), 15 (x64)
