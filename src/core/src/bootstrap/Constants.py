@@ -56,6 +56,7 @@ class Constants(object):
         CLASSIFICATIONS_TO_INCLUDE = 'classificationsToInclude'
         PATCHES_TO_INCLUDE = 'patchesToInclude'
         PATCHES_TO_EXCLUDE = 'patchesToExclude'
+        MAX_PATCH_PUBLISH_DATE = 'maxPatchPublishDate'
 
     # Operations
     ASSESSMENT = "Assessment"

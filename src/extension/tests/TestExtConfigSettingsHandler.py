@@ -170,41 +170,22 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
                         self.config_public_settings_fields.include_classifications: ["Critical","Security"],
                         self.config_public_settings_fields.include_patches: ["*", "test*", "*ern*=1.2*", "kern*=1.23.45"],
                         self.config_public_settings_fields.exclude_patches: ["*", "test", "*test"],
-                        self.config_public_settings_fields.internal_settings: "<serialized-json>"
+                        self.config_public_settings_fields.internal_settings: "<serialized-json>",
+                        self.config_public_settings_fields.max_patch_publish_date: "2019-07-20T12:12:14Z"
                     }
                 }
             }]
         }
         self.assertTrue(ext_config_settings_handler.are_config_settings_valid(config_settings_json))
 
+        # Testing with only required fields
         config_settings_json = {
             runtime_settings_key: [{
                 handler_settings_key: {
-                    "testKey": "testVal",
                     public_settings_key: {
                         self.config_public_settings_fields.operation: "test",
                         self.config_public_settings_fields.activity_id: "12345-2312-1234-23245-32112",
                         self.config_public_settings_fields.start_time: "2019-07-20T12:12:14Z"
-                    }
-                }
-            }]
-        }
-        self.assertTrue(ext_config_settings_handler.are_config_settings_valid(config_settings_json))
-
-        config_settings_json = {
-            runtime_settings_key: [{
-                handler_settings_key: {
-                    "testKey": "testVal",
-                    public_settings_key: {
-                        self.config_public_settings_fields.operation: "test",
-                        self.config_public_settings_fields.activity_id: "12345-2312-1234-23245-32112",
-                        self.config_public_settings_fields.start_time: "2019-07-20T12:12:14Z",
-                        self.config_public_settings_fields.maximum_duration: "",
-                        self.config_public_settings_fields.reboot_setting: "IfRequired",
-                        self.config_public_settings_fields.include_classifications: ["Critical", "Security"],
-                        self.config_public_settings_fields.include_patches: ["*", "test*", "*ern*=1.2*", "kern*=1.23.45"],
-                        self.config_public_settings_fields.exclude_patches: ["*", "test", "*test"],
-                        self.config_public_settings_fields.internal_settings: "<serialized-json>"
                     }
                 }
             }]

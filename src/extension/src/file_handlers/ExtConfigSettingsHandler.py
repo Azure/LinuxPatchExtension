@@ -79,11 +79,13 @@ class ExtConfigSettingsHandler(object):
                 include_patches = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.include_patches, raise_if_not_found=False)
                 exclude_patches = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.exclude_patches, raise_if_not_found=False)
                 internal_settings = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.internal_settings, raise_if_not_found=False)
+                max_patch_publish_date = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.max_patch_publish_date, raise_if_not_found=False)
 
                 config_settings_values = collections.namedtuple("config_settings", [self.public_settings_all_keys.operation, self.public_settings_all_keys.activity_id, self.public_settings_all_keys.start_time,
                                                                                     self.public_settings_all_keys.maximum_duration, self.public_settings_all_keys.reboot_setting, self.public_settings_all_keys.include_classifications,
-                                                                                    self.public_settings_all_keys.include_patches, self.public_settings_all_keys.exclude_patches, self.public_settings_all_keys.internal_settings])
-                return config_settings_values(operation, activity_id, start_time, max_duration, reboot_setting, include_classifications, include_patches, exclude_patches, internal_settings)
+                                                                                    self.public_settings_all_keys.include_patches, self.public_settings_all_keys.exclude_patches, self.public_settings_all_keys.internal_settings,
+                                                                                    self.public_settings_all_keys.max_patch_publish_date])
+                return config_settings_values(operation, activity_id, start_time, max_duration, reboot_setting, include_classifications, include_patches, exclude_patches, internal_settings, max_patch_publish_date)
             else:
                 #ToDo log which of the 2 conditions failed, similar to this logs in other multiple condition checks
                 raise Exception("Config Settings json file invalid")
