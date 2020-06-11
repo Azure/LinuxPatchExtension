@@ -47,7 +47,7 @@ class ArgumentComposer(object):
         self.classifications_to_include = []
         self.patches_to_include = []
         self.patches_to_exclude = []
-        self.max_patch_publish_date = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+        self.max_patch_publish_date = "" #ToDo: tests with a date present, will be added with further changes on using max_patch_publish_date in status
 
         # REAL environment settings
         self.emulator_enabled = False

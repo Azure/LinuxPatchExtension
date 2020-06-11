@@ -51,7 +51,7 @@ class ExecutionConfig(object):
         self.included_classifications_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.CLASSIFICATIONS_TO_INCLUDE, [])
         self.included_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_INCLUDE, [])
         self.excluded_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_EXCLUDE, [])
-        self.max_patch_publish_date = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAX_PATCH_PUBLISH_DATE, [])
+        self.max_patch_publish_date = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAX_PATCH_PUBLISH_DATE, "")
         if self.operation == Constants.INSTALLATION:
             self.reboot_setting = self.config_settings[Constants.ConfigSettings.REBOOT_SETTING]     # expected to throw if not present
         else:
