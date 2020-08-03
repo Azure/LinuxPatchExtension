@@ -20,6 +20,8 @@ import os
 import signal
 import subprocess
 import errno
+import sys
+
 from src.Constants import Constants
 
 
@@ -55,13 +57,21 @@ class ProcessHandler(object):
         return env_settings
 
     def start_daemon(self, seq_no, config_settings, ext_env_handler):
-        """ Launches the core code in a separate independent process with required arguements and exits the current process immediately """
+        """ Launches the core code in a separate independent process with required arguments and exits the current process immediately """
         exec_path = os.path.join(os.getcwd(), Constants.CORE_CODE_FILE_NAME)
         public_config_settings = base64.b64encode(json.dumps(self.get_public_config_settings(config_settings)).encode("utf-8")).decode("utf-8")
         env_settings = base64.b64encode(json.dumps(self.get_env_settings(ext_env_handler)).encode("utf-8")).decode("utf-8")
 
         args = " -sequenceNumber {0} -environmentSettings \'{1}\' -configSettings \'{2}\'".format(str(seq_no), env_settings, public_config_settings)
-        command = ["python " + exec_path + " " + args]
+
+        # Verify the python version available on the machine to use
+        self.logger.log("Python version: " + " ".join(sys.version.splitlines()))
+        if sys.version_info.major == 3:
+            python_cmd = "python3"
+        else:
+            python_cmd = "python"
+
+        command = [python_cmd + " " + exec_path + " " + args]
         self.logger.log("Launching process. [command={0}]".format(str(command)))
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if process.pid is not None:
