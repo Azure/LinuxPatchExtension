@@ -66,10 +66,7 @@ class ProcessHandler(object):
 
         # Verify the python version available on the machine to use
         self.logger.log("Python version: " + " ".join(sys.version.splitlines()))
-        if sys.version_info.major == 3:
-            python_cmd = "python3"
-        else:
-            python_cmd = "python"
+        python_cmd = self.get_python_cmd()
 
         command = [python_cmd + " " + exec_path + " " + args]
         self.logger.log("Launching process. [command={0}]".format(str(command)))
@@ -78,6 +75,16 @@ class ProcessHandler(object):
             self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
             return process
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
+
+    def get_python_cmd(self):
+        # identify if VM uses python or python3
+        command_for_python = ["which", "python"]
+        process = subprocess.Popen(command_for_python)
+        output, unused_err = process.communicate()
+        retcode = process.poll()
+        if retcode:
+            return "python3"
+        return "python"
 
     def identify_running_processes(self, process_ids):
         """ Returns a list of all currently active processes from the given list of process ids """
