@@ -46,6 +46,15 @@ class TestProcessHandler(unittest.TestCase):
     def mock_os_kill_to_raise_exception(self, pid, sig):
         raise OSError
 
+    def mock_run_command_output_for_python(self, cmd, no_output=False, chk_err=False):
+        return 0, "/usr/bin/python"
+
+    def mock_run_command_output_for_python3(self, cmd, no_output=False, chk_err=False):
+        return 0, "/usr/bin/python3"
+
+    def mock_run_command_output_for_python_not_found(self, cmd, no_output=False, chk_err=False):
+        return 1, "which: no python in test"
+
     def test_get_public_config_settings(self):
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
         seq_no = "1234"
@@ -78,6 +87,27 @@ class TestProcessHandler(unittest.TestCase):
         # reseting mocks
         ProcessHandler.is_process_running = is_process_running_backup
         os.kill = os_kill_backup
+
+    def test_get_python_cmd(self):
+        # setting mocks
+        run_command_output_backup = ProcessHandler.run_command_output
+        process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
+
+        # testing for 'python' command
+        ProcessHandler.run_command_output = self.mock_run_command_output_for_python
+        self.assertEquals(process_handler.get_python_cmd(), "python")
+
+        # testing for 'python3' command
+        ProcessHandler.run_command_output = self.mock_run_command_output_for_python3
+        self.assertEquals(process_handler.get_python_cmd(), "python3")
+
+        # testing when python is not found on machine
+        ProcessHandler.run_command_output = self.mock_run_command_output_for_python_not_found
+        self.assertEquals(process_handler.get_python_cmd(), Constants.PYTHON_NOT_FOUND)
+
+        # reseting mocks
+        ProcessHandler.run_command_output = run_command_output_backup
+
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestProcessHandler)

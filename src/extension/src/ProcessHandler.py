@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+from __future__ import print_function
 import base64
 import json
 import os
@@ -67,6 +67,9 @@ class ProcessHandler(object):
         # Verify the python version available on the machine to use
         self.logger.log("Python version: " + " ".join(sys.version.splitlines()))
         python_cmd = self.get_python_cmd()
+        if python_cmd == Constants.PYTHON_NOT_FOUND:
+            self.logger.log("Cannot execute patch operation due to [Error={0}]".format(Constants.PYTHON_NOT_FOUND))
+            return
 
         command = [python_cmd + " " + exec_path + " " + args]
         self.logger.log("Launching process. [command={0}]".format(str(command)))
@@ -77,14 +80,92 @@ class ProcessHandler(object):
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
 
     def get_python_cmd(self):
-        # identify if VM uses python or python3
-        command_for_python = ["which", "python"]
-        process = subprocess.Popen(command_for_python)
-        output, unused_err = process.communicate()
-        retcode = process.poll()
-        if retcode:
-            return "python3"
-        return "python"
+        command_to_check_for_python = "which python"
+        command_to_check_for_python3 = "which python3"
+        command_to_use_for_python = "python"
+        command_to_use_for_python3 = "python3"
+
+        # check if the machine contains python
+        code_returned_for_python_check, output_for_python_check = self.run_command_output(command_to_check_for_python, False, False)
+        if code_returned_for_python_check == 0 and command_to_use_for_python in str(output_for_python_check) and command_to_use_for_python3 not in str(output_for_python_check):
+            return command_to_use_for_python
+
+        # check if the machine contains python3
+        code_returned_for_python3_check, output_for_python3_check = self.run_command_output(command_to_check_for_python3, False, False)
+        if code_returned_for_python3_check == 0 and command_to_use_for_python3 in str(output_for_python3_check):
+            return command_to_use_for_python3
+
+        return Constants.PYTHON_NOT_FOUND
+
+    def run_command_output(self, cmd, no_output=False, chk_err=False):
+        code, output = self.__run_command_output_raw(cmd, no_output, chk_err)
+        return code, output
+
+    def __run_command_output_raw(self, cmd, no_output, chk_err=True):
+        """
+        Wrapper for subprocess.check_output. Execute 'cmd'.
+        Returns return code and STDOUT, trapping expected exceptions.
+        Reports exceptions to Error if chk_err parameter is True
+        """
+
+        def check_output(no_output, *popenargs, **kwargs):
+            """
+            Backport from subprocess module from python 2.7
+            """
+            if 'stdout' in kwargs:
+                raise ValueError('stdout argument not allowed, it will be overridden.')
+            if no_output is True:
+                out_file = None
+            else:
+                out_file = subprocess.PIPE
+
+            process = subprocess.Popen(stdout=out_file, *popenargs, **kwargs)
+            output, unused_err = process.communicate()
+            retcode = process.poll()
+
+            if retcode:
+                cmd = kwargs.get("args")
+                if cmd is None:
+                    cmd = popenargs[0]
+                raise subprocess.CalledProcessError(retcode, cmd, output=output)
+            return output
+
+        # noinspection PyShadowingNames,PyShadowingNames
+        class CalledProcessError(Exception):
+            """Exception classes used by this module."""
+
+            def __init__(self, return_code, cmd, output=None):
+                self.return_code = return_code
+                self.cmd = cmd
+                self.output = output
+
+            def __str__(self):
+                return "Command '%s' returned non-zero exit status %d" \
+                       % (self.cmd, self.return_code)
+
+        subprocess.check_output = check_output
+        subprocess.CalledProcessError = CalledProcessError
+        try:
+            output = subprocess.check_output(
+                no_output, cmd, stderr=subprocess.STDOUT, shell=True)
+        except subprocess.CalledProcessError as e:
+            if chk_err:
+                print("Error: CalledProcessError.  Error Code is: " + str(e.returncode), file=sys.stdout)
+                print("Error: CalledProcessError.  Command string was: " + e.cmd, file=sys.stdout)
+                print("Error: CalledProcessError.  Command result was: " + (e.output[:-1]).decode('utf8', 'ignore').encode("ascii", "ignore"), file=sys.stdout)
+            if no_output:
+                return e.return_code, None
+            else:
+                return e.return_code, e.output.decode('utf8', 'ignore').encode('ascii', 'ignore')
+        except Exception as error:
+            message = "Exception during cmd execution. [Exception={0}][Cmd={1}]".format(repr(error), str(cmd))
+            print(message)
+            raise message
+
+        if no_output:
+            return 0, None
+        else:
+            return 0, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
 
     def identify_running_processes(self, process_ids):
         """ Returns a list of all currently active processes from the given list of process ids """
