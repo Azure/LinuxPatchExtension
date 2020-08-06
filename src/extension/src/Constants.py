@@ -84,7 +84,7 @@ class Constants(object):
         DEFAULT_ERROR = "ERROR"  # default error code
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
-    PYTHON_NOT_FOUND = "No python version found on the machine"
+    PYTHON_NOT_FOUND = "Python version could not be discovered for core invocation."
 
     # HandlerEnvironment constants
     class EnvSettingsFields(EnumBackport):

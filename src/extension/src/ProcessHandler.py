@@ -69,7 +69,7 @@ class ProcessHandler(object):
         self.logger.log("Python version: " + " ".join(sys.version.splitlines()))
         python_cmd = self.get_python_cmd()
         if python_cmd == Constants.PYTHON_NOT_FOUND:
-            self.logger.log("Cannot execute patch operation due to [Error={0}]".format(Constants.PYTHON_NOT_FOUND))
+            self.logger.log("Cannot execute patch operation due to error. [Error={0}]".format(Constants.PYTHON_NOT_FOUND))
             return
 
         command = [python_cmd + " " + exec_path + " " + args]
@@ -82,8 +82,8 @@ class ProcessHandler(object):
             # if process is not running, log stdout and stderr
             if process.poll() is not None:
                 self.logger.log("Process not running for [sequence={0}]".format(seq_no))
-                self.logger.log("Standard output for the inactive process: [Output={0}]".format(str(process.stdout)))
-                self.logger.log("Error logs for the inactive process: [Error={0}]".format(str(process.stderr)))
+                self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout)))
+                self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr)))
                 return
             return process
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
