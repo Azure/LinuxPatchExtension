@@ -21,6 +21,7 @@ import signal
 import subprocess
 import errno
 import sys
+import time
 
 from src.Constants import Constants
 
@@ -76,6 +77,14 @@ class ProcessHandler(object):
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if process.pid is not None:
             self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
+            # Wait for 5 seconds
+            time.sleep(5)
+            # if process is not running, log stdout and stderr
+            if process.poll() is not None:
+                self.logger.log("Process not running for [sequence={0}]".format(seq_no))
+                self.logger.log("Standard output for the inactive process: [Output={0}]".format(str(process.stdout)))
+                self.logger.log("Error logs for the inactive process: [Error={0}]".format(str(process.stderr)))
+                return
             return process
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
 
