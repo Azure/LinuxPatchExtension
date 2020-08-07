@@ -89,7 +89,8 @@ class TestProcessHandler(unittest.TestCase):
         process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         public_config_settings = process_handler.get_public_config_settings(config_settings)
         self.assertTrue(public_config_settings is not None)
-        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.operation), "Deployment")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.operation), "Installation")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.patch_rollout_id), "2019-07-20T12:12:14Z")
 
     def test_get_env_settings(self):
         handler_env_file_path = os.path.join(os.path.pardir, "tests", "helpers")

@@ -49,6 +49,10 @@ class PatchInstaller(object):
         self.composite_logger.log('\nStarting patch installation...')
         self.status_handler.set_current_operation(Constants.INSTALLATION)
 
+        # update patch metadata in status for auto patching requests
+        if self.execution_config.patch_rollout_id is not None:
+            self.status_handler.set_patch_metadata_for_health_store_substatus_json(report_to_health_store=False, wait_after_update=False)
+
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
         self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
         self.composite_logger.log("Operation request time: " + self.execution_config.start_time + ",               Maintenance Window Duration: " + self.execution_config.duration)
@@ -94,8 +98,21 @@ class PatchInstaller(object):
         overall_patch_installation_successful = bool(update_run_successful and not maintenance_window_exceeded)
         if overall_patch_installation_successful:
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+            # update patch metadata in status for auto patching request, to be reported to health store
+            if self.execution_config.patch_rollout_id is not None:
+                patch_version = None
+                try:
+                    patch_version = self.env_layer.datetime.utc_to_standard_datetime(self.execution_config.patch_rollout_id).date()
+                except ValueError as e:
+                    patch_version = Constants.PATCH_VERSION_UNKNOWN
+
+                self.status_handler.set_patch_metadata_for_health_store_substatus_json(status=Constants.STATUS_SUCCESS,
+                                                                                       patch_version=patch_version if patch_version is not None else Constants.PATCH_VERSION_UNKNOWN,
+                                                                                       report_to_health_store=True,
+                                                                                       wait_after_update=False)
         else:
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+            # NOTE: For auto patching requests, no need to report patch metadata to health store in case of failure
 
         return overall_patch_installation_successful
 

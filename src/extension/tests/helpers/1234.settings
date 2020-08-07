@@ -4,7 +4,7 @@
             "protectedSettingsCertThumbprint": "",
             "protectedSettings": "",
             "publicSettings": {
-                "operation": "Deployment",
+                "operation": "Installation",
                 "activityId": "12345-2312-1234-23245-32112",
                 "startTime": "2019-07-20T12:12:14Z",
                 "maximumDuration": "20",
@@ -12,7 +12,8 @@
                 "classificationsToInclude":["Critical","Security"],
                 "patchesToInclude": ["*", "test*","*ern*=1.2*", "kern*=1.23.45"],
                 "patchesToExclude": ["*", "test", "*test"],
-                "maxPatchPublishDate": "2019-07-20T12:12:14Z"
+                "internalSettings": "test",
+                "patchRolloutId": "2019-07-20T12:12:14Z"
             }
         }
     }]

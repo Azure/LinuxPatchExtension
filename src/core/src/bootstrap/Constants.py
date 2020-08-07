@@ -56,13 +56,20 @@ class Constants(object):
         CLASSIFICATIONS_TO_INCLUDE = 'classificationsToInclude'
         PATCHES_TO_INCLUDE = 'patchesToInclude'
         PATCHES_TO_EXCLUDE = 'patchesToExclude'
-        MAX_PATCH_PUBLISH_DATE = 'maxPatchPublishDate'
+        PATCH_ROLLOUT_ID = 'patchRolloutId'
 
     # Operations
     ASSESSMENT = "Assessment"
     INSTALLATION = "Installation"
     PATCH_ASSESSMENT_SUMMARY = "PatchAssessmentSummary"
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
+    PATCH_METADATA_FOR_HEALTH_STORE = "PatchMetadataForHealthStore"
+
+    # patch versions for health store when there is no patch rollout id
+    PATCH_VERSION_UNKNOWN = "UNKNOWN"
+
+    # wait time after status updates
+    WAIT_FOR_AFTER_STATUS_UPDATE_IN_SECS = 20
 
     # Status file states
     STATUS_TRANSITIONING = "Transitioning"

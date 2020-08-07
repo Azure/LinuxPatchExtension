@@ -110,7 +110,7 @@ class Constants(object):
         include_patches = "patchesToInclude"
         exclude_patches = "patchesToExclude"
         internal_settings = "internalSettings"
-        max_patch_publish_date = "maxPatchPublishDate"
+        patch_rollout_id = "patchRolloutId"
 
     # ExtState.json keys
     class ExtStateFields(EnumBackport):

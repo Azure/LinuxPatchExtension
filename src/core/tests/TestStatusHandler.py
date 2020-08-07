@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import datetime
 import json
 import unittest
 from src.bootstrap.Constants import Constants
@@ -135,6 +135,21 @@ class TestStatusHandler(unittest.TestCase):
         status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
         self.assertTrue(status_handler is not None)
 
+    def test_set_patch_metadata_for_health_store_substatus_json(self):
+
+        self.runtime.status_handler.set_patch_metadata_for_health_store_substatus_json(status=Constants.STATUS_SUCCESS, patch_version="2020-07-08", report_to_health_store=True, wait_after_update=True)
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], True)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], "2020-07-08")
+        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+
+        self.runtime.status_handler.set_patch_metadata_for_health_store_substatus_json()
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], False)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
+        self.assertEqual(substatus_file_data["status"], Constants.STATUS_TRANSITIONING.lower())
 
 if __name__ == '__main__':
     unittest.main()

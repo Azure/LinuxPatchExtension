@@ -53,7 +53,7 @@ class TestExtStateHandler(unittest.TestCase):
         self.assertEqual(ext_state_values.__getattribute__(self.ext_state_fields.ext_seq_number), 1234)
         self.assertTrue(ext_state_values.__getattribute__(self.ext_state_fields.ext_seq_achieve_enable_by) is not None)
         self.assertTrue(ext_state_values.__getattribute__(self.ext_state_fields.ext_seq_operation) is not None)
-        self.assertEqual(ext_state_values.__getattribute__(self.ext_state_fields.ext_seq_operation), "Deployment")
+        self.assertEqual(ext_state_values.__getattribute__(self.ext_state_fields.ext_seq_operation), "Installation")
 
     def test_read_file_no_content(self):
         ext_state_handler = ExtStateHandler(os.path.join(os.path.pardir, "tests", "helper"), self.utility, self.json_file_handler)

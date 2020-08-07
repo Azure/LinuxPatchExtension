@@ -44,7 +44,8 @@ class ProcessHandler(object):
                                            public_settings_keys.include_classifications: config_settings.__getattribute__(public_settings_keys.include_classifications),
                                            public_settings_keys.include_patches: config_settings.__getattribute__(public_settings_keys.include_patches),
                                            public_settings_keys.exclude_patches: config_settings.__getattribute__(public_settings_keys.exclude_patches),
-                                           public_settings_keys.internal_settings: config_settings.__getattribute__(public_settings_keys.internal_settings)})
+                                           public_settings_keys.internal_settings: config_settings.__getattribute__(public_settings_keys.internal_settings),
+                                           public_settings_keys.patch_rollout_id: config_settings.__getattribute__(public_settings_keys.patch_rollout_id)})
         return public_config_settings
 
     def get_env_settings(self, ext_env_handler):
