@@ -55,6 +55,8 @@ class CoreMain(object):
             # Update patch metadata summary in status for auto patching installation requests, to be reported to health store
             if execution_config.patch_rollout_id is not None and patch_operation_requested == Constants.INSTALLATION.lower():
                 status_handler.set_patch_metadata_for_health_store_substatus_json(report_to_health_store=True, wait_after_update=True)
+                # updating metadata summary again with reporting to health store turned off
+                status_handler.set_patch_metadata_for_health_store_substatus_json(report_to_health_store=False, wait_after_update=False)
 
             # Assessment happens no matter what
             patch_assessment_successful = patch_assessor.start_assessment()
