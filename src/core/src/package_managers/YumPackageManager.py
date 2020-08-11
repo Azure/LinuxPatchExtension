@@ -23,8 +23,8 @@ from src.bootstrap.Constants import Constants
 class YumPackageManager(PackageManager):
     """Implementation of Redhat/CentOS package management operations"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler):
-        super(YumPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler)
+    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler, execution_config):
+        super(YumPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler, execution_config)
         # Repo refresh
         # There is no command as this is a no op.
 

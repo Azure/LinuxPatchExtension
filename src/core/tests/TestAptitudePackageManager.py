@@ -111,5 +111,10 @@ class TestAptitudePackageManager(unittest.TestCase):
         # test for unsuccessfully installing a package
         self.assertEquals(package_manager.install_update_and_dependencies('iucode-tool', '1.5.1-1ubuntu0.1', simulate=True), Constants.PENDING)
 
+    # def test_default_auto_os_update_log_exists(self):
+    #     data = 'APT::Periodic::Update-Package-Lists "0"; \n APT::Periodic::Unattended-Upgrade "0";'
+    #     default_auto_os_update_log_path = self.runtime.execution_config.config_folder
+    #     self.runtime.write_system_auto_os_update(self.defdata)
+
 if __name__ == '__main__':
     unittest.main()

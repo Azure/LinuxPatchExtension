@@ -23,8 +23,8 @@ from src.bootstrap.Constants import Constants
 class ZypperPackageManager(PackageManager):
     """Implementation of SUSE package management operations"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler):
-        super(ZypperPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler)
+    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler, execution_config):
+        super(ZypperPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler, execution_config)
         # Repo refresh
         self.repo_clean = 'sudo zypper clean -a'
         self.repo_refresh = 'sudo zypper refresh'

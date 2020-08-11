@@ -163,7 +163,7 @@ class ConfigurationFactory(object):
             },
             'package_manager': {
                 'component': package_manager_component,
-                'component_args': ['env_layer', 'composite_logger', 'telemetry_writer', 'status_handler'],
+                'component_args': ['env_layer', 'composite_logger', 'telemetry_writer', 'status_handler', 'execution_config'],
                 'component_kwargs': {}
             },
             'reboot_manager': {

@@ -56,7 +56,10 @@ class Constants(object):
         CLASSIFICATIONS_TO_INCLUDE = 'classificationsToInclude'
         PATCHES_TO_INCLUDE = 'patchesToInclude'
         PATCHES_TO_EXCLUDE = 'patchesToExclude'
-        MAX_PATCH_PUBLISH_DATE = 'maxPatchPublishDate'
+        PATCH_ROLLOUT_ID = 'patchRolloutId'
+
+    # File to save default settings for auto OS updates
+    DEFAULT_AUTO_OS_UPDATE_LOG = "DefaultAutoUpdates.log"
 
     # Operations
     ASSESSMENT = "Assessment"

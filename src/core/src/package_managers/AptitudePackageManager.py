@@ -17,6 +17,8 @@
 """The is Aptitude package manager implementation"""
 import os
 import re
+import shutil
+
 from src.package_managers.PackageManager import PackageManager
 from src.bootstrap.Constants import Constants
 
@@ -25,8 +27,8 @@ class AptitudePackageManager(PackageManager):
     """Implementation of Debian/Ubuntu based package management operations"""
 
     # For more details, try `man apt-get` on any Debian/Ubuntu based box.
-    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler):
-        super(AptitudePackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler)
+    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler, execution_config):
+        super(AptitudePackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler, execution_config)
         # Repo refresh
         self.repo_refresh = 'sudo apt-get -q update'
 
@@ -46,6 +48,10 @@ class AptitudePackageManager(PackageManager):
 
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
+
+        # auto OS updates
+        self.find_current_auto_os_updates_settings_cmd = 'sudo cat /etc/apt/apt.conf.d/20auto-upgrades'
+        self.disable_auto_os_update_command = '''sudo sed -i 's/APT::Periodic::Update-Package-Lists "1"/APT::Periodic::Update-Package-Lists "0"/;s/APT::Periodic::Unattended-Upgrade "1"/APT::Periodic::Unattended-Upgrade "0"/' /etc/apt/apt.conf.d/20auto-upgrades'''
 
         # Miscellaneous
         os.environ['DEBIAN_FRONTEND'] = 'noninteractive'  # Avoid a config prompt
@@ -357,6 +363,27 @@ class AptitudePackageManager(PackageManager):
         except Exception as error:
             self.composite_logger.log_debug(" - Could not get package size from output: " + repr(error))
             return Constants.UNKNOWN_PACKAGE_SIZE
+    # endregion
+
+    # region auto OS updates
+    def get_current_auto_os_update_settings(self):
+        """Get current auto OS updates behaviour set on the machine using the command input"""
+        self.composite_logger.log_debug("Fetching current system settings for auto OS updates")
+        try:
+            return self.invoke_package_manager(self.find_current_auto_os_updates_settings_cmd)
+        except Exception as error:
+            self.composite_logger.log_error("Error fetching current system settings for auto OS updates. [Error={0}]".format(str(error)))
+            return None
+
+    def disable_auto_os_update(self):
+        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        self.log_default_auto_os_updates()
+        self.composite_logger.log_debug("Disabling auto OS updates if they are enabled")
+        try:
+            out = self.invoke_package_manager(self.disable_auto_os_update_command)
+            self.composite_logger.log("Successfully disabled auto OS updates")
+        except Exception as error:
+            self.composite_logger.log_error("Could not disable auto OS updates.")
     # endregion
 
     def do_processes_require_restart(self):
