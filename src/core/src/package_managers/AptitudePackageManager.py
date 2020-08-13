@@ -380,7 +380,7 @@ class AptitudePackageManager(PackageManager):
         self.log_default_auto_os_updates()
         self.composite_logger.log_debug("Disabling auto OS updates if they are enabled")
         try:
-            out = self.invoke_package_manager(self.disable_auto_os_update_command)
+            self.invoke_package_manager(self.disable_auto_os_update_command)
             self.composite_logger.log("Successfully disabled auto OS updates")
         except Exception as error:
             self.composite_logger.log_error("Could not disable auto OS updates.")

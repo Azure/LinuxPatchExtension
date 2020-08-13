@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import os
 import unittest
 from src.bootstrap.Constants import Constants
 from tests.library.ArgumentComposer import ArgumentComposer
@@ -24,9 +24,17 @@ class TestAptitudePackageManager(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
         self.container = self.runtime.container
+        self.valid_auto_os_update_settings = 'APT::Periodic::Update-Package-Lists "1";' + \
+                                             'APT::Periodic::Unattended-Upgrade "1";'
 
     def tearDown(self):
         self.runtime.stop()
+
+    def mock_get_current_auto_os_update_settings(self):
+        return self.valid_auto_os_update_settings
+
+    def mock_read_with_retry_raise_exception(self):
+        raise Exception
 
     def test_package_manager_no_updates(self):
         """Unit test for aptitude package manager with no updates"""
@@ -111,10 +119,121 @@ class TestAptitudePackageManager(unittest.TestCase):
         # test for unsuccessfully installing a package
         self.assertEquals(package_manager.install_update_and_dependencies('iucode-tool', '1.5.1-1ubuntu0.1', simulate=True), Constants.PENDING)
 
-    # def test_default_auto_os_update_log_exists(self):
-    #     data = 'APT::Periodic::Update-Package-Lists "0"; \n APT::Periodic::Unattended-Upgrade "0";'
-    #     default_auto_os_update_log_path = self.runtime.execution_config.config_folder
-    #     self.runtime.write_system_auto_os_update(self.defdata)
+    def test_get_current_auto_os_update_settings_success(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        current_auto_os_update_settings = package_manager.get_current_auto_os_update_settings()
+        self.assertTrue(current_auto_os_update_settings is not None)
+
+    def test_get_current_auto_os_update_settings_fail(self):
+        package_manager = self.container.get('package_manager')
+
+        self.runtime.set_legacy_test_type('SadPath')
+        current_auto_os_update_settings = package_manager.get_current_auto_os_update_settings()
+        self.assertTrue(current_auto_os_update_settings is "")
+
+        self.runtime.set_legacy_test_type('ExceptionPath')
+        current_auto_os_update_settings = package_manager.get_current_auto_os_update_settings()
+        self.assertTrue(current_auto_os_update_settings is None)
+
+    def test_disable_auto_os_update_success(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        package_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.default_auto_os_update_log_exists())
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertTrue(default_auto_os_update is not None)
+        self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in default_auto_os_update)
+        self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in default_auto_os_update)
+
+    def test_disable_auto_os_update_failure(self):
+        # disable with non existing log file
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+
+        package_manager.disable_auto_os_update()
+        self.assertFalse(package_manager.default_auto_os_update_log_exists())
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertTrue(default_auto_os_update is not None)
+        self.assertTrue('[]' in default_auto_os_update)
+
+        # disable with existing log file
+        current_auto_os_update_settings = self.valid_auto_os_update_settings
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        package_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.default_auto_os_update_log_exists())
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertTrue(default_auto_os_update is not None)
+        self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in default_auto_os_update)
+        self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in default_auto_os_update)
+
+    def test_test_disable_auto_os_update_exception(self):
+        # disable cmd raises exception
+        self.runtime.set_legacy_test_type('ExceptionPath')
+        package_manager = self.container.get('package_manager')
+
+        get_current_auto_os_update_settings_backup = package_manager.get_current_auto_os_update_settings
+        package_manager.get_current_auto_os_update_settings = self.mock_get_current_auto_os_update_settings
+        package_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.default_auto_os_update_log_exists())
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertTrue(default_auto_os_update is not None)
+
+        package_manager.get_current_auto_os_update_settings = get_current_auto_os_update_settings_backup
+
+    def test_default_auto_os_update_log_does_not_exist(self):
+        package_manager = self.container.get('package_manager')
+        package_manager.default_auto_os_update_log_path = "tests"
+        self.assertFalse(package_manager.default_auto_os_update_log_exists())
+
+    def test_default_auto_os_update_log_exists(self):
+        package_manager = self.container.get('package_manager')
+
+        # log with valid auto OS update settings exists
+        current_auto_os_update_settings = self.valid_auto_os_update_settings
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        self.assertTrue(package_manager.default_auto_os_update_log_exists())
+
+        # log with invalid or no auto OS update settings exists
+        current_auto_os_update_settings = '[]'
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        self.assertFalse(package_manager.default_auto_os_update_log_exists())
+
+    def test_default_auto_os_update_log_exists_check_exception(self):
+        package_manager = self.container.get('package_manager')
+        read_with_retry_backup = self.runtime.env_layer.file_system.read_with_retry
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
+        # ensure valid log file exists
+        current_auto_os_update_settings = self.valid_auto_os_update_settings
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        self.assertFalse(package_manager.default_auto_os_update_log_exists())
+        self.runtime.env_layer.file_system.read_with_retry = read_with_retry_backup
+
+    def test_log_default_auto_os_updates_pre_existing_log(self):
+        package_manager = self.container.get('package_manager')
+        current_auto_os_update_settings = self.valid_auto_os_update_settings
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        package_manager.log_default_auto_os_updates()
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertTrue(default_auto_os_update is not None)
+        self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in default_auto_os_update)
+        self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in default_auto_os_update)
+
+    def test_log_default_auto_os_updates(self):
+        package_manager = self.container.get('package_manager')
+
+        # current_auto_os_update_settings is None, nothing logged
+        self.runtime.set_legacy_test_type('ExceptionPath')
+        package_manager.log_default_auto_os_updates()
+        self.assertFalse(os.path.exists(package_manager.default_auto_os_update_log_path))
+
+        # current_auto_os_update_settings not None, write to log
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager.log_default_auto_os_updates()
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertTrue(default_auto_os_update is not None)
+        self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in default_auto_os_update)
+        self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in default_auto_os_update)
 
 if __name__ == '__main__':
     unittest.main()

@@ -347,6 +347,7 @@ class PackageManager(object):
                                                 "[Default Auto OS update settings={0}] [File path={1}]"
                                                 .format(str(default_auto_os_update), self.default_auto_os_update_log_path))
                 return True
+            return False
         except Exception as error:
             self.composite_logger.log_error("Unable to read default auto OS update log. [Exception={0}]".format(repr(error)))
             return False
