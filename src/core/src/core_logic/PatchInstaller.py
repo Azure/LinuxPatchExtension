@@ -102,8 +102,7 @@ class PatchInstaller(object):
                 except ValueError as e:
                     patch_version = Constants.PATCH_VERSION_UNKNOWN
 
-                self.status_handler.set_patch_metadata_for_health_store_substatus_json(status=Constants.STATUS_SUCCESS,
-                                                                                       patch_version=patch_version if patch_version is not None else Constants.PATCH_VERSION_UNKNOWN,
+                self.status_handler.set_patch_metadata_for_health_store_substatus_json(patch_version=patch_version if patch_version is not None else Constants.PATCH_VERSION_UNKNOWN,
                                                                                        report_to_health_store=True,
                                                                                        wait_after_update=False)
         else:

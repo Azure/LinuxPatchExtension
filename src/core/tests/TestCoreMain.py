@@ -62,7 +62,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTH_STORE)
-        self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_TRANSITIONING.lower())
+        self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
     def test_operation_success_for_non_autopatching_request(self):
@@ -140,6 +140,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertEqual(json.loads(substatus_file_data[2]["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
         runtime.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

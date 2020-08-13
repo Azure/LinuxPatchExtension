@@ -14,7 +14,6 @@
 #
 # Requires Python 2.7+
 
-import datetime
 import json
 import os
 import re
@@ -70,6 +69,13 @@ class StatusHandler(object):
         self.__os_name_and_version = self.get_os_name_and_version()
 
         self.__current_operation = None
+
+        # Update patch metadata summary in status for auto patching installation requests, to be reported to health store
+        if execution_config.patch_rollout_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower():
+            if self.__installation_reboot_status != Constants.RebootStatus.STARTED:
+                self.set_patch_metadata_for_health_store_substatus_json(report_to_health_store=True, wait_after_update=True)
+            # updating metadata summary again with reporting to health store turned off
+            self.set_patch_metadata_for_health_store_substatus_json(report_to_health_store=False, wait_after_update=False)
 
         # Enable reboot completion status capture
         if self.__installation_reboot_status == Constants.RebootStatus.STARTED:
@@ -286,7 +292,7 @@ class StatusHandler(object):
             "errors": self.__set_errors_json(self.__installation_total_error_count, self.__installation_errors)
         }
 
-    def set_patch_metadata_for_health_store_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_health_store=False, wait_after_update=False):
+    def set_patch_metadata_for_health_store_substatus_json(self, status=Constants.STATUS_SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_health_store=False, wait_after_update=False):
         """ Prepare the health store substatus json including message containing summary to be sent to health store """
         self.composite_logger.log_debug("Setting patch metadata for health store substatus. [Substatus={0}] [Report to Health Store={1}]".format(str(status), str(report_to_health_store)))
 
