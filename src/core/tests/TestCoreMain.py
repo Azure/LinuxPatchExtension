@@ -24,9 +24,14 @@ from tests.library.RuntimeCompositor import RuntimeCompositor
 
 class TestCoreMain(unittest.TestCase):
     def setUp(self):
+        # Had to move runtime init and stop to individual test functions, since every test uses a different patch_rollout_id which has to be set before runtime init
+        # self.argument_composer = ArgumentComposer().get_composed_arguments()
+        # self.runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.ZYPPER)
+        # self.container = self.runtime.container
         pass
 
     def tearDown(self):
+        # self.runtime.stop()
         pass
 
     def test_operation_fail_for_non_autopatching_request(self):
@@ -61,7 +66,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTH_STORE)
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
@@ -96,11 +101,12 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTH_STORE)
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertEqual(json.loads(substatus_file_data[2]["formattedMessage"]["message"])["patchVersion"], str(runtime.env_layer.datetime.utc_to_standard_datetime(patch_rollout_id).date()))
         runtime.stop()
 
+    def test_invalid_patch_rollout_id(self):
         # test with empty string for patch rollout id
         argument_composer = ArgumentComposer()
         patch_rollout_id = ""
@@ -108,15 +114,14 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
-        status_file_path = runtime.execution_config.status_file_path
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTH_STORE)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_TRANSITIONING.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertEqual(json.loads(substatus_file_data[2]["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
         runtime.stop()
@@ -128,15 +133,14 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
-        status_file_path = runtime.execution_config.status_file_path
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTH_STORE)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_TRANSITIONING.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertEqual(json.loads(substatus_file_data[2]["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
         runtime.stop()

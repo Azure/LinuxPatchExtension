@@ -54,9 +54,9 @@ class StatusHandler(object):
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
 
         # Internal in-memory representation of Patch Metadata for Health Store
-        self.__metadata_for_health_store_substatus_json = None
-        self.__metadata_for_health_store_summary_json = None
-        self.__report_to_health_store = False
+        self.__metadata_for_healthstore_substatus_json = None
+        self.__metadata_for_healthstore_summary_json = None
+        self.__report_to_healthstore = False
         self.__patch_version = Constants.PATCH_VERSION_UNKNOWN
 
         # Load the currently persisted status file into memory
@@ -73,9 +73,9 @@ class StatusHandler(object):
         # Update patch metadata summary in status for auto patching installation requests, to be reported to health store
         if execution_config.patch_rollout_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower():
             if self.__installation_reboot_status != Constants.RebootStatus.STARTED:
-                self.set_patch_metadata_for_health_store_substatus_json(report_to_health_store=True, wait_after_update=True)
+                self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=True, wait_after_update=True)
             # updating metadata summary again with reporting to health store turned off
-            self.set_patch_metadata_for_health_store_substatus_json(report_to_health_store=False, wait_after_update=False)
+            self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=False, wait_after_update=False)
 
         # Enable reboot completion status capture
         if self.__installation_reboot_status == Constants.RebootStatus.STARTED:
@@ -292,32 +292,32 @@ class StatusHandler(object):
             "errors": self.__set_errors_json(self.__installation_total_error_count, self.__installation_errors)
         }
 
-    def set_patch_metadata_for_health_store_substatus_json(self, status=Constants.STATUS_SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_health_store=False, wait_after_update=False):
+    def set_patch_metadata_for_healthstore_substatus_json(self, status=Constants.STATUS_SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False, wait_after_update=False):
         """ Prepare the health store substatus json including message containing summary to be sent to health store """
-        self.composite_logger.log_debug("Setting patch metadata for health store substatus. [Substatus={0}] [Report to Health Store={1}]".format(str(status), str(report_to_health_store)))
+        self.composite_logger.log_debug("Setting patch metadata for health store substatus. [Substatus={0}] [Report to Health Store={1}]".format(str(status), str(report_to_healthstore)))
 
         # Wrap patch metadata into health store summary
-        self.__metadata_for_health_store_summary_json = self.__new_patch_metadata_for_health_store_json(patch_version, report_to_health_store)
+        self.__metadata_for_healthstore_summary_json = self.__new_patch_metadata_for_healthstore_json(patch_version, report_to_healthstore)
 
         # Wrap health store summary into health store substatus
-        self.__metadata_for_health_store_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTH_STORE, status, code, json.dumps(self.__metadata_for_health_store_summary_json))
+        self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Update status on disk
         self.__write_status_file()
 
         # wait period required in cases where we need to ensure HealthStore reads the status from GA
         if wait_after_update:
-            time.sleep(Constants.WAIT_FOR_AFTER_STATUS_UPDATE_IN_SECS)
+            time.sleep(Constants.WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS)
 
-    def __new_patch_metadata_for_health_store_json(self, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_health_store=False):
-        """ Called by: set_patch_metadata_for_health_store_substatus_json
+    def __new_patch_metadata_for_healthstore_json(self, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False):
+        """ Called by: set_patch_metadata_for_healthstore_substatus_json
             Purpose: This composes the message inside the patch metadata for health store substatus:
                 Root --> Status --> Substatus [name: "PatchMetadataForHealthStore"] --> FormattedMessage --> **Message** """
 
         # Compose substatus message
         return {
             "patchVersion": str(patch_version),
-            "shouldReportToHealthStore": report_to_health_store
+            "shouldReportToHealthStore": report_to_healthstore
         }
 
     @staticmethod
@@ -372,8 +372,8 @@ class StatusHandler(object):
         self.__assessment_summary_json = None
         self.__assessment_packages = []
         self.__assessment_errors = []
-        self.__metadata_for_health_store_substatus_json = None
-        self.__metadata_for_health_store_summary_json = None
+        self.__metadata_for_healthstore_substatus_json = None
+        self.__metadata_for_healthstore_summary_json = None
 
         # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.status_file_path) and initial_load:
@@ -425,9 +425,9 @@ class StatusHandler(object):
                 if errors is not None and errors['details'] is not None:
                     self.__assessment_errors = errors['details']
                     self.__assessment_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
-            if name == Constants.PATCH_METADATA_FOR_HEALTH_STORE:     # if it exists, it must be to spec, or an exception will get thrown
+            if name == Constants.PATCH_METADATA_FOR_HEALTHSTORE:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                self.__metadata_for_health_store_summary_json = json.loads(message)
+                self.__metadata_for_healthstore_summary_json = json.loads(message)
 
     def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
@@ -458,8 +458,8 @@ class StatusHandler(object):
             status_file_payload['status']['substatus'].append(self.__assessment_substatus_json)
         if self.__installation_substatus_json is not None:
             status_file_payload['status']['substatus'].append(self.__installation_substatus_json)
-        if self.__metadata_for_health_store_substatus_json is not None:
-            status_file_payload['status']['substatus'].append(self.__metadata_for_health_store_substatus_json)
+        if self.__metadata_for_healthstore_substatus_json is not None:
+            status_file_payload['status']['substatus'].append(self.__metadata_for_healthstore_substatus_json)
         if os.path.isdir(self.status_file_path):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.status_file_path)
