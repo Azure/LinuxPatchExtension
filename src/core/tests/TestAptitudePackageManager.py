@@ -133,15 +133,14 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue(current_auto_os_update_settings is "")
 
         self.runtime.set_legacy_test_type('ExceptionPath')
-        current_auto_os_update_settings = package_manager.get_current_auto_os_update_settings()
-        self.assertTrue(current_auto_os_update_settings is None)
+        self.assertRaises(Exception, package_manager.get_current_auto_os_update_settings)
 
     def test_disable_auto_os_update_success(self):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         package_manager.disable_auto_os_update()
-        self.assertTrue(package_manager.default_auto_os_update_log_exists())
-        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertTrue(package_manager.image_default_patch_mode_backup_exists())
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
         self.assertTrue(default_auto_os_update is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in default_auto_os_update)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in default_auto_os_update)
@@ -152,22 +151,22 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
 
         package_manager.disable_auto_os_update()
-        self.assertFalse(package_manager.default_auto_os_update_log_exists())
-        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertFalse(package_manager.image_default_patch_mode_backup_exists())
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
         self.assertTrue(default_auto_os_update is not None)
         self.assertTrue('[]' in default_auto_os_update)
 
         # disable with existing log file
         current_auto_os_update_settings = self.valid_auto_os_update_settings
-        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
         package_manager.disable_auto_os_update()
-        self.assertTrue(package_manager.default_auto_os_update_log_exists())
-        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertTrue(package_manager.image_default_patch_mode_backup_exists())
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
         self.assertTrue(default_auto_os_update is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in default_auto_os_update)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in default_auto_os_update)
 
-    def test_test_disable_auto_os_update_exception(self):
+    def test_disable_auto_os_update_exception(self):
         # disable cmd raises exception
         self.runtime.set_legacy_test_type('ExceptionPath')
         package_manager = self.container.get('package_manager')
@@ -175,65 +174,66 @@ class TestAptitudePackageManager(unittest.TestCase):
         get_current_auto_os_update_settings_backup = package_manager.get_current_auto_os_update_settings
         package_manager.get_current_auto_os_update_settings = self.mock_get_current_auto_os_update_settings
         package_manager.disable_auto_os_update()
-        self.assertTrue(package_manager.default_auto_os_update_log_exists())
-        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.assertTrue(package_manager.image_default_patch_mode_backup_exists())
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
         self.assertTrue(default_auto_os_update is not None)
 
         package_manager.get_current_auto_os_update_settings = get_current_auto_os_update_settings_backup
 
-    def test_default_auto_os_update_log_does_not_exist(self):
-        package_manager = self.container.get('package_manager')
-        package_manager.default_auto_os_update_log_path = "tests"
-        self.assertFalse(package_manager.default_auto_os_update_log_exists())
-
-    def test_default_auto_os_update_log_exists(self):
+    def test_image_default_patch_mode_backup_exists(self):
         package_manager = self.container.get('package_manager')
 
         # log with valid auto OS update settings exists
         current_auto_os_update_settings = self.valid_auto_os_update_settings
-        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
-        self.assertTrue(package_manager.default_auto_os_update_log_exists())
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        self.assertTrue(package_manager.image_default_patch_mode_backup_exists())
 
         # log with invalid or no auto OS update settings exists
         current_auto_os_update_settings = '[]'
-        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
-        self.assertFalse(package_manager.default_auto_os_update_log_exists())
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        self.assertFalse(package_manager.image_default_patch_mode_backup_exists())
 
-    def test_default_auto_os_update_log_exists_check_exception(self):
+    def test_image_default_patch_mode_backup_does_not_exist(self):
         package_manager = self.container.get('package_manager')
         read_with_retry_backup = self.runtime.env_layer.file_system.read_with_retry
         self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
+
         # ensure valid log file exists
         current_auto_os_update_settings = self.valid_auto_os_update_settings
-        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
-        self.assertFalse(package_manager.default_auto_os_update_log_exists())
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        self.assertFalse(package_manager.image_default_patch_mode_backup_exists())
         self.runtime.env_layer.file_system.read_with_retry = read_with_retry_backup
 
-    def test_log_default_auto_os_updates_pre_existing_log(self):
+        # file does not exist
+        package_manager.image_default_patch_mode_backup_path = "tests"
+        self.assertFalse(package_manager.image_default_patch_mode_backup_exists())
+
+    def test_overwrite_existing_image_default_patch_mode_backup(self):
         package_manager = self.container.get('package_manager')
         current_auto_os_update_settings = self.valid_auto_os_update_settings
-        self.runtime.env_layer.file_system.write_with_retry(package_manager.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
-        package_manager.log_default_auto_os_updates()
-        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        package_manager.add_image_default_patch_mode_backup()
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
         self.assertTrue(default_auto_os_update is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in default_auto_os_update)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in default_auto_os_update)
 
-    def test_log_default_auto_os_updates(self):
+    def test_add_image_default_backup(self):
         package_manager = self.container.get('package_manager')
 
         # current_auto_os_update_settings is None, nothing logged
         self.runtime.set_legacy_test_type('ExceptionPath')
-        package_manager.log_default_auto_os_updates()
-        self.assertFalse(os.path.exists(package_manager.default_auto_os_update_log_path))
+        self.assertRaises(Exception, package_manager.add_image_default_patch_mode_backup)
+        self.assertFalse(os.path.exists(package_manager.image_default_patch_mode_backup_path))
 
         # current_auto_os_update_settings not None, write to log
         self.runtime.set_legacy_test_type('HappyPath')
-        package_manager.log_default_auto_os_updates()
-        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.default_auto_os_update_log_path)
+        package_manager.add_image_default_patch_mode_backup()
+        default_auto_os_update = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
         self.assertTrue(default_auto_os_update is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in default_auto_os_update)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in default_auto_os_update)
+
 
 if __name__ == '__main__':
     unittest.main()

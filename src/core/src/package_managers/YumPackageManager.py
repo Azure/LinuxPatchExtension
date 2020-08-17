@@ -23,8 +23,8 @@ from src.bootstrap.Constants import Constants
 class YumPackageManager(PackageManager):
     """Implementation of Redhat/CentOS package management operations"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler, execution_config):
-        super(YumPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler, execution_config)
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
+        super(YumPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         # There is no command as this is a no op.
 
@@ -324,6 +324,15 @@ class YumPackageManager(PackageManager):
                     return line.replace(self.STR_TOTAL_DOWNLOAD_SIZE, "")
 
         return Constants.UNKNOWN_PACKAGE_SIZE
+    # endregion
+
+    # region auto OS updates
+    def disable_auto_os_update(self):
+        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        pass
+
+    def get_current_auto_os_update_settings(self):
+        pass
     # endregion
 
     def do_processes_require_restart(self):

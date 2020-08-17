@@ -24,7 +24,7 @@ import time
 class PackageManager(object):
     """Base class of package manager"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler, execution_config):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
@@ -38,7 +38,7 @@ class PackageManager(object):
         self.all_update_versions_cached = []
 
         # auto OS updates
-        self.default_auto_os_update_log_path = os.path.join(execution_config.config_folder, Constants.DEFAULT_AUTO_OS_UPDATE_LOG)
+        self.image_default_patch_mode_backup_path = os.path.join(execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_MODE_BACKUP_PATH)
 
         # Constants
         self.STR_NOTHING_TO_DO = "Error: Nothing to do"
@@ -321,37 +321,43 @@ class PackageManager(object):
     # endregion
 
     # region auto OS updates
+    @abstractmethod
     def disable_auto_os_update(self):
         pass
 
-    def log_default_auto_os_updates(self):
+    def add_image_default_patch_mode_backup(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default setting a VM comes with, any subsequent updates will not be recorded"""
-        if not self.default_auto_os_update_log_exists():
-            current_auto_os_update_settings = self.get_current_auto_os_update_settings()
-            if current_auto_os_update_settings is not None:
+        try:
+            if not self.image_default_patch_mode_backup_exists():
+                current_auto_os_update_settings = self.get_current_auto_os_update_settings()
                 self.composite_logger.log_debug("Logging default system settings for auto OS updates. [Settings={0}] [Log file path= {1}]"
-                                                .format(str(current_auto_os_update_settings), self.default_auto_os_update_log_path))
-                self.env_layer.file_system.write_with_retry(self.default_auto_os_update_log_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+                                                .format(str(current_auto_os_update_settings), self.image_default_patch_mode_backup_path))
+                self.env_layer.file_system.write_with_retry(self.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        except Exception as error:
+            error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
+            self.composite_logger.log_error(error_message)
+            raise Exception
 
-    def default_auto_os_update_log_exists(self):
+    def image_default_patch_mode_backup_exists(self):
         """ Checks whether default auto OS updates have been recorded earlier within patch extension artifacts """
         self.composite_logger.log_debug("Reading auto OS updates log...")
-        if not os.path.exists(self.default_auto_os_update_log_path) or not os.path.isfile(self.default_auto_os_update_log_path):
+        if not os.path.exists(self.image_default_patch_mode_backup_path) or not os.path.isfile(self.image_default_patch_mode_backup_path):
             self.composite_logger.log_debug("Default system settings for auto OS updates aren't recorded in the extension")
             return False
         try:
-            default_auto_os_update = self.env_layer.file_system.read_with_retry(self.default_auto_os_update_log_path)
+            default_auto_os_update = self.env_layer.file_system.read_with_retry(self.image_default_patch_mode_backup_path)
             if 'Update-Package-Lists' in str(default_auto_os_update) or 'Unattended-Upgrade' in str(default_auto_os_update):
                 self.composite_logger.log_debug("Extension already has a record of the default system settings for auto OS updates. No need to log the current settings again"
                                                 "[Default Auto OS update settings={0}] [File path={1}]"
-                                                .format(str(default_auto_os_update), self.default_auto_os_update_log_path))
+                                                .format(str(default_auto_os_update), self.image_default_patch_mode_backup_path))
                 return True
             return False
         except Exception as error:
             self.composite_logger.log_error("Unable to read default auto OS update log. [Exception={0}]".format(repr(error)))
             return False
 
+    @abstractmethod
     def get_current_auto_os_update_settings(self):
         pass
     # endregion

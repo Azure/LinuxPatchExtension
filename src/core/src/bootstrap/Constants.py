@@ -59,7 +59,7 @@ class Constants(object):
         PATCH_ROLLOUT_ID = 'patchRolloutId'
 
     # File to save default settings for auto OS updates
-    DEFAULT_AUTO_OS_UPDATE_LOG = "DefaultAutoUpdates.log"
+    IMAGE_DEFAULT_PATCH_MODE_BACKUP_PATH = "ImageDefaultPatchMode.bak"
 
     # Operations
     ASSESSMENT = "Assessment"

@@ -23,8 +23,8 @@ from src.bootstrap.Constants import Constants
 class ZypperPackageManager(PackageManager):
     """Implementation of SUSE package management operations"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler, execution_config):
-        super(ZypperPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler, execution_config)
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
+        super(ZypperPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         self.repo_clean = 'sudo zypper clean -a'
         self.repo_refresh = 'sudo zypper refresh'
@@ -354,6 +354,15 @@ class ZypperPackageManager(PackageManager):
         except Exception as error:
             self.composite_logger.log_debug(" - Could not get package size from output: " + repr(error))
             return Constants.UNKNOWN_PACKAGE_SIZE
+    # endregion
+
+    # region auto OS updates
+    def disable_auto_os_update(self):
+        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        pass
+
+    def get_current_auto_os_update_settings(self):
+        pass
     # endregion
 
     def do_processes_require_restart(self):

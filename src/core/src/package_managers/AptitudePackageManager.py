@@ -27,8 +27,8 @@ class AptitudePackageManager(PackageManager):
     """Implementation of Debian/Ubuntu based package management operations"""
 
     # For more details, try `man apt-get` on any Debian/Ubuntu based box.
-    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler, execution_config):
-        super(AptitudePackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler, execution_config)
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
+        super(AptitudePackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         self.repo_refresh = 'sudo apt-get -q update'
 
@@ -372,14 +372,15 @@ class AptitudePackageManager(PackageManager):
         try:
             return self.invoke_package_manager(self.find_current_auto_os_updates_settings_cmd)
         except Exception as error:
-            self.composite_logger.log_error("Error fetching current system settings for auto OS updates. [Error={0}]".format(str(error)))
-            return None
+            error_msg = "Error fetching current system settings for auto OS updates. [Error={0}]".format(str(error))
+            self.composite_logger.log_error(error_msg)
+            raise Exception(error_msg)
 
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
-        self.log_default_auto_os_updates()
-        self.composite_logger.log_debug("Disabling auto OS updates if they are enabled")
         try:
+            self.add_image_default_patch_mode_backup()
+            self.composite_logger.log_debug("Disabling auto OS updates if they are enabled")
             self.invoke_package_manager(self.disable_auto_os_update_command)
             self.composite_logger.log("Successfully disabled auto OS updates")
         except Exception as error:
