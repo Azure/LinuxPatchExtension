@@ -74,8 +74,11 @@ class StatusHandler(object):
         if execution_config.patch_rollout_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower():
             if self.__installation_reboot_status != Constants.RebootStatus.STARTED:
                 self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=True, wait_after_update=True)
-            # updating metadata summary again with reporting to health store turned off
-            self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=False, wait_after_update=False)
+                # updating metadata summary again with reporting to health store turned off
+                self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=False, wait_after_update=False)
+            else:
+                self.composite_logger.log_debug("Since this is the previous patch operation re-triggered after a reboot, health store has the operation commencement details. "
+                                                "So, not sending another report to health store")
 
         # Enable reboot completion status capture
         if self.__installation_reboot_status == Constants.RebootStatus.STARTED:

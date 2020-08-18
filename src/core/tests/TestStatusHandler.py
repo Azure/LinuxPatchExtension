@@ -137,14 +137,12 @@ class TestStatusHandler(unittest.TestCase):
 
         # for autopatching request, with reboot started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+        self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json()
         self.runtime.execution_config.patch_rollout_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][1]
-        self.assertTrue(status_handler is not None)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], False)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertTrue(len(substatus_file_data) == 1)
 
         # for autopatching request, with reboot not started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)
