@@ -47,7 +47,7 @@ class ArgumentComposer(object):
         self.classifications_to_include = []
         self.patches_to_include = []
         self.patches_to_exclude = []
-        self.max_patch_publish_date = "" #ToDo: tests with a date present, will be added with further changes on using max_patch_publish_date in status
+        self.patch_rollout_id = None #Since this is optional, all possible inputs for this are added in respective tests
 
         # REAL environment settings
         self.emulator_enabled = False
@@ -70,7 +70,7 @@ class ArgumentComposer(object):
             "classificationsToInclude": self.classifications_to_include,
             "patchesToInclude": self.patches_to_include,
             "patchesToExclude": self.patches_to_exclude,
-            "maxPatchPublishDate": self.max_patch_publish_date
+            "patchRolloutId": self.patch_rollout_id
         }
 
         return str(self.__ARG_TEMPLATE.format(self.__EXEC, Constants.ARG_SEQUENCE_NUMBER, self.sequence_number,
