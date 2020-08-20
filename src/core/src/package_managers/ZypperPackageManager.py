@@ -365,7 +365,7 @@ class ZypperPackageManager(PackageManager):
         pass
 
     def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
-        pass
+        return True
     # endregion
 
     def do_processes_require_restart(self):
