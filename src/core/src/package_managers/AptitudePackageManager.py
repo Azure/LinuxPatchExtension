@@ -50,8 +50,15 @@ class AptitudePackageManager(PackageManager):
         self.apt_exitcode_ok = 0
 
         # auto OS updates
-        self.find_current_auto_os_updates_settings_cmd = 'sudo cat /etc/apt/apt.conf.d/20auto-upgrades'
-        self.disable_auto_os_update_command = '''sudo sed -i 's/APT::Periodic::Update-Package-Lists "1"/APT::Periodic::Update-Package-Lists "0"/;s/APT::Periodic::Unattended-Upgrade "1"/APT::Periodic::Unattended-Upgrade "0"/' /etc/apt/apt.conf.d/20auto-upgrades'''
+        self.update_package_list = 'APT::Periodic::Update-Package-Lists'
+        self.unattended_upgrade = 'APT::Periodic::Unattended-Upgrade'
+        self.auto_upgrade_settings_file_path = '/etc/apt/apt.conf.d/20auto-upgrades'
+        self.update_package_list_enabled = self.update_package_list + ' "1"'
+        self.update_package_list_disabled = self.update_package_list + ' "0"'
+        self.unattended_auto_upgrade_enabled = self.unattended_upgrade + ' "1"'
+        self.unattended_auto_upgrade_disabled = self.unattended_upgrade + ' "0"'
+        self.find_current_auto_os_updates_settings_cmd = 'sudo cat ' + self.auto_upgrade_settings_file_path
+        self.disable_auto_os_update_command = '''sudo sed -i 's/''' + self.update_package_list_enabled + '''/''' + self.update_package_list_disabled + '''/;s/''' + self.unattended_auto_upgrade_enabled + '''/''' + self.unattended_auto_upgrade_disabled + '''/' ''' + self.auto_upgrade_settings_file_path
 
         # Miscellaneous
         os.environ['DEBIAN_FRONTEND'] = 'noninteractive'  # Avoid a config prompt
@@ -368,6 +375,9 @@ class AptitudePackageManager(PackageManager):
     # region auto OS updates
     def get_current_auto_os_update_settings(self):
         """Get current auto OS updates behaviour set on the machine using the command input"""
+        # Sample output format:
+        # APT::Periodic::Update-Package-Lists "1";
+        # APT::Periodic::Unattended-Upgrade "1";
         self.composite_logger.log_debug("Fetching current system settings for auto OS updates")
         try:
             return self.invoke_package_manager(self.find_current_auto_os_updates_settings_cmd)
@@ -378,13 +388,25 @@ class AptitudePackageManager(PackageManager):
 
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        # No text output returned by disable command if it runs successfully
         try:
-            self.add_image_default_patch_mode_backup()
+            self.backup_image_default_patch_mode()
             self.composite_logger.log_debug("Disabling auto OS updates if they are enabled")
-            self.invoke_package_manager(self.disable_auto_os_update_command)
-            self.composite_logger.log("Successfully disabled auto OS updates")
+            out = self.invoke_package_manager(self.disable_auto_os_update_command)
+            # validating if auto OS updates were disabled since the disable command doesn't return a text output.
+            current_auto_os_update_settings = self.get_current_auto_os_update_settings()
+            if self.update_package_list_disabled in str(current_auto_os_update_settings) and self.unattended_auto_upgrade_disabled in str(current_auto_os_update_settings):
+                self.composite_logger.log("Successfully disabled auto OS updates")
+            else:
+                self.composite_logger.log_error("Auto OS updates not disabled. Output returned by disable command: [Output={0}]".format(str(out)))
         except Exception as error:
-            self.composite_logger.log_error("Could not disable auto OS updates.")
+            self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
+
+    def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
+        if self.update_package_list in str(image_default_patch_mode_backup) or self.unattended_upgrade in str(image_default_patch_mode_backup):
+            return True
+        return False
+
     # endregion
 
     def do_processes_require_restart(self):

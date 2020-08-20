@@ -333,6 +333,9 @@ class YumPackageManager(PackageManager):
 
     def get_current_auto_os_update_settings(self):
         pass
+
+    def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
+        pass
     # endregion
 
     def do_processes_require_restart(self):
