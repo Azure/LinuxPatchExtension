@@ -156,7 +156,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
 
     def test_set_patch_metadata_for_healthstore_substatus_json(self):
-        # setting health store properties
+        # setting healthstore properties
         self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json(status=Constants.STATUS_SUCCESS, patch_version="2020-07-08", report_to_healthstore=True, wait_after_update=True)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]

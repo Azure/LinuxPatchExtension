@@ -53,7 +53,7 @@ class StatusHandler(object):
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
 
-        # Internal in-memory representation of Patch Metadata for Health Store
+        # Internal in-memory representation of Patch Metadata for HealthStore
         self.__metadata_for_healthstore_substatus_json = None
         self.__metadata_for_healthstore_summary_json = None
         self.__report_to_healthstore = False
@@ -70,15 +70,15 @@ class StatusHandler(object):
 
         self.__current_operation = None
 
-        # Update patch metadata summary in status for auto patching installation requests, to be reported to health store
+        # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
         if execution_config.patch_rollout_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower():
             if self.__installation_reboot_status != Constants.RebootStatus.STARTED:
                 self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=True, wait_after_update=True)
-                # updating metadata summary again with reporting to health store turned off
+                # updating metadata summary again with reporting to healthstore turned off
                 self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=False, wait_after_update=False)
             else:
-                self.composite_logger.log_debug("Since this is the previous patch operation re-triggered after a reboot, health store has the operation commencement details. "
-                                                "So, not sending another report to health store")
+                self.composite_logger.log_debug("Since this is the previous patch operation re-triggered after a reboot, healthstore has the operation commencement details. "
+                                                "So, not sending another report to healthstore")
 
         # Enable reboot completion status capture
         if self.__installation_reboot_status == Constants.RebootStatus.STARTED:
@@ -296,13 +296,13 @@ class StatusHandler(object):
         }
 
     def set_patch_metadata_for_healthstore_substatus_json(self, status=Constants.STATUS_SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False, wait_after_update=False):
-        """ Prepare the health store substatus json including message containing summary to be sent to health store """
-        self.composite_logger.log_debug("Setting patch metadata for health store substatus. [Substatus={0}] [Report to Health Store={1}]".format(str(status), str(report_to_healthstore)))
+        """ Prepare the healthstore substatus json including message containing summary to be sent to healthstore """
+        self.composite_logger.log_debug("Setting patch metadata for healthstore substatus. [Substatus={0}] [Report to HealthStore={1}]".format(str(status), str(report_to_healthstore)))
 
-        # Wrap patch metadata into health store summary
+        # Wrap patch metadata into healthstore summary
         self.__metadata_for_healthstore_summary_json = self.__new_patch_metadata_for_healthstore_json(patch_version, report_to_healthstore)
 
-        # Wrap health store summary into health store substatus
+        # Wrap healthstore summary into healthstore substatus
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Update status on disk
@@ -314,7 +314,7 @@ class StatusHandler(object):
 
     def __new_patch_metadata_for_healthstore_json(self, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False):
         """ Called by: set_patch_metadata_for_healthstore_substatus_json
-            Purpose: This composes the message inside the patch metadata for health store substatus:
+            Purpose: This composes the message inside the patch metadata for healthstore substatus:
                 Root --> Status --> Substatus [name: "PatchMetadataForHealthStore"] --> FormattedMessage --> **Message** """
 
         # Compose substatus message
@@ -325,7 +325,7 @@ class StatusHandler(object):
 
     @staticmethod
     def __new_substatus_json_for_operation(operation_name, status="Transitioning", code=0, message=json.dumps("{}")):
-        """ Generic substatus for assessment, installation and health store metadata """
+        """ Generic substatus for assessment, installation and healthstore metadata """
         return {
             "name": str(operation_name),
             "status": str(status).lower(),

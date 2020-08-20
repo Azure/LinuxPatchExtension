@@ -65,7 +65,7 @@ class Constants(object):
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
     PATCH_METADATA_FOR_HEALTHSTORE = "PatchMetadataForHealthStore"
 
-    # patch versions for health store when there is no patch rollout id
+    # patch versions for healthstore when there is no patch rollout id
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
 
     # wait time after status updates

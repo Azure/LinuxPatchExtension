@@ -94,7 +94,7 @@ class PatchInstaller(object):
         overall_patch_installation_successful = bool(update_run_successful and not maintenance_window_exceeded)
         if overall_patch_installation_successful:
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
-            # update patch metadata in status for auto patching request, to be reported to health store
+            # update patch metadata in status for auto patching request, to be reported to healthstore
             if self.execution_config.patch_rollout_id is not None:
                 try:
                     patch_version = self.env_layer.datetime.utc_to_standard_datetime(self.execution_config.patch_rollout_id).date()
@@ -107,7 +107,7 @@ class PatchInstaller(object):
                     raise Exception(error_message)
         else:
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
-            # NOTE: For auto patching requests, no need to report patch metadata to health store in case of failure
+            # NOTE: For auto patching requests, no need to report patch metadata to healthstore in case of failure
 
         return overall_patch_installation_successful
 
