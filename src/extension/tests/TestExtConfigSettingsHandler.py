@@ -171,7 +171,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
                         self.config_public_settings_fields.include_patches: ["*", "test*", "*ern*=1.2*", "kern*=1.23.45"],
                         self.config_public_settings_fields.exclude_patches: ["*", "test", "*test"],
                         self.config_public_settings_fields.internal_settings: "<serialized-json>",
-                        self.config_public_settings_fields.max_patch_publish_date: "2019-07-20T12:12:14Z"
+                        self.config_public_settings_fields.patch_rollout_id: "2019-07-20T12:12:14Z"
                     }
                 }
             }]
@@ -196,7 +196,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
         seq_no = "1234"
         config_values = ext_config_settings_handler.read_file(seq_no)
-        self.assertEqual(config_values.__getattribute__(self.config_public_settings_fields.operation), "Deployment")
+        self.assertEqual(config_values.__getattribute__(self.config_public_settings_fields.operation), "Installation")
         self.assertEqual(config_values.__getattribute__(self.config_public_settings_fields.reboot_setting), "IfRequired")
 
     def test_read_file_failures(self):
@@ -239,6 +239,53 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
         self.assertRaises(Exception, ext_config_settings_handler.read_file, seq_no)
         shutil.rmtree(test_dir)
+
+    def test_read_all_config_settings_from_file(self):
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
+        seq_no = ext_config_settings_handler.get_seq_no()
+        config_settings = ext_config_settings_handler.read_file(seq_no)
+
+        # verify operation is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.operation), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.operation), "Installation")
+
+        # verify activityId is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.activity_id), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.activity_id), "12345-2312-1234-23245-32112")
+
+        # verify startTime is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.start_time), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.start_time), "2019-07-20T12:12:14Z")
+
+        # verify maximumDuration is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maximum_duration), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maximum_duration), "PT2H")
+
+        # verify rebootSetting is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.reboot_setting), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.reboot_setting), "IfRequired")
+
+        # verify classificationsToInclude is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.include_classifications), None)
+        self.assertTrue("Critical" in config_settings.__getattribute__(self.config_public_settings_fields.include_classifications)
+                        and "Security" in config_settings.__getattribute__(self.config_public_settings_fields.include_classifications))
+
+        # verify patchesToInclude is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.include_patches), None)
+        self.assertTrue("*ern*=1.2*" in config_settings.__getattribute__(self.config_public_settings_fields.include_patches)
+                        and "kern*=1.23.45" in config_settings.__getattribute__(self.config_public_settings_fields.include_patches))
+
+        # verify patchesToExclude is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.exclude_patches), None)
+        self.assertTrue("test" in config_settings.__getattribute__(self.config_public_settings_fields.exclude_patches))
+
+        # verify internalSettings is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.internal_settings), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.internal_settings), "test")
+
+        # verify patchRolloutId is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.patch_rollout_id), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.patch_rollout_id), "2019-07-20T12:12:14Z")
 
 
 if __name__ == '__main__':

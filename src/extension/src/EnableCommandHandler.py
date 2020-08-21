@@ -66,7 +66,7 @@ class EnableCommandHandler(object):
 
     def process_enable_request(self, config_settings, prev_patch_max_end_time, core_state_content):
         """ Called when the current request is different from the one before. Identifies and waits for the previous request action to complete, if required before addressing the current request """
-        self.logger.log("Terminating older patch operation, if still in progress, as per it's completion duration and triggering the new requested patch opertaion.")
+        self.logger.log("Terminating older patch operation, if still in progress, as per it's completion duration and triggering the new requested patch operation.")
         self.runtime_context_handler.process_previous_patch_operation(self.core_state_handler, self.process_handler, prev_patch_max_end_time, core_state_content)
         self.utility.delete_file(self.core_state_handler.dir_path, self.core_state_handler.file)
         self.launch_new_process(config_settings, create_status_output_file=True)

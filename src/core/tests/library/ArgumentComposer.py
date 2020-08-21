@@ -47,11 +47,10 @@ class ArgumentComposer(object):
         self.classifications_to_include = []
         self.patches_to_include = []
         self.patches_to_exclude = []
-        self.patch_rollout_id = "" #ToDo: tests with a date present, will be added with further changes on using patch_rollout_id in status
+        self.patch_rollout_id = None #Since this is optional, all possible inputs for this are added in respective tests
 
         # REAL environment settings
         self.emulator_enabled = False
-
 
     def get_composed_arguments(self):
         """ Serializes state into arguments for consumption """

@@ -66,6 +66,13 @@ class Constants(object):
     INSTALLATION = "Installation"
     PATCH_ASSESSMENT_SUMMARY = "PatchAssessmentSummary"
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
+    PATCH_METADATA_FOR_HEALTHSTORE = "PatchMetadataForHealthStore"
+
+    # patch versions for healthstore when there is no patch rollout id
+    PATCH_VERSION_UNKNOWN = "UNKNOWN"
+
+    # wait time after status updates
+    WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS = 20
 
     # Status file states
     STATUS_TRANSITIONING = "Transitioning"

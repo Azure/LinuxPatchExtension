@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import datetime
 import json
 import unittest
 from src.bootstrap.Constants import Constants
@@ -130,10 +130,47 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
 
     def test_status_file_initial_load(self):
+        # for non autopatching request, with Reboot started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
-
         status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
         self.assertTrue(status_handler is not None)
+
+        # for autopatching request, with reboot started
+        self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+        self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json()
+        self.runtime.execution_config.patch_rollout_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertTrue(len(substatus_file_data) == 1)
+
+        # for autopatching request, with reboot not started
+        self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)
+        self.runtime.execution_config.patch_rollout_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+        self.assertTrue(status_handler is not None)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], False)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
+        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+
+    def test_set_patch_metadata_for_healthstore_substatus_json(self):
+        # setting healthstore properties
+        self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json(status=Constants.STATUS_SUCCESS, patch_version="2020-07-08", report_to_healthstore=True, wait_after_update=True)
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], True)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], "2020-07-08")
+        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+
+        # using default values
+        self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json()
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], False)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
+        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
 
 
 if __name__ == '__main__':
