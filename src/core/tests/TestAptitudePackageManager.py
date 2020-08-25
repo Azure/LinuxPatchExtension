@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import json
 import os
 import unittest
 from src.bootstrap.Constants import Constants
@@ -140,10 +141,10 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         package_manager.disable_auto_os_update()
         self.assertTrue(package_manager.image_default_patch_mode_backup_exists())
-        image_default_patch_mode_backup = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
+        image_default_patch_mode_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path))
         self.assertTrue(image_default_patch_mode_backup is not None)
-        self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in image_default_patch_mode_backup)
-        self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in image_default_patch_mode_backup)
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Update-Package-Lists'] == "1")
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Unattended-Upgrade'] == "1")
 
     def test_disable_auto_os_update_failure(self):
         # disable with non existing log file
@@ -152,19 +153,23 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         package_manager.disable_auto_os_update()
         self.assertFalse(package_manager.image_default_patch_mode_backup_exists())
-        image_default_patch_mode_backup = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
+        image_default_patch_mode_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path))
         self.assertTrue(image_default_patch_mode_backup is not None)
-        self.assertTrue('[]' in image_default_patch_mode_backup)
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Update-Package-Lists'] == "")
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Unattended-Upgrade'] == "")
 
         # disable with existing log file
-        current_auto_os_update_settings = self.valid_auto_os_update_settings
-        self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        current_auto_os_update_settings = {
+            'APT::Periodic::Update-Package-Lists': "1",
+            'APT::Periodic::Unattended-Upgrade': "1"
+        }
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '{0}'.format(json.dumps(current_auto_os_update_settings)), mode='w+')
         package_manager.disable_auto_os_update()
         self.assertTrue(package_manager.image_default_patch_mode_backup_exists())
-        image_default_patch_mode_backup = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
+        image_default_patch_mode_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path))
         self.assertTrue(image_default_patch_mode_backup is not None)
-        self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in image_default_patch_mode_backup)
-        self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in image_default_patch_mode_backup)
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Update-Package-Lists'] == "1")
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Unattended-Upgrade'] == "1")
 
     def test_disable_auto_os_update_exception(self):
         # disable cmd raises exception
@@ -184,8 +189,12 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
 
         # log with valid auto OS update settings exists
-        current_auto_os_update_settings = self.valid_auto_os_update_settings
-        self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
+        # current_auto_os_update_settings = self.valid_auto_os_update_settings
+        current_auto_os_update_settings = {
+            'APT::Periodic::Update-Package-Lists': "1",
+            'APT::Periodic::Unattended-Upgrade': "1"
+        }
+        self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '{0}'.format(json.dumps(current_auto_os_update_settings)), mode='w+')
         self.assertTrue(package_manager.image_default_patch_mode_backup_exists())
 
         # log with invalid or no auto OS update settings exists
@@ -213,10 +222,10 @@ class TestAptitudePackageManager(unittest.TestCase):
         current_auto_os_update_settings = self.valid_auto_os_update_settings
         self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
         package_manager.backup_image_default_patch_mode()
-        image_default_patch_mode_backup = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
+        image_default_patch_mode_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path))
         self.assertTrue(image_default_patch_mode_backup is not None)
-        self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in image_default_patch_mode_backup)
-        self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in image_default_patch_mode_backup)
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Update-Package-Lists'] == "1")
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Unattended-Upgrade'] == "1")
 
     def test_backup_image_default_patch_mode(self):
         package_manager = self.container.get('package_manager')
@@ -229,10 +238,10 @@ class TestAptitudePackageManager(unittest.TestCase):
         # current_auto_os_update_settings not None, write to log
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager.backup_image_default_patch_mode()
-        image_default_patch_mode_backup = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path)
+        image_default_patch_mode_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_mode_backup_path))
         self.assertTrue(image_default_patch_mode_backup is not None)
-        self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in image_default_patch_mode_backup)
-        self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in image_default_patch_mode_backup)
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Update-Package-Lists'] == "1")
+        self.assertTrue(image_default_patch_mode_backup['APT::Periodic::Unattended-Upgrade'] == "1")
 
 
 if __name__ == '__main__':

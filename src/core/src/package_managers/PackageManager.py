@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 
 """The is base package manager, which defines the package management relevant operations"""
+import json
 import os
 from abc import ABCMeta, abstractmethod
 from src.bootstrap.Constants import Constants
@@ -325,19 +326,11 @@ class PackageManager(object):
     def disable_auto_os_update(self):
         pass
 
+    @abstractmethod
     def backup_image_default_patch_mode(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default setting a VM comes with, any subsequent updates will not be recorded"""
-        try:
-            if not self.image_default_patch_mode_backup_exists():
-                current_auto_os_update_settings = self.get_current_auto_os_update_settings()
-                self.composite_logger.log_debug("Logging default system settings for auto OS updates. [Settings={0}] [Log file path= {1}]"
-                                                .format(str(current_auto_os_update_settings), self.image_default_patch_mode_backup_path))
-                self.env_layer.file_system.write_with_retry(self.image_default_patch_mode_backup_path, '[{0}]'.format(current_auto_os_update_settings), mode='w+')
-        except Exception as error:
-            error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
-            self.composite_logger.log_error(error_message)
-            raise
+        pass
 
     def image_default_patch_mode_backup_exists(self):
         """ Checks whether default auto OS updates have been recorded earlier within patch extension artifacts """
@@ -346,7 +339,7 @@ class PackageManager(object):
             self.composite_logger.log_debug("Default system settings for auto OS updates aren't recorded in the extension")
             return False
         try:
-            image_default_patch_mode_backup = self.env_layer.file_system.read_with_retry(self.image_default_patch_mode_backup_path)
+            image_default_patch_mode_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_mode_backup_path))
             if self.is_image_default_patch_mode_backup_valid(image_default_patch_mode_backup):
                 self.composite_logger.log_debug("Extension already has a record of the default system settings for auto OS updates. No need to log the current settings again. "
                                                 "[Default Auto OS update settings={0}] [File path={1}]"

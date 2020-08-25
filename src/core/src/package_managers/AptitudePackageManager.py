@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 
 """The is Aptitude package manager implementation"""
+import json
 import os
 import re
 import shutil
@@ -53,12 +54,12 @@ class AptitudePackageManager(PackageManager):
         self.update_package_list = 'APT::Periodic::Update-Package-Lists'
         self.unattended_upgrade = 'APT::Periodic::Unattended-Upgrade'
         self.auto_upgrade_settings_file_path = '/etc/apt/apt.conf.d/20auto-upgrades'
-        self.update_package_list_enabled = self.update_package_list + ' "1"'
-        self.update_package_list_disabled = self.update_package_list + ' "0"'
-        self.unattended_auto_upgrade_enabled = self.unattended_upgrade + ' "1"'
-        self.unattended_auto_upgrade_disabled = self.unattended_upgrade + ' "0"'
+        self.update_package_list_value = ""
+        self.unattended_upgrade_value = ""
+        self.auto_os_update_setting_enabled = "1"
+        self.auto_os_update_setting_disabled = "0"
         self.find_current_auto_os_updates_settings_cmd = 'sudo cat ' + self.auto_upgrade_settings_file_path
-        self.disable_auto_os_update_command = '''sudo sed -i 's/''' + self.update_package_list_enabled + '''/''' + self.update_package_list_disabled + '''/;s/''' + self.unattended_auto_upgrade_enabled + '''/''' + self.unattended_auto_upgrade_disabled + '''/' ''' + self.auto_upgrade_settings_file_path
+        self.disable_auto_os_update_command = '''sudo sed -i -E 's/(''' + self.update_package_list + '''.*?)"1"/\\1"0"/;s/(''' + self.unattended_upgrade + '''.*?)"1"/\\1"0"/' ''' + self.auto_upgrade_settings_file_path
 
         # Miscellaneous
         os.environ['DEBIAN_FRONTEND'] = 'noninteractive'  # Avoid a config prompt
@@ -395,7 +396,8 @@ class AptitudePackageManager(PackageManager):
             out = self.invoke_package_manager(self.disable_auto_os_update_command)
             # validating if auto OS updates were disabled since the disable command doesn't return a text output.
             current_auto_os_update_settings = self.get_current_auto_os_update_settings()
-            if self.update_package_list_disabled in str(current_auto_os_update_settings) and self.unattended_auto_upgrade_disabled in str(current_auto_os_update_settings):
+            if (re.search(self.update_package_list + '.*"' + self.auto_os_update_setting_disabled + '"', str(current_auto_os_update_settings)) and
+                    re.search(self.unattended_upgrade + '.*"' + self.auto_os_update_setting_disabled + '"', str(current_auto_os_update_settings))):
                 self.composite_logger.log("Successfully disabled auto OS updates")
             else:
                 self.composite_logger.log_error("Auto OS updates not disabled. Output returned by disable command: [Output={0}]".format(str(out)))
@@ -403,10 +405,35 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
 
     def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
-        if self.update_package_list in str(image_default_patch_mode_backup) or self.unattended_upgrade in str(image_default_patch_mode_backup):
+        if (self.update_package_list in image_default_patch_mode_backup and len(image_default_patch_mode_backup[self.update_package_list]) > 0) \
+                or (self.unattended_upgrade in image_default_patch_mode_backup and len(image_default_patch_mode_backup[self.unattended_upgrade]) > 0):
             return True
         return False
 
+    def backup_image_default_patch_mode(self):
+        """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
+        We only log the default setting a VM comes with, any subsequent updates will not be recorded"""
+        try:
+            if not self.image_default_patch_mode_backup_exists():
+                current_auto_os_update_settings = self.get_current_auto_os_update_settings()
+                settings = current_auto_os_update_settings.strip().split('\n')
+                for setting in settings:
+                    if self.update_package_list in str(setting):
+                        self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(setting)).group(1)
+                    if self.unattended_upgrade in str(setting):
+                        self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(setting)).group(1)
+
+                backup_image_default_patch_mode_json = {
+                    self.update_package_list: self.update_package_list_value,
+                    self.unattended_upgrade: self.unattended_upgrade_value
+                }
+                self.composite_logger.log_debug("Logging default system settings for auto OS updates. [Settings={0}] [Log file path= {1}]"
+                                                .format(str(backup_image_default_patch_mode_json), self.image_default_patch_mode_backup_path))
+                self.env_layer.file_system.write_with_retry(self.image_default_patch_mode_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_mode_json)), mode='w+')
+        except Exception as error:
+            error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
+            self.composite_logger.log_error(error_message)
+            raise
     # endregion
 
     def do_processes_require_restart(self):
