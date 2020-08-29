@@ -59,8 +59,10 @@ class TelemetryWriter(object):
     def send_machine_config_info(self):
         # Machine info
         machine_info = {
-            'platform_name': str(platform.linux_distribution()[0]),
-            'platform_version': str(platform.linux_distribution()[1]),
+            # The commented out code needs to be addressed similar to how Core does it for Python 3.8+ support.
+            # Not an issue at the time of this writing as telemetry support has not been implemented.
+            #  'platform_name': str(platform.linux_distribution()[0]),
+            #  'platform_version': str(platform.linux_distribution()[1]),
             'machine_arch': str(platform.machine())
         }
         return self.send_config_info(machine_info, 'machine_config')
