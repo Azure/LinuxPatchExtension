@@ -17,7 +17,7 @@
 import datetime
 import json
 import re
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 '''
 <SequenceNumber>.status
@@ -113,7 +113,7 @@ class ExtOutputStatusHandler(object):
         return status_json
 
     def update_key_value_safely(self, status_json, key, value_to_update, parent_key=None):
-        if status_json != None and len(status_json) is not 0:
+        if status_json != None and len(status_json) != 0:
             if parent_key is None:
                 status_json[0].update({key: value_to_update})
             else:

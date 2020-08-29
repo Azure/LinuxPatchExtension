@@ -23,7 +23,7 @@ import errno
 import sys
 import time
 
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 
 class ProcessHandler(object):

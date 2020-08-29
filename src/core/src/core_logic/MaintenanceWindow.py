@@ -17,7 +17,7 @@
 """Maintenance window management"""
 import datetime
 from datetime import timedelta
-from src.bootstrap.Constants import Constants
+from core.src.bootstrap.Constants import Constants
 
 
 class MaintenanceWindow(object):

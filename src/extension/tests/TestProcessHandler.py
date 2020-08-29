@@ -17,13 +17,13 @@
 import os
 import subprocess
 import unittest
-from src.Constants import Constants
-from src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
-from src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
-from src.file_handlers.ExtEnvHandler import ExtEnvHandler
-from src.ProcessHandler import ProcessHandler
-from tests.helpers.RuntimeComposer import RuntimeComposer
-from tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.src.Constants import Constants
+from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
+from extension.src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
+from extension.src.file_handlers.ExtEnvHandler import ExtEnvHandler
+from extension.src.ProcessHandler import ProcessHandler
+from extension.tests.helpers.RuntimeComposer import RuntimeComposer
+from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestProcessHandler(unittest.TestCase):

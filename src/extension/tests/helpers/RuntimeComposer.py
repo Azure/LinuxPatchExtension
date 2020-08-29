@@ -1,8 +1,8 @@
 import os
 import time
-from src.Utility import Utility
-from src.file_handlers.JsonFileHandler import JsonFileHandler
-from src.local_loggers.Logger import Logger
+from extension.src.Utility import Utility
+from extension.src.file_handlers.JsonFileHandler import JsonFileHandler
+from extension.src.local_loggers.Logger import Logger
 
 
 class RuntimeComposer(object):

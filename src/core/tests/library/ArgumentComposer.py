@@ -19,7 +19,7 @@ import datetime
 import json
 import os
 import shutil
-from src.bootstrap.Constants import Constants
+from core.src.bootstrap.Constants import Constants
 
 
 class ArgumentComposer(object):
@@ -81,7 +81,7 @@ class ArgumentComposer(object):
 
     @staticmethod
     def __get_encoded_json_str(obj):
-        return base64.b64encode(json.dumps(obj))
+        return base64.b64encode(json.dumps(obj).encode("utf-8"))
 
     def __get_scratch_folder(self):
         """ Returns a predetermined scratch folder and guarantees it exists and is empty. """
@@ -89,7 +89,8 @@ class ArgumentComposer(object):
         scratch_folder = os.path.join(tests_folder, self.__SCRATCH_FOLDER)
         if os.path.exists(scratch_folder):
             shutil.rmtree(scratch_folder, ignore_errors=True)
-        os.mkdir(scratch_folder)
+        if not os.path.exists(scratch_folder):
+            os.mkdir(scratch_folder)
         return scratch_folder
 
     def __try_get_tests_folder(self, path=os.getcwd()):

@@ -15,9 +15,9 @@
 # Requires Python 2.7+
 
 import datetime
-from src.Constants import Constants
-from src.EnableCommandHandler import EnableCommandHandler
-from src.InstallCommandHandler import InstallCommandHandler
+from extension.src.Constants import Constants
+from extension.src.EnableCommandHandler import EnableCommandHandler
+from extension.src.InstallCommandHandler import InstallCommandHandler
 
 
 class ActionHandler(object):
