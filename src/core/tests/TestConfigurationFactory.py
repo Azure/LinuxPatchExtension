@@ -15,10 +15,10 @@
 # Requires Python 2.7+
 
 import unittest
-from src.bootstrap.Bootstrapper import Bootstrapper
-from src.bootstrap.Constants import Constants
-from tests.library.ArgumentComposer import ArgumentComposer
-from tests.library.RuntimeCompositor import RuntimeCompositor
+from core.src.bootstrap.Bootstrapper import Bootstrapper
+from core.src.bootstrap.Constants import Constants
+from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
 class TestContainer(unittest.TestCase):

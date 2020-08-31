@@ -23,7 +23,8 @@ import platform
 import subprocess
 import sys
 import time
-from Constants import Constants
+from core.src.bootstrap.Constants import Constants
+from core.src.external_dependencies import distro
 
 
 class EnvLayer(object):
@@ -59,7 +60,7 @@ class EnvLayer(object):
         # choose default - almost surely one will match.
         for b in ('apt-get', 'yum', 'zypper'):
             code, out = self.run_command_output('which ' + b, False, False)
-            if code is 0:
+            if code == 0:
                 ret = b
                 if ret == 'apt-get':
                     ret = Constants.APT
@@ -131,17 +132,16 @@ class EnvLayer(object):
         subprocess.check_output = check_output
         subprocess.CalledProcessError = CalledProcessError
         try:
-            output = subprocess.check_output(
-                no_output, cmd, stderr=subprocess.STDOUT, shell=True)
+            output = subprocess.check_output(no_output, cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
             if chk_err:
                 print("Error: CalledProcessError.  Error Code is: " + str(e.returncode), file=sys.stdout)
                 print("Error: CalledProcessError.  Command string was: " + e.cmd, file=sys.stdout)
-                print("Error: CalledProcessError.  Command result was: " + (e.output[:-1]).decode('utf8', 'ignore').encode("ascii", "ignore"), file=sys.stdout)
+                print("Error: CalledProcessError.  Command result was: " + self.__convert_process_output_to_ascii(e.output[:-1]), file=sys.stdout)
             if no_output:
                 return e.return_code, None
             else:
-                return e.return_code, e.output.decode('utf8', 'ignore').encode('ascii', 'ignore')
+                return e.return_code, self.__convert_process_output_to_ascii(e.output)
         except Exception as error:
             message = "Exception during cmd execution. [Exception={0}][Cmd={1}]".format(repr(error),str(cmd))
             print(message)
@@ -150,7 +150,16 @@ class EnvLayer(object):
         if no_output:
             return 0, None
         else:
-            return 0, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
+            return 0, self.__convert_process_output_to_ascii(output)
+
+    @staticmethod
+    def __convert_process_output_to_ascii(output):
+        if sys.version_info.major == 2:
+            return output.decode('utf8', 'ignore').encode("ascii", "ignore")
+        elif sys.version_info.major == 3:
+            return output.encode("ascii", "ignore")
+        else:
+            raise Exception("Unknown version of python encountered.")
 
     def check_sudo_status(self, raise_if_not_sudo=True):
         """ Checks if we can invoke sudo successfully. """
@@ -211,7 +220,11 @@ class EnvLayer(object):
         def linux_distribution(self):
             operation = "PLATFORM_LINUX_DISTRIBUTION"
             if not self.__emulator_enabled:
-                value = platform.linux_distribution()
+                if sys.version_info.major == 2:
+                    value = platform.linux_distribution()
+                else:
+                    value = distro.linux_distribution()
+
                 if self.__recorder_enabled:
                     self.__write_record(operation, code=0, output=str(value))
                 return value
@@ -288,7 +301,7 @@ class EnvLayer(object):
         def __obtain_file_handle(self, file_path_or_handle, mode='a+'):
             """ Pass-through for handle. For path, resolution and handle open with retry. """
             is_path = False
-            if isinstance(file_path_or_handle, str) or isinstance(file_path_or_handle, unicode):
+            if isinstance(file_path_or_handle, str) or not(hasattr(file_path_or_handle, 'read') and hasattr(file_path_or_handle, 'write')):
                 is_path = True
                 file_path_or_handle = self.open(file_path_or_handle, mode)
             file_handle = file_path_or_handle
@@ -324,7 +337,7 @@ class EnvLayer(object):
                     else:
                         raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_handle.name), repr(error)))
 
-            if was_path: # what was passed in was not a file handle, so close the handle that was init here
+            if was_path:  # what was passed in was not a file handle, so close the handle that was init here
                 file_handle.close()
 
 # endregion - File system emulation and extensions

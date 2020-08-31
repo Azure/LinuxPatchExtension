@@ -67,7 +67,7 @@ The following guidelines must be followed in **EVERY** pull request that is open
 The following guidelines must be followed in **EVERY** pull request that is opened.
 
 - Pull request includes test coverage for the included changes
-- All existing tests must continue to pass successfully.
+- All existing tests must continue to pass successfully on both Python 2.7+ and Python 3.x.
 - Code must have been tested on all supported distributions and versions of those distributions that have not reached end of life. The distribution test matrix is as follows:
 
 Dist | Version |

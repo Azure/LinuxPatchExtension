@@ -16,10 +16,10 @@
 import datetime
 import json
 import unittest
-from src.bootstrap.Constants import Constants
-from src.service_interfaces.StatusHandler import StatusHandler
-from tests.library.ArgumentComposer import ArgumentComposer
-from tests.library.RuntimeCompositor import RuntimeCompositor
+from core.src.bootstrap.Constants import Constants
+from core.src.service_interfaces.StatusHandler import StatusHandler
+from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
 class TestStatusHandler(unittest.TestCase):

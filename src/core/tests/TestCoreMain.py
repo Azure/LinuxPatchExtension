@@ -16,10 +16,10 @@
 import datetime
 import json
 import unittest
-from src.CoreMain import CoreMain
-from src.bootstrap.Constants import Constants
-from tests.library.ArgumentComposer import ArgumentComposer
-from tests.library.RuntimeCompositor import RuntimeCompositor
+from core.src.CoreMain import CoreMain
+from core.src.bootstrap.Constants import Constants
+from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
 class TestCoreMain(unittest.TestCase):

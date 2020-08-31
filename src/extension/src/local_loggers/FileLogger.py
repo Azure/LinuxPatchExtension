@@ -16,7 +16,7 @@
 
 import os
 import sys
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 
 class FileLogger(object):

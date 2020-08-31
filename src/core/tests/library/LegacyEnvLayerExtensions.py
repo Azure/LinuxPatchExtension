@@ -14,7 +14,8 @@
 #
 # Requires Python 2.7+
 
-from src.bootstrap.Constants import Constants
+import sys
+from core.src.bootstrap.Constants import Constants
 
 
 class LegacyEnvLayerExtensions():
@@ -802,4 +803,9 @@ class LegacyEnvLayerExtensions():
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
 
-            return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
+            if sys.version_info.major == 2:
+                return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
+            elif sys.version_info.major == 3:
+                return code, output.encode('ascii', 'ignore').decode('ascii', 'ignore')
+            else:
+                raise Exception("Unknown version of python encountered.")

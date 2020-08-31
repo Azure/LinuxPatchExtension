@@ -19,10 +19,10 @@ import base64
 import json
 import os
 import sys
-from src.bootstrap.ConfigurationFactory import ConfigurationFactory
-from src.bootstrap.Constants import Constants
-from src.bootstrap.Container import Container
-from src.local_loggers.StdOutFileMirror import StdOutFileMirror
+from core.src.bootstrap.ConfigurationFactory import ConfigurationFactory
+from core.src.bootstrap.Constants import Constants
+from core.src.bootstrap.Container import Container
+from core.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 
 class Bootstrapper(object):
@@ -64,7 +64,7 @@ class Bootstrapper(object):
     def get_log_file_and_real_record_paths(self, argv):
         """ Performs the minimum steps required to determine where to start logging """
         sequence_number = self.get_value_from_argv(argv, Constants.ARG_SEQUENCE_NUMBER)
-        environment_settings = json.loads(base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_ENVIRONMENT_SETTINGS)))
+        environment_settings = json.loads(base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_ENVIRONMENT_SETTINGS).replace("b\'", "")))
         log_folder = environment_settings[Constants.EnvSettings.LOG_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
         log_file_path = os.path.join(log_folder, str(sequence_number) + ".core.log")
         real_rec_path = os.path.join(log_folder, str(sequence_number) + ".core.rec")

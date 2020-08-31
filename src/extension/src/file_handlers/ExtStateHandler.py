@@ -15,7 +15,7 @@
 # Requires Python 2.7+
 
 import collections
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 
 class ExtStateHandler(object):

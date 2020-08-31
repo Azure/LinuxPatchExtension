@@ -27,7 +27,7 @@ CoreState.json sample structure:
 }
 """
 import collections
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 
 class CoreStateHandler(object):

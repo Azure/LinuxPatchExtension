@@ -16,7 +16,7 @@
 
 """The is base package manager, which defines the package management relevant operations"""
 from abc import ABCMeta, abstractmethod
-from src.bootstrap.Constants import Constants
+from core.src.bootstrap.Constants import Constants
 import time
 
 

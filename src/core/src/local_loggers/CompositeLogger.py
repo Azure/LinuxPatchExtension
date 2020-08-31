@@ -16,7 +16,7 @@
 
 from __future__ import print_function
 import os
-from src.bootstrap.Constants import Constants
+from core.src.bootstrap.Constants import Constants
 
 
 class CompositeLogger(object):

@@ -21,10 +21,10 @@ import tempfile
 import time
 import unittest
 from datetime import datetime
-from src.Constants import Constants
-from src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
-from tests.helpers.RuntimeComposer import RuntimeComposer
-from tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.src.Constants import Constants
+from extension.src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
+from extension.tests.helpers.RuntimeComposer import RuntimeComposer
+from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestExtConfigSettingsHandler(unittest.TestCase):

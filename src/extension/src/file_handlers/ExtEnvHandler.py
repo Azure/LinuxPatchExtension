@@ -15,7 +15,7 @@
 # Requires Python 2.7+
 
 import traceback
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 '''
 Structure of the file this class deals with: HandlerEnvironment.json
@@ -50,7 +50,7 @@ class ExtEnvHandler(object):
         """ Allows a update deployment configuration value to be queried safely with a fall-back default (optional).
         An exception will be raised if default_value is not explicitly set when called (considered by-design). """
         config_type = self.env_settings_all_keys.settings_parent_key
-        if self.handler_environment_json is not None and len(self.handler_environment_json) is not 0:
+        if self.handler_environment_json is not None and len(self.handler_environment_json) != 0:
             if key in self.handler_environment_json[0][config_type]:
                 value = self.handler_environment_json[0][config_type][key]
                 return value

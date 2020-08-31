@@ -16,7 +16,7 @@
 
 from __future__ import print_function
 import os
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 class Logger(object):
     def __init__(self, file_logger=None, current_env=None):

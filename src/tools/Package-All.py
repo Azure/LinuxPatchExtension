@@ -26,7 +26,6 @@ import datetime
 from shutil import copyfile
 from shutil import make_archive
 import subprocess
-import xml.etree.ElementTree as et
 
 # imports in VERY_FIRST_IMPORTS, order should be kept
 VERY_FIRST_IMPORTS = [

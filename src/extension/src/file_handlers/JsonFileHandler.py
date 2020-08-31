@@ -18,7 +18,7 @@ import json
 import os
 import time
 
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 
 class JsonFileHandler(object):
@@ -51,7 +51,7 @@ class JsonFileHandler(object):
 
     def get_json_config_value_safely(self, handler_json, key, parent_key, raise_if_not_found=True):
         """ Allows a update deployment configuration value to be queried safely with a fall-back default (optional). An exception will be raised if default_value is not explicitly set when called (considered by-design). """
-        if handler_json is not None and len(handler_json) is not 0:
+        if handler_json is not None and len(handler_json) != 0:
             if key in handler_json[parent_key]:
                 value = handler_json[parent_key][key]
                 return value
