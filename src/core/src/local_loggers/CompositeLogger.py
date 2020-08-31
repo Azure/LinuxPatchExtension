@@ -15,7 +15,11 @@
 # Requires Python 2.7+
 
 from __future__ import print_function
+
+import errno
 import os
+import sys
+
 from src.bootstrap.Constants import Constants
 
 
@@ -34,9 +38,17 @@ class CompositeLogger(object):
     @staticmethod
     def log(message):
         """log output"""
-        message = CompositeLogger.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
-        for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
-            print(line)
+        try:
+            message = CompositeLogger.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
+            for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
+                sys.stdout.write(line)
+                sys.stdout.flush()
+        except IOError as e:
+            #ToDo: Error Handling??
+            if e.errno == errno.EPIPE:
+                return
+            else:
+                raise
 
     def log_error(self, message):
         """log errors"""
