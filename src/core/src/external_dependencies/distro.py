@@ -38,6 +38,30 @@ import argparse
 import subprocess
 
 
+class Distro(object):
+    def __int__(self):
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(logging.StreamHandler(sys.stdout))
+
+        parser = argparse.ArgumentParser(description="OS distro info tool")
+        parser.add_argument(
+            '--json',
+            '-j',
+            help="Output in machine readable format",
+            action="store_true")
+        args = parser.parse_args()
+
+        if args.json:
+            logger.info(json.dumps(info(), indent=4, sort_keys=True))
+        else:
+            logger.info('Name: %s', name(pretty=True))
+            distribution_version = version(pretty=True)
+            logger.info('Version: %s', distribution_version)
+            distribution_codename = codename()
+            logger.info('Codename: %s', distribution_codename)
+
+
 _UNIXCONFDIR = os.environ.get('UNIXCONFDIR', '/etc')
 _OS_RELEASE_BASENAME = 'os-release'
 
@@ -1202,29 +1226,3 @@ class LinuxDistribution(object):
 
 _distro = LinuxDistribution()
 
-
-def main():
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(logging.StreamHandler(sys.stdout))
-
-    parser = argparse.ArgumentParser(description="OS distro info tool")
-    parser.add_argument(
-        '--json',
-        '-j',
-        help="Output in machine readable format",
-        action="store_true")
-    args = parser.parse_args()
-
-    if args.json:
-        logger.info(json.dumps(info(), indent=4, sort_keys=True))
-    else:
-        logger.info('Name: %s', name(pretty=True))
-        distribution_version = version(pretty=True)
-        logger.info('Version: %s', distribution_version)
-        distribution_codename = codename()
-        logger.info('Codename: %s', distribution_codename)
-
-
-if __name__ == '__main__':
-    main()

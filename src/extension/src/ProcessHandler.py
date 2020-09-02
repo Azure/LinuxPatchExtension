@@ -83,8 +83,8 @@ class ProcessHandler(object):
             # if process is not running, log stdout and stderr
             if process.poll() is not None:
                 self.logger.log("Process not running for [sequence={0}]".format(seq_no))
-                self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout)))
-                self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr)))
+                self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout.read())))
+                self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr.read())))
                 return
             return process
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
