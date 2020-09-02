@@ -18,11 +18,11 @@ import collections
 import datetime
 import os
 import unittest
-from src.Constants import Constants
-from src.RuntimeContextHandler import RuntimeContextHandler
-from src.file_handlers.CoreStateHandler import CoreStateHandler
-from tests.helpers.RuntimeComposer import RuntimeComposer
-from tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.src.Constants import Constants
+from extension.src.RuntimeContextHandler import RuntimeContextHandler
+from extension.src.file_handlers.CoreStateHandler import CoreStateHandler
+from extension.tests.helpers.RuntimeComposer import RuntimeComposer
+from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestRuntimeContextHandler(unittest.TestCase):

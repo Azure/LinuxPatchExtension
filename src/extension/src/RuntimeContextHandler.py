@@ -16,7 +16,7 @@
 
 import datetime
 import time
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 
 class RuntimeContextHandler(object):

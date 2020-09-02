@@ -17,26 +17,26 @@
 """ Configure factory. This module populates configuration based on package manager and environment, e.g. TEST/DEV/PROD"""
 from __future__ import print_function
 import os
-from src.bootstrap.Constants import Constants
-from src.bootstrap.EnvLayer import EnvLayer
+from core.src.bootstrap.Constants import Constants
+from core.src.bootstrap.EnvLayer import EnvLayer
 
-from src.core_logic.ExecutionConfig import ExecutionConfig
-from src.core_logic.MaintenanceWindow import MaintenanceWindow
-from src.core_logic.PackageFilter import PackageFilter
-from src.core_logic.RebootManager import RebootManager
-from src.core_logic.PatchAssessor import PatchAssessor
-from src.core_logic.PatchInstaller import PatchInstaller
+from core.src.core_logic.ExecutionConfig import ExecutionConfig
+from core.src.core_logic.MaintenanceWindow import MaintenanceWindow
+from core.src.core_logic.PackageFilter import PackageFilter
+from core.src.core_logic.RebootManager import RebootManager
+from core.src.core_logic.PatchAssessor import PatchAssessor
+from core.src.core_logic.PatchInstaller import PatchInstaller
 
-from src.local_loggers.FileLogger import FileLogger
-from src.local_loggers.CompositeLogger import CompositeLogger
+from core.src.local_loggers.FileLogger import FileLogger
+from core.src.local_loggers.CompositeLogger import CompositeLogger
 
-from src.package_managers.AptitudePackageManager import AptitudePackageManager
-from src.package_managers.YumPackageManager import YumPackageManager
-from src.package_managers.ZypperPackageManager import ZypperPackageManager
+from core.src.package_managers.AptitudePackageManager import AptitudePackageManager
+from core.src.package_managers.YumPackageManager import YumPackageManager
+from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
 
-from src.service_interfaces.LifecycleManager import LifecycleManager
-from src.service_interfaces.StatusHandler import StatusHandler
-from src.service_interfaces.TelemetryWriter import TelemetryWriter
+from core.src.service_interfaces.LifecycleManager import LifecycleManager
+from core.src.service_interfaces.StatusHandler import StatusHandler
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 
 
 class ConfigurationFactory(object):

@@ -18,10 +18,10 @@ import datetime
 import json
 import os
 import time
-from tests.library.ArgumentComposer import ArgumentComposer
-from tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
-from src.bootstrap.Bootstrapper import Bootstrapper
-from src.bootstrap.Constants import Constants
+from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
+from core.src.bootstrap.Bootstrapper import Bootstrapper
+from core.src.bootstrap.Constants import Constants
 
 
 class RuntimeCompositor(object):

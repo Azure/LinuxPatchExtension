@@ -16,8 +16,8 @@
 
 import json
 import unittest
-from tests.library.ArgumentComposer import ArgumentComposer
-from tests.library.RuntimeCompositor import RuntimeCompositor
+from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
 class TestPatchAssessor(unittest.TestCase):

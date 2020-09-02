@@ -18,7 +18,7 @@ import collections
 import os
 import os.path
 import re
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 
 class ExtConfigSettingsHandler(object):
@@ -104,7 +104,7 @@ class ExtConfigSettingsHandler(object):
                 self.logger.log_error("Configuration settings not of expected format")
                 return False
             # file contains "runtimeSettings"
-            if self.runtime_settings_key not in config_settings_json or type(config_settings_json[self.runtime_settings_key]) is not list or config_settings_json[self.runtime_settings_key] is None or len(config_settings_json[self.runtime_settings_key]) is 0:
+            if self.runtime_settings_key not in config_settings_json or type(config_settings_json[self.runtime_settings_key]) != list or config_settings_json[self.runtime_settings_key] is None or len(config_settings_json[self.runtime_settings_key]) == 0:
                 self.logger.log_error("runtimeSettings not of expected format")
                 return False
             # file contains "handlerSettings"
@@ -134,7 +134,7 @@ class ExtConfigSettingsHandler(object):
         """ Allows a patch deployment configuration value to be queried safely with a fall-back default (optional).
         An exception will be raised if default_value is not explicitly set when called (considered by-design). """
 
-        if config_settings_json is not None and len(config_settings_json) is not 0:
+        if config_settings_json is not None and len(config_settings_json) != 0:
             if key in config_settings_json[self.runtime_settings_key][0][self.handler_settings_key][self.public_settings_key]:
                 value = config_settings_json[self.runtime_settings_key][0][self.handler_settings_key][self.public_settings_key][key]
                 return value

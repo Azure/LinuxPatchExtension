@@ -16,9 +16,9 @@
 import json
 import os
 import unittest
-from src.bootstrap.Constants import Constants
-from tests.library.ArgumentComposer import ArgumentComposer
-from tests.library.RuntimeCompositor import RuntimeCompositor
+from core.src.bootstrap.Constants import Constants
+from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
 class TestAptitudePackageManager(unittest.TestCase):

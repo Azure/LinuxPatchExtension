@@ -18,7 +18,7 @@
 import json
 import os
 from abc import ABCMeta, abstractmethod
-from src.bootstrap.Constants import Constants
+from core.src.bootstrap.Constants import Constants
 import time
 
 

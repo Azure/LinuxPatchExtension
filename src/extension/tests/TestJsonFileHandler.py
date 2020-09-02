@@ -18,9 +18,9 @@ import os
 import shutil
 import tempfile
 import unittest
-from src.Constants import Constants
-from tests.helpers.RuntimeComposer import RuntimeComposer
-from tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.src.Constants import Constants
+from extension.tests.helpers.RuntimeComposer import RuntimeComposer
+from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestJsonFileHandler(unittest.TestCase):

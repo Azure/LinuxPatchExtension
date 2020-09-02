@@ -14,8 +14,8 @@
 #
 # Requires Python 2.7+
 
-from src.bootstrap.Bootstrapper import Bootstrapper
-from src.bootstrap.Constants import Constants
+from core.src.bootstrap.Bootstrapper import Bootstrapper
+from core.src.bootstrap.Constants import Constants
 
 
 class CoreMain(object):

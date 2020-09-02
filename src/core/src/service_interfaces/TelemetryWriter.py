@@ -15,7 +15,7 @@
 # Requires Python 2.7+
 
 import json
-from src.bootstrap.Constants import Constants
+from core.src.bootstrap.Constants import Constants
 
 
 class TelemetryWriter(object):
