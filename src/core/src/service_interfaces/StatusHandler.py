@@ -71,7 +71,7 @@ class StatusHandler(object):
         self.__current_operation = None
 
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
-        if execution_config.patch_rollout_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower():
+        if execution_config.maintenance_run_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower():
             if self.__installation_reboot_status != Constants.RebootStatus.STARTED:
                 self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=True, wait_after_update=True)
                 # updating metadata summary again with reporting to healthstore turned off

@@ -324,17 +324,18 @@ class PackageManager(object):
     # region auto OS updates
     @abstractmethod
     def disable_auto_os_update(self):
+        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
         pass
 
     @abstractmethod
     def backup_image_default_patch_mode(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
-        We only log the default setting a VM comes with, any subsequent updates will not be recorded"""
+        We only log the default patch_mode a VM comes with, any subsequent updates will not be recorded"""
         pass
 
     def image_default_patch_mode_backup_exists(self):
         """ Checks whether default auto OS updates have been recorded earlier within patch extension artifacts """
-        self.composite_logger.log_debug("Reading auto OS updates log...")
+        self.composite_logger.log_debug("Checking if extension contains a backup for default auto OS updates...")
         if not os.path.exists(self.image_default_patch_mode_backup_path) or not os.path.isfile(self.image_default_patch_mode_backup_path):
             self.composite_logger.log_debug("Default system settings for auto OS updates aren't recorded in the extension")
             return False
@@ -351,11 +352,11 @@ class PackageManager(object):
             return False
 
     @abstractmethod
-    def get_current_auto_os_update_settings(self):
+    def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
         pass
 
     @abstractmethod
-    def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
+    def update_image_default_patch_mode(self, patch_mode, value):
         pass
     # endregion
 

@@ -56,7 +56,7 @@ class Constants(object):
         CLASSIFICATIONS_TO_INCLUDE = 'classificationsToInclude'
         PATCHES_TO_INCLUDE = 'patchesToInclude'
         PATCHES_TO_EXCLUDE = 'patchesToExclude'
-        PATCH_ROLLOUT_ID = 'patchRolloutId'
+        MAINTENANCE_RUN_ID = 'maintenanceRunId'
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_MODE_BACKUP_PATH = "ImageDefaultPatchMode.bak"
@@ -68,7 +68,7 @@ class Constants(object):
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
     PATCH_METADATA_FOR_HEALTHSTORE = "PatchMetadataForHealthStore"
 
-    # patch versions for healthstore when there is no patch rollout id
+    # patch versions for healthstore when there is no maintenance run id
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
 
     # wait time after status updates

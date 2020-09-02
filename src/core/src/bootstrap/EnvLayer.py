@@ -324,7 +324,7 @@ class EnvLayer(object):
                     else:
                         raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_handle.name), repr(error)))
 
-            if was_path: # what was passed in was not a file handle, so close the handle that was init here
+            if was_path:  # what was passed in was not a file handle, so close the handle that was init here
                 file_handle.close()
 
 # endregion - File system emulation and extensions

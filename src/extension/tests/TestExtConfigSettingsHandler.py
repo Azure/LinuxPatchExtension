@@ -171,7 +171,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
                         self.config_public_settings_fields.include_patches: ["*", "test*", "*ern*=1.2*", "kern*=1.23.45"],
                         self.config_public_settings_fields.exclude_patches: ["*", "test", "*test"],
                         self.config_public_settings_fields.internal_settings: "<serialized-json>",
-                        self.config_public_settings_fields.patch_rollout_id: "2019-07-20T12:12:14Z"
+                        self.config_public_settings_fields.maintenance_run_id: "2019-07-20T12:12:14Z"
                     }
                 }
             }]
@@ -283,10 +283,16 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.internal_settings), None)
         self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.internal_settings), "test")
 
-        # verify patchRolloutId is read successfully
-        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.patch_rollout_id), None)
-        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.patch_rollout_id), "2019-07-20T12:12:14Z")
+        # verify maintenanceRunId is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), "2019-07-20T12:12:14Z")
 
+        # verify patchRolloutId is read successfully if maintenanceRunId is not available
+        # todo: remove this test and test.settings file, once patch rollout id is removed
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
+        config_settings = ext_config_settings_handler.read_file("test")
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), "2019-07-22T12:12:14Z")
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestExtConfigSettingsHandler)

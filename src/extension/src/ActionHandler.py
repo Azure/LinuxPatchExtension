@@ -64,6 +64,7 @@ class ActionHandler(object):
          5. enable on the new version
          on uninstall the agent deletes removes configuration files"""
         # todo: in the test run verify if CoreState.json, ExtState.json and the .status files are deleted, if yes, move them to a separate location
+
         self.logger.log("Extension updated")
         return Constants.ExitCode.Okay
 

@@ -54,7 +54,7 @@ class CoreMain(object):
             package_manager = container.get('package_manager')
 
             # if this is an auto patching installation request, log and disable (if enabled by default) the current auto OS update status. NOTE: log status in a separate file in config settings
-            if execution_config.patch_rollout_id is not None and patch_operation_requested == Constants.INSTALLATION.lower():
+            if execution_config.maintenance_run_id is not None and patch_operation_requested == Constants.INSTALLATION.lower():
                 package_manager.disable_auto_os_update()
 
             # Assessment happens no matter what

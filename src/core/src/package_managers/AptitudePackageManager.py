@@ -18,8 +18,6 @@
 import json
 import os
 import re
-import shutil
-
 from src.package_managers.PackageManager import PackageManager
 from src.bootstrap.Constants import Constants
 
@@ -53,13 +51,9 @@ class AptitudePackageManager(PackageManager):
         # auto OS updates
         self.update_package_list = 'APT::Periodic::Update-Package-Lists'
         self.unattended_upgrade = 'APT::Periodic::Unattended-Upgrade'
-        self.auto_upgrade_settings_file_path = '/etc/apt/apt.conf.d/20auto-upgrades'
+        self.image_default_patch_mode_file_path = '/etc/apt/apt.conf.d/20auto-upgrades'
         self.update_package_list_value = ""
         self.unattended_upgrade_value = ""
-        self.auto_os_update_setting_enabled = "1"
-        self.auto_os_update_setting_disabled = "0"
-        self.find_current_auto_os_updates_settings_cmd = 'sudo cat ' + self.auto_upgrade_settings_file_path
-        self.disable_auto_os_update_command = '''sudo sed -i -E 's/(''' + self.update_package_list + '''.*?)"1"/\\1"0"/;s/(''' + self.unattended_upgrade + '''.*?)"1"/\\1"0"/' ''' + self.auto_upgrade_settings_file_path
 
         # Miscellaneous
         os.environ['DEBIAN_FRONTEND'] = 'noninteractive'  # Avoid a config prompt
@@ -374,54 +368,29 @@ class AptitudePackageManager(PackageManager):
     # endregion
 
     # region auto OS updates
-    def get_current_auto_os_update_settings(self):
-        """Get current auto OS updates behaviour set on the machine using the command input"""
-        # Sample output format:
-        # APT::Periodic::Update-Package-Lists "1";
-        # APT::Periodic::Unattended-Upgrade "1";
-        self.composite_logger.log_debug("Fetching current system settings for auto OS updates")
-        try:
-            return self.invoke_package_manager(self.find_current_auto_os_updates_settings_cmd)
-        except Exception as error:
-            error_msg = "Error fetching current system settings for auto OS updates. [Error={0}]".format(str(error))
-            self.composite_logger.log_error(error_msg)
-            raise Exception(error_msg)
-
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
-        # No text output returned by disable command if it runs successfully
         try:
-            self.backup_image_default_patch_mode()
             self.composite_logger.log_debug("Disabling auto OS updates if they are enabled")
-            out = self.invoke_package_manager(self.disable_auto_os_update_command)
-            # validating if auto OS updates were disabled since the disable command doesn't return a text output.
-            current_auto_os_update_settings = self.get_current_auto_os_update_settings()
-            if (re.search(self.update_package_list + '.*"' + self.auto_os_update_setting_disabled + '"', str(current_auto_os_update_settings)) and
-                    re.search(self.unattended_upgrade + '.*"' + self.auto_os_update_setting_disabled + '"', str(current_auto_os_update_settings))):
-                self.composite_logger.log("Successfully disabled auto OS updates")
-            else:
-                self.composite_logger.log_error("Auto OS updates not disabled. Output returned by disable command: [Output={0}]".format(str(out)))
+            self.backup_image_default_patch_mode()
+            self.update_image_default_patch_mode(self.update_package_list, "0")
+            self.update_image_default_patch_mode(self.unattended_upgrade, "0")
+            self.composite_logger.log("Successfully disabled auto OS updates")
         except Exception as error:
             self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
 
-    def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
-        if (self.update_package_list in image_default_patch_mode_backup and len(image_default_patch_mode_backup[self.update_package_list]) > 0) \
-                or (self.unattended_upgrade in image_default_patch_mode_backup and len(image_default_patch_mode_backup[self.unattended_upgrade]) > 0):
-            return True
-        return False
-
     def backup_image_default_patch_mode(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
-        We only log the default setting a VM comes with, any subsequent updates will not be recorded"""
+        We only log the default patch_mode a VM comes with, any subsequent updates will not be recorded"""
         try:
             if not self.image_default_patch_mode_backup_exists():
-                current_auto_os_update_settings = self.get_current_auto_os_update_settings()
-                settings = current_auto_os_update_settings.strip().split('\n')
-                for setting in settings:
-                    if self.update_package_list in str(setting):
-                        self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(setting)).group(1)
-                    if self.unattended_upgrade in str(setting):
-                        self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(setting)).group(1)
+                image_default_patch_mode = self.env_layer.file_system.read_with_retry(self.image_default_patch_mode_file_path)
+                settings = image_default_patch_mode.strip().split('\n')
+                for patch_mode in settings:
+                    if self.update_package_list in str(patch_mode):
+                        self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(patch_mode)).group(1)
+                    if self.unattended_upgrade in str(patch_mode):
+                        self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(patch_mode)).group(1)
 
                 backup_image_default_patch_mode_json = {
                     self.update_package_list: self.update_package_list_value,
@@ -433,6 +402,35 @@ class AptitudePackageManager(PackageManager):
         except Exception as error:
             error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
             self.composite_logger.log_error(error_message)
+            raise
+
+    def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
+        if self.update_package_list in image_default_patch_mode_backup or self.unattended_upgrade in image_default_patch_mode_backup:
+            return True
+        return False
+
+    def update_image_default_patch_mode(self, patch_mode, value="0"):
+        """ Updates (or adds if it doesn't exist) the given patch_mode with the given value in image_default_patch_mode_file """
+        try:
+            # todo: adding space between the patch_mode and value since, we will have to do that if we have to add a patch_mode that did not exist before
+            self.composite_logger.log("Updating default system settings for auto OS updates. [Patch Mode={0}. Value={1}]".format(str(patch_mode), value))
+            image_default_patch_mode = self.env_layer.file_system.read_with_retry(self.image_default_patch_mode_file_path)
+            patch_mode_to_update = patch_mode + ' "' + value + '";'
+            patch_mode_found_in_file = False
+            updated_patch_mode = ""
+            settings = image_default_patch_mode.strip().split('\n')
+            for i in range(len(settings)):
+                # ToDo: do we need a check for value as well, to check if the value is not the same as the one sent in to replace it, as that will be an unnecessary write
+                if patch_mode in settings[i]:
+                    settings[i] = patch_mode_to_update
+                    patch_mode_found_in_file = True
+                updated_patch_mode += settings[i] + "\n"
+            if not patch_mode_found_in_file:
+                updated_patch_mode += patch_mode_to_update + "\n"
+            #ToDo: This adds some whitespace at the beginning of the first line in the settings file which is auto adjusted in the file later, so shouldn't have any issues right now. strip()/lstrip() on the string, does not work, will have to test accross versions and identify teh impact
+            self.env_layer.file_system.write_with_retry(self.image_default_patch_mode_file_path, '{0}'.format(updated_patch_mode.lstrip()), mode='w+')
+        except Exception as error:
+            self.composite_logger.log_error("Error occurred while updating default system settings for auto OS updates. [Patch Mode={0}] [Error={1}]".format(str(patch_mode), repr(error)))
             raise
     # endregion
 
