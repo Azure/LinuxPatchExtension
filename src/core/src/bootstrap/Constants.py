@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 
+
 class Constants(object):
     """Static class contains all constant variables"""
     # Enum Backport to support Enum in python 2.7

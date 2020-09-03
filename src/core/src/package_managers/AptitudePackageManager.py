@@ -396,7 +396,7 @@ class AptitudePackageManager(PackageManager):
                     self.update_package_list: self.update_package_list_value,
                     self.unattended_upgrade: self.unattended_upgrade_value
                 }
-                self.composite_logger.log_debug("Logging default system settings for auto OS updates. [Settings={0}] [Log file path= {1}]"
+                self.composite_logger.log_debug("Logging default system settings for auto OS updates. [Settings={0}] [Log file path={1}]"
                                                 .format(str(backup_image_default_patch_mode_json), self.image_default_patch_mode_backup_path))
                 self.env_layer.file_system.write_with_retry(self.image_default_patch_mode_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_mode_json)), mode='w+')
         except Exception as error:
