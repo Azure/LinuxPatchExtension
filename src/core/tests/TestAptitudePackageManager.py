@@ -192,9 +192,9 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
 
         # ensure valid log file exists
-        image_default_patch_mode = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        package_manager.image_default_patch_mode_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
-        self.runtime.write_to_file(package_manager.image_default_patch_mode_file_path, image_default_patch_mode)
+        os_patch_mode_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
+        package_manager.os_patch_mode_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        self.runtime.write_to_file(package_manager.os_patch_mode_settings_file_path, os_patch_mode_settings)
         self.assertFalse(package_manager.image_default_patch_mode_backup_exists())
         self.runtime.env_layer.file_system.read_with_retry = read_with_retry_backup
 
