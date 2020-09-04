@@ -99,7 +99,7 @@ class RuntimeCompositor(object):
         pass
 
     @staticmethod
-    def write_image_default_patch_mode_file(path, data):
+    def write_to_file(path, data):
         with open(path, "w+") as file_handle:
             file_handle.write(data)
 

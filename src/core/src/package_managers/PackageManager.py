@@ -330,11 +330,11 @@ class PackageManager(object):
     @abstractmethod
     def backup_image_default_patch_mode(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
-        We only log the default patch_mode a VM comes with, any subsequent updates will not be recorded"""
+        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
         pass
 
     def image_default_patch_mode_backup_exists(self):
-        """ Checks whether default auto OS updates have been recorded earlier within patch extension artifacts """
+        """ Checks whether default auto OS update settings have been recorded earlier within patch extension artifacts """
         self.composite_logger.log_debug("Checking if extension contains a backup for default auto OS updates...")
         if not os.path.exists(self.image_default_patch_mode_backup_path) or not os.path.isfile(self.image_default_patch_mode_backup_path):
             self.composite_logger.log_debug("Default system settings for auto OS updates aren't recorded in the extension")
@@ -342,11 +342,13 @@ class PackageManager(object):
         try:
             image_default_patch_mode_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_mode_backup_path))
             if self.is_image_default_patch_mode_backup_valid(image_default_patch_mode_backup):
-                self.composite_logger.log_debug("Extension already has a record of the default system settings for auto OS updates. No need to log the current settings again. "
+                self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. "
                                                 "[Default Auto OS update settings={0}] [File path={1}]"
                                                 .format(str(image_default_patch_mode_backup), self.image_default_patch_mode_backup_path))
                 return True
-            return False
+            else:
+                self.composite_logger.log_error("Since the backup is invalid, will add a new backup with the current auto OS update settings")
+                return False
         except Exception as error:
             self.composite_logger.log_error("Unable to read default auto OS update log. [Exception={0}]".format(repr(error)))
             return False
@@ -356,7 +358,7 @@ class PackageManager(object):
         pass
 
     @abstractmethod
-    def update_image_default_patch_mode(self, patch_mode, value):
+    def update_os_patch_mode_sub_setting(self, patch_mode, value):
         pass
     # endregion
 

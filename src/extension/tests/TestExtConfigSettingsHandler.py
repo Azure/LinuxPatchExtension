@@ -288,9 +288,9 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), "2019-07-20T12:12:14Z")
 
         # verify patchRolloutId is read successfully if maintenanceRunId is not available
-        # todo: remove this test and test.settings file, once patch rollout id is removed
+        # todo: remove this test and patch_rollout_id_bak_compat_test.settings file, once patch rollout id is removed
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
-        config_settings = ext_config_settings_handler.read_file("test")
+        config_settings = ext_config_settings_handler.read_file("patch_rollout_id_bak_compat_test")
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), None)
         self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), "2019-07-22T12:12:14Z")
 

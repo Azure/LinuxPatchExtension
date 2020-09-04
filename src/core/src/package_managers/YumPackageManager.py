@@ -336,10 +336,10 @@ class YumPackageManager(PackageManager):
 
     def backup_image_default_patch_mode(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
-        We only log the default patch_mode a VM comes with, any subsequent updates will not be recorded"""
+        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
         pass
 
-    def update_image_default_patch_mode(self, patch_mode, value):
+    def update_os_patch_mode_sub_setting(self, patch_mode, value):
         pass
     # endregion
 

@@ -466,13 +466,6 @@ class LegacyEnvLayerExtensions():
                         output = "      bash | 4.3-14ubuntu1.3 | http://us.archive.ubuntu.com/ubuntu xenial-updates/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1.2 | http://security.ubuntu.com/ubuntu xenial-security/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1 | http://us.archive.ubuntu.com/ubuntu xenial/main amd64 Packages"
-                    elif cmd.find('cat /etc/apt/apt.conf.d/20auto-upgrades') > -1:
-                        code = 0
-                        output = 'APT::Periodic::Update-Package-Lists "1";' + \
-                                 'APT::Periodic::Unattended-Upgrade "1";'
-                    elif cmd.find('''sed -i 's/APT::Periodic::Update-Package-Lists "1"/APT::Periodic::Update-Package-Lists "0"/;s/APT::Periodic::Unattended-Upgrade "1"/APT::Periodic::Unattended-Upgrade "0"/' '''):
-                        code = 0
-                        output = ""
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0

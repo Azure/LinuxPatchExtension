@@ -51,7 +51,7 @@ class AptitudePackageManager(PackageManager):
         # auto OS updates
         self.update_package_list = 'APT::Periodic::Update-Package-Lists'
         self.unattended_upgrade = 'APT::Periodic::Unattended-Upgrade'
-        self.image_default_patch_mode_file_path = '/etc/apt/apt.conf.d/20auto-upgrades'
+        self.os_patch_mode_settings_file_path = '/etc/apt/apt.conf.d/20auto-upgrades'
         self.update_package_list_value = ""
         self.unattended_upgrade_value = ""
 
@@ -373,24 +373,28 @@ class AptitudePackageManager(PackageManager):
         try:
             self.composite_logger.log_debug("Disabling auto OS updates if they are enabled")
             self.backup_image_default_patch_mode()
-            self.update_image_default_patch_mode(self.update_package_list, "0")
-            self.update_image_default_patch_mode(self.unattended_upgrade, "0")
+            self.update_os_patch_mode_sub_setting(self.update_package_list, "0")
+            self.update_os_patch_mode_sub_setting(self.unattended_upgrade, "0")
             self.composite_logger.log("Successfully disabled auto OS updates")
         except Exception as error:
             self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
 
     def backup_image_default_patch_mode(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
-        We only log the default patch_mode a VM comes with, any subsequent updates will not be recorded"""
+        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
         try:
             if not self.image_default_patch_mode_backup_exists():
-                image_default_patch_mode = self.env_layer.file_system.read_with_retry(self.image_default_patch_mode_file_path)
-                settings = image_default_patch_mode.strip().split('\n')
-                for patch_mode in settings:
-                    if self.update_package_list in str(patch_mode):
-                        self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(patch_mode)).group(1)
-                    if self.unattended_upgrade in str(patch_mode):
-                        self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(patch_mode)).group(1)
+                os_patch_mode_settings = self.env_layer.file_system.read_with_retry(self.os_patch_mode_settings_file_path)
+                settings = os_patch_mode_settings.strip().split('\n')
+                for setting in settings:
+                    if self.update_package_list in str(setting):
+                        self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(setting)).group(1)
+                    else:
+                        self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.update_package_list)))
+                    if self.unattended_upgrade in str(setting):
+                        self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(setting)).group(1)
+                    else:
+                        self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.unattended_upgrade)))
 
                 backup_image_default_patch_mode_json = {
                     self.update_package_list: self.update_package_list_value,
@@ -405,32 +409,34 @@ class AptitudePackageManager(PackageManager):
             raise
 
     def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
-        if self.update_package_list in image_default_patch_mode_backup or self.unattended_upgrade in image_default_patch_mode_backup:
+        if self.update_package_list in image_default_patch_mode_backup and self.unattended_upgrade in image_default_patch_mode_backup:
+            self.composite_logger.log_debug("Extension already has a valid backup of the default system settings for auto OS updates.")
             return True
-        return False
+        else:
+            self.composite_logger.log_error("Extension does not have a valid backup of the default system settings for auto OS updates.")
+            return False
 
-    def update_image_default_patch_mode(self, patch_mode, value="0"):
-        """ Updates (or adds if it doesn't exist) the given patch_mode with the given value in image_default_patch_mode_file """
+    def update_os_patch_mode_sub_setting(self, patch_mode_sub_setting, value="0"):
+        """ Updates (or adds if it doesn't exist) the given patch_mode_sub_setting with the given value in os_patch_mode_settings_file """
         try:
-            # todo: adding space between the patch_mode and value since, we will have to do that if we have to add a patch_mode that did not exist before
-            self.composite_logger.log("Updating default system settings for auto OS updates. [Patch Mode={0}. Value={1}]".format(str(patch_mode), value))
-            image_default_patch_mode = self.env_layer.file_system.read_with_retry(self.image_default_patch_mode_file_path)
-            patch_mode_to_update = patch_mode + ' "' + value + '";'
-            patch_mode_found_in_file = False
-            updated_patch_mode = ""
-            settings = image_default_patch_mode.strip().split('\n')
+            # todo: adding space between the patch_mode_sub_setting and value since, we will have to do that if we have to add a patch_mode_sub_setting that did not exist before
+            self.composite_logger.log("Updating default system settings for auto OS updates. [Patch Mode Sub Setting={0}] [Value={1}]".format(str(patch_mode_sub_setting), value))
+            os_patch_mode_settings = self.env_layer.file_system.read_with_retry(self.os_patch_mode_settings_file_path)
+            patch_mode_sub_setting_to_update = patch_mode_sub_setting + ' "' + value + '";'
+            patch_mode_sub_setting_found_in_file = False
+            updated_patch_mode_sub_setting = ""
+            settings = os_patch_mode_settings.strip().split('\n')
             for i in range(len(settings)):
-                # ToDo: do we need a check for value as well, to check if the value is not the same as the one sent in to replace it, as that will be an unnecessary write
-                if patch_mode in settings[i]:
-                    settings[i] = patch_mode_to_update
-                    patch_mode_found_in_file = True
-                updated_patch_mode += settings[i] + "\n"
-            if not patch_mode_found_in_file:
-                updated_patch_mode += patch_mode_to_update + "\n"
+                if patch_mode_sub_setting in settings[i]:
+                    settings[i] = patch_mode_sub_setting_to_update
+                    patch_mode_sub_setting_found_in_file = True
+                updated_patch_mode_sub_setting += settings[i] + "\n"
+            if not patch_mode_sub_setting_found_in_file:
+                updated_patch_mode_sub_setting += patch_mode_sub_setting_to_update + "\n"
             #ToDo: This adds some whitespace at the beginning of the first line in the settings file which is auto adjusted in the file later, so shouldn't have any issues right now. strip()/lstrip() on the string, does not work, will have to test accross versions and identify teh impact
-            self.env_layer.file_system.write_with_retry(self.image_default_patch_mode_file_path, '{0}'.format(updated_patch_mode.lstrip()), mode='w+')
+            self.env_layer.file_system.write_with_retry(self.os_patch_mode_settings_file_path, '{0}'.format(updated_patch_mode_sub_setting.lstrip()), mode='w+')
         except Exception as error:
-            self.composite_logger.log_error("Error occurred while updating default system settings for auto OS updates. [Patch Mode={0}] [Error={1}]".format(str(patch_mode), repr(error)))
+            self.composite_logger.log_error("Error occurred while updating system settings for auto OS updates. [Patch Mode={0}] [Error={1}]".format(str(patch_mode_sub_setting), repr(error)))
             raise
     # endregion
 
