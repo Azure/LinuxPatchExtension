@@ -15,6 +15,9 @@
 # Requires Python 2.7+
 
 import datetime
+import glob
+import os
+import shutil
 from extension.src.Constants import Constants
 from extension.src.EnableCommandHandler import EnableCommandHandler
 from extension.src.InstallCommandHandler import InstallCommandHandler
@@ -63,10 +66,41 @@ class ActionHandler(object):
          4. install (if updateMode is UpdateWithInstall)
          5. enable on the new version
          on uninstall the agent deletes removes configuration files"""
-        # todo: in the test run verify if CoreState.json, ExtState.json and the .status files are deleted, if yes, move them to a separate location
 
-        self.logger.log("Extension updated")
-        return Constants.ExitCode.Okay
+        # config folder path is usually something like: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-<version>/config
+        try:
+            self.logger.log("Extension is being updated to the latest version. Copying the required extension artifacts from previous version to the current one")
+            new_version_config_folder = self.ext_env_handler.config_folder
+            extension_pardir = os.path.abspath(os.path.join(new_version_config_folder, os.path.pardir, os.path.pardir))
+            paths_to_all_versions = self.get_all_versions(extension_pardir)
+            if len(paths_to_all_versions) <= 1:
+                self.logger.log_error("No earlier versions found for the extension")
+                return Constants.ExitCode.HandlerFailed
+
+            self.logger.log("Sorting paths to all version specific extension artifacts on the machine in descending order on version and fetching the immediate previous version path...")
+            paths_to_all_versions.sort(reverse=True)
+            previous_version_path = paths_to_all_versions[1]
+            if previous_version_path is None or previous_version_path == "" or not os.path.exists(previous_version_path):
+                self.logger.log_error("Could not find path where previous extension version artifacts are stored. Cannot copy the required artifacts to the latest version")
+                return Constants.ExitCode.HandlerFailed
+
+            self.logger.log("Previous version path. [Path={0}]".format(str(previous_version_path)))
+            for root, dirs, files in os.walk(previous_version_path):
+                for file_name in files:
+                    #ToDo: do we copy .settings file also?
+                    if Constants.EXT_STATE_FILE in file_name or Constants.CORE_STATE_FILE in file_name or ".bak" in file_name:
+                        file_path = os.path.join(root, file_name)
+                        self.logger.log("Copying file. [Source={0}] [Destination={1}]".format(str(file_path), str(new_version_config_folder)))
+                        shutil.copy(file_path, new_version_config_folder)
+            self.logger.log("Extension updated")
+            return Constants.ExitCode.Okay
+        except Exception as error:
+            self.logger.log_error("Error occurred during extension update. [Error={0}]".format(repr(error)))
+            return Constants.ExitCode.HandlerFailed
+
+    @staticmethod
+    def get_all_versions(extension_pardir):
+        return glob.glob(extension_pardir + '/*LinuxPatchExtension*')
 
     def uninstall(self):
         # ToDo: verify if the agent deletes config files. And find out from the extension/agent team if we need to delete older logs
