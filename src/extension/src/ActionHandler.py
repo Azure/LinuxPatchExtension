@@ -92,6 +92,7 @@ class ActionHandler(object):
                 return Constants.ExitCode.HandlerFailed
 
             self.logger.log("Previous version path. [Path={0}]".format(str(previous_version_path)))
+            self.logger.log("Copying only the files required by the extension for current and future operations. Any other files created by the Guest agent or extension, such as configuration settings, handlerstate, etc, that are not required in future, will not be copied.")
             for root, dirs, files in os.walk(previous_version_path):
                 for file_name in files:
                     if Constants.EXT_STATE_FILE in file_name or Constants.CORE_STATE_FILE in file_name or ".bak" in file_name:
