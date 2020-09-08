@@ -18,6 +18,8 @@ import datetime
 import glob
 import os
 import shutil
+from distutils.version import LooseVersion
+
 from extension.src.Constants import Constants
 from extension.src.EnableCommandHandler import EnableCommandHandler
 from extension.src.InstallCommandHandler import InstallCommandHandler
@@ -72,13 +74,18 @@ class ActionHandler(object):
             self.logger.log("Extension is being updated to the latest version. Copying the required extension artifacts from previous version to the current one")
             new_version_config_folder = self.ext_env_handler.config_folder
             extension_pardir = os.path.abspath(os.path.join(new_version_config_folder, os.path.pardir, os.path.pardir))
+            self.logger.log("Parent directory for all extension version artifacts [Directory={0}]".format(str(extension_pardir)))
             paths_to_all_versions = self.get_all_versions(extension_pardir)
+            self.logger.log("List of all extension versions found on the machine. [All Versions={0}]".format(paths_to_all_versions))
             if len(paths_to_all_versions) <= 1:
-                self.logger.log_error("No earlier versions found for the extension")
+                # Extension Update action called when
+                # a) artifacts for the previous version do not exist on the machine, or
+                # b) after all artifacts from the previous versions have been deleted
+                self.logger.log_error("No earlier versions for the extension found on the machine. So, could not copy any references to the current version.")
                 return Constants.ExitCode.HandlerFailed
 
             self.logger.log("Sorting paths to all version specific extension artifacts on the machine in descending order on version and fetching the immediate previous version path...")
-            paths_to_all_versions.sort(reverse=True)
+            paths_to_all_versions.sort(reverse=True, key=LooseVersion)
             previous_version_path = paths_to_all_versions[1]
             if previous_version_path is None or previous_version_path == "" or not os.path.exists(previous_version_path):
                 self.logger.log_error("Could not find path where previous extension version artifacts are stored. Cannot copy the required artifacts to the latest version")
@@ -87,7 +94,6 @@ class ActionHandler(object):
             self.logger.log("Previous version path. [Path={0}]".format(str(previous_version_path)))
             for root, dirs, files in os.walk(previous_version_path):
                 for file_name in files:
-                    #ToDo: do we copy .settings file also?
                     if Constants.EXT_STATE_FILE in file_name or Constants.CORE_STATE_FILE in file_name or ".bak" in file_name:
                         file_path = os.path.join(root, file_name)
                         self.logger.log("Copying file. [Source={0}] [Destination={1}]".format(str(file_path), str(new_version_config_folder)))

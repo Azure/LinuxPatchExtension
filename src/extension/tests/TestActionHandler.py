@@ -49,43 +49,99 @@ class TestActionHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
 
     def mock_get_all_versions(self, extension_pardir):
-        return [extension_pardir + '/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.3', extension_pardir + '/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5', extension_pardir + '/Microsoft.CPlat.Core.LinuxPatchExtension-1.1.9']
+        return [extension_pardir + '/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.3',
+                extension_pardir + '/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5',
+                extension_pardir + '/Microsoft.CPlat.Core.LinuxPatchExtension-1.1.9']
 
     def mock_get_all_versions_exception(self, extension_pardir):
         raise Exception
 
-    def test_update_command_success(self):
-        # Create a temporary directory
-        test_dir = tempfile.mkdtemp()
-
-        # create extension dir for the latest and other extension versions, to be used in the test
-        latest_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5'
+    @staticmethod
+    def create_latest_extension_dir(version, test_dir):
+        latest_extension_version = version
         os.mkdir(os.path.join(test_dir, latest_extension_version))
         new_version_config_folder = os.path.join(test_dir, latest_extension_version, 'config')
         os.mkdir(new_version_config_folder)
+        return new_version_config_folder
 
-        previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.2.3'
-        os.mkdir(os.path.join(test_dir, previous_extension_version))
-        previous_version_config_folder = os.path.join(test_dir, previous_extension_version, 'config')
+    def create_previous_extension_version(self, version, test_dir):
+        os.mkdir(os.path.join(test_dir, version))
+        previous_version_config_folder = os.path.join(test_dir, version, 'config')
         os.mkdir(previous_version_config_folder)
         self.runtime.create_temp_file(previous_version_config_folder, Constants.CORE_STATE_FILE, content='[test]')
         self.runtime.create_temp_file(previous_version_config_folder, Constants.EXT_STATE_FILE, content='test')
         self.runtime.create_temp_file(previous_version_config_folder, 'backup.bak', content='{"testkey": "testVal"}')
         self.runtime.create_temp_file(previous_version_config_folder, 'test.txt', content='{"testkey": "testVal"}')
+        return previous_version_config_folder
 
+    def test_update_command_success(self):
+        # testing with versions 1.2.5, 1.2.3 and 1.1.9
+        # Create a temporary directory
+        test_dir = tempfile.mkdtemp()
+        # create extension dir for the latest and other extension versions, to be used in the test
+        latest_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5'
+        new_version_config_folder = self.create_latest_extension_dir(latest_extension_version, test_dir)
+        previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.2.3'
+        previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
         other_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.1.9'
-        os.mkdir(os.path.join(test_dir, other_extension_version))
-        other_version_config_folder = os.path.join(test_dir, other_extension_version, 'config')
-        os.mkdir(other_version_config_folder)
-
+        other_version_config_folder = self.create_previous_extension_version(other_extension_version, test_dir)
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
-        self.action_handler.get_all_versions = self.mock_get_all_versions
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        # Remove the directory after the test
+        shutil.rmtree(test_dir)
 
+        # testing with versions 1.6.99 and 1.6.100
+        # Create a temporary directory
+        test_dir = tempfile.mkdtemp()
+        # create extension dir for the latest and other extension versions, to be used in the test
+        latest_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100'
+        new_version_config_folder = self.create_latest_extension_dir(latest_extension_version, test_dir)
+        previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99'
+        previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
+        self.action_handler.ext_env_handler.config_folder = new_version_config_folder
+        self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
+        self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        # Remove the directory after the test
+        shutil.rmtree(test_dir)
+
+        # testing with versions 1.4.897 and 1.5.23
+        # Create a temporary directory
+        test_dir = tempfile.mkdtemp()
+        # create extension dir for the latest and other extension versions, to be used in the test
+        latest_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.5.23'
+        new_version_config_folder = self.create_latest_extension_dir(latest_extension_version, test_dir)
+        previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.4.897'
+        previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
+        self.action_handler.ext_env_handler.config_folder = new_version_config_folder
+        self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
+        self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        # Remove the directory after the test
+        shutil.rmtree(test_dir)
+
+        # testing with versions 1.0.0 and 2.0.00
+        # Create a temporary directory
+        test_dir = tempfile.mkdtemp()
+        # create extension dir for the latest and other extension versions, to be used in the test
+        latest_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-2.0.00'
+        new_version_config_folder = self.create_latest_extension_dir(latest_extension_version, test_dir)
+        previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.0.0'
+        previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
+        self.action_handler.ext_env_handler.config_folder = new_version_config_folder
+        self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
+        self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
