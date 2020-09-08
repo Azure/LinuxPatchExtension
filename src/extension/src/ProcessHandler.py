@@ -75,7 +75,8 @@ class ProcessHandler(object):
 
         command = [python_cmd + " " + exec_path + " " + args]
         self.logger.log("Launching process. [command={0}]".format(str(command)))
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        with open(os.devnull, 'r+b', 0) as DEVNULL:
+            process = subprocess.Popen(command, shell=True, stdin=DEVNULL, stdout=DEVNULL, stderr=subprocess.STDOUT, close_fds=True)
         if process.pid is not None:
             self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
             # Wait for 5 seconds
@@ -83,8 +84,8 @@ class ProcessHandler(object):
             # if process is not running, log stdout and stderr
             if process.poll() is not None:
                 self.logger.log("Process not running for [sequence={0}]".format(seq_no))
-                self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout)))
-                self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr)))
+                self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout.read())))
+                self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr.read())))
                 return
             return process
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))

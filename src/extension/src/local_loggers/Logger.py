@@ -31,7 +31,6 @@ class Logger(object):
     def log(self, message):
         """log output"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
-        #ToDo: if the approach in CompositeLogger is right, add the same thing here
         for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
             print(line)
             if self.file_logger is not None:
