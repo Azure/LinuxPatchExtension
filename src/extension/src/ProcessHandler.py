@@ -81,7 +81,7 @@ class ProcessHandler(object):
         # Wait for 5 seconds
         time.sleep(5)
         self.logger.log("Checking if the launched process is still running...")
-        # if process is not running, log stdout and stderr
+        # if process is not running, re-attempt launching it again
         if process.poll() is not None:
             self.logger.log("Previously launched process did not execute as expected for [Sequence={0}]".format(seq_no))
             self.logger.log("Re-trying process launch. [command={0}]".format(str(command)))
