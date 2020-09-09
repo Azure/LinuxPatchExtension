@@ -17,11 +17,11 @@
 import os
 import sys
 import unittest
-from src.Constants import Constants
-from src.InstallCommandHandler import InstallCommandHandler
-from src.file_handlers.ExtEnvHandler import ExtEnvHandler
-from tests.helpers.RuntimeComposer import RuntimeComposer
-from tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.src.Constants import Constants
+from extension.src.InstallCommandHandler import InstallCommandHandler
+from extension.src.file_handlers.ExtEnvHandler import ExtEnvHandler
+from extension.tests.helpers.RuntimeComposer import RuntimeComposer
+from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestInstallCommandHandler(unittest.TestCase):

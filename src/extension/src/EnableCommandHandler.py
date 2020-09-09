@@ -15,7 +15,7 @@
 # Requires Python 2.7+
 
 import datetime
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 
 class EnableCommandHandler(object):

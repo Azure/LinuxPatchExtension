@@ -17,8 +17,8 @@
 import datetime
 import os
 import time
-from src.Constants import Constants
-from src.local_loggers.FileLogger import FileLogger
+from extension.src.Constants import Constants
+from extension.src.local_loggers.FileLogger import FileLogger
 
 
 class Utility(object):

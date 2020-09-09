@@ -17,19 +17,19 @@
 import datetime
 import os
 import sys
-from src.ActionHandler import ActionHandler
-from src.RuntimeContextHandler import RuntimeContextHandler
-from src.file_handlers.JsonFileHandler import JsonFileHandler
-from src.file_handlers.CoreStateHandler import CoreStateHandler
-from src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
-from src.file_handlers.ExtEnvHandler import ExtEnvHandler
-from src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
-from src.file_handlers.ExtStateHandler import ExtStateHandler
-from src.local_loggers.Logger import Logger
-from src.ProcessHandler import ProcessHandler
-from src.Utility import Utility
-from src.local_loggers.StdOutFileMirror import StdOutFileMirror
-from src.Constants import Constants
+from extension.src.ActionHandler import ActionHandler
+from extension.src.RuntimeContextHandler import RuntimeContextHandler
+from extension.src.file_handlers.JsonFileHandler import JsonFileHandler
+from extension.src.file_handlers.CoreStateHandler import CoreStateHandler
+from extension.src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
+from extension.src.file_handlers.ExtEnvHandler import ExtEnvHandler
+from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
+from extension.src.file_handlers.ExtStateHandler import ExtStateHandler
+from extension.src.local_loggers.Logger import Logger
+from extension.src.ProcessHandler import ProcessHandler
+from extension.src.Utility import Utility
+from extension.src.local_loggers.StdOutFileMirror import StdOutFileMirror
+from extension.src.Constants import Constants
 
 
 def main(argv):

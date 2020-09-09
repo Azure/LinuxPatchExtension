@@ -20,17 +20,17 @@ import tempfile
 import time
 import unittest
 from datetime import datetime
-from src.Constants import Constants
-from src.RuntimeContextHandler import RuntimeContextHandler
-from src.file_handlers.CoreStateHandler import CoreStateHandler
-from src.EnableCommandHandler import EnableCommandHandler
-from src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
-from src.file_handlers.ExtEnvHandler import ExtEnvHandler
-from src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
-from src.file_handlers.ExtStateHandler import ExtStateHandler
-from src.ProcessHandler import ProcessHandler
-from tests.helpers.RuntimeComposer import RuntimeComposer
-from tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.src.Constants import Constants
+from extension.src.RuntimeContextHandler import RuntimeContextHandler
+from extension.src.file_handlers.CoreStateHandler import CoreStateHandler
+from extension.src.EnableCommandHandler import EnableCommandHandler
+from extension.src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
+from extension.src.file_handlers.ExtEnvHandler import ExtEnvHandler
+from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
+from extension.src.file_handlers.ExtStateHandler import ExtStateHandler
+from extension.src.ProcessHandler import ProcessHandler
+from extension.tests.helpers.RuntimeComposer import RuntimeComposer
+from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestEnableCommandHandler(unittest.TestCase):

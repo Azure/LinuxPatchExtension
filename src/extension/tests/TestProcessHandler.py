@@ -17,13 +17,13 @@
 import os
 import subprocess
 import unittest
-from src.Constants import Constants
-from src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
-from src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
-from src.file_handlers.ExtEnvHandler import ExtEnvHandler
-from src.ProcessHandler import ProcessHandler
-from tests.helpers.RuntimeComposer import RuntimeComposer
-from tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.src.Constants import Constants
+from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
+from extension.src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
+from extension.src.file_handlers.ExtEnvHandler import ExtEnvHandler
+from extension.src.ProcessHandler import ProcessHandler
+from extension.tests.helpers.RuntimeComposer import RuntimeComposer
+from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestProcessHandler(unittest.TestCase):
@@ -61,17 +61,17 @@ class TestProcessHandler(unittest.TestCase):
     def mock_get_python_cmd(self):
         return "python"
 
-    def mock_subprocess_popen_process_not_running_after_launch(self, command, shell, stdout, stderr):
+    def mock_subprocess_popen_process_not_running_after_launch(self, command, shell, stdin, stdout, stderr, close_fds):
         self.process.pid = 1
         self.process.poll = self.mock_process_poll_return_Not_None
         return self.process
 
-    def mock_subprocess_popen_process_not_launched(self, command, shell, stdout, stderr):
+    def mock_subprocess_popen_process_not_launched(self, command, shell, stdin, stdout, stderr, close_fds):
         self.process.pid = None
-        self.process.poll = self.mock_process_poll_return_None
+        self.process.poll = self.mock_process_poll_return_Not_None
         return self.process
 
-    def mock_subprocess_popen_process_launched_with_no_issues(self, command, shell, stdout, stderr):
+    def mock_subprocess_popen_process_launched_with_no_issues(self, command, shell, stdin, stdout, stderr, close_fds):
         self.process.pid = 1
         self.process.poll = self.mock_process_poll_return_None
         return self.process

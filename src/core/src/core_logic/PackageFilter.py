@@ -15,7 +15,7 @@
 # Requires Python 2.7+
 
 """Package Filter"""
-from src.bootstrap.Constants import Constants
+from core.src.bootstrap.Constants import Constants
 import fnmatch
 
 

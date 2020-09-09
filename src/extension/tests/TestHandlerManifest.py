@@ -18,8 +18,8 @@
 import os
 import json
 import unittest
-from src.Constants import Constants
-from tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.src.Constants import Constants
+from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestHandlerManifest(unittest.TestCase):

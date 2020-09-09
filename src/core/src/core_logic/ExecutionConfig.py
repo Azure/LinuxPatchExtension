@@ -18,7 +18,7 @@ import base64
 import datetime
 import json
 import os
-from src.bootstrap.Constants import Constants
+from core.src.bootstrap.Constants import Constants
 
 
 class ExecutionConfig(object):
@@ -78,7 +78,7 @@ class ExecutionConfig(object):
         value = self.__get_value_from_argv(argv, key)
 
         try:
-            decoded_value = base64.b64decode(value)
+            decoded_value = base64.b64decode(value.replace("b\'", ""))
             decoded_json = json.loads(decoded_value)
         except Exception as error:
             self.composite_logger.log_error('Unable to process JSON in core arguments for key: {0}. Details: {1}.'.format(str(key), repr(error)))

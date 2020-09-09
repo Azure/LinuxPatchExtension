@@ -15,9 +15,9 @@
 # Requires Python 2.7+
 
 import unittest
-from src.bootstrap.Constants import Constants
-from tests.library.ArgumentComposer import ArgumentComposer
-from tests.library.RuntimeCompositor import RuntimeCompositor
+from core.src.bootstrap.Constants import Constants
+from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
 class TestContainer(unittest.TestCase):
@@ -33,7 +33,7 @@ class TestContainer(unittest.TestCase):
         try:
             self.container.get('unsupported_service')
         except KeyError as ex:
-            self.assertEqual('No component for: unsupported_service', ex.message)
+            self.assertEqual("'No component for: unsupported_service'", str(ex))
 
 
 if __name__ == '__main__':

@@ -16,8 +16,8 @@
 
 """ZypperPackageManager for SUSE"""
 import re
-from src.package_managers.PackageManager import PackageManager
-from src.bootstrap.Constants import Constants
+from core.src.package_managers.PackageManager import PackageManager
+from core.src.bootstrap.Constants import Constants
 
 
 class ZypperPackageManager(PackageManager):

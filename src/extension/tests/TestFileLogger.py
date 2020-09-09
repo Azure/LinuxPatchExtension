@@ -22,8 +22,8 @@ import unittest
 from datetime import datetime
 import os
 from os import path
-from src.local_loggers.FileLogger import FileLogger
-from tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.src.local_loggers.FileLogger import FileLogger
+from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
 class TestFileLogger(unittest.TestCase):

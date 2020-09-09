@@ -17,7 +17,8 @@
 """Non-invasive Dependency Injection Container.
 It fills given constructors or component methods
 based on their named arguments."""
-from src.local_loggers.CompositeLogger import CompositeLogger
+import sys
+from core.src.local_loggers.CompositeLogger import CompositeLogger
 
 
 class _Singleton(type):
@@ -148,8 +149,14 @@ class Container(Singleton):
         if inspect.isclass(component):
             component = component.__init__
 
-        component_args, vargs, vkw, defaults = inspect.getargspec(component)
-        if inspect.ismethod(component):
+        if sys.version_info.major == 2:
+            component_args, vargs, vkw, defaults = inspect.getargspec(component)
+        elif sys.version_info.major == 3:
+            component_args, vargs, vkw, defaults, kwonlyargs, kwonlydefaults, annotations = inspect.getfullargspec(component)
+        else:
+            raise Exception("Unknown version of python encountered.")
+
+        if inspect.ismethod(component) or inspect.isfunction(component):
             component_args = component_args[1:]
         return component_args, defaults
 

@@ -23,7 +23,7 @@ import errno
 import sys
 import time
 
-from src.Constants import Constants
+from extension.src.Constants import Constants
 
 
 class ProcessHandler(object):
@@ -75,20 +75,26 @@ class ProcessHandler(object):
 
         command = [python_cmd + " " + exec_path + " " + args]
         self.logger.log("Launching process. [command={0}]".format(str(command)))
-        with open(os.devnull, 'r+b', 0) as DEVNULL:
+        with open(os.devnull, 'w', 0) as DEVNULL:
             process = subprocess.Popen(command, shell=True, stdin=DEVNULL, stdout=DEVNULL, stderr=subprocess.STDOUT, close_fds=True)
-        if process.pid is not None:
-            self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
-            # Wait for 5 seconds
-            time.sleep(5)
-            # if process is not running, log stdout and stderr
-            if process.poll() is not None:
-                self.logger.log("Process not running for [sequence={0}]".format(seq_no))
-                self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout.read())))
-                self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr.read())))
+        self.logger.log("First attempt was made at launching the process. Will verify again in sometime if the process is running. [Process ID (PID)={0}]".format(str(process.pid)))
+        # Wait for 5 seconds
+        time.sleep(5)
+        self.logger.log("Checking if the launched process is still running...")
+        # if process is not running, log stdout and stderr
+        if process.poll() is not None:
+            self.logger.log("Previously launched process did not execute as expected for [Sequence={0}]".format(seq_no))
+            self.logger.log("Re-trying process launch. [command={0}]".format(str(command)))
+            process_reattempt = subprocess.Popen(command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+            if process_reattempt.poll() is not None:
+                self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process_reattempt.stdout.read())))
+                self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process_reattempt.stderr.read())))
+                self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
                 return
-            return process
-        self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
+            self.logger.log("New shell process launched successfully in second attempt. [Process ID (PID)={0}]".format(str(process_reattempt.pid)))
+            return process_reattempt
+        self.logger.log("New shell process launched successfully in first attempt. [Process ID (PID)={0}]".format(str(process.pid)))
+        return process
 
     def get_python_cmd(self):
         command_to_check_for_python = "which python"

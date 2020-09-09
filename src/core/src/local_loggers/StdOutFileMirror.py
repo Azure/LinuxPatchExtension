@@ -34,7 +34,11 @@ class StdOutFileMirror(object):
             sys.stdout.write("WARNING: StdOutFileMirror - Skipping as FileLogger is not initialized")
 
     def write(self, message):
-        #self.terminal.write(message)  # enable standard job output
+        try:
+            self.terminal.write(message)  # enable standard job output
+        except Exception as error:
+            # Ignore any exceptions from writing to the terminal which is mostly observed to be captured by the dead extension handler process.
+            pass
 
         if len(message.strip()) > 0:
             try:
