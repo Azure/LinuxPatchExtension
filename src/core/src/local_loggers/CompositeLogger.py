@@ -40,7 +40,7 @@ class CompositeLogger(object):
                 print(line)
             elif self.file_logger is not None:
                 timestamp = self.env_layer.datetime.timestamp()
-                self.file_logger.write("\n" + timestamp + "> " + message, fail_silently=False)
+                self.file_logger.write("\n" + timestamp + "> " + message.strip(), fail_silently=False)
 
     def log_error(self, message):
         """log errors"""
