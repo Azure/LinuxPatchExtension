@@ -19,16 +19,20 @@ Relative source and destination paths for the patch runbook are auto-detected if
 How to use: python Package.py <optional: full path to runbook 'src' folder>"""
 
 from __future__ import print_function
+
+import shutil
 import sys
 import os
 import errno
 import datetime
 
+
 # imports in VERY_FIRST_IMPORTS, order should be kept
 VERY_FIRST_IMPORTS = [
     'from __future__ import print_function\n',
     'from abc import ABCMeta, abstractmethod\n',
-    'from datetime import timedelta\n']
+    'from datetime import timedelta\n',
+    'from external_dependencies import distro\n']
 GLOBAL_IMPORTS = set()
 
 
@@ -85,6 +89,7 @@ def replace_text_in_file(file_path, old_text, new_text):
     text = text.replace(old_text.encode(encoding='UTF-8'), new_text.encode(encoding='UTF-8'))
     with open(file_path, 'wb') as file_handle: file_handle.write(text)
 
+
 def insert_imports(imports, merged_file_name):
     imports_str = ''.join(imports)
     prepend_content_to_file(imports_str, merged_file_name)
@@ -120,6 +125,8 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
                     modules_to_be_merged.append(file_path)
                 elif os.path.basename(file_path) in ('__init__.py'):
                     continue
+                elif 'external_dependencies' in file_path:
+                    continue
                 elif os.path.basename(file_path) in ('PackageManager.py', 'Constants.py'):
                     modules_to_be_merged.insert(0, file_path)
                 else:
@@ -149,6 +156,34 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
 
     except Exception as error:
         print('Exception during merge python modules: ' + repr(error))
+        raise
+
+
+def add_external_dependencies(external_dependencies_destination, external_dependencies_source_code_path):
+    try:
+        print('\n========= ADDING EXTERNAL DEPENDENCIES\n')
+
+        print('========== Deleting old dependencies if they exists.')
+        if os.path.exists(external_dependencies_destination):
+            shutil.rmtree(external_dependencies_destination)
+
+        print('\n========== Adding all dependencies to external_dependencies directory: \n')
+        dependencies_to_be_added = []
+        for root, dirs, files in os.walk(external_dependencies_source_code_path):
+            for file_name in files:
+                if ".py" not in file_name or ".pyc" in file_name:
+                    continue
+                file_path = os.path.join(root, file_name)
+                dependencies_to_be_added.append(file_path)
+        os.mkdir(external_dependencies_destination)
+        for dependency in dependencies_to_be_added:
+            print(format(os.path.basename(dependency)), end=', ')
+            shutil.copyfile(dependency, os.path.join(external_dependencies_destination, os.path.basename(dependency)))
+
+        print("\n\n========== External dependencies saved to:\n{0}\n".format(external_dependencies_destination))
+
+    except Exception as error:
+        print('Exception during adding external dependencies: ' + repr(error))
         raise
 
 
@@ -187,10 +222,16 @@ def main(argv):
             merged_file_destination = os.path.join(working_directory, 'out', merged_file_detail[0])
             generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1])
 
+        # add all dependencies under core/src/external_dependencies to destination directory
+        external_dependencies_destination = os.path.join(merge_file_directory, 'external_dependencies')
+        external_dependencies_source_code_path = os.path.join(source_code_path, 'external_dependencies')
+        add_external_dependencies(external_dependencies_destination, external_dependencies_source_code_path)
+
     except Exception as error:
-        print('Exception during merge python modules: ' + repr(error))
+        print('Exception during packaging all python modules in core: ' + repr(error))
         raise
 
 
 if __name__ == "__main__":
     main(sys.argv)
+
