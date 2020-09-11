@@ -128,7 +128,7 @@ class ConfigurationFactory(object):
             },
             'composite_logger': {
                 'component': CompositeLogger,
-                'component_args': ['file_logger'],
+                'component_args': ['env_layer', 'file_logger'],
                 'component_kwargs': {
                     'current_env': config_env
                 }

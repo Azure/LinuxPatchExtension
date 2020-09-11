@@ -22,7 +22,8 @@ from core.src.bootstrap.Constants import Constants
 class CompositeLogger(object):
     """ Manages diverting different kinds of output to the right sinks for them. """
 
-    def __init__(self, file_logger=None, current_env=None):
+    def __init__(self, env_layer=None, file_logger=None, current_env=None):
+        self.env_layer = env_layer
         self.file_logger = file_logger
         self.ERROR = "ERROR:"
         self.WARNING = "WARNING:"
@@ -31,12 +32,15 @@ class CompositeLogger(object):
         self.current_env = current_env
         self.NEWLINE_REPLACE_CHAR = " "
 
-    @staticmethod
-    def log(message):
+    def log(self, message):
         """log output"""
         message = CompositeLogger.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
-            print(line)
+            if self.current_env in (Constants.DEV, Constants.TEST):
+                print(line)
+            elif self.file_logger is not None:
+                timestamp = self.env_layer.datetime.timestamp()
+                self.file_logger.write("\n" + timestamp + "> " + message.strip(), fail_silently=False)
 
     def log_error(self, message):
         """log errors"""
