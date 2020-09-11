@@ -39,8 +39,10 @@ class JsonFileHandler(object):
                     return json.loads(file_contents)
             except ValueError as e:
                 error_msg = "Incorrect file format. [File={0}] [Location={1}] [Exception={2}]".format(file, str(file_path), repr(e))
+                self.logger.log_warning(error_msg)
             except Exception as e:
                 error_msg = "Trial {0}: Could not read file. [File={1}] [Location={2}] [Exception={3}]".format(retry + 1, file, str(file_path), repr(e))
+                self.logger.log_warning(error_msg)
 
         error_msg = "Failed to read file after {0} tries. [File={1}] [Location={2}] [Exception={3}]".format(self.retry_count, file, str(file_path), error_msg)
         self.logger.log_error(error_msg)
@@ -72,6 +74,7 @@ class JsonFileHandler(object):
                         return
                 except Exception as error:
                     error_message = "Trial {0}: Could not write to file. [File={1}] [Location={2}] [Exception={3}]".format(retry+1, file, str(file_path), error)
+                    self.logger.log_warning(error_message)
 
             error_msg = "Failed to write to file after {0} tries. [File={1}] [Location={2}] [Exception={3}]".format(self.retry_count, file, str(file_path), error_message)
             self.logger.log_error_and_raise_new_exception(error_msg, Exception)
