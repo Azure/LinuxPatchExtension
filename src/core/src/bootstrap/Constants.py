@@ -60,7 +60,7 @@ class Constants(object):
         MAINTENANCE_RUN_ID = 'maintenanceRunId'
 
     # File to save default settings for auto OS updates
-    IMAGE_DEFAULT_PATCH_MODE_BACKUP_PATH = "ImageDefaultPatchMode.bak"
+    IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
 
     # Operations
     ASSESSMENT = "Assessment"

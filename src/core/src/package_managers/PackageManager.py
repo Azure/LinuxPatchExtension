@@ -39,7 +39,7 @@ class PackageManager(object):
         self.all_update_versions_cached = []
 
         # auto OS updates
-        self.image_default_patch_mode_backup_path = os.path.join(execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_MODE_BACKUP_PATH)
+        self.image_default_patch_configuration_backup_path = os.path.join(execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
 
         # Constants
         self.STR_NOTHING_TO_DO = "Error: Nothing to do"
@@ -328,37 +328,41 @@ class PackageManager(object):
         pass
 
     @abstractmethod
-    def backup_image_default_patch_mode(self):
+    def backup_image_default_patch_configuration_if_not_exists(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
         pass
 
-    def image_default_patch_mode_backup_exists(self):
+    def image_default_patch_configuration_backup_exists(self):
         """ Checks whether default auto OS update settings have been recorded earlier within patch extension artifacts """
-        self.composite_logger.log_debug("Checking if extension contains a backup for default auto OS updates...")
-        if not os.path.exists(self.image_default_patch_mode_backup_path) or not os.path.isfile(self.image_default_patch_mode_backup_path):
-            self.composite_logger.log_debug("Default system settings for auto OS updates aren't recorded in the extension")
+        self.composite_logger.log_debug("Checking if extension contains a backup for default auto OS update configuration settings...")
+
+        # backup does not exist
+        if not os.path.exists(self.image_default_patch_configuration_backup_path) or not os.path.isfile(self.image_default_patch_configuration_backup_path):
+            self.composite_logger.log_debug("Default system configuration settings for auto OS updates aren't recorded in the extension")
             return False
+
+        # verify if the existing backup is valid
         try:
-            image_default_patch_mode_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_mode_backup_path))
-            if self.is_image_default_patch_mode_backup_valid(image_default_patch_mode_backup):
+            image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
+            if self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup):
                 self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. "
                                                 "[Default Auto OS update settings={0}] [File path={1}]"
-                                                .format(str(image_default_patch_mode_backup), self.image_default_patch_mode_backup_path))
+                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
                 return True
             else:
                 self.composite_logger.log_error("Since the backup is invalid, will add a new backup with the current auto OS update settings")
                 return False
         except Exception as error:
-            self.composite_logger.log_error("Unable to read default auto OS update log. [Exception={0}]".format(repr(error)))
+            self.composite_logger.log_error("Unable to read backup for default auto OS update settings. [Exception={0}]".format(repr(error)))
             return False
 
     @abstractmethod
-    def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
+    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
         pass
 
     @abstractmethod
-    def update_os_patch_mode_sub_setting(self, patch_mode, value):
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value):
         pass
     # endregion
 

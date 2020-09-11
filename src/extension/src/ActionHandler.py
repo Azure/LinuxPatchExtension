@@ -18,6 +18,7 @@ import datetime
 import glob
 import os
 import shutil
+import time
 from distutils.version import LooseVersion
 
 from extension.src.Constants import Constants
@@ -71,7 +72,9 @@ class ActionHandler(object):
 
         # config folder path is usually something like: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-<version>/config
         try:
-            self.logger.log("Extension is being updated to the latest version. Copying the required extension artifacts from previous version to the current one")
+            self.logger.log("Extension is being updated to the latest version. Copying the required extension artifacts from preceding version to the current one")
+
+            # fetch all earlier extension versions available on the machine
             new_version_config_folder = self.ext_env_handler.config_folder
             extension_pardir = os.path.abspath(os.path.join(new_version_config_folder, os.path.pardir, os.path.pardir))
             self.logger.log("Parent directory for all extension version artifacts [Directory={0}]".format(str(extension_pardir)))
@@ -79,27 +82,25 @@ class ActionHandler(object):
             self.logger.log("List of all extension versions found on the machine. [All Versions={0}]".format(paths_to_all_versions))
             if len(paths_to_all_versions) <= 1:
                 # Extension Update action called when
-                # a) artifacts for the previous version do not exist on the machine, or
-                # b) after all artifacts from the previous versions have been deleted
+                # a) artifacts for the preceding version do not exist on the machine, or
+                # b) after all artifacts from the preceding versions have been deleted
                 self.logger.log_error("No earlier versions for the extension found on the machine. So, could not copy any references to the current version.")
                 return Constants.ExitCode.HandlerFailed
 
-            self.logger.log("Sorting paths to all version specific extension artifacts on the machine in descending order on version and fetching the immediate previous version path...")
+            # identify the version preceding current
+            self.logger.log("Fetching the extension version preceding current from all available versions...")
             paths_to_all_versions.sort(reverse=True, key=LooseVersion)
-            previous_version_path = paths_to_all_versions[1]
-            if previous_version_path is None or previous_version_path == "" or not os.path.exists(previous_version_path):
-                self.logger.log_error("Could not find path where previous extension version artifacts are stored. Cannot copy the required artifacts to the latest version")
+            preceding_version_path = paths_to_all_versions[1]
+            if preceding_version_path is None or preceding_version_path == "" or not os.path.exists(preceding_version_path):
+                self.logger.log_error("Could not find path where preceding extension version artifacts are stored. Hence, cannot copy the required artifacts to the latest version. "
+                                      "[Preceding extension version path={0}]".format(str(preceding_version_path)))
                 return Constants.ExitCode.HandlerFailed
+            self.logger.log("Preceding version path. [Path={0}]".format(str(preceding_version_path)))
 
-            self.logger.log("Previous version path. [Path={0}]".format(str(previous_version_path)))
-            self.logger.log("Copying only the files required by the extension for current and future operations. Any other files created by the Guest agent or extension, such as configuration settings, handlerstate, etc, that are not required in future, will not be copied.")
-            for root, dirs, files in os.walk(previous_version_path):
-                for file_name in files:
-                    if Constants.EXT_STATE_FILE in file_name or Constants.CORE_STATE_FILE in file_name or ".bak" in file_name:
-                        file_path = os.path.join(root, file_name)
-                        self.logger.log("Copying file. [Source={0}] [Destination={1}]".format(str(file_path), str(new_version_config_folder)))
-                        shutil.copy(file_path, new_version_config_folder)
-            self.logger.log("Extension updated")
+            # copy all required files from preceding version to current
+            self.copy_config_files(preceding_version_path, new_version_config_folder)
+
+            self.logger.log("All update actions from extension handler completed.")
             return Constants.ExitCode.Okay
         except Exception as error:
             self.logger.log_error("Error occurred during extension update. [Error={0}]".format(repr(error)))
@@ -109,8 +110,38 @@ class ActionHandler(object):
     def get_all_versions(extension_pardir):
         return glob.glob(extension_pardir + '/*LinuxPatchExtension*')
 
+    def copy_config_files(self, src, dst, raise_if_not_copied=False):
+        """ Copies files, required by the extension, from the given config/src folder """
+        self.logger.log("Copying only the files required by the extension for current and future operations. Any other files created by the Guest agent or extension, such as configuration settings, handlerstate, etc, that are not required in future, will not be copied.")
+        # get all the required files to be copied from parent dir
+        files_to_copy = []
+        for root, dirs, files in os.walk(src):
+            for file_name in files:
+                if Constants.EXT_STATE_FILE not in file_name and Constants.CORE_STATE_FILE not in file_name and ".bak" not in file_name:
+                    continue
+                file_path = os.path.join(root, file_name)
+                files_to_copy.append(file_path)
+        self.logger.log("List of files to be copied from preceding extension version to the current: [Files to be copied={0}]".format(str(files_to_copy)))
+
+        # copy each file
+        for file_to_copy in files_to_copy:
+            for i in range(0, Constants.MAX_IO_RETRIES):
+                try:
+                    self.logger.log("Copying file. [Source={0}] [Destination={1}]".format(str(file_to_copy), str(dst)))
+                    shutil.copy(file_to_copy, dst)
+                    break
+                except Exception as error:
+                    if i < Constants.MAX_IO_RETRIES:
+                        time.sleep(i + 1)
+                    else:
+                        error_msg = "Failed to copy file after {0} tries. [Source={1}] [Destination={2}] [Exception={3}]".format(Constants.MAX_IO_RETRIES, str(file_to_copy), str(dst), repr(error))
+                        self.logger.log_error(error_msg)
+                        if raise_if_not_copied:
+                            raise Exception(error_msg)
+
+        self.logger.log("All required files from the preceding extension version were copied to current one")
+
     def uninstall(self):
-        # ToDo: verify if the agent deletes config files. And find out from the extension/agent team if we need to delete older logs
         self.logger.log("Extension uninstalled")
         return Constants.ExitCode.Okay
 
@@ -127,7 +158,6 @@ class ActionHandler(object):
         return Constants.ExitCode.Okay
 
     def reset(self):
-        #ToDo: do we have to delete log and status files? and raise error if delete fails?
         self.logger.log("Reset triggered on extension, deleting CoreState and ExtState files")
         self.utility.delete_file(self.core_state_handler.dir_path, self.core_state_handler.file, raise_if_not_found=False)
         self.utility.delete_file(self.ext_state_handler.dir_path, self.ext_state_handler.file, raise_if_not_found=False)

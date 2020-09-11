@@ -51,7 +51,7 @@ class AptitudePackageManager(PackageManager):
         # auto OS updates
         self.update_package_list = 'APT::Periodic::Update-Package-Lists'
         self.unattended_upgrade = 'APT::Periodic::Unattended-Upgrade'
-        self.os_patch_mode_settings_file_path = '/etc/apt/apt.conf.d/20auto-upgrades'
+        self.os_patch_configuration_settings_file_path = '/etc/apt/apt.conf.d/20auto-upgrades'
         self.update_package_list_value = ""
         self.unattended_upgrade_value = ""
 
@@ -372,71 +372,80 @@ class AptitudePackageManager(PackageManager):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
         try:
             self.composite_logger.log_debug("Disabling auto OS updates if they are enabled")
-            self.backup_image_default_patch_mode()
-            self.update_os_patch_mode_sub_setting(self.update_package_list, "0")
-            self.update_os_patch_mode_sub_setting(self.unattended_upgrade, "0")
+            self.backup_image_default_patch_configuration_if_not_exists()
+            self.update_os_patch_configuration_sub_setting(self.update_package_list, "0")
+            self.update_os_patch_configuration_sub_setting(self.unattended_upgrade, "0")
             self.composite_logger.log("Successfully disabled auto OS updates")
         except Exception as error:
             self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
 
-    def backup_image_default_patch_mode(self):
+    def backup_image_default_patch_configuration_if_not_exists(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
         try:
-            if not self.image_default_patch_mode_backup_exists():
-                os_patch_mode_settings = self.env_layer.file_system.read_with_retry(self.os_patch_mode_settings_file_path)
-                settings = os_patch_mode_settings.strip().split('\n')
+            if not self.image_default_patch_configuration_backup_exists():
+                image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
+                settings = image_default_patch_configuration.strip().split('\n')
+
                 for setting in settings:
                     if self.update_package_list in str(setting):
                         self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(setting)).group(1)
-                    else:
-                        self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.update_package_list)))
                     if self.unattended_upgrade in str(setting):
                         self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(setting)).group(1)
-                    else:
-                        self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.unattended_upgrade)))
 
-                backup_image_default_patch_mode_json = {
+                if self.update_package_list_value == "":
+                    self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.update_package_list)))
+
+                if self.unattended_upgrade_value == "":
+                    self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.unattended_upgrade)))
+
+                backup_image_default_patch_configuration_json = {
                     self.update_package_list: self.update_package_list_value,
                     self.unattended_upgrade: self.unattended_upgrade_value
                 }
-                self.composite_logger.log_debug("Logging default system settings for auto OS updates. [Settings={0}] [Log file path={1}]"
-                                                .format(str(backup_image_default_patch_mode_json), self.image_default_patch_mode_backup_path))
-                self.env_layer.file_system.write_with_retry(self.image_default_patch_mode_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_mode_json)), mode='w+')
+
+                self.composite_logger.log_debug("Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
+                                                .format(str(backup_image_default_patch_configuration_json), self.image_default_patch_configuration_backup_path))
+                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)), mode='w+')
         except Exception as error:
             error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
             self.composite_logger.log_error(error_message)
             raise
 
-    def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
-        if self.update_package_list in image_default_patch_mode_backup and self.unattended_upgrade in image_default_patch_mode_backup:
-            self.composite_logger.log_debug("Extension already has a valid backup of the default system settings for auto OS updates.")
+    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
+        if self.update_package_list in image_default_patch_configuration_backup and self.unattended_upgrade in image_default_patch_configuration_backup:
+            self.composite_logger.log_debug("Extension already has a valid backup of the default system configuration settings for auto OS updates.")
             return True
         else:
-            self.composite_logger.log_error("Extension does not have a valid backup of the default system settings for auto OS updates.")
+            self.composite_logger.log_error("Extension does not have a valid backup of the default system configuration settings for auto OS updates.")
             return False
 
-    def update_os_patch_mode_sub_setting(self, patch_mode_sub_setting, value="0"):
-        """ Updates (or adds if it doesn't exist) the given patch_mode_sub_setting with the given value in os_patch_mode_settings_file """
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="0"):
+        """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
         try:
-            # todo: adding space between the patch_mode_sub_setting and value since, we will have to do that if we have to add a patch_mode_sub_setting that did not exist before
-            self.composite_logger.log("Updating default system settings for auto OS updates. [Patch Mode Sub Setting={0}] [Value={1}]".format(str(patch_mode_sub_setting), value))
-            os_patch_mode_settings = self.env_layer.file_system.read_with_retry(self.os_patch_mode_settings_file_path)
-            patch_mode_sub_setting_to_update = patch_mode_sub_setting + ' "' + value + '";'
-            patch_mode_sub_setting_found_in_file = False
-            updated_patch_mode_sub_setting = ""
-            settings = os_patch_mode_settings.strip().split('\n')
+            # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
+            self.composite_logger.log("Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
+            os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
+            patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + ' "' + value + '";'
+            patch_configuration_sub_setting_found_in_file = False
+            updated_patch_configuration_sub_setting = ""
+            settings = os_patch_configuration_settings.strip().split('\n')
+
+            # update value of existing setting
             for i in range(len(settings)):
-                if patch_mode_sub_setting in settings[i]:
-                    settings[i] = patch_mode_sub_setting_to_update
-                    patch_mode_sub_setting_found_in_file = True
-                updated_patch_mode_sub_setting += settings[i] + "\n"
-            if not patch_mode_sub_setting_found_in_file:
-                updated_patch_mode_sub_setting += patch_mode_sub_setting_to_update + "\n"
-            #ToDo: This adds some whitespace at the beginning of the first line in the settings file which is auto adjusted in the file later, so shouldn't have any issues right now. strip()/lstrip() on the string, does not work, will have to test accross versions and identify teh impact
-            self.env_layer.file_system.write_with_retry(self.os_patch_mode_settings_file_path, '{0}'.format(updated_patch_mode_sub_setting.lstrip()), mode='w+')
+                if patch_configuration_sub_setting in settings[i]:
+                    settings[i] = patch_configuration_sub_setting_to_update
+                    patch_configuration_sub_setting_found_in_file = True
+                updated_patch_configuration_sub_setting += settings[i] + "\n"
+
+            # add setting to configuration file, since it doesn't exist
+            if not patch_configuration_sub_setting_found_in_file:
+                updated_patch_configuration_sub_setting += patch_configuration_sub_setting_to_update + "\n"
+
+            #ToDo: This adds some whitespace at the beginning of the first line in the settings file which is auto adjusted in the file later, so shouldn't have any issues right now. strip()/lstrip() on the string, does not work, will have to test accross versions and identify the impact
+            self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path, '{0}'.format(updated_patch_configuration_sub_setting.lstrip()), mode='w+')
         except Exception as error:
-            self.composite_logger.log_error("Error occurred while updating system settings for auto OS updates. [Patch Mode={0}] [Error={1}]".format(str(patch_mode_sub_setting), repr(error)))
+            self.composite_logger.log_error("Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error)))
             raise
     # endregion
 

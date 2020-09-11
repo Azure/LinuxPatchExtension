@@ -361,15 +361,15 @@ class ZypperPackageManager(PackageManager):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
         pass
 
-    def is_image_default_patch_mode_backup_valid(self, image_default_patch_mode_backup):
+    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
         return True
 
-    def backup_image_default_patch_mode(self):
+    def backup_image_default_patch_configuration_if_not_exists(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
         pass
 
-    def update_os_patch_mode_sub_setting(self, patch_mode, value):
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value):
         pass
     # endregion
 
