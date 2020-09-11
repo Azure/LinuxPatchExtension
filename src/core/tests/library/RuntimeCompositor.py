@@ -98,3 +98,8 @@ class RuntimeCompositor(object):
     def mock_sleep(self, seconds):
         pass
 
+    @staticmethod
+    def write_to_file(path, data):
+        with open(path, "w+") as file_handle:
+            file_handle.write(data)
+

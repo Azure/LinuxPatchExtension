@@ -110,6 +110,7 @@ class Constants(object):
         include_patches = "patchesToInclude"
         exclude_patches = "patchesToExclude"
         internal_settings = "internalSettings"
+        maintenance_run_id = "maintenanceRunId"
         patch_rollout_id = "patchRolloutId"
 
     # ExtState.json keys

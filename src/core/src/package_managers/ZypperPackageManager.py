@@ -23,8 +23,8 @@ from core.src.bootstrap.Constants import Constants
 class ZypperPackageManager(PackageManager):
     """Implementation of SUSE package management operations"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler):
-        super(ZypperPackageManager, self).__init__(env_layer, composite_logger, telemetry_writer, status_handler)
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
+        super(ZypperPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         self.repo_clean = 'sudo zypper clean -a'
         self.repo_refresh = 'sudo zypper refresh'
@@ -354,6 +354,23 @@ class ZypperPackageManager(PackageManager):
         except Exception as error:
             self.composite_logger.log_debug(" - Could not get package size from output: " + repr(error))
             return Constants.UNKNOWN_PACKAGE_SIZE
+    # endregion
+
+    # region auto OS updates
+    def disable_auto_os_update(self):
+        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        pass
+
+    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
+        return True
+
+    def backup_image_default_patch_configuration_if_not_exists(self):
+        """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
+        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
+        pass
+
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value):
+        pass
     # endregion
 
     def do_processes_require_restart(self):

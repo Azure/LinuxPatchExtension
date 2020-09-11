@@ -2,7 +2,7 @@
 <ExtensionImage xmlns="http://schemas.microsoft.com/windowsazure">
   <ProviderNameSpace>Microsoft.CPlat.Core</ProviderNameSpace>
   <Type>LinuxPatchExtension</Type>
-  <Version>1.6.7</Version>
+  <Version>1.6.8</Version>
   <Label>Microsoft Azure VM InGuest Patch Extension for Linux Virtual Machines</Label>
   <HostingResources>VmRole</HostingResources>
   <MediaLink></MediaLink>

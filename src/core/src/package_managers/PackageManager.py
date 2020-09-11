@@ -15,6 +15,8 @@
 # Requires Python 2.7+
 
 """The is base package manager, which defines the package management relevant operations"""
+import json
+import os
 from abc import ABCMeta, abstractmethod
 from core.src.bootstrap.Constants import Constants
 import time
@@ -23,7 +25,7 @@ import time
 class PackageManager(object):
     """Base class of package manager"""
 
-    def __init__(self, env_layer, composite_logger, telemetry_writer, status_handler):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
@@ -35,6 +37,9 @@ class PackageManager(object):
         # Enabling caching for high performance retrieval (only for code explicitly requesting it)
         self.all_updates_cached = []
         self.all_update_versions_cached = []
+
+        # auto OS updates
+        self.image_default_patch_configuration_backup_path = os.path.join(execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
 
         # Constants
         self.STR_NOTHING_TO_DO = "Error: Nothing to do"
@@ -314,6 +319,51 @@ class PackageManager(object):
         # type: (str, object) -> ""  # type hinting to remove a warning
         """Sets package manager setting"""
         self.package_manager_settings[setting_key] = setting_value
+    # endregion
+
+    # region auto OS updates
+    @abstractmethod
+    def disable_auto_os_update(self):
+        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        pass
+
+    @abstractmethod
+    def backup_image_default_patch_configuration_if_not_exists(self):
+        """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
+        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
+        pass
+
+    def image_default_patch_configuration_backup_exists(self):
+        """ Checks whether default auto OS update settings have been recorded earlier within patch extension artifacts """
+        self.composite_logger.log_debug("Checking if extension contains a backup for default auto OS update configuration settings...")
+
+        # backup does not exist
+        if not os.path.exists(self.image_default_patch_configuration_backup_path) or not os.path.isfile(self.image_default_patch_configuration_backup_path):
+            self.composite_logger.log_debug("Default system configuration settings for auto OS updates aren't recorded in the extension")
+            return False
+
+        # verify if the existing backup is valid
+        try:
+            image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
+            if self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup):
+                self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. "
+                                                "[Default Auto OS update settings={0}] [File path={1}]"
+                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
+                return True
+            else:
+                self.composite_logger.log_error("Since the backup is invalid, will add a new backup with the current auto OS update settings")
+                return False
+        except Exception as error:
+            self.composite_logger.log_error("Unable to read backup for default auto OS update settings. [Exception={0}]".format(repr(error)))
+            return False
+
+    @abstractmethod
+    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
+        pass
+
+    @abstractmethod
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value):
+        pass
     # endregion
 
     @abstractmethod

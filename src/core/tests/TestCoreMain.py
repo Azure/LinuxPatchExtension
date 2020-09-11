@@ -24,7 +24,7 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 class TestCoreMain(unittest.TestCase):
     def setUp(self):
-        # Had to move runtime init and stop to individual test functions, since every test uses a different patch_rollout_id which has to be set before runtime init
+        # Had to move runtime init and stop to individual test functions, since every test uses a different maintenance_run_id which has to be set before runtime init
         # self.argument_composer = ArgumentComposer().get_composed_arguments()
         # self.runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.ZYPPER)
         # self.container = self.runtime.container
@@ -53,7 +53,7 @@ class TestCoreMain(unittest.TestCase):
 
     def test_operation_fail_for_autopatching_request(self):
         argument_composer = ArgumentComposer()
-        argument_composer.patch_rollout_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+        argument_composer.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('FailInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -86,10 +86,10 @@ class TestCoreMain(unittest.TestCase):
         runtime.stop()
 
     def test_operation_success_for_autopatching_request(self):
-        # test with valid patch rollout id
+        # test with valid maintenance run id
         argument_composer = ArgumentComposer()
-        patch_rollout_id = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-        argument_composer.patch_rollout_id = str(patch_rollout_id)
+        maintenance_run_id = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        argument_composer.maintenance_run_id = str(maintenance_run_id)
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -103,14 +103,14 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(json.loads(substatus_file_data[2]["formattedMessage"]["message"])["patchVersion"], str(runtime.env_layer.datetime.utc_to_standard_datetime(patch_rollout_id).date()))
+        self.assertEqual(json.loads(substatus_file_data[2]["formattedMessage"]["message"])["patchVersion"], str(runtime.env_layer.datetime.utc_to_standard_datetime(maintenance_run_id).date()))
         runtime.stop()
 
-    def test_invalid_patch_rollout_id(self):
-        # test with empty string for patch rollout id
+    def test_invalid_maintenance_run_id(self):
+        # test with empty string for maintenence run id
         argument_composer = ArgumentComposer()
-        patch_rollout_id = ""
-        argument_composer.patch_rollout_id = patch_rollout_id
+        maintenance_run_id = ""
+        argument_composer.maintenance_run_id = maintenance_run_id
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -126,10 +126,10 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data[2]["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
         runtime.stop()
 
-        # test with invalid patch rollout id
+        # test with invalid maintenance run id
         argument_composer = ArgumentComposer()
-        patch_rollout_id = "test"
-        argument_composer.patch_rollout_id = patch_rollout_id
+        maintenance_run_id = "test"
+        argument_composer.maintenance_run_id = maintenance_run_id
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
