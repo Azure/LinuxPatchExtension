@@ -113,6 +113,7 @@ class ActionHandler(object):
     def copy_config_files(self, src, dst, raise_if_not_copied=False):
         """ Copies files, required by the extension, from the given config/src folder """
         self.logger.log("Copying only the files required by the extension for current and future operations. Any other files created by the Guest agent or extension, such as configuration settings, handlerstate, etc, that are not required in future, will not be copied.")
+
         # get all the required files to be copied from parent dir
         files_to_copy = []
         for root, dirs, files in os.walk(src):
