@@ -20,8 +20,10 @@ import datetime
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from core.src.bootstrap.Constants import Constants
 from core.src.external_dependencies import distro
@@ -339,6 +341,22 @@ class EnvLayer(object):
 
             if was_path:  # what was passed in was not a file handle, so close the handle that was init here
                 file_handle.close()
+
+        @staticmethod
+        def write_with_retry_using_temp_file(file_path, data, mode='w'):
+            """ Writes to a temp file in a single operation and then moves/overrides the original file with the temp """
+            for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
+                try:
+                    with tempfile.NamedTemporaryFile(mode, dir=os.path.dirname(file_path), delete=False) as tf:
+                        tf.write(str(data))
+                        tempname = tf.name
+                    shutil.move(tempname, file_path)
+                    break
+                except Exception as error:
+                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
+                        time.sleep(i + 1)
+                    else:
+                        raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_path), repr(error)))
 
 # endregion - File system emulation and extensions
 

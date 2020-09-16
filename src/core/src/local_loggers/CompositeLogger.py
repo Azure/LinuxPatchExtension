@@ -34,13 +34,14 @@ class CompositeLogger(object):
 
     def log(self, message):
         """log output"""
-        message = CompositeLogger.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
-        for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
-            if self.current_env in (Constants.DEV, Constants.TEST):
+        message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
+        message = message.strip()
+        if self.current_env in (Constants.DEV, Constants.TEST):
+            for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
                 print(line)
-            elif self.file_logger is not None:
-                timestamp = self.env_layer.datetime.timestamp()
-                self.file_logger.write("\n" + timestamp + "> " + message.strip(), fail_silently=False)
+        elif self.file_logger is not None:
+            timestamp = self.env_layer.datetime.timestamp()
+            self.file_logger.write("\n" + timestamp + "> " + message.strip(), fail_silently=False)
 
     def log_error(self, message):
         """log errors"""

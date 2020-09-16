@@ -70,5 +70,5 @@ class PatchAssessor(object):
                     self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
                     raise
 
-        self.composite_logger.log("\nPatch assessment competed.\n")
+        self.composite_logger.log("\nPatch assessment completed.\n")
         return True
