@@ -467,7 +467,7 @@ class StatusHandler(object):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.status_file_path)
 
-        self.env_layer.file_system.write_with_retry(self.status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
     # endregion
 
     # region - Error objects
