@@ -72,6 +72,8 @@ class Constants(object):
     PATCH_ASSESSMENT_SUMMARY = "PatchAssessmentSummary"
     INSTALLATION = "Installation"
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
+    CONFIGURE_PATCHING = "ConfigurePatching"
+    CONFIGURE_PATCHING_SUMMARY = "ConfigurePatchingSummary"
 
     # Settings for Error Objects logged in status file
     STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128

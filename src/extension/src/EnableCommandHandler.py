@@ -43,7 +43,7 @@ class EnableCommandHandler(object):
             operation = config_settings.__getattribute__(self.config_public_settings.operation)
 
             # Allow only certain operations
-            if operation not in [Constants.NOOPERATION, Constants.ASSESSMENT, Constants.INSTALLATION]:
+            if operation not in [Constants.NOOPERATION, Constants.ASSESSMENT, Constants.INSTALLATION, Constants.CONFIGURE_PATCHING]:
                 self.logger.log_error("Requested operation is not supported by the extension")
                 exit(Constants.ExitCode.InvalidConfigSettingPropertyValue)
 
@@ -51,8 +51,13 @@ class EnableCommandHandler(object):
             self.ext_state_handler.create_file(self.seq_no, operation, prev_patch_max_end_time)
             core_state_content = self.core_state_handler.read_file()
 
+            # If ConfigurePatching is requested, do nothing, will be implemented in future
+            if operation == Constants.CONFIGURE_PATCHING:
+                self.logger.log("Received a configure patching request, no action will be taken as it is not supported for now. [Operation Sequence={0}]".format(str(self.seq_no)))
+                exit(Constants.ExitCode.Okay)
+
             # if NoOperation is requested, terminate all running processes from previous operation and update status file
-            if operation == Constants.NOOPERATION:
+            elif operation == Constants.NOOPERATION:
                 self.process_nooperation(config_settings, core_state_content)
             else:
                 # if any of the other operations are requested, verify if request is a new request or a re-enable, by comparing sequence number from the prev request and current one
