@@ -47,7 +47,9 @@ class JsonFileHandler(object):
         error_msg = "Failed to read file after {0} tries. [File={1}] [Location={2}] [Exception={3}]".format(self.retry_count, file, str(file_path), error_msg)
         self.logger.log_error(error_msg)
         if raise_if_not_found:
+            self.logger.log_error("Extension cannot continue without this file. [File={0}]".format(file))
             raise Exception(error_msg)
+        self.logger.log("Extension can continue without the file. [File={0}]".format(file))
 
     def get_json_config_value_safely(self, handler_json, key, parent_key, raise_if_not_found=True):
         """ Allows a update deployment configuration value to be queried safely with a fall-back default (optional). An exception will be raised if default_value is not explicitly set when called (considered by-design). """

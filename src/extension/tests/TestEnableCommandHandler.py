@@ -133,6 +133,23 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.assertNotEqual(prev_ext_state_json, ext_state_json)
         self.assertNotEqual(prev_ext_state_json[self.constants.ExtStateFields.ext_seq][self.constants.ExtStateFields.ext_seq_number], ext_state_json[self.constants.ExtStateFields.ext_seq][self.constants.ExtStateFields.ext_seq_number])
 
+    def test_process_invalid_request(self):
+        # setup to mock environment when enable is triggered with an invalid request
+        config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)
+        new_settings_file = self.create_helpers_for_enable_request(config_folder_path)
+
+        # update operation to 'RandomTest' since it is set to Assessment in the original helper file
+        with open(new_settings_file, 'r+') as f:
+            config_settings = json.load(f)
+            config_settings[self.constants.RUNTIME_SETTINGS][0][self.constants.HANDLER_SETTINGS][self.constants.PUBLIC_SETTINGS][self.constants.ConfigPublicSettingsFields.operation] = "RANDOMETEST"
+            f.seek(0)  # rewind
+            json.dump(config_settings, f)
+            f.truncate()
+            f.close()
+        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 12)
+        with self.assertRaises(SystemExit):
+            enable_command_handler.execute_handler_action()
+
     def setup_for_enable_handler(self, dir_path):
         config_folder_name = self.config_folder
         status_folder_name = self.ext_env_handler.status_folder

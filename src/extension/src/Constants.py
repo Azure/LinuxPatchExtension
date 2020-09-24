@@ -68,6 +68,10 @@ class Constants(object):
     # Operations
     NOOPERATION = "NoOperation"
     PATCH_NOOPERATION_SUMMARY = "PatchNoOperationSummary"
+    ASSESSMENT = "Assessment"
+    PATCH_ASSESSMENT_SUMMARY = "PatchAssessmentSummary"
+    INSTALLATION = "Installation"
+    PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
 
     # Settings for Error Objects logged in status file
     STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128
