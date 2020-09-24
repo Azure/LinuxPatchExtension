@@ -40,12 +40,24 @@ class EnableCommandHandler(object):
         """ Responsible for taking appropriate action for enable command as per the request sent in Handler Configuration file by user """
         try:
             config_settings = self.ext_config_settings_handler.read_file(self.seq_no)
+            operation = config_settings.__getattribute__(self.config_public_settings.operation)
+
+            # Allow only certain operations
+            if operation not in [Constants.NOOPERATION, Constants.ASSESSMENT, Constants.INSTALLATION, Constants.CONFIGURE_PATCHING]:
+                self.logger.log_error("Requested operation is not supported by the extension")
+                exit(Constants.ExitCode.InvalidConfigSettingPropertyValue)
+
             prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.ENABLE_MAX_RUNTIME)
-            self.ext_state_handler.create_file(self.seq_no, config_settings.__getattribute__(self.config_public_settings.operation), prev_patch_max_end_time)
+            self.ext_state_handler.create_file(self.seq_no, operation, prev_patch_max_end_time)
             core_state_content = self.core_state_handler.read_file()
 
+            # If ConfigurePatching is requested, do nothing, will be implemented in future
+            if operation == Constants.CONFIGURE_PATCHING:
+                self.logger.log("Received a configure patching request, no action will be taken as it is not supported for now. [Operation Sequence={0}]".format(str(self.seq_no)))
+                exit(Constants.ExitCode.Okay)
+
             # if NoOperation is requested, terminate all running processes from previous operation and update status file
-            if config_settings.__getattribute__(self.config_public_settings.operation) == Constants.NOOPERATION:
+            elif operation == Constants.NOOPERATION:
                 self.process_nooperation(config_settings, core_state_content)
             else:
                 # if any of the other operations are requested, verify if request is a new request or a re-enable, by comparing sequence number from the prev request and current one
@@ -60,6 +72,7 @@ class EnableCommandHandler(object):
                     else:
                         # re-enable request
                         self.process_reenable_request(config_settings, core_state_content)
+
         except Exception as error:
             self.logger.log_error("Failed to execute enable. [Exception={0}]".format(repr(error)))
             raise

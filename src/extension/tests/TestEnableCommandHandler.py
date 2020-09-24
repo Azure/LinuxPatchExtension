@@ -73,8 +73,9 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.check_if_patch_completes_in_time_backup = RuntimeContextHandler.check_if_patch_completes_in_time
         RuntimeContextHandler.check_if_patch_completes_in_time = self.mock_patch_complete_time_check_to_return_true
         config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(SystemExit) as sys_exit:
             self.enable_command_handler.execute_handler_action()
+        self.assertEqual(sys_exit.exception.code, self.constants.ExitCode.Okay)
         self.assertTrue(os.path.exists(config_file_path))
         self.assertTrue(os.path.exists(os.path.join(config_folder_path, self.constants.EXT_STATE_FILE)))
         ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
@@ -87,9 +88,10 @@ class TestEnableCommandHandler(unittest.TestCase):
         shutil.copy(os.path.join("helpers", self.constants.EXT_STATE_FILE), config_folder_path)
         shutil.copy(os.path.join("helpers", self.constants.CORE_STATE_FILE), config_folder_path)
         prev_ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(SystemExit) as sys_exit:
             self.enable_command_handler.execute_handler_action()
 
+        self.assertEqual(sys_exit.exception.code, self.constants.ExitCode.Okay)
         ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
         self.assertEqual(prev_ext_state_json[self.constants.ExtStateFields.ext_seq][self.constants.ExtStateFields.ext_seq_number], ext_state_json[self.constants.ExtStateFields.ext_seq][self.constants.ExtStateFields.ext_seq_number])
         self.assertEqual(prev_ext_state_json[self.constants.ExtStateFields.ext_seq][self.constants.ExtStateFields.ext_seq_operation],
@@ -102,8 +104,10 @@ class TestEnableCommandHandler(unittest.TestCase):
 
         prev_ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
         enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 12)
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
+
+        self.assertEqual(sys_exit.exception.code, self.constants.ExitCode.Okay)
         ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
         self.assertNotEqual(prev_ext_state_json, ext_state_json)
         self.assertNotEqual(prev_ext_state_json[self.constants.ExtStateFields.ext_seq][self.constants.ExtStateFields.ext_seq_number],
@@ -125,13 +129,50 @@ class TestEnableCommandHandler(unittest.TestCase):
 
         prev_ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
         enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 12)
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
+        self.assertEqual(sys_exit.exception.code, Constants.ExitCode.Okay)
         ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
         core_state_json = self.json_file_handler.get_json_file_content(self.constants.CORE_STATE_FILE, config_folder_path, raise_if_not_found=False)
         self.assertTrue(core_state_json is None)
         self.assertNotEqual(prev_ext_state_json, ext_state_json)
         self.assertNotEqual(prev_ext_state_json[self.constants.ExtStateFields.ext_seq][self.constants.ExtStateFields.ext_seq_number], ext_state_json[self.constants.ExtStateFields.ext_seq][self.constants.ExtStateFields.ext_seq_number])
+
+    def test_process_configure_patching_request(self):
+        # setup to mock environment when enable is triggered with an invalid request
+        config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)
+        new_settings_file = self.create_helpers_for_enable_request(config_folder_path)
+
+        # update operation to 'ConfigurePatching' since it is set to Assessment in the original helper file
+        with open(new_settings_file, 'r+') as f:
+            config_settings = json.load(f)
+            config_settings[self.constants.RUNTIME_SETTINGS][0][self.constants.HANDLER_SETTINGS][self.constants.PUBLIC_SETTINGS][self.constants.ConfigPublicSettingsFields.operation] = self.constants.CONFIGURE_PATCHING
+            f.seek(0)  # rewind
+            json.dump(config_settings, f)
+            f.truncate()
+            f.close()
+        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 12)
+        with self.assertRaises(SystemExit) as sys_exit:
+            enable_command_handler.execute_handler_action()
+        self.assertEqual(sys_exit.exception.code, Constants.ExitCode.Okay)
+
+    def test_process_invalid_request(self):
+        # setup to mock environment when enable is triggered with an invalid request
+        config_file_path, config_folder_path = self.setup_for_enable_handler(self.temp_dir)
+        new_settings_file = self.create_helpers_for_enable_request(config_folder_path)
+
+        # update operation to 'RandomTest' since it is set to Assessment in the original helper file
+        with open(new_settings_file, 'r+') as f:
+            config_settings = json.load(f)
+            config_settings[self.constants.RUNTIME_SETTINGS][0][self.constants.HANDLER_SETTINGS][self.constants.PUBLIC_SETTINGS][self.constants.ConfigPublicSettingsFields.operation] = "RANDOMETEST"
+            f.seek(0)  # rewind
+            json.dump(config_settings, f)
+            f.truncate()
+            f.close()
+        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 12)
+        with self.assertRaises(SystemExit) as sys_exit:
+            enable_command_handler.execute_handler_action()
+        self.assertEqual(sys_exit.exception.code, Constants.ExitCode.InvalidConfigSettingPropertyValue)
 
     def setup_for_enable_handler(self, dir_path):
         config_folder_name = self.config_folder
