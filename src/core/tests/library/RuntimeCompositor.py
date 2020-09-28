@@ -31,6 +31,9 @@ class RuntimeCompositor(object):
         os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
 
+        # Overriding time.sleep to avoid delays in test execution
+        time.sleep = self.mock_sleep
+
         # Adapted bootstrapper
         bootstrapper = Bootstrapper(self.argv, capture_stdout=False)
 
@@ -58,9 +61,6 @@ class RuntimeCompositor(object):
 
         # Extension handler dependency
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
-
-        # Overriding time.sleep to avoid delays in test execution
-        time.sleep = self.mock_sleep
 
     def stop(self):
         self.telemetry_writer.close_transports()
