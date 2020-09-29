@@ -74,6 +74,8 @@ class Constants(object):
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
     CONFIGURE_PATCHING = "ConfigurePatching"
     CONFIGURE_PATCHING_SUMMARY = "ConfigurePatchingSummary"
+    UPDATING_EXTENSION = "Updating Extension"
+    DISABLING_EXTENSION = "Disabling Extension"
 
     # Settings for Error Objects logged in status file
     STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128

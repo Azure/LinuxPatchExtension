@@ -40,6 +40,7 @@ class ExtConfigSettingsHandler(object):
             if seq_no is not None:
                 return seq_no
 
+            self.logger.log_warning("Sequence number not found in the environment variable. Trying to fetch from ")
             seq_no = None
             cur_seq_no = None
             freshest_time = None

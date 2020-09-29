@@ -73,6 +73,8 @@ class ActionHandler(object):
         # config folder path is usually something like: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-<version>/config
         try:
             self.logger.log("Extension is being updated to the latest version. Copying the required extension artifacts from preceding version to the current one")
+            # write to status file
+            self.ext_output_status_handler.write_status_file(Constants.UPDATING_EXTENSION, Constants.Status.Transitioning)
 
             # fetch all earlier extension versions available on the machine
             new_version_config_folder = self.ext_env_handler.config_folder
@@ -84,6 +86,7 @@ class ActionHandler(object):
                 # Extension Update action called when
                 # a) artifacts for the preceding version do not exist on the machine, or
                 # b) after all artifacts from the preceding versions have been deleted
+                self.ext_output_status_handler.write_status_file(Constants.UPDATING_EXTENSION, Constants.Status.Error)
                 self.logger.log_error("No earlier versions for the extension found on the machine. So, could not copy any references to the current version.")
                 return Constants.ExitCode.HandlerFailed
 
@@ -92,17 +95,21 @@ class ActionHandler(object):
             paths_to_all_versions.sort(reverse=True, key=LooseVersion)
             preceding_version_path = paths_to_all_versions[1]
             if preceding_version_path is None or preceding_version_path == "" or not os.path.exists(preceding_version_path):
+                self.ext_output_status_handler.write_status_file(Constants.UPDATING_EXTENSION, Constants.Status.Error)
                 self.logger.log_error("Could not find path where preceding extension version artifacts are stored. Hence, cannot copy the required artifacts to the latest version. "
                                       "[Preceding extension version path={0}]".format(str(preceding_version_path)))
+
                 return Constants.ExitCode.HandlerFailed
             self.logger.log("Preceding version path. [Path={0}]".format(str(preceding_version_path)))
 
             # copy all required files from preceding version to current
             self.copy_config_files(preceding_version_path, new_version_config_folder)
 
+            self.ext_output_status_handler.write_status_file("Updating Extension", Constants.Status.Success)
             self.logger.log("All update actions from extension handler completed.")
             return Constants.ExitCode.Okay
         except Exception as error:
+            self.ext_output_status_handler.write_status_file(Constants.UPDATING_EXTENSION, Constants.Status.Error)
             self.logger.log_error("Error occurred during extension update. [Error={0}]".format(repr(error)))
             return Constants.ExitCode.HandlerFailed
 
@@ -152,11 +159,18 @@ class ActionHandler(object):
         return enable_command_handler.execute_handler_action()
 
     def disable(self):
-        self.logger.log("Disable triggered on extension")
-        prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.DISABLE_MAX_RUNTIME)
-        self.runtime_context_handler.process_previous_patch_operation(self.core_state_handler, self.process_handler, prev_patch_max_end_time, core_state_content=None)
-        self.logger.log("Extension disabled successfully")
-        return Constants.ExitCode.Okay
+        try:
+            self.logger.log("Disable triggered on extension")
+            self.ext_output_status_handler.write_status_file(Constants.DISABLING_EXTENSION, Constants.Status.Transitioning)
+            prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.DISABLE_MAX_RUNTIME)
+            self.runtime_context_handler.process_previous_patch_operation(self.core_state_handler, self.process_handler, prev_patch_max_end_time, core_state_content=None)
+            self.ext_output_status_handler.write_status_file(Constants.DISABLING_EXTENSION, Constants.Status.Success)
+            self.logger.log("Extension disabled successfully")
+            return Constants.ExitCode.Okay
+        except Exception as error:
+            self.ext_output_status_handler.write_status_file(Constants.DISABLING_EXTENSION, Constants.Status.Error)
+            self.logger.log_error("Error occurred during extension disable. [Error={0}]".format(repr(error)))
+            return Constants.ExitCode.HandlerFailed
 
     def reset(self):
         self.logger.log("Reset triggered on extension, deleting CoreState and ExtState files")
