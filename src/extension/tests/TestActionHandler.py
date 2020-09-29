@@ -17,6 +17,7 @@ import datetime
 import json
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from extension.src.ActionHandler import ActionHandler
@@ -55,6 +56,13 @@ class TestActionHandler(unittest.TestCase):
 
     def mock_process_previous_patch_operation_exception(self, core_state_handler, process_handler, prev_patch_max_end_time, core_state_content):
         raise Exception
+
+    def mock_start_daemon_to_return_true(self, seq_no, config_settings, ext_env_handler):
+        return True
+
+    def mock_patch_complete_time_check_to_return_true(self, time_for_prev_patch_to_complete, core_state_last_heartbeat, core_state_handler):
+        return True
+
 
     @staticmethod
     def create_latest_extension_dir(version, test_dir):
@@ -348,44 +356,99 @@ class TestActionHandler(unittest.TestCase):
 
     def test_update_action_sequence_agent_follows(self):
         """ update sequence: disable on prev version, update on new version, uninstall on prev version, install on new version, enable on new version """
-        pass
-        # prev_seq_no = 0
-        # current_seq_no = 1
-        #
-        # test_dir = tempfile.mkdtemp()
-        # config_folder = os.path.join(test_dir, "config")
-        # os.mkdir(config_folder)
-        # self.runtime.create_temp_file(config_folder, Constants.CORE_STATE_FILE, content='[test]')
-        # self.runtime.create_temp_file(config_folder, Constants.EXT_STATE_FILE, content='[test]')
-        # status_folder = os.path.join(test_dir, "status")
-        # os.mkdir(status_folder)
-        #
-        # # prev version context
-        # prev_seq_ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, 'test/', prev_seq_no, status_folder)
-        # prev_seq_process_handler = ProcessHandler(self.runtime.logger, prev_seq_ext_output_status_handler)
-        # prev_seq_action_handler = ActionHandler(self.runtime.logger, self.runtime.utility, self.runtime_context_handler, self.runtime.json_file_handler, self.ext_env_handler, self.ext_config_settings_handler,
-        #                                         self.core_state_handler, self.ext_state_handler, prev_seq_ext_output_status_handler, prev_seq_process_handler, datetime.datetime.utcnow(), prev_seq_no)
-        #
-        # # current/new version context
-        # current_seq_ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, 'test/', current_seq_no, status_folder)
-        # current_seq_process_handler = ProcessHandler(self.runtime.logger, current_seq_ext_output_status_handler)
-        # current_seq_action_handler = ActionHandler(self.runtime.logger, self.runtime.utility, self.runtime_context_handler, self.runtime.json_file_handler, self.ext_env_handler, self.ext_config_settings_handler,
-        #                                            self.core_state_handler, self.ext_state_handler, current_seq_ext_output_status_handler, current_seq_process_handler, datetime.datetime.utcnow(), prev_seq_no)
-        #
-        # # disable on prev version
-        # self.assertTrue(prev_seq_action_handler.disable() == Constants.ExitCode.Okay)
-        # # verify status file
-        # status_json = prev_seq_ext_output_status_handler.read_file()
-        # parent_key = Constants.StatusFileFields.status
-        # self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_name], "Azure Patch Management")
-        # self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_operation], Constants.DISABLING_EXTENSION)
-        # self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_status], Constants.Status.Success.lower())
-        #
-        # # update on new version
-        # self.assertTrue(current_seq_action_handler.update() == Constants.ExitCode.Okay)
-        # # verify status file
-        # status_json = current_seq_ext_output_status_handler.read_file()
-        # parent_key = Constants.StatusFileFields.status
-        # self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_name], "Azure Patch Management")
-        # self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_operation], Constants.UPDATING_EXTENSION)
-        # self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_status], Constants.Status.Success.lower())
+        prev_seq_no = 0
+        current_seq_no = 1
+
+        test_dir = tempfile.mkdtemp()
+        config_folder = os.path.join(test_dir, "config")
+        os.mkdir(config_folder)
+        self.runtime.create_temp_file(config_folder, Constants.CORE_STATE_FILE, content='[test]')
+        self.runtime.create_temp_file(config_folder, Constants.EXT_STATE_FILE, content='[test]')
+        status_folder = os.path.join(test_dir, "status")
+        os.mkdir(status_folder)
+        log_folder = os.path.join(test_dir, "log")
+        os.mkdir(log_folder)
+
+        # prev version context
+        prev_seq_ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, 'test/', prev_seq_no, status_folder)
+        prev_seq_process_handler = ProcessHandler(self.runtime.logger, prev_seq_ext_output_status_handler)
+        prev_seq_action_handler = ActionHandler(self.runtime.logger, self.runtime.utility, self.runtime_context_handler, self.runtime.json_file_handler, self.ext_env_handler, self.ext_config_settings_handler,
+                                                self.core_state_handler, self.ext_state_handler, prev_seq_ext_output_status_handler, prev_seq_process_handler, datetime.datetime.utcnow(), prev_seq_no)
+        prev_seq_action_handler.ext_env_handler.config_folder = config_folder
+        prev_seq_action_handler.ext_env_handler.status_folder = status_folder
+        prev_seq_action_handler.ext_env_handler.log_folder = log_folder
+
+        # current/new version context
+        current_seq_ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, 'test/', current_seq_no, status_folder)
+        current_seq_process_handler = ProcessHandler(self.runtime.logger, current_seq_ext_output_status_handler)
+        current_seq_action_handler = ActionHandler(self.runtime.logger, self.runtime.utility, self.runtime_context_handler, self.runtime.json_file_handler, self.ext_env_handler, self.ext_config_settings_handler,
+                                                   self.core_state_handler, self.ext_state_handler, current_seq_ext_output_status_handler, current_seq_process_handler, datetime.datetime.utcnow(), current_seq_no)
+        current_seq_action_handler.ext_env_handler.config_folder = config_folder
+        current_seq_action_handler.ext_config_settings_handler.config_folder = config_folder
+        current_seq_action_handler.core_state_handler.dir_path = config_folder
+        current_seq_action_handler.ext_state_handler.dir_path = config_folder
+        current_seq_action_handler.ext_env_handler.status_folder = status_folder
+        current_seq_action_handler.ext_env_handler.log_folder = log_folder
+        self.start_daemon_backup = ProcessHandler.start_daemon
+        ProcessHandler.start_daemon = self.mock_start_daemon_to_return_true
+
+        # disable on prev version
+        self.disable_on_prev_version(prev_seq_action_handler, prev_seq_ext_output_status_handler)
+
+        # update on new version
+        self.update_on_new_version(test_dir, current_seq_action_handler, current_seq_ext_output_status_handler)
+
+        # uninstall on prev version
+        self.assertTrue(prev_seq_action_handler.uninstall() == Constants.ExitCode.Okay)
+
+        # install on new version
+        sys.platform = 'linux'
+        self.assertTrue(current_seq_action_handler.install() == Constants.ExitCode.Okay)
+
+        # enable on new version
+        self.enable_on_new_version(current_seq_action_handler, current_seq_ext_output_status_handler, config_folder, current_seq_no)
+
+        # reset mocks
+        ProcessHandler.start_daemon = self.start_daemon_backup
+
+        # Remove the directory after the test
+        shutil.rmtree(test_dir)
+
+    def disable_on_prev_version(self, action_handler, ext_output_status_handler):
+        self.assertTrue(action_handler.disable() == Constants.ExitCode.Okay)
+        # verify status file
+        status_json = ext_output_status_handler.read_file()
+        parent_key = Constants.StatusFileFields.status
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_name], "Azure Patch Management")
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_operation], Constants.DISABLING_EXTENSION)
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_status], Constants.Status.Success.lower())
+
+    def update_on_new_version(self, test_dir, action_handler, ext_output_status_handler):
+        # create extension dir for the latest and other extension versions, to be used in the test
+        latest_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-2.0.00'
+        new_version_config_folder = self.create_latest_extension_dir(latest_extension_version, test_dir)
+        previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.0.0'
+        previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
+        action_handler.ext_env_handler.config_folder = new_version_config_folder
+
+        self.assertTrue(action_handler.update() == Constants.ExitCode.Okay)
+        # verify status file
+        status_json = ext_output_status_handler.read_file()
+        parent_key = Constants.StatusFileFields.status
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_name], "Azure Patch Management")
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_operation], Constants.UPDATING_EXTENSION)
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_status], Constants.Status.Success.lower())
+
+    def enable_on_new_version(self, action_handler, ext_output_status_handler, config_folder, seq_no):
+        config_file_path = os.path.join(config_folder, str(seq_no) + ".settings")
+        shutil.copy(os.path.join("helpers", "1234.settings"), config_file_path)
+        with self.assertRaises(SystemExit) as sys_exit:
+            action_handler.enable()
+        self.assertEqual(sys_exit.exception.code, Constants.ExitCode.Okay)
+        # verify status file
+        status_json = ext_output_status_handler.read_file()
+        parent_key = Constants.StatusFileFields.status
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_name], "Azure Patch Management")
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_operation], Constants.INSTALLATION)
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_status], Constants.Status.Transitioning.lower())
+

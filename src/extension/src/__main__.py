@@ -80,5 +80,6 @@ def main(argv):
         if file_logger is not None:
             file_logger.close()
 
+
 if __name__ == '__main__':
     main(sys.argv)
