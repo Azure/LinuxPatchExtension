@@ -97,7 +97,9 @@ class PatchInstaller(object):
             # update patch metadata in status for auto patching request, to be reported to healthstore
             if self.execution_config.maintenance_run_id is not None:
                 try:
-                    patch_version = str(self.execution_config.maintenance_run_id)
+                    #todo: temp fix to test auto patching, this will be reset to using the maintenanceRunId string as is, once the corresponding changes in RSM are made
+                    # patch_version = str(self.execution_config.maintenance_run_id)
+                    patch_version = datetime.datetime.strptime(self.execution_config.maintenance_run_id.split(" ")[0], "%m/%d/%Y").strftime('%Y.%m.%d')
                     self.status_handler.set_patch_metadata_for_healthstore_substatus_json(patch_version=patch_version if patch_version is not None and patch_version is not "" else Constants.PATCH_VERSION_UNKNOWN,
                                                                                           report_to_healthstore=True,
                                                                                           wait_after_update=False)
