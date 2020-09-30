@@ -105,7 +105,7 @@ class ActionHandler(object):
             # copy all required files from preceding version to current
             self.copy_config_files(preceding_version_path, new_version_config_folder)
 
-            self.ext_output_status_handler.write_status_file("Updating Extension", Constants.Status.Success)
+            self.ext_output_status_handler.write_status_file(Constants.UPDATING_EXTENSION, Constants.Status.Success)
             self.logger.log("All update actions from extension handler completed.")
             return Constants.ExitCode.Okay
         except Exception as error:
