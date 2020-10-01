@@ -43,7 +43,7 @@ class Constants(object):
     STATUS_FILE_EXTENSION = '.status'
     CORE_CODE_FILE_NAME = 'MsftLinuxPatchCore.py'
     LOG_FILE_EXTENSION = '.log'
-    LOG_FILES_TO_RETAIN = 10
+    LOG_FILES_TO_RETAIN = 15
     MAX_LOG_FILES_ALLOWED = 40
 
     # Environment variables

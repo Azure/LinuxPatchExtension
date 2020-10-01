@@ -41,15 +41,12 @@ For the extension wrapper, the status structure is simply the following (no subs
 
 class ExtOutputStatusHandler(object):
     """ Responsible for managing <sequence number>.status file in the status folder path given in HandlerEnvironment.json """
-    def __init__(self, logger, utility, json_file_handler, log_file_path, seq_no, dir_path):
+    def __init__(self, logger, utility, json_file_handler, dir_path):
         self.logger = logger
         self.utility = utility
         self.json_file_handler = json_file_handler
-        self.__log_file_path = log_file_path
-        self.__seq_no = seq_no
         self.__dir_path = dir_path
         self.file_ext = Constants.STATUS_FILE_EXTENSION
-        self.__file_name = str(self.__seq_no) + self.file_ext
         self.file_keys = Constants.StatusFileFields
         self.status = Constants.Status
 
@@ -62,17 +59,18 @@ class ExtOutputStatusHandler(object):
         self.__current_operation = None
 
         # Load the currently persisted status file into memory
-        self.read_file()
+        #ToDo: move it to some other location, since seq no is not available at load
+        # self.read_file()
 
-    def write_status_file(self, operation, status=Constants.Status.Transitioning.lower()):
-        self.logger.log("Writing status file to provide patch management data for [Sequence={0}]".format(str(self.__seq_no)))
-
+    def write_status_file(self, operation, seq_no, status=Constants.Status.Transitioning.lower()):
+        self.logger.log("Writing status file to provide patch management data for [Sequence={0}]".format(str(seq_no)))
+        file_name = self.__get_status_file_name(seq_no)
         status_file_payload = self.__new_basic_status_json(operation, status)
 
         if self.__nooperation_substatus_json is not None:
             status_file_payload['status']['substatus'].append(self.__nooperation_substatus_json)
 
-        self.json_file_handler.write_to_json_file(self.__dir_path, self.__file_name, [status_file_payload])
+        self.json_file_handler.write_to_json_file(self.__dir_path, file_name, [status_file_payload])
 
     def __new_basic_status_json(self, operation, status):
         return {
@@ -91,12 +89,16 @@ class ExtOutputStatusHandler(object):
             }
         }
 
-    def read_file(self):
+    def read_file(self, seq_no):
+        # todo: read error message if any from parent message json and read nooperation errors, also check if substatus is empty
+
+        file_name = self.__get_status_file_name(seq_no)
+
         self.__nooperation_substatus_json = None
         self.__nooperation_summary_json = None
         self.__nooperation_errors = []
 
-        status_json = self.json_file_handler.get_json_file_content(self.__file_name, self.__dir_path)
+        status_json = self.json_file_handler.get_json_file_content(file_name, self.__dir_path)
         if status_json is None:
             return None
 
@@ -113,7 +115,7 @@ class ExtOutputStatusHandler(object):
         return status_json
 
     def update_key_value_safely(self, status_json, key, value_to_update, parent_key=None):
-        if status_json != None and len(status_json) != 0:
+        if status_json is not None and len(status_json) != 0:
             if parent_key is None:
                 status_json[0].update({key: value_to_update})
             else:
@@ -125,9 +127,9 @@ class ExtOutputStatusHandler(object):
     def update_file(self, seq_no, dir_path):
         """ Reseting status=Transitioning and code=0 with latest timestamp, while retaining all other values"""
         try:
-            file_name = str(seq_no) + self.file_ext
+            file_name = self.__get_status_file_name(seq_no)
             self.logger.log("Updating file. [File={0}]".format(file_name))
-            status_json = self.read_file()
+            status_json = self.read_file(seq_no)
 
             if status_json is None:
                 self.logger.log_error("Error processing file. [File={0}]".format(file_name))
@@ -141,7 +143,10 @@ class ExtOutputStatusHandler(object):
             self.logger.log_error(error_message)
             raise
 
-    def set_nooperation_substatus_json(self, operation, activity_id, start_time, status=Constants.Status.Transitioning, code=0):
+    def __get_status_file_name(self, seq_no):
+        return str(seq_no) + self.file_ext
+
+    def set_nooperation_substatus_json(self, operation, activity_id, start_time, seq_no, status=Constants.Status.Transitioning, code=0):
         """ Prepare the nooperation substatus json including the message containing nooperation summary """
         # Wrap patches into nooperation summary
         self.__nooperation_summary_json = self.new_nooperation_summary_json(activity_id, start_time)
@@ -150,7 +155,7 @@ class ExtOutputStatusHandler(object):
         self.__nooperation_substatus_json = self.new_substatus_json_for_operation(Constants.PATCH_NOOPERATION_SUMMARY, status, code, json.dumps(self.__nooperation_summary_json))
 
         # Update status on disk
-        self.write_status_file(operation, status)
+        self.write_status_file(operation, seq_no, status=status)
 
     def new_nooperation_summary_json(self, activity_id, start_time):
         """ This is the message inside the nooperation substatus """
@@ -162,7 +167,8 @@ class ExtOutputStatusHandler(object):
             "errors": self.__set_errors_json(self.__nooperation_total_error_count, self.__nooperation_errors)
         }
 
-    def new_substatus_json_for_operation(self, operation_name, status="Transitioning", code=0, message=json.dumps("{}")):
+    @staticmethod
+    def new_substatus_json_for_operation(operation_name, status="Transitioning", code=0, message=json.dumps("{}")):
         """ Generic substatus for nooperation """
         # NOTE: Todo Function is same for assessment and install, can be generalized later
         return {
@@ -204,13 +210,15 @@ class ExtOutputStatusHandler(object):
         else:
             return
 
-    def __ensure_error_message_restriction_compliance(self, full_message):
+    @staticmethod
+    def __ensure_error_message_restriction_compliance(full_message):
         """ Removes line breaks, tabs and restricts message to a character limit """
         message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
         formatted_message = re.sub(r"\s+", " ", str(full_message))
         return formatted_message[:message_size_limit-3] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
-    def __add_error(self, add_to, detail):
+    @staticmethod
+    def __add_error(add_to, detail):
         """ Add formatted error object to given errors list """
         if len(add_to) >= Constants.STATUS_ERROR_LIMIT:
             errors_to_remove = len(add_to) - Constants.STATUS_ERROR_LIMIT + 1
@@ -221,7 +229,8 @@ class ExtOutputStatusHandler(object):
     def __set_errors_json(self, error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
         message = "{0} error/s reported.".format(error_count_by_operation)
-        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
+        log_file_path = self.logger.file_logger.log_file_path
+        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), log_file_path) if error_count_by_operation > 0 else ""
         return {
             "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
             "details": errors_by_operation,

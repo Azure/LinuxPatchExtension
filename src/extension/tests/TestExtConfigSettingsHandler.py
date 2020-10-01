@@ -42,14 +42,72 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
     def mock_getenv(self, key):
         return 1234
 
-    def test_get_seq_no_from_env_variable(self):
+    def test_get_seq_no_found_in_env_variable_for_enable_cmd(self):
+        test_dir = tempfile.mkdtemp()
         os_getenv_backup = os.getenv
         os.getenv = self.mock_getenv
-        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, "mockConfig")
-        seq_no = ext_config_settings_handler.get_seq_no()
+
+        self.runtime.create_temp_file(test_dir, "1234.settings", content=None)
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
+        seq_no = ext_config_settings_handler.get_seq_no(is_enable_request=True)
         self.assertTrue(seq_no is not None)
         self.assertEqual(seq_no, 1234)
+
         os.getenv = os_getenv_backup
+        shutil.rmtree(test_dir)
+
+    def test_get_seq_no_found_in_env_variable_for_non_enable_cmd(self):
+        test_dir = tempfile.mkdtemp()
+        os_getenv_backup = os.getenv
+        os.getenv = self.mock_getenv
+
+        self.runtime.create_temp_file(test_dir, "1234.settings", content=None)
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
+        seq_no = ext_config_settings_handler.get_seq_no(is_enable_request=False)
+        self.assertTrue(seq_no is not None)
+        self.assertEqual(seq_no, 1234)
+
+        os.getenv = os_getenv_backup
+        shutil.rmtree(test_dir)
+
+    def test_get_seq_no_not_found_in_env_variable_for_non_enable_cmd(self):
+        # not set in env var
+        test_dir = tempfile.mkdtemp()
+        self.runtime.create_temp_file(test_dir, "1234.settings", content=None)
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
+        seq_no = ext_config_settings_handler.get_seq_no(is_enable_request=False)
+        self.assertTrue(seq_no is None)
+        shutil.rmtree(test_dir)
+
+        # set in env var, settings file does not exist
+        test_dir = tempfile.mkdtemp()
+        os_getenv_backup = os.getenv
+        os.getenv = self.mock_getenv
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
+        seq_no = ext_config_settings_handler.get_seq_no(is_enable_request=False)
+        self.assertTrue(seq_no is None)
+        os.getenv = os_getenv_backup
+        shutil.rmtree(test_dir)
+
+    def test_get_seq_no_not_found_in_env_variable_for_enable_cmd(self):
+        # set in env var, settings file does not exist
+        test_dir = tempfile.mkdtemp()
+        os_getenv_backup = os.getenv
+        os.getenv = self.mock_getenv
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
+        seq_no = ext_config_settings_handler.get_seq_no(is_enable_request=True)
+        self.assertTrue(seq_no is None)
+        os.getenv = os_getenv_backup
+        shutil.rmtree(test_dir)
+
+        # not set in env var, seq_no fetched from config settings file
+        test_dir = tempfile.mkdtemp()
+        self.runtime.create_temp_file(test_dir, "1234.settings", content=None)
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
+        seq_no = ext_config_settings_handler.get_seq_no(is_enable_request=True)
+        self.assertTrue(seq_no is not None)
+        self.assertEqual(seq_no, 1234)
+        shutil.rmtree(test_dir)
 
     def test_seq_no_from_config_folder(self):
         files = [
@@ -82,14 +140,14 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
                 os.utime(file_path, (timestamp, timestamp))
                 f.close()
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
-        seq_no = ext_config_settings_handler.get_seq_no()
+        seq_no = ext_config_settings_handler.get_seq_no(is_enable_request=True)
         self.assertEqual(122, seq_no)
         shutil.rmtree(test_dir)
 
     def test_seq_no_from_empty_config_folder(self):
         test_dir = tempfile.mkdtemp()
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, test_dir)
-        seq_no = ext_config_settings_handler.get_seq_no()
+        seq_no = ext_config_settings_handler.get_seq_no(is_enable_request=True)
         self.assertEqual(None, seq_no)
         shutil.rmtree(test_dir)
 
@@ -242,7 +300,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
 
     def test_read_all_config_settings_from_file(self):
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
-        seq_no = ext_config_settings_handler.get_seq_no()
+        seq_no = ext_config_settings_handler.get_seq_no(is_enable_request=True)
         config_settings = ext_config_settings_handler.read_file(seq_no)
 
         # verify operation is read successfully
@@ -293,6 +351,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         config_settings = ext_config_settings_handler.read_file("patch_rollout_id_bak_compat_test")
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), None)
         self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), "2019-07-22T12:12:14Z")
+
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestExtConfigSettingsHandler)

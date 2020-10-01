@@ -20,7 +20,7 @@ from extension.src.Constants import Constants
 
 class EnableCommandHandler(object):
     """ Responsible for executing the action for enable command """
-    def __init__(self, logger, utility, runtime_context_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time, seq_no):
+    def __init__(self, logger, utility, runtime_context_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
         self.logger = logger
         self.utility = utility
         self.runtime_context_handler = runtime_context_handler
@@ -31,7 +31,7 @@ class EnableCommandHandler(object):
         self.ext_output_status_handler = ext_output_status_handler
         self.process_handler = process_handler
         self.cmd_exec_start_time = cmd_exec_start_time
-        self.seq_no = seq_no
+        self.seq_no = None
         self.config_public_settings = Constants.ConfigPublicSettingsFields
         self.core_state_fields = Constants.CoreStateFields
         self.status = Constants.Status
@@ -39,6 +39,15 @@ class EnableCommandHandler(object):
     def execute_handler_action(self):
         """ Responsible for taking appropriate action for enable command as per the request sent in Handler Configuration file by user """
         try:
+            # fetch seq_no
+            self.seq_no = self.ext_config_settings_handler.get_seq_no(is_enable_request=True)
+            if self.seq_no is None:
+                self.logger.log_error("Sequence number for current operation not found")
+                exit(Constants.ExitCode.MissingConfig)
+
+            # read status file, to load any preserve existing context
+            self.ext_output_status_handler.read_file(self.seq_no)
+
             config_settings = self.ext_config_settings_handler.read_file(self.seq_no)
             operation = config_settings.__getattribute__(self.config_public_settings.operation)
 
@@ -105,7 +114,7 @@ class EnableCommandHandler(object):
         """ Creates <sequence number>.status to report the current request's status and launches core code to handle the requested operation """
         # create Status file
         if create_status_output_file:
-            self.ext_output_status_handler.write_status_file(config_settings.__getattribute__(self.config_public_settings.operation), status=self.status.Transitioning.lower())
+            self.ext_output_status_handler.write_status_file(config_settings.__getattribute__(self.config_public_settings.operation), self.seq_no, status=self.status.Transitioning.lower())
         else:
             self.ext_output_status_handler.update_file(self.seq_no, self.ext_env_handler.status_folder)
         # launch core code in a process and exit extension handler
@@ -120,11 +129,11 @@ class EnableCommandHandler(object):
         operation = config_settings.__getattribute__(self.config_public_settings.operation)
         start_time = config_settings.__getattribute__(self.config_public_settings.start_time)
         try:
-            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, status=Constants.Status.Transitioning)
+            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.Transitioning)
             self.runtime_context_handler.terminate_processes_from_previous_operation(self.process_handler, core_state_content)
             self.utility.delete_file(self.core_state_handler.dir_path, self.core_state_handler.file, raise_if_not_found=False)
             # ToDo: log prev activity id later
-            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, status=Constants.Status.Success)
+            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.Success)
             self.logger.log("exiting extension handler")
             exit(Constants.ExitCode.Okay)
         except Exception as error:
@@ -134,6 +143,6 @@ class EnableCommandHandler(object):
                 self.ext_output_status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             else:
                 self.ext_output_status_handler.add_error_to_status("Error executing NoOperation due to last reported error.", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
-            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, status=Constants.Status.Error)
+            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.Error)
 
 
