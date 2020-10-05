@@ -56,16 +56,28 @@ class ActionHandler(object):
         except KeyError as e:
             raise e
 
+    def setup_file_logger(self, action):
+        stdout_file_mirror = None
+        log_file_name = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + "_" + str(action)
+        file_logger = self.utility.create_log_file(self.ext_env_handler.log_folder, log_file_name)
+        if file_logger is not None:
+            self.logger.file_logger = file_logger
+            stdout_file_mirror = StdOutFileMirror(file_logger)
+        return file_logger, stdout_file_mirror
+
+    @staticmethod
+    def close_file_logger(file_logger, stdout_file_mirror):
+        if stdout_file_mirror is not None:
+            stdout_file_mirror.stop()
+        if file_logger is not None:
+            file_logger.close()
+
     def install(self):
         stdout_file_mirror = None
         file_logger = None
 
         try:
-            log_file_name = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + "_Install"
-            file_logger = self.utility.create_log_file(self.ext_env_handler.log_folder, log_file_name)
-            if file_logger is not None:
-                self.logger.file_logger = file_logger
-                stdout_file_mirror = StdOutFileMirror(file_logger)
+            file_logger, stdout_file_mirror = self.setup_file_logger(action="Install")
             self.logger.log("Extension installation started")
             install_command_handler = InstallCommandHandler(self.logger, self.ext_env_handler)
             return install_command_handler.execute_handler_action()
@@ -75,10 +87,7 @@ class ActionHandler(object):
             return Constants.ExitCode.HandlerFailed
 
         finally:
-            if stdout_file_mirror is not None:
-                stdout_file_mirror.stop()
-            if file_logger is not None:
-                file_logger.close()
+            self.close_file_logger(file_logger, stdout_file_mirror)
 
     def update(self):
         """ as per the extension user guide, upon update request, Azure agent calls
@@ -92,17 +101,10 @@ class ActionHandler(object):
         # config folder path is usually something like: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-<version>/config
         stdout_file_mirror = None
         file_logger = None
+
         try:
-            log_file_name = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + "_Update"
-            file_logger = self.utility.create_log_file(self.ext_env_handler.log_folder, log_file_name)
-            if file_logger is not None:
-                self.logger.file_logger = file_logger
-                stdout_file_mirror = StdOutFileMirror(file_logger)
-
+            file_logger, stdout_file_mirror = self.setup_file_logger(action="Update")
             self.logger.log("Extension is being updated to the latest version. Copying the required extension artifacts from preceding version to the current one")
-
-            seq_no = self.ext_config_settings_handler.get_seq_no(is_enable_request=False)
-            #toDo: use seq_no to create status file to log errors
 
             # fetch all earlier extension versions available on the machine
             new_version_config_folder = self.ext_env_handler.config_folder
@@ -138,10 +140,7 @@ class ActionHandler(object):
             return Constants.ExitCode.HandlerFailed
 
         finally:
-            if stdout_file_mirror is not None:
-                stdout_file_mirror.stop()
-            if file_logger is not None:
-                file_logger.close()
+            self.close_file_logger(file_logger, stdout_file_mirror)
 
     @staticmethod
     def get_all_versions(extension_pardir):
@@ -182,12 +181,9 @@ class ActionHandler(object):
     def uninstall(self):
         stdout_file_mirror = None
         file_logger = None
+
         try:
-            log_file_name = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + "_Uninstall"
-            file_logger = self.utility.create_log_file(self.ext_env_handler.log_folder, log_file_name)
-            if file_logger is not None:
-                self.logger.file_logger = file_logger
-                stdout_file_mirror = StdOutFileMirror(file_logger)
+            file_logger, stdout_file_mirror = self.setup_file_logger(action="Uninstall")
             self.logger.log("Extension uninstalled")
             return Constants.ExitCode.Okay
 
@@ -196,21 +192,14 @@ class ActionHandler(object):
             return Constants.ExitCode.HandlerFailed
 
         finally:
-            if stdout_file_mirror is not None:
-                stdout_file_mirror.stop()
-            if file_logger is not None:
-                file_logger.close()
+            self.close_file_logger(file_logger, stdout_file_mirror)
 
     def enable(self):
         stdout_file_mirror = None
         file_logger = None
-        try:
-            log_file_name = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + "_Enable"
-            file_logger = self.utility.create_log_file(self.ext_env_handler.log_folder, log_file_name)
-            if file_logger is not None:
-                self.logger.file_logger = file_logger
-                stdout_file_mirror = StdOutFileMirror(file_logger)
 
+        try:
+            file_logger, stdout_file_mirror = self.setup_file_logger(action="Enable")
             self.logger.log("Enable triggered on extension")
             enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
             return enable_command_handler.execute_handler_action()
@@ -219,22 +208,14 @@ class ActionHandler(object):
             self.logger.log_error("Error occurred during extension enable. [Error={0}]".format(repr(error)))
             return Constants.ExitCode.HandlerFailed
         finally:
-            if stdout_file_mirror is not None:
-                stdout_file_mirror.stop()
-            if file_logger is not None:
-                file_logger.close()
+            self.close_file_logger(file_logger, stdout_file_mirror)
 
     def disable(self):
         stdout_file_mirror = None
         file_logger = None
 
         try:
-            log_file_name = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + "_Disable"
-            file_logger = self.utility.create_log_file(self.ext_env_handler.log_folder, log_file_name)
-            if file_logger is not None:
-                self.logger.file_logger = file_logger
-                stdout_file_mirror = StdOutFileMirror(file_logger)
-
+            file_logger, stdout_file_mirror = self.setup_file_logger(action="Disable")
             self.logger.log("Disable triggered on extension")
             prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.DISABLE_MAX_RUNTIME)
             self.runtime_context_handler.process_previous_patch_operation(self.core_state_handler, self.process_handler, prev_patch_max_end_time, core_state_content=None)
@@ -245,21 +226,14 @@ class ActionHandler(object):
             self.logger.log_error("Error occurred during extension disable. [Error={0}]".format(repr(error)))
             return Constants.ExitCode.HandlerFailed
         finally:
-            if stdout_file_mirror is not None:
-                stdout_file_mirror.stop()
-            if file_logger is not None:
-                file_logger.close()
+            self.close_file_logger(file_logger, stdout_file_mirror)
 
     def reset(self):
         stdout_file_mirror = None
         file_logger = None
 
         try:
-            log_file_name = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + "_Reset"
-            file_logger = self.utility.create_log_file(self.ext_env_handler.log_folder, log_file_name)
-            if file_logger is not None:
-                self.logger.file_logger = file_logger
-                stdout_file_mirror = StdOutFileMirror(file_logger)
+            file_logger, stdout_file_mirror = self.setup_file_logger(action="Reset")
             self.logger.log("Reset triggered on extension, deleting CoreState and ExtState files")
             self.utility.delete_file(self.core_state_handler.dir_path, self.core_state_handler.file, raise_if_not_found=False)
             self.utility.delete_file(self.ext_state_handler.dir_path, self.ext_state_handler.file, raise_if_not_found=False)
@@ -269,8 +243,5 @@ class ActionHandler(object):
             self.logger.log_error("Error occurred during extension reset. [Error={0}]".format(repr(error)))
             return Constants.ExitCode.HandlerFailed
         finally:
-            if stdout_file_mirror is not None:
-                stdout_file_mirror.stop()
-            if file_logger is not None:
-                file_logger.close()
+            self.close_file_logger(file_logger, stdout_file_mirror)
 

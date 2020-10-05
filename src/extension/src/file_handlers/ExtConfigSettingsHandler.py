@@ -38,24 +38,25 @@ class ExtConfigSettingsHandler(object):
         try:
             # get seq no from env var
             seq_no = self.__get_seq_no_from_env_var()
-            if seq_no == -1:
-                self.logger.log_error("Error occurred while verifying sequence number between environment variable and configuration settings")
-                return None
-            elif seq_no is None:
+
+            if seq_no is None:
                 if is_enable_request:
                     self.logger.log_warning("Since sequence number is not provided in the environment variable, will try to fetch from the most recent settings file")
+                    # get seq no from settings file
+                    return self.__get_seq_no_from_config_settings()
                 else:
                     self.logger.log_error("Sequence number not provided.")
                     return None
-            else:
-                return seq_no
 
-            # get seq no from settings file
-            return self.__get_seq_no_from_config_settings()
+            # verify if config settings file exists for the seq_no
+            if not self.__verify_config_settings_file_exists(seq_no):
+                self.logger.log_error("Could not verify sequence number found in environment variable with any configuration settings files on the machine")
+                return None
+
+            return seq_no
 
         except Exception as error:
-            error_message = "Error occurred while fetching sequence number"
-            self.logger.log_error(error_message)
+            self.logger.log_error("Error occurred while fetching sequence number. [Exception={0}]".format(repr(error)))
             raise
 
     def __get_seq_no_from_env_var(self):
@@ -67,16 +68,21 @@ class ExtConfigSettingsHandler(object):
             self.logger.log_warning("Sequence number not found in the environment variable.")
             return None
 
+        self.logger.log("Sequence number set in environment variable. [Sequence No={0}]".format(str(seq_no)))
+        return seq_no
+
+    def __verify_config_settings_file_exists(self, seq_no):
         settings_file_path = os.path.join(self.config_folder, str(seq_no) + self.file_ext)
         if os.path.exists(settings_file_path) and os.path.isfile(settings_file_path):
-            self.logger.log("Valid sequence number found from the environment variable. [Sequence no={0}]".format(str(seq_no)))
-            return seq_no
+            self.logger.log("Configuration settings file exists for the current sequence number. [Sequence No={0}]".format(str(seq_no)))
+            return True
 
-        self.logger.log_error("Configuration settings file not found, for the current sequence number set in environment variable. [Sequence No={0}]".format(str(seq_no)))
-        return -1
+        self.logger.log_error("Configuration settings file not found, for the current sequence number. [Sequence No={0}]".format(str(seq_no)))
+        return False
 
     def __get_seq_no_from_config_settings(self):
         """ Fetches seq no from the most recent *.settings file in config folder """
+        self.logger.log("Fetching sequence number from the recently modified config settings file within config folder.")
         seq_no = None
         cur_seq_no = None
         freshest_time = None
@@ -85,16 +91,22 @@ class ExtConfigSettingsHandler(object):
                 try:
                     if re.match('^\d+' + self.file_ext + '$', file):
                         cur_seq_no = int(os.path.basename(file).split('.')[0])
+                        file_modified_time = os.path.getmtime(os.path.join(self.config_folder, file))
+                        self.logger.log("Sequence number being considered and the corresponding file modified time. [Sequence No={0}] [Modified={1}]".format(str(cur_seq_no), str(file_modified_time)))
                         if freshest_time is None:
-                            freshest_time = os.path.getmtime(os.path.join(self.config_folder, file))
+                            freshest_time = file_modified_time
                             seq_no = cur_seq_no
                         else:
-                            current_file_m_time = os.path.getmtime(os.path.join(self.config_folder, file))
+                            current_file_m_time = file_modified_time
                             if current_file_m_time > freshest_time:
                                 freshest_time = current_file_m_time
                                 seq_no = cur_seq_no
                 except ValueError:
                     continue
+        if seq_no is None:
+            self.logger.log("Could not find sequence number from the config folder")
+        else:
+            self.logger.log("Most recent sequence number found from config settings is [Sequence No={0}]".format(str(seq_no)))
         return seq_no
 
     def read_file(self, seq_no):
