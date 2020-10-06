@@ -75,6 +75,14 @@ class Constants(object):
     CONFIGURE_PATCHING = "ConfigurePatching"
     CONFIGURE_PATCHING_SUMMARY = "ConfigurePatchingSummary"
 
+    # Handler actions
+    ENABLE = "Enable"
+    UPDATE = "Disable"
+    RESET = "Reset"
+    INSTALL = "Install"
+    UNINSTALL = "Update"
+    DISABLE = "Disable"
+
     # Settings for Error Objects logged in status file
     STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128
     STATUS_ERROR_LIMIT = 5
