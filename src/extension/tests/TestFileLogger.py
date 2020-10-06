@@ -81,7 +81,11 @@ class TestFileLogger(unittest.TestCase):
             {"name": '125.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 11
             {"name": '126.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 12
             {"name": '127.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 13
-            {"name": 'test.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 14
+            {"name": 'test1.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 14
+            {"name": 'test2.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 15
+            {"name": 'tes3.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 16
+            {"name": 'test4.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 17
+            {"name": 'test5.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 18
             {"name": '123.json', "lastModified": '2019-07-20T11:12:14Z'},
             {"name": '10.settings', "lastModified": '2019-07-20T10:12:14Z'},
             {"name": '111.txt', "lastModified": '2019-07-20T12:10:14Z'},
@@ -109,7 +113,7 @@ class TestFileLogger(unittest.TestCase):
             f.close()
 
         self.file_logger.delete_older_log_files(self.test_dir)
-        self.assertEqual(11, len(self.file_logger.get_all_log_files(self.test_dir)))
+        self.assertEqual(15, len(self.file_logger.get_all_log_files(self.test_dir)))
         self.file_logger.close()
 
 

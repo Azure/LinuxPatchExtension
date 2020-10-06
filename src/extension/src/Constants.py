@@ -43,7 +43,7 @@ class Constants(object):
     STATUS_FILE_EXTENSION = '.status'
     CORE_CODE_FILE_NAME = 'MsftLinuxPatchCore.py'
     LOG_FILE_EXTENSION = '.log'
-    LOG_FILES_TO_RETAIN = 10
+    LOG_FILES_TO_RETAIN = 15
     MAX_LOG_FILES_ALLOWED = 40
 
     # Environment variables
@@ -74,6 +74,14 @@ class Constants(object):
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
     CONFIGURE_PATCHING = "ConfigurePatching"
     CONFIGURE_PATCHING_SUMMARY = "ConfigurePatchingSummary"
+
+    # Handler actions
+    ENABLE = "Enable"
+    UPDATE = "Disable"
+    RESET = "Reset"
+    INSTALL = "Install"
+    UNINSTALL = "Update"
+    DISABLE = "Disable"
 
     # Settings for Error Objects logged in status file
     STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128

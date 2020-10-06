@@ -36,7 +36,7 @@ class TestProcessHandler(unittest.TestCase):
         self.json_file_handler = runtime.json_file_handler
         seq_no = 1234
         dir_path = os.path.join(os.path.pardir, "tests", "helpers")
-        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, "test.log", seq_no, dir_path)
+        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
         self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def tearDown(self):
@@ -170,6 +170,7 @@ class TestProcessHandler(unittest.TestCase):
         # resetting mocks
         ProcessHandler.get_python_cmd = get_python_cmd_backup
         subprocess.Popen = subprocess_popen_backup
+
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestProcessHandler)

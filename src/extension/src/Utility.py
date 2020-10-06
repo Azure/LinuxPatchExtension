@@ -49,10 +49,10 @@ class Utility(object):
         if raise_if_not_found:
             raise Exception(error_msg)
 
-    def create_log_file(self, log_folder, seq_no):
-        """ Creates <sequencenumber>.ext.log file under the path for logFolder provided in HandlerEnvironment """
-        file_path = str(seq_no) + str(".ext") + Constants.LOG_FILE_EXTENSION
-        if seq_no is not None and os.path.exists(log_folder):
+    def create_log_file(self, log_folder, file_name):
+        """ Creates <file_name>.ext.log file under the path for logFolder provided in HandlerEnvironment """
+        file_path = file_name + str(".ext") + Constants.LOG_FILE_EXTENSION
+        if file_name is not None and os.path.exists(log_folder):
             self.logger.log("Creating log file. [File={0}]".format(file_path))
             return FileLogger(log_folder, file_path)
         else:

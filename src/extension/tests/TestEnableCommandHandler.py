@@ -49,9 +49,9 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, self.config_folder)
         self.core_state_handler = CoreStateHandler(self.config_folder, self.json_file_handler)
         self.ext_state_handler = ExtStateHandler(self.config_folder, self.utility, self.json_file_handler)
-        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, "test.log", 1234, self.temp_dir)
+        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, self.temp_dir)
         self.process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
-        self.enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 1234)
+        self.enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         self.constants = Constants
         self.start_daemon_backup = ProcessHandler.start_daemon
         ProcessHandler.start_daemon = self.mock_start_daemon_to_return_true
@@ -60,6 +60,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         # reseting mocks to their original definition
         ProcessHandler.start_daemon = self.start_daemon_backup
+        self.logger.file_logger.close()
         # delete tempdir
         shutil.rmtree(self.temp_dir)
 
@@ -103,7 +104,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         new_settings_file = self.create_helpers_for_enable_request(config_folder_path)
 
         prev_ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
-        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 12)
+        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
 
@@ -128,7 +129,7 @@ class TestEnableCommandHandler(unittest.TestCase):
             f.close()
 
         prev_ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
-        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 12)
+        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
         self.assertEqual(sys_exit.exception.code, Constants.ExitCode.Okay)
@@ -151,7 +152,7 @@ class TestEnableCommandHandler(unittest.TestCase):
             json.dump(config_settings, f)
             f.truncate()
             f.close()
-        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 12)
+        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
         self.assertEqual(sys_exit.exception.code, Constants.ExitCode.Okay)
@@ -169,7 +170,7 @@ class TestEnableCommandHandler(unittest.TestCase):
             json.dump(config_settings, f)
             f.truncate()
             f.close()
-        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow(), 12)
+        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
         self.assertEqual(sys_exit.exception.code, Constants.ExitCode.InvalidConfigSettingPropertyValue)
@@ -196,6 +197,12 @@ class TestEnableCommandHandler(unittest.TestCase):
             timestamp = time.mktime(datetime.strptime('2019-07-20T12:10:14Z', '%Y-%m-%dT%H:%M:%SZ').timetuple())
             os.utime(config_file_path, (timestamp, timestamp))
             f.close()
+
+        # creating a log file
+        log_file_name = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + "_Enable"
+        file_logger = self.utility.create_log_file(log_folder_path, log_file_name)
+        if file_logger is not None:
+            self.logger.file_logger = file_logger
 
         self.ext_env_handler.config_folder = config_folder_path
         self.ext_env_handler.status_folder = status_folder_path
