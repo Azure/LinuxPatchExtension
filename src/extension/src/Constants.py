@@ -48,6 +48,8 @@ class Constants(object):
 
     # Environment variables
     SEQ_NO_ENVIRONMENT_VAR = "ConfigSequenceNumber"
+    CORE_MODULE = "Core"
+    EXTENSION_MODULE = "Extension"
 
     # Max runtime for specific commands in minutes
     ENABLE_MAX_RUNTIME = 3
