@@ -50,7 +50,6 @@ class CoreMain(object):
             execution_config = container.get('execution_config')
             patch_operation_requested = execution_config.operation.lower()
             patch_assessor = container.get('patch_assessor')
-            patch_installer = container.get('patch_installer')
             package_manager = container.get('package_manager')
 
             # if this is an auto patching installation request, log and disable (if enabled by default) the current auto OS update status. NOTE: log status in a separate file in config settings
@@ -62,6 +61,7 @@ class CoreMain(object):
 
             # Patching + additional assessment occurs if the operation is 'Installation'
             if patch_operation_requested == Constants.INSTALLATION.lower():
+                patch_installer = container.get('patch_installer')
                 patch_installation_successful = patch_installer.start_installation()
                 patch_assessment_successful = patch_assessor.start_assessment()
 

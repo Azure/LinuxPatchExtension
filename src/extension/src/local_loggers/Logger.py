@@ -32,17 +32,19 @@ class Logger(object):
         """log output"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
-            print(line)
             if self.file_logger is not None:
-                self.file_logger.write(line)
+                self.file_logger.write("\n" + line)
+            else:
+                print(line)
 
     def log_error(self, message):
         """log errors"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
-        print(self.ERROR + " " + message)
         if self.file_logger is not None:
-            self.file_logger.write(self.ERROR + " " + message)
+            self.file_logger.write("\n" + self.ERROR + " " + message)
+        else:
+            print(self.ERROR + " " + message)
 
     def log_error_and_raise_new_exception(self, message, exception):
         """log errors and raise exception passed in as an arg"""
@@ -54,9 +56,10 @@ class Logger(object):
         """log warning"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
-        print(self.WARNING + " " + message)
         if self.file_logger is not None:
-            self.file_logger.write(self.WARNING + " " + message)
+            self.file_logger.write("\n" + self.WARNING + " " + message)
+        else:
+            print(self.WARNING + " " + message)
 
     def log_debug(self, message):
         """log debug"""
@@ -65,13 +68,13 @@ class Logger(object):
         if self.current_env in (Constants.DEV, Constants.TEST):
             print(self.current_env + ": " + message)  # send to standard output if dev or test env
         if self.file_logger is not None:
-            self.file_logger.write(self.DEBUG + " " + "\n\t".join(message.splitlines()).strip())
+            self.file_logger.write("\n" + self.DEBUG + " " + "\n\t".join(message.splitlines()).strip())
 
     def log_verbose(self, message):
         """log verbose"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         if self.file_logger is not None:
-            self.file_logger.write(self.VERBOSE + " " + "\n\t".join(message.strip().splitlines()).strip())
+            self.file_logger.write("\n" + self.VERBOSE + " " + "\n\t".join(message.strip().splitlines()).strip())
 
     @staticmethod
     def __remove_substring_from_message(message, substring=Constants.ERROR_ADDED_TO_STATUS):

@@ -33,29 +33,35 @@ class FileLogger(object):
         # Retaining 10 most recent log files, deleting others
         self.delete_older_log_files(log_folder)
         # verifying if the log file retention was applied.
-        log_files = self.get_all_log_files(log_folder)
-        if len(log_files) > Constants.MAX_LOG_FILES_ALLOWED:
+        core_log_files = self.get_all_log_files(log_folder, Constants.CORE_MODULE)
+        ext_log_files = self.get_all_log_files(log_folder, Constants.EXTENSION_MODULE)
+        if len(core_log_files) > Constants.MAX_LOG_FILES_ALLOWED or len(ext_log_files) > Constants.MAX_LOG_FILES_ALLOWED:
             print("Retention failed for log files")
             raise Exception("Retention failed for log files")
 
     def __del__(self):
         self.close()
 
-    def get_all_log_files(self, log_folder):
-        """ Returns all files with .log extension within the given folder"""
-        return [os.path.join(log_folder, file) for file in os.listdir(log_folder) if (file.lower().endswith('.log'))]
+    def get_all_log_files(self, log_folder, module):
+        """ Returns all files with .log extension within the given module"""
+        log_pattern = "core.log" if module == Constants.CORE_MODULE else ".ext.log"
+        return [os.path.join(log_folder, file) for file in os.listdir(log_folder) if (file.lower().endswith(log_pattern))]
 
     def delete_older_log_files(self, log_folder):
-        """ deletes older log files, retaining only the last 10 log files """
-        print("Retaining " + str(Constants.LOG_FILES_TO_RETAIN) + " most recent operation logs, deleting others.")
+        """ deletes older log files, retaining only the last 10 log files each for core and extension logs """
+        self.delete_older_log_files_per_module(log_folder, module=Constants.CORE_MODULE)
+        self.delete_older_log_files_per_module(log_folder, module=Constants.EXTENSION_MODULE)
+
+    def delete_older_log_files_per_module(self, log_folder, module=Constants.CORE_MODULE):
+        print("Retaining " + str(Constants.LOG_FILES_TO_RETAIN) + " most recent operation " + module + " logs, deleting others.")
         try:
-            log_files = self.get_all_log_files(log_folder)
+            log_files = self.get_all_log_files(log_folder, module)
             log_files.sort(key=os.path.getmtime, reverse=True)
         except Exception as e:
             print("Error identifying log files to delete. [Exception={0}]".format(repr(e)))
             return
 
-        if len(log_files) >= Constants.LOG_FILES_TO_RETAIN:
+        if len(log_files) >= Constants.LOG_FILES_TO_RETAIN and len(log_files) != 1:
             for file in log_files[Constants.LOG_FILES_TO_RETAIN:]:
                 try:
                     if os.path.exists(file):

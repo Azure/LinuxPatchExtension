@@ -22,6 +22,8 @@ import unittest
 from datetime import datetime
 import os
 from os import path
+
+from extension.src.Constants import Constants
 from extension.src.local_loggers.FileLogger import FileLogger
 from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
@@ -74,18 +76,42 @@ class TestFileLogger(unittest.TestCase):
     def test_delete_older_log_files_success(self):
         files = [
             {"name": '1.ext.log', "lastModified": '2019-07-20T12:12:14Z'},  # reverse sort order seqno: 1
-            {"name": '121.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 7
-            {"name": '122.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 8
-            {"name": '123.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 9
-            {"name": '124.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 10
-            {"name": '125.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 11
-            {"name": '126.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 12
-            {"name": '127.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 13
-            {"name": 'test1.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 14
-            {"name": 'test2.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 15
-            {"name": 'tes3.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 16
-            {"name": 'test4.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 17
-            {"name": 'test5.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 18
+            {"name": '121.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 7
+            {"name": '122.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 8
+            {"name": '123.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 9
+            {"name": '124.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 10
+            {"name": '125.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 11
+            {"name": '126.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 12
+            {"name": '127.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 13
+            {"name": 'test1.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 14
+            {"name": 'test2.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 15
+            {"name": 'tes3.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 16
+            {"name": 'test4.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 17
+            {"name": 'test5.ext.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 18
+            {"name": '123.json', "lastModified": '2019-07-20T11:12:14Z'},
+            {"name": '10.settings', "lastModified": '2019-07-20T10:12:14Z'},
+            {"name": '111.txt', "lastModified": '2019-07-20T12:10:14Z'},
+            {"name": '12.ext.log', "lastModified": '2019-07-02T12:12:14Z'},  # reverse sort order seqno: 6
+            {"name": 'dir1', "lastModified": '2019-07-20T12:12:14Z'},
+            {"name": '111111', "lastModified": '2019-07-20T12:12:14Z'},
+            {"name": '2.ext.log', "lastModified": '2019-07-20T12:12:12Z'},  # reverse sort order seqno: 5
+            {"name": '22.ext.log.log', "lastModified": '2019-07-20T12:12:14Z'},  # reverse sort order seqno: 2
+            {"name": 'abc.123.ext.log', "lastModified": '2019-07-20T12:12:14Z'},  # reverse sort order seqno: 3
+            {"name": '.ext.log', "lastModified": '2019-07-20T12:12:14Z'},  # reverse sort order seqno: 4
+
+            {"name": '1.core.log', "lastModified": '2019-07-20T12:12:14Z'},  # reverse sort order seqno: 1
+            {"name": '121.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 7
+            {"name": '122.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 8
+            {"name": '123.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 9
+            {"name": '124.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 10
+            {"name": '125.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 11
+            {"name": '126.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 12
+            {"name": '127.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # reverse sort order seqno: 13
+            {"name": 'test1.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 14
+            {"name": 'test2.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 15
+            {"name": 'tes3.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 16
+            {"name": 'test4.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 17
+            {"name": 'test5.core.log', "lastModified": '2017-07-21T12:12:14Z'},  # testing with the current log file, reverse sort order seqno: 18
             {"name": '123.json', "lastModified": '2019-07-20T11:12:14Z'},
             {"name": '10.settings', "lastModified": '2019-07-20T10:12:14Z'},
             {"name": '111.txt', "lastModified": '2019-07-20T12:10:14Z'},
@@ -93,9 +119,9 @@ class TestFileLogger(unittest.TestCase):
             {"name": 'dir1', "lastModified": '2019-07-20T12:12:14Z'},
             {"name": '111111', "lastModified": '2019-07-20T12:12:14Z'},
             {"name": '2.core.log', "lastModified": '2019-07-20T12:12:12Z'},  # reverse sort order seqno: 5
-            {"name": '22.log.log', "lastModified": '2019-07-20T12:12:14Z'},  # reverse sort order seqno: 2
-            {"name": 'abc.123.log', "lastModified": '2019-07-20T12:12:14Z'},  # reverse sort order seqno: 3
-            {"name": '.log', "lastModified": '2019-07-20T12:12:14Z'}  # reverse sort order seqno: 4
+            {"name": '22.core.log.log', "lastModified": '2019-07-20T12:12:14Z'},  # reverse sort order seqno: 2
+            {"name": 'abc.123.core.log', "lastModified": '2019-07-20T12:12:14Z'},  # reverse sort order seqno: 3
+            {"name": '.core.log', "lastModified": '2019-07-20T12:12:14Z'}  # reverse sort order seqno: 4
         ]
 
         for file in files:
@@ -113,7 +139,8 @@ class TestFileLogger(unittest.TestCase):
             f.close()
 
         self.file_logger.delete_older_log_files(self.test_dir)
-        self.assertEqual(15, len(self.file_logger.get_all_log_files(self.test_dir)))
+        self.assertEqual(15, len(self.file_logger.get_all_log_files(self.test_dir, Constants.CORE_MODULE)))
+        self.assertEqual(15, len(self.file_logger.get_all_log_files(self.test_dir, Constants.EXTENSION_MODULE)))
         self.file_logger.close()
 
 
