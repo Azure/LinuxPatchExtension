@@ -100,7 +100,7 @@ class PatchInstaller(object):
                     #todo: temp fix to test auto patching, this will be reset to using the maintenanceRunId string as is, once the corresponding changes in RSM are made
                     # patch_version = str(self.execution_config.maintenance_run_id)
                     patch_version = datetime.datetime.strptime(self.execution_config.maintenance_run_id.split(" ")[0], "%m/%d/%Y").strftime('%Y.%m.%d')
-                    self.status_handler.set_patch_metadata_for_healthstore_substatus_json(patch_version=patch_version if patch_version is not None and patch_version is not "" else Constants.PATCH_VERSION_UNKNOWN,
+                    self.status_handler.set_patch_metadata_for_healthstore_substatus_json(patch_version=patch_version if patch_version is not None and patch_version != "" else Constants.PATCH_VERSION_UNKNOWN,
                                                                                           report_to_healthstore=True,
                                                                                           wait_after_update=False)
                 except ValueError as e:
@@ -209,11 +209,12 @@ class PatchInstaller(object):
             self.status_handler.set_reboot_pending(self.is_reboot_pending())
 
             if install_result == Constants.FAILED:
-                self.status_handler.set_package_install_status(package_manager.get_product_name(package_and_dependencies[0]), package_and_dependency_versions[0], Constants.FAILED)
+                self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.FAILED)
                 failed_parent_update_count += 1
                 patch_installation_successful = False
             elif install_result == Constants.INSTALLED:
-                self.status_handler.set_package_install_status(package_manager.get_product_name(package_and_dependencies[0]), package_and_dependency_versions[0], Constants.INSTALLED)
+                self.composite_logger.log_debug()
+                self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.INSTALLED)
                 successful_parent_update_count += 1
                 if package in self.last_still_needed_packages:
                     index = self.last_still_needed_packages.index(package)
@@ -229,7 +230,7 @@ class PatchInstaller(object):
 
                 if package_manager.is_package_version_installed(dependency, dependency_version):
                     self.composite_logger.log_debug(" - Marking dependency as succeeded: " + str(dependency) + "(" + str(dependency_version) + ")")
-                    self.status_handler.set_package_install_status(package_manager.get_product_name(str(dependency)), dependency_version, Constants.INSTALLED)
+                    self.status_handler.set_package_install_status(package_manager.get_product_name(str(dependency)), str(dependency_version), Constants.INSTALLED)
                     index = self.last_still_needed_packages.index(dependency)
                     self.last_still_needed_packages.pop(index)
                     self.last_still_needed_package_versions.pop(index)
