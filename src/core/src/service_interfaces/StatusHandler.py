@@ -116,6 +116,15 @@ class StatusHandler(object):
     def set_package_install_status(self, package_names, package_versions, status="Pending", classification=None):
         """ Externally available method to set installation status for one or more packages of the **SAME classification and status** """
         self.composite_logger.log_debug("Setting package installation status in bulk. [Count={0}]".format(str(len(package_names))))
+
+        # Data normalization and corruption guards - if these exceptions hit, a bug has been introduced elsewhere
+        if isinstance(package_names, str) != isinstance(package_versions, str):
+            raise Exception("Internal error: Package name and version data corruption detected.")
+        if isinstance(package_names, str):
+            package_names, package_versions = [package_names], [package_versions]
+        if len(package_names) != len(package_versions):
+            raise Exception("Internal error: Bad package name and version data received for status reporting. [Names={0}][Versions={1}]".format(str(len(package_names)), str(len(package_versions))))
+
         for package_name, package_version in zip(package_names, package_versions):
             self.composite_logger.log_debug("Logging progress [Package: " + package_name + "; Status: " + status + "]")
             patch_already_saved = False
