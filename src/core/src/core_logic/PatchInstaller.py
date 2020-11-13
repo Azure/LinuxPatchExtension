@@ -213,7 +213,6 @@ class PatchInstaller(object):
                 failed_parent_update_count += 1
                 patch_installation_successful = False
             elif install_result == Constants.INSTALLED:
-                self.composite_logger.log_debug()
                 self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.INSTALLED)
                 successful_parent_update_count += 1
                 if package in self.last_still_needed_packages:
