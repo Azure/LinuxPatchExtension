@@ -107,29 +107,36 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
         runtime.stop()
 
-    # def test_operation_success_for_autopatching_request_with_security_classification(self):
-    #     # test with valid datetime string for maintenance run id
-    #     argument_composer = ArgumentComposer()
-    #     maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
-    #     classifications_to_include = ["Security", "Critical"]
-    #     argument_composer.maintenance_run_id = str(maintenance_run_id)
-    #     argument_composer.classifications_to_include = classifications_to_include
-    #     runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-    #     runtime.set_legacy_test_type("HappyPath")
-    #     CoreMain(argument_composer.get_composed_arguments())
-    #     with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-    #         substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-    #     self.assertEquals(len(substatus_file_data), 3)
-    #     self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-    #     self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
-    #     self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-    #     self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
-    #     self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-    #     self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
-    #     substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
-    #     self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
-    #     self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-    #     runtime.stop()
+    def test_operation_success_for_autopatching_request_with_security_classification(self):
+        # test with valid datetime string for maintenance run id
+        argument_composer = ArgumentComposer()
+        maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
+        classifications_to_include = ["Security", "Critical"]
+        argument_composer.maintenance_run_id = str(maintenance_run_id)
+        argument_composer.classifications_to_include = classifications_to_include
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type("SuccessInstallPath")
+        CoreMain(argument_composer.get_composed_arguments())
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 3)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["name"], "samba-libs")
+        self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["classifications"]))
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
+        substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
+        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
+        self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
+        runtime.stop()
 
     def test_invalid_maintenance_run_id(self):
         # test with empty string for maintenence run id
@@ -145,7 +152,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_TRANSITIONING.lower())
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_ERROR.lower())
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
@@ -167,12 +174,39 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_TRANSITIONING.lower())
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_ERROR.lower())
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
         self.assertFalse(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
+        runtime.stop()
+
+    def test_assessment_operation_success(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('HappyPath')
+        CoreMain(argument_composer.get_composed_arguments())
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        runtime.stop()
+
+    def test_assessment_operation_fail(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('ExceptionPath')
+        CoreMain(argument_composer.get_composed_arguments())
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 2)
         runtime.stop()
 
 

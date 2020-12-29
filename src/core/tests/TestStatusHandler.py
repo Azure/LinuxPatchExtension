@@ -141,6 +141,8 @@ class TestStatusHandler(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
 
+        self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+
         # Adding multiple exceptions
         self.runtime.status_handler.add_error_to_status("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         self.runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
@@ -159,6 +161,7 @@ class TestStatusHandler(unittest.TestCase):
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
 
+        self.assertEqual("Success".lower(), str(substatus_file_data["status"]).lower())
         self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
         self.assertTrue("Adding same exception" not in str(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]))
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)

@@ -529,11 +529,19 @@ class StatusHandler(object):
         if self.__current_operation == Constants.ASSESSMENT:
             self.__add_error(self.__assessment_errors, error_detail)
             self.__assessment_total_error_count += 1
-            self.set_assessment_substatus_json()
+            # retain previously set status and code for assessment substatus
+            if self.__assessment_substatus_json is not None:
+                self.set_assessment_substatus_json(status=self.__assessment_substatus_json["status"], code=self.__assessment_substatus_json["code"])
+            else:
+                self.set_assessment_substatus_json()
         elif self.__current_operation == Constants.INSTALLATION:
             self.__add_error(self.__installation_errors, error_detail)
             self.__installation_total_error_count += 1
-            self.set_installation_substatus_json()
+            # retain previously set status and code for installation substatus
+            if self.__installation_substatus_json is not None:
+                self.set_installation_substatus_json(status=self.__installation_substatus_json["status"], code=self.__installation_substatus_json["code"])
+            else:
+                self.set_installation_substatus_json()
         else:
             return
 

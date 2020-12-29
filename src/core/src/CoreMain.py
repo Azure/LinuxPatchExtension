@@ -61,6 +61,8 @@ class CoreMain(object):
 
             # Patching + additional assessment occurs if the operation is 'Installation'
             if patch_operation_requested == Constants.INSTALLATION.lower():
+                # setting current operation here, to include patch_installer init within installation actions, ensuring any exceptions during patch_installer init are added in installation summary errors object
+                status_handler.set_current_operation(Constants.INSTALLATION)
                 patch_installer = container.get('patch_installer')
                 patch_installation_successful = patch_installer.start_installation()
                 patch_assessment_successful = patch_assessor.start_assessment()
