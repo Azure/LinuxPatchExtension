@@ -19,6 +19,7 @@ import os
 import sys
 from extension.src.ActionHandler import ActionHandler
 from extension.src.RuntimeContextHandler import RuntimeContextHandler
+from extension.src.TelemetryWriter import TelemetryWriter
 from extension.src.file_handlers.JsonFileHandler import JsonFileHandler
 from extension.src.file_handlers.CoreStateHandler import CoreStateHandler
 from extension.src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
@@ -35,7 +36,8 @@ from extension.src.Constants import Constants
 def main(argv):
     stdout_file_mirror = None
     file_logger = None
-    logger = Logger()
+    telemetry_writer = TelemetryWriter()
+    logger = Logger(telemetry_writer=telemetry_writer)
     try:
         # initializing action handler
         # args will have values install, uninstall, etc, as given in MsftLinuxPatchExtShim.sh in the operation var
@@ -44,7 +46,17 @@ def main(argv):
         runtime_context_handler = RuntimeContextHandler(logger)
         json_file_handler = JsonFileHandler(logger)
         ext_env_handler = ExtEnvHandler(json_file_handler)
-        if ext_env_handler.handler_environment_json is not None and ext_env_handler.config_folder is not None:
+
+        # if ext_env_handler.handler_environment_json is not None and ext_env_handler.config_folder is not None:
+        if ext_env_handler.handler_environment_json is not None:
+            # check if events folder exists, if it does init telemetry, if events folder does not exist, log that telemetry is not supported by agent since events folder does not exist
+            events_folder = ext_env_handler.events_folder
+            if events_folder is None or not os.path.exists(events_folder):
+                logger.log_warning("Telemetry is not supported by Linux Guest Agent as no events folder location specified in Handler Environment")
+            else:
+                logger.log("Telemetry is supported by Linux Guest Agent. Extension will send messages to telemetry")
+                telemetry_writer.events_folder_path = events_folder
+
             config_folder = ext_env_handler.config_folder
             if config_folder is None or not os.path.exists(config_folder):
                 logger.log_error("Config folder not found at [{0}].".format(repr(config_folder)))
@@ -60,6 +72,7 @@ def main(argv):
         else:
             error_cause = "No configuration provided in HandlerEnvironment" if ext_env_handler.handler_environment_json is None else "Path to config folder not specified in HandlerEnvironment"
             error_msg = "Error processing file. [File={0}] [Error={1}]".format(Constants.HANDLER_ENVIRONMENT_FILE, error_cause)
+            # telemetry_writer.write_event("Handler Error", error_msg, Constants.TelemetryEventLevel.Error)
             raise Exception(error_msg)
     except Exception as error:
         logger.log_error(repr(error))

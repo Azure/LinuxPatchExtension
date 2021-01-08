@@ -179,14 +179,17 @@ class TestEnableCommandHandler(unittest.TestCase):
         config_folder_name = self.config_folder
         status_folder_name = self.ext_env_handler.status_folder
         log_folder_name = self.ext_env_handler.log_folder
+        events_folder_name = self.ext_env_handler.events_folder
 
         # creating the required folder (e.g: config folder, log folder, status folder) under the temp directory
         config_folder_path = os.path.join(dir_path, config_folder_name)
         status_folder_path = os.path.join(dir_path, status_folder_name)
         log_folder_path = os.path.join(dir_path, log_folder_name)
+        events_folder_path = os.path.join(dir_path, events_folder_name)
         os.mkdir(config_folder_path)
         os.mkdir(status_folder_path)
         os.mkdir(log_folder_path)
+        os.mkdir(events_folder_path)
 
         # copying a sample version of the <seqno>.settings file from the helpers folder to the temp directory
         shutil.copy(os.path.join("helpers", "1234.settings"), config_folder_path)
@@ -207,6 +210,10 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.ext_env_handler.config_folder = config_folder_path
         self.ext_env_handler.status_folder = status_folder_path
         self.ext_env_handler.log_folder = log_folder_path
+        self.ext_env_handler.events_folder = events_folder_path
+
+        self.enable_command_handler.ext_env_handler = self.ext_env_handler
+        self.logger.telemetry_writer.events_folder_path = events_folder_path
 
         self.ext_config_settings_handler.config_folder = config_folder_path
         self.core_state_handler.dir_path = config_folder_path

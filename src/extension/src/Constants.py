@@ -27,6 +27,9 @@ class Constants(object):
                     if item == self.__dict__[item]:
                         yield item
 
+    # Extension version (todo: move to a different file)
+    EXT_VERSION = "1.6.11"
+
     # Runtime environments
     TEST = 'Test'
     DEV = 'Dev'
@@ -55,14 +58,20 @@ class Constants(object):
     ENABLE_MAX_RUNTIME = 3
     DISABLE_MAX_RUNTIME = 13
 
-    # Todo: will be implemented later
-    # Telemetry Categories
-    TelemetryExtState = "State"
-    TelemetryConfig = "Config"
-    TelemetryError = "Error"
-    TelemetryWarning = "Warning"
-    TelemetryInfo = "Info"
-    TelemetryDebug = "Debug"
+    # Telemetry Settings
+    TELEMETRY_MSG_SIZE_LIMIT_IN_CHARACTERS = 3072  # 3KB
+    TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARACTERS = 6144  # 6KB
+    TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARACTERS = 4194304  # 4MB
+    TELEMETRY_DIR_SIZE_LIMIT_IN_CHARACTERS = 41943040  # 40MB
+
+    # Telemetry Event Level
+    class TelemetryEventLevel(EnumBackport):
+        Critical = "Critical"
+        Error = "Error"
+        Warning = "Warning"
+        Verbose = "Verbose"
+        Informational = "Informational"
+        LogAlways = "LogAlways"
 
     # Re-try limit for file operations
     MAX_IO_RETRIES = 5
@@ -109,6 +118,7 @@ class Constants(object):
         log_folder = "logFolder"
         config_folder = "configFolder"
         status_folder = "statusFolder"
+        events_folder = "eventsFolder"
 
     # Config Settings json keys
     RUNTIME_SETTINGS = "runtimeSettings"

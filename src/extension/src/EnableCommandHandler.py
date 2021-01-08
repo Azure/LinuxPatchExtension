@@ -49,8 +49,12 @@ class EnableCommandHandler(object):
             self.ext_output_status_handler.read_file(self.seq_no)
 
             config_settings = self.ext_config_settings_handler.read_file(self.seq_no)
-            operation = config_settings.__getattribute__(self.config_public_settings.operation)
 
+            # set activity_id in telemetry
+            if self.logger.telemetry_writer is not None:
+                self.logger.telemetry_writer.set_operation_id(config_settings.__getattribute__(self.config_public_settings.activity_id))
+
+            operation = config_settings.__getattribute__(self.config_public_settings.operation)
             # Allow only certain operations
             if operation not in [Constants.NOOPERATION, Constants.ASSESSMENT, Constants.INSTALLATION, Constants.CONFIGURE_PATCHING]:
                 self.logger.log_error("Requested operation is not supported by the extension")

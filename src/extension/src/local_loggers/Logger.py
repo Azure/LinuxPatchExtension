@@ -18,8 +18,9 @@ from __future__ import print_function
 import os
 from extension.src.Constants import Constants
 
+
 class Logger(object):
-    def __init__(self, file_logger=None, current_env=None):
+    def __init__(self, file_logger=None, current_env=None, telemetry_writer=None):
         self.file_logger = file_logger
         self.ERROR = "ERROR:"
         self.WARNING = "WARNING:"
@@ -27,10 +28,14 @@ class Logger(object):
         self.VERBOSE = "VERBOSE:"
         self.current_env = current_env
         self.NEWLINE_REPLACE_CHAR = " "
+        self.telemetry_writer = telemetry_writer
+        self.telemetry_task = "HandlerLog"
 
     def log(self, message):
         """log output"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
+        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
+            self.telemetry_writer.write_event(self.telemetry_task, message, Constants.TelemetryEventLevel.Informational)
         for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
             if self.file_logger is not None:
                 self.file_logger.write("\n" + line)
@@ -41,6 +46,8 @@ class Logger(object):
         """log errors"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
+        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
+            self.telemetry_writer.write_event(self.telemetry_task, message, Constants.TelemetryEventLevel.Error)
         if self.file_logger is not None:
             self.file_logger.write("\n" + self.ERROR + " " + message)
         else:
@@ -56,6 +63,8 @@ class Logger(object):
         """log warning"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
+        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
+            self.telemetry_writer.write_event(self.telemetry_task, message, Constants.TelemetryEventLevel.Warning)
         if self.file_logger is not None:
             self.file_logger.write("\n" + self.WARNING + " " + message)
         else:
@@ -65,6 +74,8 @@ class Logger(object):
         """log debug"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = message.strip()
+        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
+            self.telemetry_writer.write_event(self.telemetry_task, message, Constants.TelemetryEventLevel.Verbose)
         if self.current_env in (Constants.DEV, Constants.TEST):
             print(self.current_env + ": " + message)  # send to standard output if dev or test env
         if self.file_logger is not None:
@@ -73,6 +84,8 @@ class Logger(object):
     def log_verbose(self, message):
         """log verbose"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
+        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
+            self.telemetry_writer.write_event(self.telemetry_task, message, Constants.TelemetryEventLevel.Verbose)
         if self.file_logger is not None:
             self.file_logger.write("\n" + self.VERBOSE + " " + "\n\t".join(message.strip().splitlines()).strip())
 
