@@ -102,6 +102,16 @@ class TestPackageFilter(unittest.TestCase):
         self.assertEqual(runtime.package_filter.is_invalid_classification_combination(), True)
         runtime.stop()
 
+    def test_with_none_for_classifications(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = None
+        argument_composer.patches_to_include = []
+        argument_composer.patches_to_exclude = []
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+
+        self.assertEqual(runtime.package_filter.is_invalid_classification_combination(), False)
+        runtime.stop()
+
     def test_inclusions(self):
         argument_composer = ArgumentComposer()
         argument_composer.classifications_to_include = []
@@ -120,6 +130,7 @@ class TestPackageFilter(unittest.TestCase):
         self.assertEqual(runtime.package_filter.check_for_inclusion(["kernel", "firefox"]), False)
         self.assertEqual(runtime.package_filter.check_for_inclusion(["firefox", "ssh-client"]), True)
         runtime.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

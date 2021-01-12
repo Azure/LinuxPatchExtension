@@ -64,7 +64,7 @@ class PackageManager(object):
         class_packages, class_versions = self.get_updates_for_classification(package_filter)
         incl_packages, incl_versions = self.get_updates_for_inclusions(package_filter)
 
-        # classification's package version will supercede any inclusion package version (for future reference: this is by design and not a bug)
+        # classification's package version will supersede any inclusion package version (for future reference: this is by design and not a bug)
         packages, package_versions = self.dedupe_update_packages(class_packages + incl_packages, class_versions + incl_versions)
 
         return packages, package_versions

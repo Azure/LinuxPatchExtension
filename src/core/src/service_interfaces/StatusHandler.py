@@ -117,13 +117,7 @@ class StatusHandler(object):
         """ Externally available method to set installation status for one or more packages of the **SAME classification and status** """
         self.composite_logger.log_debug("Setting package installation status in bulk. [Count={0}]".format(str(len(package_names))))
 
-        # Data normalization and corruption guards - if these exceptions hit, a bug has been introduced elsewhere
-        if isinstance(package_names, str) != isinstance(package_versions, str):
-            raise Exception("Internal error: Package name and version data corruption detected.")
-        if isinstance(package_names, str):
-            package_names, package_versions = [package_names], [package_versions]
-        if len(package_names) != len(package_versions):
-            raise Exception("Internal error: Bad package name and version data received for status reporting. [Names={0}][Versions={1}]".format(str(len(package_names)), str(len(package_versions))))
+        package_names, package_versions = self.validate_packages_being_installed(package_names, package_versions)
 
         for package_name, package_version in zip(package_names, package_versions):
             self.composite_logger.log_debug("Logging progress [Package: " + package_name + "; Status: " + status + "]")
@@ -147,6 +141,36 @@ class StatusHandler(object):
                     "patchInstallationState": str(status)
                 }
                 self.__installation_packages.append(record)
+
+        self.set_installation_substatus_json()
+
+    @staticmethod
+    def validate_packages_being_installed(package_names, package_versions):
+        # Data normalization and corruption guards - if these exceptions hit, a bug has been introduced elsewhere
+        if isinstance(package_names, str) != isinstance(package_versions, str):
+            raise Exception("Internal error: Package name and version data corruption detected.")
+        if isinstance(package_names, str):
+            package_names, package_versions = [package_names], [package_versions]
+        if len(package_names) != len(package_versions):
+            raise Exception("Internal error: Bad package name and version data received for status reporting. [Names={0}][Versions={1}]".format(str(len(package_names)), str(len(package_versions))))
+        return package_names, package_versions
+
+    def set_package_install_status_classification(self, package_names, package_versions, classification=None):
+        """ Externally available method to set classification for one or more packages being installed """
+        if classification is None:
+            self.composite_logger.log_debug("Classification not provided for the set of packages being installed. [Package Count={0}]".format(str(len(package_names))))
+            return
+
+        self.validate_packages_being_installed(package_names, package_versions)
+
+        self.composite_logger.log_debug("Setting package installation classification in bulk. [Count={0}]".format(str(len(package_names))))
+        for package_name, package_version in zip(package_names, package_versions):
+            self.composite_logger.log_debug("Logging progress [Package: " + package_name + "; Package Version: " + package_version + "]")
+            patch_id = self.__get_patch_id(package_name, package_version)
+            for i in range(0, len(self.__installation_packages)):
+                if patch_id == self.__installation_packages[i]['patchId']:
+                    self.composite_logger.log_debug("Setting classification for package: [Package={0}] [Classification={1}]".format(str(package_name), str(classification)))
+                    self.__installation_packages[i]['classifications'] = [classification]
 
         self.set_installation_substatus_json()
 
@@ -505,11 +529,19 @@ class StatusHandler(object):
         if self.__current_operation == Constants.ASSESSMENT:
             self.__add_error(self.__assessment_errors, error_detail)
             self.__assessment_total_error_count += 1
-            self.set_assessment_substatus_json()
+            # retain previously set status and code for assessment substatus
+            if self.__assessment_substatus_json is not None:
+                self.set_assessment_substatus_json(status=self.__assessment_substatus_json["status"], code=self.__assessment_substatus_json["code"])
+            else:
+                self.set_assessment_substatus_json()
         elif self.__current_operation == Constants.INSTALLATION:
             self.__add_error(self.__installation_errors, error_detail)
             self.__installation_total_error_count += 1
-            self.set_installation_substatus_json()
+            # retain previously set status and code for installation substatus
+            if self.__installation_substatus_json is not None:
+                self.set_installation_substatus_json(status=self.__installation_substatus_json["status"], code=self.__installation_substatus_json["code"])
+            else:
+                self.set_installation_substatus_json()
         else:
             return
 
