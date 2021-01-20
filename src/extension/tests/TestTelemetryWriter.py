@@ -20,7 +20,7 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        # shutil.rmtree(self.telemetry_writer.events_folder_path)
+        shutil.rmtree(self.telemetry_writer.events_folder_path)
 
     def mock_time(self):
         return 1234
@@ -75,18 +75,18 @@ class TestTelemetryWriter(unittest.TestCase):
         self.telemetry_writer.write_event(task_name, message, Constants.TelemetryEventLevel.Error)
         self.assertTrue(len(os.listdir(self.telemetry_writer.events_folder_path)) == 0)
 
-    def test_write_to_new_file_if_event_file_limit_reached(self):
-        # todo
-        self.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        os_path_exists_backup = os.path.exists
-        os.path.exists = self.mock_os_path_exists
-        telemetry_event_file_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 1
-        self.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        events = os.listdir(self.telemetry_writer.events_folder_path)
-        self.assertEquals(len(events), 2)
-        os.path.exists = os_path_exists_backup
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_file_size_backup
+    # def test_write_to_new_file_if_event_file_limit_reached(self):
+    #     # todo
+    #     self.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+    #     os_path_exists_backup = os.path.exists
+    #     os.path.exists = self.mock_os_path_exists
+    #     telemetry_event_file_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES
+    #     Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 1
+    #     self.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+    #     events = os.listdir(self.telemetry_writer.events_folder_path)
+    #     self.assertEquals(len(events), 2)
+    #     os.path.exists = os_path_exists_backup
+    #     Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_file_size_backup
 
     def test_delete_older_events(self):
         # space enough for one new file
