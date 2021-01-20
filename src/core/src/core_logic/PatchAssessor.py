@@ -21,12 +21,11 @@ from core.src.bootstrap.Constants import Constants
 
 class PatchAssessor(object):
     """ Wrapper class of a single patch assessment """
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager):
+    def __init__(self, env_layer, execution_config, composite_logger, status_handler, package_manager):
         self.env_layer = env_layer
         self.execution_config = execution_config
 
         self.composite_logger = composite_logger
-        self.telemetry_writer = telemetry_writer
         self.status_handler = status_handler
 
         self.package_manager = package_manager
@@ -48,10 +47,8 @@ class PatchAssessor(object):
         for i in range(0, Constants.MAX_ASSESSMENT_RETRY_COUNT):
             try:
                 packages, package_versions = self.package_manager.get_all_updates()
-                self.telemetry_writer.send_debug_info("Full assessment: " + str(packages))
                 self.status_handler.set_package_assessment_status(packages, package_versions)
                 sec_packages, sec_package_versions = self.package_manager.get_security_updates()
-                self.telemetry_writer.send_debug_info("Security assessment: " + str(sec_packages))
                 self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, "Security")
                 self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
                 break

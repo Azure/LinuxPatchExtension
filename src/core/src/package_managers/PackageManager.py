@@ -25,10 +25,9 @@ import time
 class PackageManager(object):
     """Base class of package manager"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
+    def __init__(self, env_layer, execution_config, composite_logger, status_handler):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
-        self.telemetry_writer = telemetry_writer
         self.status_handler = status_handler
         self.single_package_upgrade_cmd = ''
         self.single_package_upgrade_simulation_cmd = 'simulate-install'
@@ -261,15 +260,6 @@ class PackageManager(object):
                 self.composite_logger.log_warning(" - [Info] Desired package version was installed, but the package manager returned a non-zero return code: " + str(code) + ". Command used: " + exec_cmd + "\n")
             else:
                 code_path += " > Info, Package installed, zero return. (succeeded)"
-
-        if not simulate:
-            if install_result == Constants.FAILED:
-                error = self.telemetry_writer.send_package_info(package_and_dependencies[0], package_and_dependency_versions[0], package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd, str(out))
-            else:
-                error = self.telemetry_writer.send_package_info(package_and_dependencies[0], package_and_dependency_versions[0], package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd)
-
-            if error is not None:
-                self.composite_logger.log_debug('\nEXCEPTION writing package telemetry: ' + repr(error))
 
         return install_result
     # endregion
