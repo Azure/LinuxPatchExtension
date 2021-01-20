@@ -60,7 +60,7 @@ class Utility(object):
             return None
 
     def get_datetime_from_str(self, date_str):
-        return datetime.datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
+        return datetime.datetime.strptime(date_str, Constants.DATE_FORMAT)
 
     def get_str_from_datetime(self, date):
-        return date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return date.strftime(Constants.DATE_FORMAT)

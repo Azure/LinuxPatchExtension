@@ -197,7 +197,7 @@ class TestEnableCommandHandler(unittest.TestCase):
 
         # updating the timestamp because the backup logic fetches seq no from the handler configuration files/<seqno>.settings in config folder, if nothing is set in the env variable
         with open(config_file_path, 'a') as f:
-            timestamp = time.mktime(datetime.strptime('2019-07-20T12:10:14Z', '%Y-%m-%dT%H:%M:%SZ').timetuple())
+            timestamp = time.mktime(datetime.strptime('2019-07-20T12:10:14Z', Constants.DATE_FORMAT).timetuple())
             os.utime(config_file_path, (timestamp, timestamp))
             f.close()
 
@@ -231,7 +231,7 @@ class TestEnableCommandHandler(unittest.TestCase):
 
         # set the modified time of the config settings file in tempdir
         with open(new_settings_file, 'a') as f:
-            timestamp = time.mktime(datetime.strptime('2019-07-21T12:10:14Z', '%Y-%m-%dT%H:%M:%SZ').timetuple())
+            timestamp = time.mktime(datetime.strptime('2019-07-21T12:10:14Z', Constants.DATE_FORMAT).timetuple())
             os.utime(new_settings_file, (timestamp, timestamp))
             f.close()
 

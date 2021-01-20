@@ -171,6 +171,8 @@ class Constants(object):
     TELEMETRY_INFO = "Info"
     TELEMETRY_DEBUG = "Debug"
 
+    DATE_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
     # EnvLayer Constants
     class EnvLayer(EnumBackport):
         PRIVILEGED_OP_MARKER = "Privileged_Op_e6df678d-d09b-436a-a08a-65f2f70a6798"

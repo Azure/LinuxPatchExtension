@@ -45,7 +45,7 @@ class JsonFileHandler(object):
                 self.logger.log_warning(error_msg)
 
         error_msg = "Failed to read file after {0} tries. [File={1}] [Location={2}] [Exception={3}]".format(self.retry_count, file, str(file_path), error_msg)
-        self.logger.log_error(error_msg)
+        self.logger.log_warning(error_msg)
         if raise_if_not_found:
             self.logger.log_error("Extension cannot continue without this file. [File={0}]".format(file))
             raise Exception(error_msg)
