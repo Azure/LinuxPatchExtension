@@ -137,6 +137,10 @@ class PatchInstaller(object):
         self.status_handler.set_package_install_status(packages, package_versions, Constants.PENDING)
         self.composite_logger.log("\nList of packages to be updated: \n" + str(packages))
 
+        sec_packages, sec_package_versions = self.package_manager.get_security_updates()
+        self.telemetry_writer.send_debug_info("Security packages out of the final package list: " + str(sec_packages))
+        self.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, classification="Security")
+
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
         # We will see this as packages going from NotSelected --> Installed. We could remove them preemptively from not_included_packages, but we're explicitly choosing not to.
 

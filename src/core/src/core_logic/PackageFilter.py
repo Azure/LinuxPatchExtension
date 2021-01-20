@@ -34,7 +34,7 @@ class PackageFilter(object):
         # Inclusions - note: version based inclusion is optionally supported
         self.installation_included_package_masks = self.execution_config.included_package_name_mask_list
         self.installation_included_packages, self.installation_included_package_versions = self.get_packages_and_versions_from_masks(self.installation_included_package_masks)
-        self.installation_included_classifications = self.execution_config.included_classifications_list
+        self.installation_included_classifications = [] if self.execution_config.included_classifications_list is None else self.execution_config.included_classifications_list
 
         # Neutralize global excluded packages, if customer explicitly includes the package
         packages_to_clear_from_global = []
