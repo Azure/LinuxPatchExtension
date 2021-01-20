@@ -119,6 +119,11 @@ class ConfigurationFactory(object):
                     'emulator_enabled': emulator_enabled
                 }
             },
+            'telemetry_writer': {
+                'component': TelemetryWriter,
+                'component_args': [],
+                'component_kwargs': {}
+            },
             'file_logger': {
                 'component': FileLogger,
                 'component_args': ['env_layer'],
@@ -128,7 +133,7 @@ class ConfigurationFactory(object):
             },
             'composite_logger': {
                 'component': CompositeLogger,
-                'component_args': ['env_layer', 'file_logger'],
+                'component_args': ['env_layer', 'file_logger', 'telemetry_writer'],
                 'component_kwargs': {
                     'current_env': config_env
                 }
@@ -148,22 +153,17 @@ class ConfigurationFactory(object):
             'package_manager_name': package_manager_name,
             'lifecycle_manager': {
                 'component': LifecycleManager,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger'],
                 'component_kwargs': {}
             },
             'status_handler': {
                 'component': StatusHandler,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
-                'component_kwargs': {}
-            },
-            'telemetry_writer': {
-                'component': TelemetryWriter,
-                'component_args': ['env_layer', 'execution_config'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger'],
                 'component_kwargs': {}
             },
             'package_manager': {
                 'component': package_manager_component,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'status_handler'],
                 'component_kwargs': {}
             },
             'reboot_manager': {
@@ -180,12 +180,12 @@ class ConfigurationFactory(object):
             },
             'patch_assessor': {
                 'component': PatchAssessor,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'status_handler', 'package_manager'],
                 'component_kwargs': {}
             },
             'patch_installer': {
                 'component': PatchInstaller,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'lifecycle_manager', 'package_manager', 'package_filter', 'maintenance_window', 'reboot_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'status_handler', 'lifecycle_manager', 'package_manager', 'package_filter', 'maintenance_window', 'reboot_manager'],
                 'component_kwargs': {}
             },
             'maintenance_window': {

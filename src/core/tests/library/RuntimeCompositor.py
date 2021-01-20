@@ -47,7 +47,7 @@ class RuntimeCompositor(object):
         self.container = bootstrapper.build_out_container()
         self.file_logger = bootstrapper.file_logger
         self.composite_logger = bootstrapper.composite_logger
-        self.lifecycle_manager, self.telemetry_writer, self.status_handler = bootstrapper.build_core_components(self.container)
+        self.lifecycle_manager, self.status_handler = bootstrapper.build_core_components(self.container)
 
         # Business logic components
         self.execution_config = self.container.get('execution_config')
@@ -63,7 +63,6 @@ class RuntimeCompositor(object):
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
 
     def stop(self):
-        self.telemetry_writer.close_transports()
         self.file_logger.close(message_at_close="<Runtime stopped>")
         self.container.reset()
 

@@ -79,7 +79,7 @@ class TelemetryWriter(object):
         for event_file in event_files:
             try:
                 if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES:
-                    print("Not deleting any more event files as the event directory has sufficient space to add at least one new event file")
+                    # Not deleting any more event files as the event directory has sufficient space to add at least one new event file. Not printing this statement as it will add repetitive logs
                     break
 
                 if os.path.exists(event_file):

@@ -23,12 +23,11 @@ from core.src.bootstrap.Constants import Constants
 
 class PatchInstaller(object):
     """" Wrapper class for a single patch installation operation """
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, lifecycle_manager, package_manager, package_filter, maintenance_window, reboot_manager):
+    def __init__(self, env_layer, execution_config, composite_logger, status_handler, lifecycle_manager, package_manager, package_filter, maintenance_window, reboot_manager):
         self.env_layer = env_layer
         self.execution_config = execution_config
 
         self.composite_logger = composite_logger
-        self.telemetry_writer = telemetry_writer
         self.status_handler = status_handler
         self.lifecycle_manager = lifecycle_manager
 
@@ -119,16 +118,16 @@ class PatchInstaller(object):
         package_manager.refresh_repo()
 
         packages, package_versions = package_manager.get_available_updates(self.package_filter)  # Initial, ignoring exclusions
-        self.telemetry_writer.send_debug_info("Initial package list: " + str(packages))
+        self.composite_logger.log_debug("Initial package list: " + str(packages))
 
         not_included_packages, not_included_package_versions = self.get_not_included_updates(package_manager, packages)
-        self.telemetry_writer.send_debug_info("Not Included package list: " + str(not_included_packages))
+        self.composite_logger.log_debug("Not Included package list: " + str(not_included_packages))
 
         excluded_packages, excluded_package_versions = self.get_excluded_updates(package_manager, packages, package_versions)
-        self.telemetry_writer.send_debug_info("Excluded package list: " + str(excluded_packages))
+        self.composite_logger.log_debug("Excluded package list: " + str(excluded_packages))
 
         packages, package_versions = self.filter_out_excluded_updates(packages, package_versions, excluded_packages)  # Final, honoring exclusions
-        self.telemetry_writer.send_debug_info("Final package list: " + str(packages))
+        self.composite_logger.log_debug("Final package list: " + str(packages))
 
         # Set initial statuses
         if not package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # 'Not included' list is not accurate when a repeat is required
@@ -138,7 +137,7 @@ class PatchInstaller(object):
         self.composite_logger.log("\nList of packages to be updated: \n" + str(packages))
 
         sec_packages, sec_package_versions = self.package_manager.get_security_updates()
-        self.telemetry_writer.send_debug_info("Security packages out of the final package list: " + str(sec_packages))
+        self.composite_logger.log_debug("Security packages out of the final package list: " + str(sec_packages))
         self.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, classification="Security")
 
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
@@ -154,7 +153,7 @@ class PatchInstaller(object):
         patch_installation_successful = True
         maintenance_window_exceeded = False
         all_packages, all_package_versions = package_manager.get_all_updates(True)  # cached is fine
-        self.telemetry_writer.send_debug_info("All available packages list: " + str(all_packages))
+        self.composite_logger.log_debug("All available packages list: " + str(all_packages))
         self.last_still_needed_packages = all_packages
         self.last_still_needed_package_versions = all_package_versions
 
@@ -177,7 +176,6 @@ class PatchInstaller(object):
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(attempted_parent_update_count), str(successful_parent_update_count), str(failed_parent_update_count), str(installed_update_count - successful_parent_update_count),
                                                             "Processing package: " + str(package) + " (" + str(version) + ")")
             self.composite_logger.log(progress_status)
-            self.telemetry_writer.send_info(progress_status)
 
             # include all dependencies (with specified versions) explicitly
             package_and_dependencies = [package]
@@ -242,7 +240,6 @@ class PatchInstaller(object):
                     # status is not logged by design here, in case you were wondering if that's a bug
                     message = " - [Info] Dependency appears to have failed to install (note: it *may* be retried): " + str(dependency) + "(" + str(dependency_version) + ")"
                     self.composite_logger.log_debug(message)
-                    self.telemetry_writer.send_debug_info(message)
 
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
             installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(attempted_parent_update_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
@@ -250,7 +247,6 @@ class PatchInstaller(object):
         progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(attempted_parent_update_count), str(successful_parent_update_count), str(failed_parent_update_count), str(installed_update_count - successful_parent_update_count),
                                                         "Completed processing packages!")
         self.composite_logger.log(progress_status)
-        self.telemetry_writer.send_info(progress_status)
 
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)  # final reconciliation

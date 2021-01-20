@@ -56,6 +56,7 @@ class ProcessHandler(object):
             env_settings.update({env_settings_keys.log_folder: ext_env_handler.log_folder})
             env_settings.update({env_settings_keys.config_folder: ext_env_handler.config_folder})
             env_settings.update({env_settings_keys.status_folder: ext_env_handler.status_folder})
+            env_settings.update({env_settings_keys.events_folder: ext_env_handler.events_folder})
         return env_settings
 
     def start_daemon(self, seq_no, config_settings, ext_env_handler):

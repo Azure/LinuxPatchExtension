@@ -41,6 +41,7 @@ class ExecutionConfig(object):
         self.log_folder = self.environment_settings[Constants.EnvSettings.LOG_FOLDER]
         self.config_folder = self.environment_settings[Constants.EnvSettings.CONFIG_FOLDER]
         self.status_folder = self.environment_settings[Constants.EnvSettings.STATUS_FOLDER]
+        self.events_folder = self.environment_settings[Constants.EnvSettings.EVENTS_FOLDER]
 
         # Config Settings
         self.composite_logger.log_debug(" - Parsing configuration settings... [ConfigSettings={0}]".format(str(self.config_settings)))
@@ -58,6 +59,8 @@ class ExecutionConfig(object):
             self.reboot_setting = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.REBOOT_SETTING, Constants.REBOOT_NEVER)     # safe extension-level default
 
         # Derived Settings
+        self.composite_logger.telemetry_writer.events_folder_path = self.events_folder
+        self.composite_logger.telemetry_writer.set_operation_id(self.activity_id)
         self.composite_logger.log_debug(" - Establishing data publishing paths...")
         self.log_file_path = os.path.join(self.log_folder, str(self.sequence_number) + ".core.log")
         self.composite_logger.log_debug("  -- Core log: " + str(self.log_file_path))

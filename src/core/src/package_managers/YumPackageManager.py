@@ -23,8 +23,8 @@ from core.src.bootstrap.Constants import Constants
 class YumPackageManager(PackageManager):
     """Implementation of Redhat/CentOS package management operations"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
-        super(YumPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
+    def __init__(self, env_layer, execution_config, composite_logger, status_handler):
+        super(YumPackageManager, self).__init__(env_layer, execution_config, composite_logger, status_handler)
         # Repo refresh
         # There is no command as this is a no op.
 
@@ -68,7 +68,6 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.telemetry_writer.send_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))

@@ -7,7 +7,6 @@ import unittest
 
 from extension.src.Constants import Constants
 from extension.src.TelemetryWriter import TelemetryWriter
-from extension.tests.helpers.RuntimeComposer import RuntimeComposer
 from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 

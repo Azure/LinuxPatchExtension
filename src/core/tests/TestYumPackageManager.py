@@ -91,9 +91,6 @@ class TestYumPackageManager(unittest.TestCase):
         size = package_manager.get_package_size(out)
         self.assertEqual(size, "735 k")
 
-        telemetry_writer = self.container.get('telemetry_writer')
-        telemetry_writer.close_transports()
-
         # test for all available versions
         package_versions = package_manager.get_all_available_versions_of_package("kernel")
         self.assertEqual(len(package_versions), 7)

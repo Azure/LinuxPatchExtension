@@ -25,12 +25,11 @@ from core.src.bootstrap.Constants import Constants
 class StatusHandler(object):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
+    def __init__(self, env_layer, execution_config, composite_logger):
         # Map supporting components for operation
         self.env_layer = env_layer
         self.execution_config = execution_config
         self.composite_logger = composite_logger
-        self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
 

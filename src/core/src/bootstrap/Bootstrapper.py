@@ -46,8 +46,8 @@ class Bootstrapper(object):
         self.file_logger = self.container.get('file_logger')
         if capture_stdout:
             self.stdout_file_mirror = StdOutFileMirror(self.env_layer, self.file_logger)
+        self.telemetry_writer = self.container.get('telemetry_writer')
         self.composite_logger = self.container.get('composite_logger')
-        self.telemetry_writer = None
 
         print("\nCompleted building bootstrap container configuration.\n")
 
@@ -109,11 +109,9 @@ class Bootstrapper(object):
     def build_core_components(self, container):
         self.composite_logger.log_debug(" - Instantiating lifecycle manager.")
         lifecycle_manager = container.get('lifecycle_manager')
-        self.composite_logger.log_debug(" - Instantiating telemetry writer.")
-        telemetry_writer = container.get('telemetry_writer')
         self.composite_logger.log_debug(" - Instantiating progress status writer.")
         status_handler = container.get('status_handler')
-        return lifecycle_manager, telemetry_writer, status_handler
+        return lifecycle_manager, status_handler
 
     def bootstrap_splash_text(self):
         self.composite_logger.log("\n\n[%exec_name%] \t -- \t Copyright (c) Microsoft Corporation. All rights reserved. \nApplication version: 3.0.[%exec_sub_ver%]\n\n")

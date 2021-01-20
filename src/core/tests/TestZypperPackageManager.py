@@ -105,9 +105,6 @@ class TestZypperPackageManager(unittest.TestCase):
         size = package_manager.get_package_size(out)
         self.assertEqual(size, "810.9 KiB")
 
-        telemetry_writer = self.container.get('telemetry_writer')
-        telemetry_writer.close_transports()
-
         # test for get_dependent_list
         # legacy_test_type ='Happy Path'
         dependent_list = package_manager.get_dependent_list("man")
