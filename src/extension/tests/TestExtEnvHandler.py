@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import json
 import os.path
 import shutil
 import tempfile
@@ -64,3 +64,20 @@ class TestExtEnvHandler(unittest.TestCase):
         self.assertRaises(Exception, ExtEnvHandler, self.json_file_handler, handler_env_file=file_name, handler_env_file_path=test_dir)
         shutil.rmtree(test_dir)
 
+    def test_read_event_folder_preview(self):
+        ext_env_settings = [{
+            Constants.EnvSettingsFields.version: "1.0",
+            Constants.EnvSettingsFields.settings_parent_key: {
+                Constants.EnvSettingsFields.log_folder: "testLog",
+                Constants.EnvSettingsFields.config_folder: "testConfig",
+                Constants.EnvSettingsFields.status_folder: "testStatus",
+                Constants.EnvSettingsFields.events_folder_preview: "testEventsPreview"
+            }
+        }]
+        test_dir = tempfile.mkdtemp()
+        file_name = Constants.HANDLER_ENVIRONMENT_FILE
+        self.runtime.create_temp_file(test_dir, file_name, content=json.dumps(ext_env_settings))
+        ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=test_dir)
+        self.assertTrue(ext_env_handler.log_folder is not None)
+        self.assertEqual(ext_env_handler.events_folder, "testEventsPreview")
+        shutil.rmtree(test_dir)

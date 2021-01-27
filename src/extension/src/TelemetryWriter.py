@@ -69,7 +69,7 @@ class TelemetryWriter(object):
     def __delete_older_events(self):
         """ Delete older events until the at least one new event file can be added as per the size restrictions """
         if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES:
-            print("Not deleting any existing event files as the event directory does not exceed max limit. At least one new event file can be added.")
+            # Not deleting any existing event files as the event directory does not exceed max limit. At least one new event file can be added. Not printing this statement as it will add repetitive logs
             return
 
         print("Events directory size exceeds maximum limit. Deleting older event files until at least one new event file can be added.")

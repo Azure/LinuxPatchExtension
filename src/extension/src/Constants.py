@@ -122,6 +122,7 @@ class Constants(object):
         config_folder = "configFolder"
         status_folder = "statusFolder"
         events_folder = "eventsFolder"
+        events_folder_preview = "eventsFolder_preview"
 
     # Config Settings json keys
     RUNTIME_SETTINGS = "runtimeSettings"

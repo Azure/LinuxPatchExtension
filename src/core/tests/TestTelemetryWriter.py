@@ -49,7 +49,7 @@ class TestTelemetryWriter(unittest.TestCase):
         with open(os.path.join(self.runtime.composite_logger.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertEquals(events[0]["TaskName"], "Test Task")
+            self.assertEquals(events[-1]["TaskName"], "Test Task")
             f.close()
 
         self.runtime.composite_logger.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
@@ -112,12 +112,6 @@ class TestTelemetryWriter(unittest.TestCase):
     #     Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_file_size_backup
 
     def test_delete_older_events(self):
-        # space enough for one new file
-        self.runtime.composite_logger.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        self.runtime.composite_logger.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        events = [pos_json for pos_json in os.listdir(self.runtime.composite_logger.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)]
-        self.assertTrue(len(events) >= 2)
-
         # deleting older event files before adding new one
         self.runtime.composite_logger.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
         self.runtime.composite_logger.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)

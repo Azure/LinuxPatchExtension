@@ -88,11 +88,6 @@ class TestTelemetryWriter(unittest.TestCase):
     #     Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_file_size_backup
 
     def test_delete_older_events(self):
-        # space enough for one new file
-        self.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        self.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        events = os.listdir(self.telemetry_writer.events_folder_path)
-        self.assertEquals(len(events), 2)
 
         # deleting older event files before adding new one
         self.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
