@@ -91,22 +91,20 @@ class TelemetryWriter(object):
         if self.__get_events_dir_size() >= Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES:
             raise Exception("Older event files were not deleted. Current event will not be sent to telemetry as events directory size exceeds maximum limit")
 
-    @staticmethod
-    def write_event_using_temp_file(folder_path, data, mode='w'):
+    def write_event_using_temp_file(self, folder_path, data, mode='w'):
         """ Writes to a temp file in a single operation and then moves/overrides the original file with the temp """
-        file_path = os.path.join(folder_path, str(int(round(time.time() * 1000))) + ".json")
+        file_path = self.__get_event_file_path(folder_path)
         prev_events = []
         try:
             if os.path.exists(file_path):
                 # if file_size exceeds max limit, sleep for 1 second, so the event can be written to a new file
-                file_size = os.path.getsize(file_path)
+                file_size = self.get_file_size(file_path)
                 if file_size >= Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES:
                     time.sleep(1)
-                    file_path = os.path.join(folder_path, str(int(round(time.time() * 1000))) + ".json")
+                    file_path = self.__get_event_file_path(folder_path)
+                else:
+                    prev_events = self.__fetch_events_from_previous_file(file_path)
 
-                with open(file_path, 'r') as file_handle:
-                    file_contents = file_handle.read()
-                    prev_events = json.loads(file_contents)
             prev_events.append(data)
             with tempfile.NamedTemporaryFile(mode, dir=os.path.dirname(file_path), delete=False) as tf:
                 json.dump(prev_events, tf, default=data.__str__())
@@ -120,4 +118,18 @@ class TelemetryWriter(object):
 
     def __get_events_dir_size(self):
         return sum([os.path.getsize(os.path.join(self.events_folder_path, f)) for f in os.listdir(self.events_folder_path) if os.path.isfile(os.path.join(self.events_folder_path, f))])
+
+    @staticmethod
+    def __get_event_file_path(folder_path):
+        return os.path.join(folder_path, str(int(round(time.time() * 1000))) + ".json")
+
+    @staticmethod
+    def get_file_size(file_path):
+        return os.path.getsize(file_path)
+
+    @staticmethod
+    def __fetch_events_from_previous_file(file_path):
+        with open(file_path, 'r') as file_handle:
+            file_contents = file_handle.read()
+            return json.loads(file_contents)
 
