@@ -183,7 +183,7 @@ class Constants(object):
         Informational = "Informational"
         LogAlways = "LogAlways"
 
-    DATE_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+    UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # EnvLayer Constants
     class EnvLayer(EnumBackport):

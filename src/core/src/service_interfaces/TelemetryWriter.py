@@ -35,7 +35,7 @@ class TelemetryWriter(object):
     def __new_event_json(self, task_name, event_level, message):
         return {
             "Version": Constants.EXT_VERSION,
-            "Timestamp": str((datetime.datetime.utcnow()).strftime(Constants.DATE_FORMAT)),
+            "Timestamp": str((datetime.datetime.utcnow()).strftime(Constants.UTC_DATETIME_FORMAT)),
             "TaskName": task_name,
             "EventLevel": event_level,
             "Message": self.__ensure_message_restriction_compliance(message),

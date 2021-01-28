@@ -74,7 +74,7 @@ class Constants(object):
         Informational = "Informational"
         LogAlways = "LogAlways"
 
-    DATE_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+    UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # Re-try limit for file operations
     MAX_IO_RETRIES = 5
