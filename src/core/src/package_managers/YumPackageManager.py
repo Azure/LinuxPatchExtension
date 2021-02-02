@@ -401,4 +401,4 @@ class YumPackageManager(PackageManager):
                 process_list_verbose += process_details[1] + " (" + process_details[0] + "), "  # process name and id
 
         self.composite_logger.log(" - Processes requiring restart (" + str(process_count) + "): [" + process_list_verbose + "<eol>]")
-        return process_count != 0  # True if there were anys
+        return process_count != 0  # True if there were any
