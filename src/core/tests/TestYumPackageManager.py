@@ -58,12 +58,18 @@ class TestYumPackageManager(unittest.TestCase):
 
     def test_do_processes_require_restart(self):
         """Unit test for yum package manager"""
-        self.runtime.set_legacy_test_type('HappyPath')
 
+        # Restart required
+        self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-
         self.assertTrue(package_manager.do_processes_require_restart())
+
+        # Restart not required
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        self.assertFalse(package_manager.do_processes_require_restart())
 
     def test_package_manager(self):
         """Unit test for yum package manager"""

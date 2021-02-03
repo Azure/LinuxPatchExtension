@@ -143,11 +143,18 @@ class TestZypperPackageManager(unittest.TestCase):
             self.assertFalse(1 != 2, 'Exception did not occur and test failed.')
 
     def test_do_processes_require_restart(self):
-        self.runtime.set_legacy_test_type('HappyPath')
 
+        # Restart required
+        self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
         self.assertTrue(package_manager.do_processes_require_restart())
+
+        # Restart not required
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        self.assertFalse(package_manager.do_processes_require_restart())
 
     def test_get_all_available_versions_of_package(self):
         self.runtime.set_legacy_test_type('HappyPath')
