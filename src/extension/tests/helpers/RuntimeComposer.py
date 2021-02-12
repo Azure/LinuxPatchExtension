@@ -1,5 +1,6 @@
 import os
 import time
+from extension.src.TelemetryWriter import TelemetryWriter
 from extension.src.Utility import Utility
 from extension.src.file_handlers.JsonFileHandler import JsonFileHandler
 from extension.src.local_loggers.Logger import Logger
@@ -8,6 +9,8 @@ from extension.src.local_loggers.Logger import Logger
 class RuntimeComposer(object):
     def __init__(self):
         self.logger = Logger()
+        telemetry_writer = TelemetryWriter()
+        self.logger = Logger(telemetry_writer=telemetry_writer)
         self.utility = Utility(self.logger)
         self.json_file_handler = JsonFileHandler(self.logger)
         time.sleep = self.mock_sleep
