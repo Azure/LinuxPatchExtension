@@ -84,7 +84,9 @@ class ActionHandler(object):
         # check if events folder exists, if it does init telemetry, if events folder does not exist, log that telemetry is not supported by agent since events folder does not exist
         events_folder = self.ext_env_handler.events_folder
         if events_folder is None or not os.path.exists(events_folder):
-            self.logger.log_warning("Telemetry is not supported by Linux Guest Agent as no events folder location specified in Handler Environment")
+            err_msg = "Telemetry is not supported by Linux Guest Agent as no events folder location specified in Handler Environment. Extension will not continue further. Please update Linux Agent on the VM.\n"
+            self.logger.log_error(err_msg)
+            exit(Constants.ExitCode.HandlerFailed)
         else:
             self.logger.log("Telemetry is supported by Linux Guest Agent. Extension will send messages to telemetry")
             self.logger.telemetry_writer.events_folder_path = events_folder

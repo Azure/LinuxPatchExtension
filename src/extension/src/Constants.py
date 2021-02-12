@@ -100,10 +100,10 @@ class Constants(object):
 
     # Handler actions
     ENABLE = "Enable"
-    UPDATE = "Disable"
+    UPDATE = "Update"
     RESET = "Reset"
     INSTALL = "Install"
-    UNINSTALL = "Update"
+    UNINSTALL = "Uninstall"
     DISABLE = "Disable"
 
     # Settings for Error Objects logged in status file
