@@ -88,6 +88,9 @@ class Constants(object):
     # Re-try limit for file operations
     MAX_IO_RETRIES = 5
 
+    # Re-try limit for verifying core process has started successfully
+    MAX_PROCESS_STATUS_CHECK_RETRIES = 5
+
     # Operations
     NOOPERATION = "NoOperation"
     PATCH_NOOPERATION_SUMMARY = "PatchNoOperationSummary"
