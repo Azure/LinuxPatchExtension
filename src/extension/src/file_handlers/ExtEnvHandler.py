@@ -14,7 +14,6 @@
 #
 # Requires Python 2.7+
 
-import traceback
 from extension.src.Constants import Constants
 
 '''
@@ -45,6 +44,9 @@ class ExtEnvHandler(object):
             self.log_folder = self.get_ext_env_config_value_safely(self.env_settings_all_keys.log_folder)
             self.config_folder = self.get_ext_env_config_value_safely(self.env_settings_all_keys.config_folder)
             self.status_folder = self.get_ext_env_config_value_safely(self.env_settings_all_keys.status_folder)
+            self.events_folder = self.get_ext_env_config_value_safely(self.env_settings_all_keys.events_folder, raise_if_not_found=False)
+            if self.events_folder is None:
+                self.events_folder = self.get_ext_env_config_value_safely(self.env_settings_all_keys.events_folder_preview, raise_if_not_found=False)
 
     def get_ext_env_config_value_safely(self, key, raise_if_not_found=True):
         """ Allows a update deployment configuration value to be queried safely with a fall-back default (optional).
