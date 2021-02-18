@@ -127,7 +127,7 @@ class TestFileLogger(unittest.TestCase):
         for file in files:
             file_path = os.path.join(self.test_dir, file["name"])
             with open(file_path, 'w') as f:
-                timestamp = time.mktime(datetime.strptime(file["lastModified"], Constants.UTC_DATETIME_FORMAT).timetuple())
+                timestamp = time.mktime(datetime.strptime(file["lastModified"], '%Y-%m-%dT%H:%M:%SZ').timetuple())
                 os.utime(file_path, (timestamp, timestamp))
                 f.close()
 

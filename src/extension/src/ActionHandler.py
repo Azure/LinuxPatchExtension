@@ -58,15 +58,10 @@ class ActionHandler(object):
         except KeyError as e:
             raise e
 
-    def setup(self, action, log_message):
-        self.setup_file_logger(action)
-        self.setup_telemetry()
-        self.logger.log(log_message)
-
     def setup_file_logger(self, action):
         if self.file_logger is not None or self.stdout_file_mirror is not None:
             self.logger.log_error("Log file handles from the previous operation were not closed correctly. Closing them and initializing new ones for this operation.")
-            self.tear_down()
+            self.close_file_logger()
 
         log_file_name = datetime.datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + "_" + str(action)
         self.file_logger = self.utility.create_log_file(self.ext_env_handler.log_folder, log_file_name)
@@ -74,26 +69,16 @@ class ActionHandler(object):
             self.logger.file_logger = self.file_logger
             self.stdout_file_mirror = StdOutFileMirror(self.file_logger)
 
-    def tear_down(self):
+    def close_file_logger(self):
         if self.stdout_file_mirror is not None:
             self.stdout_file_mirror.stop()
         if self.file_logger is not None:
             self.file_logger.close()
 
-    def setup_telemetry(self):
-        # check if events folder exists, if it does init telemetry, if events folder does not exist, log that telemetry is not supported by agent since events folder does not exist
-        events_folder = self.ext_env_handler.events_folder
-        if events_folder is None or not os.path.exists(events_folder):
-            err_msg = "Telemetry is not supported by Linux Guest Agent as no events folder location specified in Handler Environment. Extension will not continue further. Please update Linux Agent on the VM.\n"
-            self.logger.log_error(err_msg)
-            exit(Constants.ExitCode.HandlerFailed)
-        else:
-            self.logger.log("Telemetry is supported by Linux Guest Agent. Extension will send messages to telemetry")
-            self.logger.telemetry_writer.events_folder_path = events_folder
-
     def install(self):
         try:
-            self.setup(action=Constants.INSTALL, log_message="Extension installation started")
+            self.setup_file_logger(action=Constants.INSTALL)
+            self.logger.log("Extension installation started")
             install_command_handler = InstallCommandHandler(self.logger, self.ext_env_handler)
             return install_command_handler.execute_handler_action()
 
@@ -102,7 +87,7 @@ class ActionHandler(object):
             return Constants.ExitCode.HandlerFailed
 
         finally:
-            self.tear_down()
+            self.close_file_logger()
 
     def update(self):
         """ as per the extension user guide, upon update request, Azure agent calls
@@ -115,7 +100,8 @@ class ActionHandler(object):
 
         # config folder path is usually something like: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-<version>/config
         try:
-            self.setup(action=Constants.UPDATE, log_message="Extension is being updated to the latest version. Copying the required extension artifacts from preceding version to the current one")
+            self.setup_file_logger(action=Constants.UPDATE)
+            self.logger.log("Extension is being updated to the latest version. Copying the required extension artifacts from preceding version to the current one")
 
             # fetch all earlier extension versions available on the machine
             new_version_config_folder = self.ext_env_handler.config_folder
@@ -151,7 +137,7 @@ class ActionHandler(object):
             return Constants.ExitCode.HandlerFailed
 
         finally:
-            self.tear_down()
+            self.close_file_logger()
 
     @staticmethod
     def get_all_versions(extension_pardir):
@@ -191,7 +177,8 @@ class ActionHandler(object):
 
     def uninstall(self):
         try:
-            self.setup(action=Constants.UNINSTALL, log_message="Extension uninstalled")
+            self.setup_file_logger(action=Constants.UNINSTALL)
+            self.logger.log("Extension uninstalled")
             return Constants.ExitCode.Okay
 
         except Exception as error:
@@ -199,11 +186,12 @@ class ActionHandler(object):
             return Constants.ExitCode.HandlerFailed
 
         finally:
-            self.tear_down()
+            self.close_file_logger()
 
     def enable(self):
         try:
-            self.setup(action=Constants.ENABLE, log_message="Enable triggered on extension")
+            self.setup_file_logger(action=Constants.ENABLE)
+            self.logger.log("Enable triggered on extension")
             enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
             return enable_command_handler.execute_handler_action()
 
@@ -211,11 +199,12 @@ class ActionHandler(object):
             self.logger.log_error("Error occurred during extension enable. [Error={0}]".format(repr(error)))
             return Constants.ExitCode.HandlerFailed
         finally:
-            self.tear_down()
+            self.close_file_logger()
 
     def disable(self):
         try:
-            self.setup(action=Constants.DISABLE, log_message="Disable triggered on extension")
+            self.setup_file_logger(action=Constants.DISABLE)
+            self.logger.log("Disable triggered on extension")
             prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.DISABLE_MAX_RUNTIME)
             self.runtime_context_handler.process_previous_patch_operation(self.core_state_handler, self.process_handler, prev_patch_max_end_time, core_state_content=None)
             self.logger.log("Extension disabled successfully")
@@ -225,11 +214,12 @@ class ActionHandler(object):
             self.logger.log_error("Error occurred during extension disable. [Error={0}]".format(repr(error)))
             return Constants.ExitCode.HandlerFailed
         finally:
-            self.tear_down()
+            self.close_file_logger()
 
     def reset(self):
         try:
-            self.setup(action=Constants.RESET, log_message="Reset triggered on extension, deleting CoreState and ExtState files")
+            self.setup_file_logger(action=Constants.RESET)
+            self.logger.log("Reset triggered on extension, deleting CoreState and ExtState files")
             self.utility.delete_file(self.core_state_handler.dir_path, self.core_state_handler.file, raise_if_not_found=False)
             self.utility.delete_file(self.ext_state_handler.dir_path, self.ext_state_handler.file, raise_if_not_found=False)
             return Constants.ExitCode.Okay
@@ -238,5 +228,5 @@ class ActionHandler(object):
             self.logger.log_error("Error occurred during extension reset. [Error={0}]".format(repr(error)))
             return Constants.ExitCode.HandlerFailed
         finally:
-            self.tear_down()
+            self.close_file_logger()
 
