@@ -4,8 +4,7 @@
     "handlerEnvironment": {
       "logFolder": "mockLog",
       "configFolder": "mockConfig",
-      "statusFolder": "mockStatus",
-      "eventsFolder": "mockEvents"
+      "statusFolder": "mockStatus"
     }
   }
 ]
