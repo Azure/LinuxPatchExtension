@@ -27,6 +27,9 @@ class Constants(object):
                     if item == self.__dict__[item]:
                         yield item
 
+    # Extension version (todo: move to a different file)
+    EXT_VERSION = "1.6.12"
+
     # Runtime environments
     TEST = 'Test'
     DEV = 'Dev'
@@ -55,17 +58,38 @@ class Constants(object):
     ENABLE_MAX_RUNTIME = 3
     DISABLE_MAX_RUNTIME = 13
 
-    # Todo: will be implemented later
+    #ToDo: kept for future reference incase we need these categories. Should be decided in the next PR
     # Telemetry Categories
-    TelemetryExtState = "State"
-    TelemetryConfig = "Config"
-    TelemetryError = "Error"
-    TelemetryWarning = "Warning"
-    TelemetryInfo = "Info"
-    TelemetryDebug = "Debug"
+    # TelemetryExtState = "State"
+    # TelemetryConfig = "Config"
+    # TelemetryError = "Error"
+    # TelemetryWarning = "Warning"
+    # TelemetryInfo = "Info"
+    # TelemetryDebug = "Debug"
+
+    # Telemetry Settings
+    TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES = 3072  # 3KB
+    TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES = 6144  # 6KB
+    TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 4194304  # 4MB
+    TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 41943040  # 40MB
+    TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES = 80  # buffer for the bytes dropped text added at the end of the truncated telemetry message
+
+    # Telemetry Event Level
+    class TelemetryEventLevel(EnumBackport):
+        Critical = "Critical"
+        Error = "Error"
+        Warning = "Warning"
+        Verbose = "Verbose"
+        Informational = "Informational"
+        LogAlways = "LogAlways"
+
+    UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # Re-try limit for file operations
     MAX_IO_RETRIES = 5
+
+    # Re-try limit for verifying core process has started successfully
+    MAX_PROCESS_STATUS_CHECK_RETRIES = 5
 
     # Operations
     NOOPERATION = "NoOperation"
@@ -109,6 +133,8 @@ class Constants(object):
         log_folder = "logFolder"
         config_folder = "configFolder"
         status_folder = "statusFolder"
+        events_folder = "eventsFolder"
+        events_folder_preview = "eventsFolder_preview"
 
     # Config Settings json keys
     RUNTIME_SETTINGS = "runtimeSettings"

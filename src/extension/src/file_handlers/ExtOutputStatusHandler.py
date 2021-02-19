@@ -136,7 +136,7 @@ class ExtOutputStatusHandler(object):
                 return
             self.update_key_value_safely(status_json, self.file_keys.status_status, self.status.Transitioning.lower(), self.file_keys.status_status)
             self.update_key_value_safely(status_json, self.file_keys.status_code, 0, self.file_keys.status_status)
-            self.update_key_value_safely(status_json, self.file_keys.timestamp_utc, str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")))
+            self.update_key_value_safely(status_json, self.file_keys.timestamp_utc, str(datetime.datetime.utcnow().strftime(Constants.UTC_DATETIME_FORMAT)))
             self.json_file_handler.write_to_json_file(dir_path, file_name, status_json)
         except Exception as error:
             error_message = "Error in status file creation: " + repr(error)
@@ -163,7 +163,7 @@ class ExtOutputStatusHandler(object):
         return {
             "activityId": str(activity_id),
             "startTime": str(start_time),
-            "lastModifiedTime": str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")),
+            "lastModifiedTime": str(datetime.datetime.utcnow().strftime(Constants.UTC_DATETIME_FORMAT)),
             "errors": self.__set_errors_json(self.__nooperation_total_error_count, self.__nooperation_errors)
         }
 
