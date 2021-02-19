@@ -65,6 +65,7 @@ class CoreMain(object):
                 status_handler.set_current_operation(Constants.INSTALLATION)
                 patch_installer = container.get('patch_installer')
                 patch_installation_successful = patch_installer.start_installation()
+                patch_assessment_successful = False
                 patch_assessment_successful = patch_assessor.start_assessment()
 
         except Exception as error:

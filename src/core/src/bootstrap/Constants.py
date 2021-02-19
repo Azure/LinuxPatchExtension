@@ -47,6 +47,7 @@ class Constants(object):
         LOG_FOLDER = "logFolder"
         CONFIG_FOLDER = "configFolder"
         STATUS_FOLDER = "statusFolder"
+        EVENTS_FOLDER = "eventsFolder"
 
     class ConfigSettings(EnumBackport):
         OPERATION = 'operation'
@@ -170,6 +171,8 @@ class Constants(object):
     TELEMETRY_ERROR = "Error"
     TELEMETRY_INFO = "Info"
     TELEMETRY_DEBUG = "Debug"
+
+    UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # EnvLayer Constants
     class EnvLayer(EnumBackport):
