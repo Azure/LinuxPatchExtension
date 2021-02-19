@@ -13,7 +13,8 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import glob
+import json
 import os
 import shutil
 import tempfile
@@ -220,4 +221,22 @@ class TestActionHandler(unittest.TestCase):
             self.action_handler.enable()
 
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+
+    def test_timestamp_for_all_actions(self):
+        """ All handler actions, specially all non-enable actions should have the same timestamp in OperationId within telemetry event """
+        # Create a temporary directory
+        test_dir = tempfile.mkdtemp()
+        self.action_handler.ext_env_handler.events_folder = self.action_handler.ext_env_handler.config_folder = self.action_handler.ext_env_handler.log_folder = self.action_handler.ext_env_handler.status_folder = test_dir
+
+        self.action_handler.uninstall()
+        self.action_handler.reset()
+
+        event_files = glob.glob(self.action_handler.telemetry_writer.events_folder_path + '/*.json')
+        for event_file in event_files:
+            with open(os.path.join(self.action_handler.telemetry_writer.events_folder_path, event_file), 'r+') as f:
+                events = json.load(f)
+                self.assertEquals(events[0]["OperationId"], self.action_handler.timestamp_for_telemetry)
+
+        # Remove the directory after the test
+        shutil.rmtree(test_dir)
 

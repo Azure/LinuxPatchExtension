@@ -44,6 +44,7 @@ class ActionHandler(object):
         self.cmd_exec_start_time = cmd_exec_start_time
         self.stdout_file_mirror = None
         self.file_logger = None
+        self.timestamp_for_telemetry = str((datetime.datetime.utcnow()).strftime(Constants.UTC_DATETIME_FORMAT))
 
     def determine_operation(self, command):
         switcher = {
@@ -92,6 +93,9 @@ class ActionHandler(object):
         else:
             self.logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
             self.telemetry_writer.events_folder_path = events_folder
+            # As this is a common function used by all handler actions, setting operation_id such that it will be the same timestamp for all handler actions, which can be used for identifying all events for an operation.
+            # NOTE: Enable handler action will set operation_id to activity_id from config settings. And the same will be used in Core.
+            self.telemetry_writer.set_operation_id(self.timestamp_for_telemetry)
 
     def install(self):
         try:

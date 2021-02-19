@@ -30,7 +30,7 @@ class TelemetryWriter(object):
     def __init__(self, logger):
         self.logger = logger
         self.events_folder_path = None
-        self.operation_id = ""
+        self.__operation_id = ""
 
     def __new_event_json(self, event_level, message, task_name):
         return {
@@ -41,7 +41,7 @@ class TelemetryWriter(object):
             "Message": self.__ensure_message_restriction_compliance(message),
             "EventPid": "",
             "EventTid": "",
-            "OperationId": self.operation_id  # we can provide activity id from config settings here, but currently we only read settings file for enable command
+            "OperationId": self.__operation_id  # This should have activity id from from config settings, but since we only read settings file for enable command, enable command will have activity id set here and all non-enable commands will have this as a timestamp
         }
 
     def __ensure_message_restriction_compliance(self, full_message):
@@ -119,7 +119,7 @@ class TelemetryWriter(object):
             raise Exception("Unable to write to telemetry. [Event File={0}] [Error={1}].".format(str(file_path), repr(error)))
 
     def set_operation_id(self, operation_id):
-        self.operation_id = operation_id
+        self.__operation_id = operation_id
 
     def __get_events_dir_size(self):
         return sum([os.path.getsize(os.path.join(self.events_folder_path, f)) for f in os.listdir(self.events_folder_path) if os.path.isfile(os.path.join(self.events_folder_path, f))])
