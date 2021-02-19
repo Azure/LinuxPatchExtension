@@ -77,11 +77,10 @@ class PatchAssessor(object):
         if self.execution_config.events_folder is None:
             error_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine."
             self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            raise Exception(error_msg)
 
-        self.composite_logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
         self.composite_logger.telemetry_writer.events_folder_path = self.execution_config.events_folder
         self.composite_logger.telemetry_writer.set_operation_id(self.execution_config.activity_id)
+        self.composite_logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
+
 

@@ -264,8 +264,8 @@ class TestCoreMain(unittest.TestCase):
         self.assertEquals(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
-        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 2)
-        self.assertTrue("The minimum Azure Linux Agent version prerequisite for Linux patching was not met" in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][1]["message"])
+        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
+        self.assertTrue("The minimum Azure Linux Agent version prerequisite for Linux patching was not met" in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_installation_operation_fail_due_to_no_telemetry(self):
@@ -283,8 +283,8 @@ class TestCoreMain(unittest.TestCase):
         self.assertEquals(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
-        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 2)
-        self.assertTrue("The minimum Azure Linux Agent version prerequisite for Linux patching was not met" in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][1]["message"])
+        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
+        self.assertTrue("The minimum Azure Linux Agent version prerequisite for Linux patching was not met" in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_ERROR.lower())
         runtime.stop()
