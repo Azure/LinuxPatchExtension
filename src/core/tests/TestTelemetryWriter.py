@@ -30,6 +30,8 @@ class TestTelemetryWriter(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
         self.container = self.runtime.container
+        self.runtime.composite_logger.telemetry_writer.events_folder_path = self.runtime.execution_config.events_folder
+        self.runtime.composite_logger.telemetry_writer.set_operation_id(self.runtime.execution_config.activity_id)
 
     def tearDown(self):
         self.runtime.stop()
@@ -88,6 +90,7 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def test_write_event_size_limit(self):
         # will not write to telemetry if event size exceeds limit
+        self.runtime.composite_logger.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
         old_events = os.listdir(self.runtime.composite_logger.telemetry_writer.events_folder_path)
         message = "a"*3074
         task_name = "b"*5000
@@ -98,7 +101,7 @@ class TestTelemetryWriter(unittest.TestCase):
         with open(os.path.join(self.runtime.composite_logger.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertTrue("Test Task" not in events)
+            self.assertTrue(task_name not in events[0]['TaskName'])
             f.close()
 
     def test_write_to_new_file_if_event_file_limit_reached(self):

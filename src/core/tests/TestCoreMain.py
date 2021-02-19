@@ -15,6 +15,8 @@
 # Requires Python 2.7+
 import datetime
 import json
+import os
+import re
 import unittest
 from core.src.CoreMain import CoreMain
 from core.src.bootstrap.Constants import Constants
@@ -40,6 +42,11 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('FailInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 2)
@@ -56,6 +63,11 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('FailInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 3)
@@ -76,6 +88,11 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 2)
@@ -93,6 +110,11 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 3)
@@ -117,6 +139,11 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type("SuccessInstallPath")
         CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 3)
@@ -146,6 +173,11 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 3)
@@ -188,6 +220,11 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
         CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 1)
@@ -201,6 +238,11 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('ExceptionPath')
         CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 1)
@@ -208,6 +250,54 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 2)
         runtime.stop()
+
+    def test_assessment_operation_fail_due_to_no_telemetry(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('HappyPath')
+        runtime.execution_config.events_folder = None
+        CoreMain(argument_composer.get_composed_arguments())
+
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 2)
+        self.assertTrue("The minimum Azure Linux Agent version prerequisite for Linux patching was not met" in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][1]["message"])
+        runtime.stop()
+
+    def test_installation_operation_fail_due_to_no_telemetry(self):
+
+        # testing on auto patching request
+        argument_composer = ArgumentComposer()
+        argument_composer.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        runtime.execution_config.events_folder = None
+        CoreMain(argument_composer.get_composed_arguments())
+
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 3)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 2)
+        self.assertTrue("The minimum Azure Linux Agent version prerequisite for Linux patching was not met" in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][1]["message"])
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_ERROR.lower())
+        runtime.stop()
+
+    def __check_telemetry_events(self, runtime):
+        all_events = os.listdir(runtime.composite_logger.telemetry_writer.events_folder_path)
+        self.assertTrue(len(all_events) > 0)
+        latest_event_file = [pos_json for pos_json in os.listdir(runtime.composite_logger.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(runtime.composite_logger.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
+            self.assertTrue('ExtensionCoreLog' in events[0]['TaskName'])
+            f.close()
 
 
 if __name__ == '__main__':

@@ -32,8 +32,10 @@ class PatchAssessor(object):
 
     def start_assessment(self):
         """ Start an update assessment """
-        self.composite_logger.log('\nStarting patch assessment...')
         self.status_handler.set_current_operation(Constants.ASSESSMENT)
+        self.telemetry_setup()
+
+        self.composite_logger.log('\nStarting patch assessment...')
 
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
@@ -69,3 +71,17 @@ class PatchAssessor(object):
 
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
+
+    def telemetry_setup(self):
+        """ Verifies if telemetry is available. Stops execution is not available """
+        if self.execution_config.events_folder is None:
+            error_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine."
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+
+        self.composite_logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
+        self.composite_logger.telemetry_writer.events_folder_path = self.execution_config.events_folder
+        self.composite_logger.telemetry_writer.set_operation_id(self.execution_config.activity_id)
+
