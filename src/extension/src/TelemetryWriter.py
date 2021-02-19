@@ -97,8 +97,8 @@ class TelemetryWriter(object):
         prev_events = []
         try:
             if os.path.exists(file_path):
-                # if file_size exceeds max limit, sleep for 1 second, so the event can be written to a new file
                 file_size = self.get_file_size(file_path)
+                # if file_size exceeds max limit, sleep for 1 second, so the event can be written to a new file since the event file name is a timestamp
                 if file_size >= Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES:
                     time.sleep(1)
                     file_path = self.__get_event_file_path(folder_path)

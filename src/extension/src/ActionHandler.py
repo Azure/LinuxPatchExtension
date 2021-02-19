@@ -84,10 +84,10 @@ class ActionHandler(object):
         # check if events folder exists, if it does init telemetry, if events folder does not exist, log that telemetry is not supported by agent since events folder does not exist
         events_folder = self.ext_env_handler.events_folder
         if events_folder is None or not os.path.exists(events_folder):
-            err_msg = "Telemetry is not supported by Linux Guest Agent as no events folder location specified in Handler Environment. Extension will not perform the requested operation unless Linux Agent is updated to a higher version that supports telemetry. Please update Linux Agent on the VM.\n"
+            err_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met . Please update the Azure Linux Agent on this machine. \n"
             self.logger.log_error(err_msg)
         else:
-            self.logger.log("Telemetry is supported by Linux Guest Agent. Extension will send messages to telemetry")
+            self.logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
             self.logger.telemetry_writer.events_folder_path = events_folder
 
     def install(self):
