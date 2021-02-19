@@ -58,21 +58,14 @@ class Constants(object):
     ENABLE_MAX_RUNTIME = 3
     DISABLE_MAX_RUNTIME = 13
 
-    #ToDo: kept for future reference incase we need these categories. Should be decided in the next PR
-    # Telemetry Categories
-    # TelemetryExtState = "State"
-    # TelemetryConfig = "Config"
-    # TelemetryError = "Error"
-    # TelemetryWarning = "Warning"
-    # TelemetryInfo = "Info"
-    # TelemetryDebug = "Debug"
-
     # Telemetry Settings
     TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES = 3072  # 3KB
     TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES = 6144  # 6KB
     TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 4194304  # 4MB
     TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 41943040  # 40MB
     TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES = 80  # buffer for the bytes dropped text added at the end of the truncated telemetry message
+
+    TELEMETRY_ENABLED_AT_EXTENSION = True
 
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):
