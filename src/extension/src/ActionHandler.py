@@ -29,8 +29,9 @@ from extension.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 class ActionHandler(object):
     """Responsible for identifying the action to perform based on the user input"""
-    def __init__(self, logger, utility, runtime_context_handler, json_file_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
+    def __init__(self, logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
         self.logger = logger
+        self.telemetry_writer = telemetry_writer
         self.utility = utility
         self.runtime_context_handler = runtime_context_handler
         self.json_file_handler = json_file_handler
@@ -61,7 +62,9 @@ class ActionHandler(object):
     def setup(self, action, log_message):
         self.setup_file_logger(action)
         self.setup_telemetry()
+
         self.logger.log(log_message)
+        self.telemetry_writer.write_event(log_message, Constants.TelemetryEventLevel.Informational)
 
     def setup_file_logger(self, action):
         if self.file_logger is not None or self.stdout_file_mirror is not None:
@@ -88,16 +91,18 @@ class ActionHandler(object):
             self.logger.log_error(err_msg)
         else:
             self.logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
-            self.logger.telemetry_writer.events_folder_path = events_folder
+            self.telemetry_writer.events_folder_path = events_folder
 
     def install(self):
         try:
             self.setup(action=Constants.INSTALL, log_message="Extension installation started")
-            install_command_handler = InstallCommandHandler(self.logger, self.ext_env_handler)
+            install_command_handler = InstallCommandHandler(self.logger, self.telemetry_writer, self.ext_env_handler)
             return install_command_handler.execute_handler_action()
 
         except Exception as error:
-            self.logger.log_error("Error occurred during extension install. [Error={0}]".format(repr(error)))
+            error_msg = "Error occurred during extension install. [Error={0}]".format(repr(error))
+            self.logger.log_error(error_msg)
+            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
             return Constants.ExitCode.HandlerFailed
 
         finally:
@@ -119,34 +124,58 @@ class ActionHandler(object):
             # fetch all earlier extension versions available on the machine
             new_version_config_folder = self.ext_env_handler.config_folder
             extension_pardir = os.path.abspath(os.path.join(new_version_config_folder, os.path.pardir, os.path.pardir))
-            self.logger.log("Parent directory for all extension version artifacts [Directory={0}]".format(str(extension_pardir)))
+
+            artifacts_dir_log = "Parent directory for all extension version artifacts [Directory={0}]".format(str(extension_pardir))
+            self.logger.log(artifacts_dir_log)
+            self.telemetry_writer.write_event(artifacts_dir_log, Constants.TelemetryEventLevel.Informational)
+
             paths_to_all_versions = self.get_all_versions(extension_pardir)
-            self.logger.log("List of all extension versions found on the machine. [All Versions={0}]".format(paths_to_all_versions))
+
+            extension_versions_log = "List of all extension versions found on the machine. [All Versions={0}]".format(paths_to_all_versions)
+            self.logger.log(extension_versions_log)
+            self.telemetry_writer.write_event(extension_versions_log, Constants.TelemetryEventLevel.Informational)
+
             if len(paths_to_all_versions) <= 1:
                 # Extension Update action called when
                 # a) artifacts for the preceding version do not exist on the machine, or
                 # b) after all artifacts from the preceding versions have been deleted
-                self.logger.log_error("No earlier versions for the extension found on the machine. So, could not copy any references to the current version.")
+                prev_ext_version_not_found_log = "No earlier versions for the extension found on the machine. So, could not copy any references to the current version."
+                self.logger.log_error(prev_ext_version_not_found_log)
+                self.telemetry_writer.write_event(prev_ext_version_not_found_log, Constants.TelemetryEventLevel.Error)
                 return Constants.ExitCode.HandlerFailed
 
             # identify the version preceding current
-            self.logger.log("Fetching the extension version preceding current from all available versions...")
+            fetching_prev_version_log = "Fetching the extension version preceding current from all available versions..."
+            self.logger.log(fetching_prev_version_log)
+            self.telemetry_writer.write_event(fetching_prev_version_log, Constants.TelemetryEventLevel.Informational)
+
             paths_to_all_versions.sort(reverse=True, key=LooseVersion)
             preceding_version_path = paths_to_all_versions[1]
+
             if preceding_version_path is None or preceding_version_path == "" or not os.path.exists(preceding_version_path):
-                self.logger.log_error("Could not find path where preceding extension version artifacts are stored. Hence, cannot copy the required artifacts to the latest version. "
-                                      "[Preceding extension version path={0}]".format(str(preceding_version_path)))
+                prev_version_not_found_log = "Could not find path where preceding extension version artifacts are stored. Hence, cannot copy the required artifacts to the latest version. "\
+                                         "[Preceding extension version path={0}]".format(str(preceding_version_path))
+                self.logger.log_error(prev_version_not_found_log)
+                self.telemetry_writer.write_event(prev_version_not_found_log, Constants.TelemetryEventLevel.Error)
                 return Constants.ExitCode.HandlerFailed
-            self.logger.log("Preceding version path. [Path={0}]".format(str(preceding_version_path)))
+
+            prev_version_path_log = "Preceding version path. [Path={0}]".format(str(preceding_version_path))
+            self.logger.log(prev_version_path_log)
+            self.telemetry_writer.write_event(prev_version_path_log, Constants.TelemetryEventLevel.Informational)
 
             # copy all required files from preceding version to current
             self.copy_config_files(preceding_version_path, new_version_config_folder)
 
-            self.logger.log("All update actions from extension handler completed.")
+            update_complete_log = "All update actions from extension handler completed."
+            self.logger.log(update_complete_log)
+            self.telemetry_writer.write_event(update_complete_log, Constants.TelemetryEventLevel.Informational)
+
             return Constants.ExitCode.Okay
 
         except Exception as error:
-            self.logger.log_error("Error occurred during extension update. [Error={0}]".format(repr(error)))
+            error_msg = "Error occurred during extension update. [Error={0}]".format(repr(error))
+            self.logger.log_error(error_msg)
+            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
             return Constants.ExitCode.HandlerFailed
 
         finally:
@@ -158,7 +187,9 @@ class ActionHandler(object):
 
     def copy_config_files(self, src, dst, raise_if_not_copied=False):
         """ Copies files, required by the extension, from the given config/src folder """
-        self.logger.log("Copying only the files required by the extension for current and future operations. Any other files created by the Guest agent or extension, such as configuration settings, handlerstate, etc, that are not required in future, will not be copied.")
+        copy_files_log = "Copying only the files required by the extension for current and future operations. Any other files created by the Guest agent or extension, such as configuration settings, handlerstate, etc, that are not required in future, will not be copied."
+        self.logger.log(copy_files_log)
+        self.telemetry_writer.write_event(copy_files_log, Constants.TelemetryEventLevel.Informational)
 
         # get all the required files to be copied from parent dir
         files_to_copy = []
@@ -168,13 +199,18 @@ class ActionHandler(object):
                     continue
                 file_path = os.path.join(root, file_name)
                 files_to_copy.append(file_path)
-        self.logger.log("List of files to be copied from preceding extension version to the current: [Files to be copied={0}]".format(str(files_to_copy)))
+
+        files_to_copy_log = "List of files to be copied from preceding extension version to the current: [Files to be copied={0}]".format(str(files_to_copy))
+        self.logger.log(files_to_copy_log)
+        self.telemetry_writer.write_event(files_to_copy_log, Constants.TelemetryEventLevel.Informational)
 
         # copy each file
         for file_to_copy in files_to_copy:
             for i in range(0, Constants.MAX_IO_RETRIES):
                 try:
-                    self.logger.log("Copying file. [Source={0}] [Destination={1}]".format(str(file_to_copy), str(dst)))
+                    file_copy_log = "Copying file. [Source={0}] [Destination={1}]".format(str(file_to_copy), str(dst))
+                    self.logger.log(file_copy_log)
+                    self.telemetry_writer.write_event(file_copy_log, Constants.TelemetryEventLevel.Informational)
                     shutil.copy(file_to_copy, dst)
                     break
                 except Exception as error:
@@ -183,10 +219,13 @@ class ActionHandler(object):
                     else:
                         error_msg = "Failed to copy file after {0} tries. [Source={1}] [Destination={2}] [Exception={3}]".format(Constants.MAX_IO_RETRIES, str(file_to_copy), str(dst), repr(error))
                         self.logger.log_error(error_msg)
+                        self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
                         if raise_if_not_copied:
                             raise Exception(error_msg)
 
-        self.logger.log("All required files from the preceding extension version were copied to current one")
+        copy_success_log = "All required files from the preceding extension version were copied to current one"
+        self.logger.log(copy_success_log)
+        self.telemetry_writer.write_event(copy_success_log, Constants.TelemetryEventLevel.Informational)
 
     def uninstall(self):
         try:
@@ -194,7 +233,9 @@ class ActionHandler(object):
             return Constants.ExitCode.Okay
 
         except Exception as error:
-            self.logger.log_error("Error occurred during extension uninstall. [Error={0}]".format(repr(error)))
+            error_msg = "Error occurred during extension uninstall. [Error={0}]".format(repr(error))
+            self.logger.log_error(error_msg)
+            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
             return Constants.ExitCode.HandlerFailed
 
         finally:
@@ -203,11 +244,13 @@ class ActionHandler(object):
     def enable(self):
         try:
             self.setup(action=Constants.ENABLE, log_message="Enable triggered on extension")
-            enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
+            enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
             return enable_command_handler.execute_handler_action()
 
         except Exception as error:
-            self.logger.log_error("Error occurred during extension enable. [Error={0}]".format(repr(error)))
+            error_msg = "Error occurred during extension enable. [Error={0}]".format(repr(error))
+            self.logger.log_error(error_msg)
+            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
             return Constants.ExitCode.HandlerFailed
         finally:
             self.tear_down()
@@ -217,11 +260,15 @@ class ActionHandler(object):
             self.setup(action=Constants.DISABLE, log_message="Disable triggered on extension")
             prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.DISABLE_MAX_RUNTIME)
             self.runtime_context_handler.process_previous_patch_operation(self.core_state_handler, self.process_handler, prev_patch_max_end_time, core_state_content=None)
-            self.logger.log("Extension disabled successfully")
+            ext_disabled_success_log = "Extension disabled successfully"
+            self.logger.log(ext_disabled_success_log)
+            self.telemetry_writer.write_event(ext_disabled_success_log, Constants.TelemetryEventLevel.Informational)
             return Constants.ExitCode.Okay
 
         except Exception as error:
-            self.logger.log_error("Error occurred during extension disable. [Error={0}]".format(repr(error)))
+            error_msg = "Error occurred during extension disable. [Error={0}]".format(repr(error))
+            self.logger.log_error(error_msg)
+            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
             return Constants.ExitCode.HandlerFailed
         finally:
             self.tear_down()
@@ -234,7 +281,9 @@ class ActionHandler(object):
             return Constants.ExitCode.Okay
 
         except Exception as error:
-            self.logger.log_error("Error occurred during extension reset. [Error={0}]".format(repr(error)))
+            error_msg = "Error occurred during extension reset. [Error={0}]".format(repr(error))
+            self.logger.log_error(error_msg)
+            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
             return Constants.ExitCode.HandlerFailed
         finally:
             self.tear_down()

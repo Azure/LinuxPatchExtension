@@ -31,6 +31,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
         self.logger = self.runtime.logger
+        self.telemetry_writer = self.runtime.telemetry_writer
         self.utility = self.runtime.utility
         self.json_file_handler = self.runtime.json_file_handler
         self.status_file_fields = Constants.StatusFileFields
@@ -43,7 +44,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         file_name = "test"
         dir_path = tempfile.mkdtemp()
         operation = "Assessment"
-        ext_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
+        ext_status_handler = ExtOutputStatusHandler(self.logger, self.telemetry_writer, self.utility, self.json_file_handler, dir_path)
         ext_status_handler.write_status_file(operation, file_name, self.status.Transitioning.lower())
 
         with open(dir_path + "\\" + file_name + ext_status_handler.file_ext) as status_file:
@@ -60,7 +61,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         dir_path = tempfile.mkdtemp()
         operation = "Assessment"
 
-        ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
+        ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.telemetry_writer, self.utility, self.json_file_handler, dir_path)
         ext_output_status_handler.write_status_file(operation, file_name, self.status.Transitioning.lower())
         status_json = ext_output_status_handler.read_file(file_name)
         parent_key = self.status_file_fields.status
@@ -74,7 +75,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         dir_path = tempfile.mkdtemp()
         operation = "Assessment"
 
-        ext_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
+        ext_status_handler = ExtOutputStatusHandler(self.logger, self.telemetry_writer, self.utility, self.json_file_handler, dir_path)
         ext_status_handler.write_status_file(operation, file_name, self.status.Success.lower())
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         prev_modified_time = stat_file_name.st_mtime
@@ -95,7 +96,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
     def test_add_error_to_status(self):
         file_name = "test"
         dir_path = tempfile.mkdtemp()
-        ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
+        ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.telemetry_writer, self.utility, self.json_file_handler, dir_path)
         ext_output_status_handler.set_current_operation(Constants.NOOPERATION)
         self.logger.file_logger = FileLogger(dir_path, "test.log")
         ext_output_status_handler.read_file(file_name)

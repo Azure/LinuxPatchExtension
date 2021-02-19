@@ -83,6 +83,8 @@ class Constants(object):
         Informational = "Informational"
         LogAlways = "LogAlways"
 
+    TELEMETRY_TASK_NAME = "HandlerLog"
+
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # Re-try limit for file operations

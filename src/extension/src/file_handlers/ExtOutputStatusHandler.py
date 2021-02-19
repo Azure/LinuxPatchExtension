@@ -41,8 +41,9 @@ For the extension wrapper, the status structure is simply the following (no subs
 
 class ExtOutputStatusHandler(object):
     """ Responsible for managing <sequence number>.status file in the status folder path given in HandlerEnvironment.json """
-    def __init__(self, logger, utility, json_file_handler, dir_path):
+    def __init__(self, logger, telemetry_writer, utility, json_file_handler, dir_path):
         self.logger = logger
+        self.telemetry_writer = telemetry_writer
         self.utility = utility
         self.json_file_handler = json_file_handler
         self.__dir_path = dir_path
@@ -63,7 +64,10 @@ class ExtOutputStatusHandler(object):
         # self.read_file()
 
     def write_status_file(self, operation, seq_no, status=Constants.Status.Transitioning.lower()):
-        self.logger.log("Writing status file to provide patch management data for [Sequence={0}]".format(str(seq_no)))
+        write_status = "Writing status file to provide patch management data for [Sequence={0}]".format(str(seq_no))
+        self.logger.log(write_status)
+        self.telemetry_writer.write_event(write_status, Constants.TelemetryEventLevel.Informational)
+
         file_name = self.__get_status_file_name(seq_no)
         status_file_payload = self.__new_basic_status_json(operation, status)
 
@@ -122,25 +126,36 @@ class ExtOutputStatusHandler(object):
                 if parent_key in status_json[0]:
                     status_json[0].get(parent_key).update({key: value_to_update})
                 else:
-                    self.logger.log_error("Error updating config value in status file. [Config={0}]".format(key))
+                    error_msg = "Error updating config value in status file. [Config={0}]".format(key)
+                    self.logger.log_error(error_msg)
+                    self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
 
     def update_file(self, seq_no, dir_path):
         """ Reseting status=Transitioning and code=0 with latest timestamp, while retaining all other values"""
         try:
             file_name = self.__get_status_file_name(seq_no)
-            self.logger.log("Updating file. [File={0}]".format(file_name))
+
+            update_file = "Updating file. [File={0}]".format(file_name)
+            self.logger.log(update_file)
+            self.telemetry_writer.write_event(update_file, Constants.TelemetryEventLevel.Informational)
+
             status_json = self.read_file(seq_no)
 
             if status_json is None:
-                self.logger.log_error("Error processing file. [File={0}]".format(file_name))
+                error_processing_file = "Error processing file. [File={0}]".format(file_name)
+                self.logger.log_error(error_processing_file)
+                self.telemetry_writer.write_event(error_processing_file, Constants.TelemetryEventLevel.Error)
                 return
+
             self.update_key_value_safely(status_json, self.file_keys.status_status, self.status.Transitioning.lower(), self.file_keys.status_status)
             self.update_key_value_safely(status_json, self.file_keys.status_code, 0, self.file_keys.status_status)
             self.update_key_value_safely(status_json, self.file_keys.timestamp_utc, str(datetime.datetime.utcnow().strftime(Constants.UTC_DATETIME_FORMAT)))
             self.json_file_handler.write_to_json_file(dir_path, file_name, status_json)
+
         except Exception as error:
             error_message = "Error in status file creation: " + repr(error)
             self.logger.log_error(error_message)
+            self.telemetry_writer.write_event(error_message, Constants.TelemetryEventLevel.Error)
             raise
 
     def __get_status_file_name(self, seq_no):
@@ -189,7 +204,9 @@ class ExtOutputStatusHandler(object):
         try:
             return int(re.search('(.+?) error/s reported.', error_message).group(1))
         except AttributeError:
-            self.logger.log("Unable to fetch error count from error message reported in status. Attempted to read [Message={0}]".format(error_message))
+            error_count_not_found = "Unable to fetch error count from error message reported in status. Attempted to read [Message={0}]".format(error_message)
+            self.logger.log(error_count_not_found)
+            self.telemetry_writer.write_event(error_count_not_found, Constants.TelemetryEventLevel.Informational)
             return 0
 
     def add_error_to_status(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR):
@@ -237,3 +254,4 @@ class ExtOutputStatusHandler(object):
             "message": message
         }
     # endregion
+

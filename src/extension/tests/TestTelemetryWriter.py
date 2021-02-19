@@ -6,6 +6,7 @@ import time
 import unittest
 from extension.src.Constants import Constants
 from extension.src.TelemetryWriter import TelemetryWriter
+from extension.src.local_loggers.Logger import Logger
 from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 
@@ -13,7 +14,8 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
-        self.telemetry_writer = TelemetryWriter()
+        self.logger = Logger()
+        self.telemetry_writer = TelemetryWriter(self.logger)
         self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
 
     def tearDown(self):
@@ -33,20 +35,20 @@ class TestTelemetryWriter(unittest.TestCase):
         return Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES + 10
 
     def test_write_event(self):
-        self.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEquals(events[0]["TaskName"], "Test Task")
             f.close()
 
-        self.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
 
     def test_write_multiple_events_in_same_file(self):
         time_backup = time.time
         time.time = self.mock_time
-        self.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        self.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
@@ -59,7 +61,7 @@ class TestTelemetryWriter(unittest.TestCase):
     def test_write_event_msg_size_limit(self):
         # Assuming 1 char is 1 byte
         message = "a"*3074
-        self.telemetry_writer.write_event("Test Task", message, Constants.TelemetryEventLevel.Error)
+        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
         with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
@@ -77,13 +79,13 @@ class TestTelemetryWriter(unittest.TestCase):
         self.assertTrue(len(os.listdir(self.telemetry_writer.events_folder_path)) == 0)
 
     def test_write_to_new_file_if_event_file_limit_reached(self):
-        self.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         os_path_exists_backup = os.path.exists
         os.path.exists = self.mock_os_path_exists
         telemetry_get_event_file_size_backup = self.telemetry_writer.get_file_size
         self.telemetry_writer.get_file_size = self.mock_get_file_size
 
-        self.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         events = os.listdir(self.telemetry_writer.events_folder_path)
         self.assertEquals(len(events), 2)
         os.path.exists = os_path_exists_backup
@@ -92,16 +94,16 @@ class TestTelemetryWriter(unittest.TestCase):
     def test_delete_older_events(self):
 
         # deleting older event files before adding new one
-        self.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        self.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        self.telemetry_writer.write_event("Test Task3", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task3")
         old_events = os.listdir(self.telemetry_writer.events_folder_path)
         telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES
         Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 1030
         telemetry_event_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES
         Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 1024
 
-        self.telemetry_writer.write_event("Test Task4", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4")
         new_events = os.listdir(self.telemetry_writer.events_folder_path)
         self.assertEquals(len(new_events), 1)
         self.assertTrue(old_events[0] not in new_events)
@@ -109,9 +111,9 @@ class TestTelemetryWriter(unittest.TestCase):
         Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_size_backup
 
         # error while deleting event files where the directory size exceeds limit even after deletion attempts
-        self.telemetry_writer.write_event("Test Task", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        self.telemetry_writer.write_event("Test Task2", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
-        self.telemetry_writer.write_event("Test Task3", "testing telemetry write to file", Constants.TelemetryEventLevel.Error)
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task3")
         old_events = os.listdir(self.telemetry_writer.events_folder_path)
         telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES
         Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 500
@@ -120,7 +122,7 @@ class TestTelemetryWriter(unittest.TestCase):
         os_remove_backup = os.remove
         os.remove = self.mock_os_remove
 
-        self.assertRaises(Exception, lambda: self.telemetry_writer.write_event("Test Task4", "testing telemetry write to file", Constants.TelemetryEventLevel.Error))
+        self.assertRaises(Exception, lambda: self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4"))
 
         Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = telemetry_dir_size_backup
         Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_size_backup

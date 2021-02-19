@@ -30,6 +30,7 @@ class TestInstallCommandHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         runtime = RuntimeComposer()
         self.logger = runtime.logger
+        self.telemetry_writer = runtime.telemetry_writer
         self.json_file_handler = runtime.json_file_handler
         self.get_json_file_content_backup = self.json_file_handler.get_json_file_content
         self.json_file_handler.get_json_file_content = self.mock_get_json_file_content_to_return_none
@@ -39,18 +40,18 @@ class TestInstallCommandHandler(unittest.TestCase):
         # reseting mocks
         self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
 
-    def mock_get_json_file_content_to_return_none(self, file, dir_path, raise_if_not_found=False):
+    def mock_get_json_file_content_to_return_none(self, file_name, dir_path, raise_if_not_found=False):
         return None
 
     def test_validate_os_type_is_linux(self):
         ext_env_handler = ExtEnvHandler(self.json_file_handler)
-        install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
+        install_command_handler = InstallCommandHandler(self.logger, self.telemetry_writer, ext_env_handler)
         sys.platform = 'linux'
         self.assertTrue(install_command_handler.validate_os_type())
 
     def test_validate_os_type_not_linux(self):
         ext_env_handler = ExtEnvHandler(self.json_file_handler)
-        install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
+        install_command_handler = InstallCommandHandler(self.logger, self.telemetry_writer, ext_env_handler)
         sys.platform = 'win32'
         self.assertRaises(Exception, install_command_handler.validate_os_type)
 
@@ -59,14 +60,14 @@ class TestInstallCommandHandler(unittest.TestCase):
 
         # file has no content
         ext_env_handler = ExtEnvHandler(self.json_file_handler)
-        install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
+        install_command_handler = InstallCommandHandler(self.logger, self.telemetry_writer, ext_env_handler)
         self.assertRaises(Exception, install_command_handler.validate_environment)
 
         # Validating datatype for fields in HandlerEnvironment
         handler_environment = []
         handler_environment_dict = {}
         handler_environment.append(handler_environment_dict)
-        install_command_handler = InstallCommandHandler(self.logger, handler_environment)
+        install_command_handler = InstallCommandHandler(self.logger, self.telemetry_writer, handler_environment)
         self.verify_key(handler_environment[0], 'version', 1.0, 'abc', True, Exception, install_command_handler.validate_environment)
         self.verify_key(handler_environment[0], 'version', 1.0, '', True, Exception, install_command_handler.validate_environment)
         self.verify_key(handler_environment[0], 'handlerEnvironment', {}, 'abc', True, Exception, install_command_handler.validate_environment)
@@ -78,7 +79,7 @@ class TestInstallCommandHandler(unittest.TestCase):
         # reseting mock to original func def
         self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
         ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
-        install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
+        install_command_handler = InstallCommandHandler(self.logger, self.telemetry_writer, ext_env_handler)
         install_command_handler.validate_environment()
 
     def verify_key(self, config_type, key, expected_value, incorrect_value, is_required, exception_type, function_name):
@@ -97,8 +98,9 @@ class TestInstallCommandHandler(unittest.TestCase):
         # reseting mock to original func def
         self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
         ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
-        install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
+        install_command_handler = InstallCommandHandler(self.logger, self.telemetry_writer, ext_env_handler)
         self.assertEqual(install_command_handler.execute_handler_action(), Constants.ExitCode.Okay)
+
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestInstallCommandHandler)

@@ -42,17 +42,18 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
         runtime = RuntimeComposer()
         self.logger = runtime.logger
+        self.telemetry_writer = runtime.telemetry_writer
         self.utility = runtime.utility
         self.json_file_handler = runtime.json_file_handler
-        self.runtime_context_handler = RuntimeContextHandler(self.logger)
+        self.runtime_context_handler = RuntimeContextHandler(self.logger, self.telemetry_writer)
         self.ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         self.config_folder = self.ext_env_handler.config_folder
-        self.ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, self.config_folder)
+        self.ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.telemetry_writer, self.json_file_handler, self.config_folder)
         self.core_state_handler = CoreStateHandler(self.config_folder, self.json_file_handler)
         self.ext_state_handler = ExtStateHandler(self.config_folder, self.utility, self.json_file_handler)
-        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, self.temp_dir)
-        self.process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
-        self.enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
+        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.telemetry_writer, self.utility, self.json_file_handler, self.temp_dir)
+        self.process_handler = ProcessHandler(self.logger, self.telemetry_writer, self.ext_output_status_handler)
+        self.enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         self.constants = Constants
         self.start_daemon_backup = ProcessHandler.start_daemon
         ProcessHandler.start_daemon = self.mock_start_daemon_to_return_true
@@ -105,7 +106,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         new_settings_file = self.create_helpers_for_enable_request(config_folder_path)
 
         prev_ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
-        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
+        enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
 
@@ -130,7 +131,7 @@ class TestEnableCommandHandler(unittest.TestCase):
             f.close()
 
         prev_ext_state_json = self.json_file_handler.get_json_file_content(self.constants.EXT_STATE_FILE, config_folder_path)
-        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
+        enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
         self.assertEqual(sys_exit.exception.code, Constants.ExitCode.Okay)
@@ -153,7 +154,7 @@ class TestEnableCommandHandler(unittest.TestCase):
             json.dump(config_settings, f)
             f.truncate()
             f.close()
-        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
+        enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
         self.assertEqual(sys_exit.exception.code, Constants.ExitCode.Okay)
@@ -171,7 +172,7 @@ class TestEnableCommandHandler(unittest.TestCase):
             json.dump(config_settings, f)
             f.truncate()
             f.close()
-        enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
+        enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
         self.assertEqual(sys_exit.exception.code, Constants.ExitCode.InvalidConfigSettingPropertyValue)
@@ -260,7 +261,7 @@ class TestEnableCommandHandler(unittest.TestCase):
             events_folder_complete_path = os.path.join(dir_path, events_folder)
             os.mkdir(events_folder_complete_path)
             self.ext_env_handler.events_folder = events_folder_complete_path
-            self.logger.telemetry_writer.events_folder_path = events_folder_complete_path
+            self.telemetry_writer.events_folder_path = events_folder_complete_path
 
         self.ext_config_settings_handler.config_folder = config_folder_complete_path
         self.core_state_handler.dir_path = config_folder_complete_path
