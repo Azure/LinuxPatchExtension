@@ -419,7 +419,7 @@ class EnvLayer(object):
 
         try:
             record = {
-                "timestamp": str(timestamp) if timestamp is not None else datetime.datetime.strptime(str(datetime.datetime.utcnow()).split(".")[0], "%Y-%m-%dT%H:%M:%SZ"), #WRONG
+                "timestamp": str(timestamp) if timestamp is not None else datetime.datetime.strptime(str(datetime.datetime.utcnow()).split(".")[0], Constants.UTC_DATETIME_FORMAT), #WRONG
                 "operation": str(operation),
                 "code": int(code),
                 "output": base64.b64encode(str(output)),

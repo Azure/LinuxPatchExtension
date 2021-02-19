@@ -33,8 +33,10 @@ class PatchAssessor(object):
 
     def start_assessment(self):
         """ Start an update assessment """
-        self.composite_logger.log('\nStarting patch assessment...')
         self.status_handler.set_current_operation(Constants.ASSESSMENT)
+        self.telemetry_setup()
+
+        self.composite_logger.log('\nStarting patch assessment...')
 
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
@@ -72,3 +74,14 @@ class PatchAssessor(object):
 
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
+
+    def telemetry_setup(self):
+        """ Verifies if telemetry is available. Stops execution is not available """
+        if self.execution_config.events_folder is None:
+            error_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine."
+            self.composite_logger.log_error(error_msg)
+            raise Exception(error_msg)
+
+        #ToDo: Ensure telemetry is setup correctly at this point
+        self.composite_logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
+
