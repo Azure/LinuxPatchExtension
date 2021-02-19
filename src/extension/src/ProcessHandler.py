@@ -56,6 +56,7 @@ class ProcessHandler(object):
             env_settings.update({env_settings_keys.log_folder: ext_env_handler.log_folder})
             env_settings.update({env_settings_keys.config_folder: ext_env_handler.config_folder})
             env_settings.update({env_settings_keys.status_folder: ext_env_handler.status_folder})
+            env_settings.update({env_settings_keys.events_folder: ext_env_handler.events_folder})
         return env_settings
 
     def start_daemon(self, seq_no, config_settings, ext_env_handler):
@@ -78,15 +79,8 @@ class ProcessHandler(object):
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if process.pid is not None:
             self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
-            # Wait for 5 seconds
-            time.sleep(5)
-            # if process is not running, log stdout and stderr
-            if process.poll() is not None:
-                self.logger.log("Process not running for [sequence={0}]".format(seq_no))
-                self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout.read())))
-                self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr.read())))
-                return
-            return process
+            did_process_start = self.__check_process_state(process, seq_no)
+            return process if did_process_start else None
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
 
     def get_python_cmd(self):
@@ -176,6 +170,21 @@ class ProcessHandler(object):
             return 0, None
         else:
             return 0, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
+
+    def __check_process_state(self, process, seq_no):
+        """ Checks if the process is running by polling every second for a certain period and reports an error if the process is not found """
+        did_process_start = False
+        for retry in range(0, Constants.MAX_PROCESS_STATUS_CHECK_RETRIES):
+            time.sleep(retry)
+            if process.poll() is None:
+                did_process_start = True
+                break
+        # if process is not running, log stdout and stderr
+        if not did_process_start:
+            self.logger.log("Process not running for [sequence={0}]".format(seq_no))
+            self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout.read())))
+            self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr.read())))
+        return did_process_start
 
     def identify_running_processes(self, process_ids):
         """ Returns a list of all currently active processes from the given list of process ids """

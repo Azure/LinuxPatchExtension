@@ -19,6 +19,7 @@ import os
 import sys
 from extension.src.ActionHandler import ActionHandler
 from extension.src.RuntimeContextHandler import RuntimeContextHandler
+from extension.src.TelemetryWriter import TelemetryWriter
 from extension.src.file_handlers.JsonFileHandler import JsonFileHandler
 from extension.src.file_handlers.CoreStateHandler import CoreStateHandler
 from extension.src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
@@ -28,14 +29,14 @@ from extension.src.file_handlers.ExtStateHandler import ExtStateHandler
 from extension.src.local_loggers.Logger import Logger
 from extension.src.ProcessHandler import ProcessHandler
 from extension.src.Utility import Utility
-from extension.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 from extension.src.Constants import Constants
 
 
 def main(argv):
     stdout_file_mirror = None
     file_logger = None
-    logger = Logger()
+    telemetry_writer = TelemetryWriter()
+    logger = Logger(telemetry_writer=telemetry_writer)
     try:
         # initializing action handler
         # args will have values install, uninstall, etc, as given in MsftLinuxPatchExtShim.sh in the operation var

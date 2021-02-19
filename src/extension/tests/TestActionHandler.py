@@ -75,6 +75,8 @@ class TestActionHandler(unittest.TestCase):
         return previous_version_config_folder
 
     def test_update_command_success(self):
+        events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
+
         # testing with versions 1.2.5, 1.2.3 and 1.1.9
         # Create a temporary directory
         test_dir = tempfile.mkdtemp()
@@ -86,11 +88,14 @@ class TestActionHandler(unittest.TestCase):
         other_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.1.9'
         other_version_config_folder = self.create_previous_extension_version(other_extension_version, test_dir)
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
+        self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        self.runtime.logger.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -103,11 +108,14 @@ class TestActionHandler(unittest.TestCase):
         previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99'
         previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
+        self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        self.runtime.logger.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -120,11 +128,14 @@ class TestActionHandler(unittest.TestCase):
         previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.4.897'
         previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
+        self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        self.runtime.logger.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -137,18 +148,28 @@ class TestActionHandler(unittest.TestCase):
         previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.0.0'
         previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
+        self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        self.runtime.logger.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
     def test_update_command_fail(self):
+        events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
         # other versions not found
+        test_dir = tempfile.mkdtemp()
+        self.action_handler.ext_env_handler.events_folder = test_dir
         self.action_handler.ext_env_handler.config_folder = '/test/config'
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.HandlerFailed)
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        self.runtime.logger.telemetry_writer.events_folder_path = None
+        # Remove the directory after the test
+        shutil.rmtree(test_dir)
 
         # path to previous version artifacts not found
         # Create a temporary directory and dir for the latest version
@@ -159,7 +180,10 @@ class TestActionHandler(unittest.TestCase):
         os.mkdir(new_version_config_folder)
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
         self.action_handler.get_all_versions = self.mock_get_all_versions
+        self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.HandlerFailed)
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        self.runtime.logger.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -171,7 +195,29 @@ class TestActionHandler(unittest.TestCase):
         os.mkdir(new_version_config_folder)
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
         self.action_handler.get_all_versions = self.mock_get_all_versions_exception
+        self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.HandlerFailed)
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        self.runtime.logger.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
+
+    def test_telemetry_not_available(self):
+        # handler actions will continue to execute after logging telemetry not suported message
+        events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
+
+        # events folder not set, usually when Linux Agent does not support telemetry
+        self.action_handler.ext_env_handler.events_folder = None
+        self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
+
+        with self.assertRaises(SystemExit) as sys_exit:
+            self.action_handler.enable()
+
+        # event folder is set within HandlerEnvironment but the directory path is invalid. i.e. Telemetry setup not valid
+        self.action_handler.ext_env_handler.events_folder = "testfolder"
+        self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
+        with self.assertRaises(SystemExit) as sys_exit:
+            self.action_handler.enable()
+
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
 
