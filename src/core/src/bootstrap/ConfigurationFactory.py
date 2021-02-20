@@ -130,10 +130,10 @@ class ConfigurationFactory(object):
                 'component': CompositeLogger,
                 'component_args': ['env_layer', 'file_logger'],
                 'component_kwargs': {
-                    'current_env': config_env
+                    'current_env': config_env,
+                    'telemetry_writer': None  # Has to be initialized without telemetry_writer to avoid running into a circular dependency loop. Telemetry writer within composite logger will be set later after telemetry writer has been initialized
                 }
             },
-
         }
 
         if config_env is Constants.DEV or config_env is Constants.TEST:
@@ -158,7 +158,7 @@ class ConfigurationFactory(object):
             },
             'telemetry_writer': {
                 'component': TelemetryWriter,
-                'component_args': ['env_layer', 'execution_config'],
+                'component_args': ['composite_logger'],
                 'component_kwargs': {}
             },
             'package_manager': {

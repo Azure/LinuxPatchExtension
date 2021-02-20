@@ -264,9 +264,9 @@ class PackageManager(object):
 
         if not simulate:
             if install_result == Constants.FAILED:
-                error = self.telemetry_writer.send_package_info(package_and_dependencies[0], package_and_dependency_versions[0], package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd, str(out))
+                error = self.telemetry_writer.write_package_info(package_and_dependencies[0], package_and_dependency_versions[0], package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd, str(out))
             else:
-                error = self.telemetry_writer.send_package_info(package_and_dependencies[0], package_and_dependency_versions[0], package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd)
+                error = self.telemetry_writer.write_package_info(package_and_dependencies[0], package_and_dependency_versions[0], package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd)
 
             if error is not None:
                 self.composite_logger.log_debug('\nEXCEPTION writing package telemetry: ' + repr(error))

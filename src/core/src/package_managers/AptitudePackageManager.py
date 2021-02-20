@@ -75,7 +75,7 @@ class AptitudePackageManager(PackageManager):
                                             'Patch Management cannot proceed successfully. Before the next Patch Operation, please run the following '
                                             'command and perform any configuration steps necessary on the machine to return it to a healthy state: '
                                             'sudo dpkg --configure -a')
-            self.telemetry_writer.send_execution_error(command, code, out)
+            self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
@@ -83,7 +83,7 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.telemetry_writer.send_execution_error(command, code, out)
+            self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
@@ -242,7 +242,7 @@ class AptitudePackageManager(PackageManager):
                 else:
                     self.composite_logger.log_debug("    - Inapplicable line: " + str(line))
 
-            self.telemetry_writer.send_debug_info("[Installed check] Return code: 1. Unable to verify package not present on the system: " + str(output))
+            self.telemetry_writer.write_event("[Installed check] Return code: 1. Unable to verify package not present on the system: " + str(output), Constants.TelemetryEventLevel.Verbose)
         elif code == 0:  # likely found
             # Sample output format ------------------------------------------
             # Package: mysql-server
@@ -264,31 +264,31 @@ class AptitudePackageManager(PackageManager):
                         composite_found_flag = composite_found_flag | 1
                     else:  # should never hit for the way this is invoked, hence telemetry
                         self.composite_logger.log_debug("    - Did not match name: " + str(package_name) + " (" + str(line) + ")")
-                        self.telemetry_writer.send_debug_info("[Installed check] Name did not match: " + package_name + " (line=" + str(line) + ")(out=" + str(output) + ")")
+                        self.telemetry_writer.write_event("[Installed check] Name did not match: " + package_name + " (line=" + str(line) + ")(out=" + str(output) + ")", Constants.TelemetryEventLevel.Verbose)
                     continue
                 if 'Version: ' in line:
                     if package_version in line:
                         composite_found_flag = composite_found_flag | 2
                     else:  # should never hit for the way this is invoked, hence telemetry
                         self.composite_logger.log_debug("    - Did not match version: " + str(package_version) + " (" + str(line) + ")")
-                        self.telemetry_writer.send_debug_info("[Installed check] Version did not match: " + str(package_version) + " (line=" + str(line) + ")(out=" + str(output) + ")")
+                        self.telemetry_writer.write_event("[Installed check] Version did not match: " + str(package_version) + " (line=" + str(line) + ")(out=" + str(output) + ")", Constants.TelemetryEventLevel.Verbose)
                     continue
                 if 'Status: ' in line:
                     if 'install ok installed' in line:
                         composite_found_flag = composite_found_flag | 4
                     else:  # should never hit for the way this is invoked, hence telemetry
                         self.composite_logger.log_debug("    - Did not match status: " + str(package_name) + " (" + str(line) + ")")
-                        self.telemetry_writer.send_debug_info("[Installed check] Status did not match: 'install ok installed' (line=" + str(line) + ")(out=" + str(output) + ")")
+                        self.telemetry_writer.write_event("[Installed check] Status did not match: 'install ok installed' (line=" + str(line) + ")(out=" + str(output) + ")", Constants.TelemetryEventLevel.Verbose)
                     continue
                 if composite_found_flag & 7 == 7:  # whenever this becomes true, the exact package version is installed
                     self.composite_logger.log_debug("    - Package, Version and Status matched. Package is detected as 'Installed'.")
                     return True
                 self.composite_logger.log_debug("    - Inapplicable line: " + str(line))
             self.composite_logger.log_debug("    - Install status check did NOT find the package installed: (composite_found_flag=" + str(composite_found_flag) + ")")
-            self.telemetry_writer.send_debug_info("Install status check did NOT find the package installed: (composite_found_flag=" + str(composite_found_flag) + ")(output=" + output + ")")
+            self.telemetry_writer.write_event("Install status check did NOT find the package installed: (composite_found_flag=" + str(composite_found_flag) + ")(output=" + output + ")", Constants.TelemetryEventLevel.Verbose)
         else:  # This is not expected to execute. If it does, the details will show up in telemetry. Improve this code with that information.
             self.composite_logger.log_debug("    - Unexpected return code from dpkg: " + str(code) + ". Output: " + str(output))
-            self.telemetry_writer.send_debug_info("Unexpected return code from dpkg: Cmd=" + str(cmd) + ". Code=" + str(code) + ". Output=" + str(output))
+            self.telemetry_writer.write_event("Unexpected return code from dpkg: Cmd=" + str(cmd) + ". Code=" + str(code) + ". Output=" + str(output), Constants.TelemetryEventLevel.Verbose)
 
         # SECONDARY METHOD - Fallback
         # Sample output format
@@ -316,7 +316,7 @@ class AptitudePackageManager(PackageManager):
                     self.composite_logger.log_debug("      - Did not find status: " + str(package_details[3] + " (" + str(package_details[3]) + ")"))
                     continue
                 self.composite_logger.log_debug("      - Package version specified was determined to be installed.")
-                self.telemetry_writer.send_debug_info("[Installed check] Fallback code disagreed with dpkg.")
+                self.telemetry_writer.write_event("[Installed check] Fallback code disagreed with dpkg.", Constants.TelemetryEventLevel.Verbose)
                 return True
 
         self.composite_logger.log_debug("   - Package version specified was determined to NOT be installed.")

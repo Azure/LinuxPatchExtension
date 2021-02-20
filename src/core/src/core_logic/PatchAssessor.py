@@ -27,6 +27,7 @@ class PatchAssessor(object):
 
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
+        self.is_telemetry_setup = False
         self.status_handler = status_handler
 
         self.package_manager = package_manager
@@ -50,10 +51,10 @@ class PatchAssessor(object):
         for i in range(0, Constants.MAX_ASSESSMENT_RETRY_COUNT):
             try:
                 packages, package_versions = self.package_manager.get_all_updates()
-                self.telemetry_writer.send_debug_info("Full assessment: " + str(packages))
+                self.telemetry_writer.write_event("Full assessment: " + str(packages), Constants.TelemetryEventLevel.Verbose)
                 self.status_handler.set_package_assessment_status(packages, package_versions)
                 sec_packages, sec_package_versions = self.package_manager.get_security_updates()
-                self.telemetry_writer.send_debug_info("Security assessment: " + str(sec_packages))
+                self.telemetry_writer.write_event("Security assessment: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
                 self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, "Security")
                 self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
                 break
@@ -77,11 +78,19 @@ class PatchAssessor(object):
 
     def telemetry_setup(self):
         """ Verifies if telemetry is available. Stops execution is not available """
+
+        if self.is_telemetry_setup:  # to avoid executing this again on implicit assessment i.e. 2nd assessment after install
+            return
+
         if self.execution_config.events_folder is None:
             error_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine."
             self.composite_logger.log_error(error_msg)
             raise Exception(error_msg)
 
-        #ToDo: Ensure telemetry is setup correctly at this point
         self.composite_logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
+        self.telemetry_writer.events_folder_path = self.execution_config.events_folder
+        self.telemetry_writer.set_operation_id(self.execution_config.activity_id)
+        self.telemetry_writer.telemetry_startup()
+        self.is_telemetry_setup = True
+
 

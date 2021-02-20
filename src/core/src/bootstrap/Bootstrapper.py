@@ -23,6 +23,7 @@ from core.src.bootstrap.ConfigurationFactory import ConfigurationFactory
 from core.src.bootstrap.Constants import Constants
 from core.src.bootstrap.Container import Container
 from core.src.local_loggers.StdOutFileMirror import StdOutFileMirror
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 
 
 class Bootstrapper(object):

@@ -29,6 +29,9 @@ class Constants(object):
     GLOBAL_EXCLUSION_LIST = ""   # if a package needs to be blocked across all of Azure
     UNKNOWN = "Unknown"
 
+    # Extension version (todo: move to a different file)
+    EXT_VERSION = "1.6.15"
+
     # Runtime environments
     TEST = 'Test'
     DEV = 'Dev'
@@ -165,12 +168,32 @@ class Constants(object):
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
     # Telemetry Categories
-    TELEMETRY_OPERATION_STATE = "State"
-    TELEMETRY_CONFIG = "Config"
-    TELEMETRY_PACKAGE = "PackageInfo"
-    TELEMETRY_ERROR = "Error"
-    TELEMETRY_INFO = "Info"
-    TELEMETRY_DEBUG = "Debug"
+    # TELEMETRY_OPERATION_STATE = "State"
+    # TELEMETRY_CONFIG = "Config"
+    # TELEMETRY_PACKAGE = "PackageInfo"
+    # TELEMETRY_ERROR = "Error"
+    # TELEMETRY_INFO = "Info"
+    # TELEMETRY_DEBUG = "Debug"
+
+    TELEMETRY_ENABLED_AT_EXTENSION = True
+
+    # Telemetry Settings
+    TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES = 3072  # 3KB
+    TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES = 6144  # 6KB
+    TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 4194304  # 4MB
+    TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 41943040  # 40MB
+    TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES = 80  # buffer for the bytes dropped text added at the end of the truncated telemetry message
+
+    # Telemetry Event Level
+    class TelemetryEventLevel(EnumBackport):
+        Critical = "Critical"
+        Error = "Error"
+        Warning = "Warning"
+        Verbose = "Verbose"
+        Informational = "Informational"
+        LogAlways = "LogAlways"
+
+    TELEMETRY_TASK_NAME = "ExtensionCoreLog"
 
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
