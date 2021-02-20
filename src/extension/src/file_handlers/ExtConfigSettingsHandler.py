@@ -23,10 +23,9 @@ from extension.src.Constants import Constants
 
 class ExtConfigSettingsHandler(object):
     """ Responsible for managing any operations with <Sequence Number>.settings file """
-    def __init__(self, logger, telemetry_writer, json_file_handler, config_folder):
+    def __init__(self, logger, json_file_handler, config_folder):
         self.config_folder = config_folder
         self.logger = logger
-        self.telemetry_writer = telemetry_writer
         self.json_file_handler = json_file_handler
         self.file_ext = Constants.CONFIG_SETTINGS_FILE_EXTENSION
         self.runtime_settings_key = Constants.RUNTIME_SETTINGS
@@ -42,62 +41,43 @@ class ExtConfigSettingsHandler(object):
 
             if seq_no is None:
                 if is_enable_request:
-                    seq_no_not_in_env_var = "Since sequence number is not provided in the environment variable, will try to fetch from the most recent settings file"
-                    self.logger.log_warning(seq_no_not_in_env_var)
-                    self.telemetry_writer.write_event(seq_no_not_in_env_var, Constants.TelemetryEventLevel.Warning)
+                    self.logger.log_warning("Since sequence number is not provided in the environment variable, will try to fetch from the most recent settings file")
                     # get seq no from settings file
                     return self.__get_seq_no_from_config_settings()
                 else:
-                    seq_no_not_provided = "Sequence number not provided."
-                    self.logger.log_error(seq_no_not_provided)
-                    self.telemetry_writer.write_event(seq_no_not_provided, Constants.TelemetryEventLevel.Error)
+                    self.logger.log_error("Sequence number not provided.")
                     return None
 
             # verify if config settings file exists for the seq_no
             if not self.__verify_config_settings_file_exists(seq_no):
-                invalid_seq = "Could not verify sequence number found in environment variable with any configuration settings files on the machine"
-                self.logger.log_error(invalid_seq)
-                self.telemetry_writer.write_event(invalid_seq, Constants.TelemetryEventLevel.Error)
+                self.logger.log_error("Could not verify sequence number found in environment variable with any configuration settings files on the machine")
                 return None
 
             return seq_no
 
         except Exception as error:
-            error_msg = "Error occurred while fetching sequence number. [Exception={0}]".format(repr(error))
-            self.logger.log_error(error_msg)
-            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
+            self.logger.log_error("Error occurred while fetching sequence number. [Exception={0}]".format(repr(error)))
             raise
 
     def __get_seq_no_from_env_var(self):
         """ Queries the environment variable to get seq_no and verifies if the corresponding <seq_no>.settings file exists """
-        validate_seq = "Fetching and validating sequence number from the environment variable"
-        self.logger.log(validate_seq)
-        self.telemetry_writer.write_event(validate_seq, Constants.TelemetryEventLevel.Informational)
-
+        self.logger.log("Fetching and validating sequence number from the environment variable")
         seq_no = os.getenv(Constants.SEQ_NO_ENVIRONMENT_VAR)
 
         if seq_no is None:
-            seq_not_found = "Sequence number not found in the environment variable."
-            self.logger.log_warning(seq_not_found)
-            self.telemetry_writer.write_event(seq_not_found, Constants.TelemetryEventLevel.Warning)
+            self.logger.log_warning("Sequence number not found in the environment variable.")
             return None
 
-        seq_in_env_var = "Sequence number set in environment variable. [Sequence No={0}]".format(str(seq_no))
-        self.logger.log(seq_in_env_var)
-        self.telemetry_writer.write_event(seq_in_env_var, Constants.TelemetryEventLevel.Informational)
+        self.logger.log("Sequence number set in environment variable. [Sequence No={0}]".format(str(seq_no)))
         return seq_no
 
     def __verify_config_settings_file_exists(self, seq_no):
         settings_file_path = os.path.join(self.config_folder, str(seq_no) + self.file_ext)
         if os.path.exists(settings_file_path) and os.path.isfile(settings_file_path):
-            config_exists_for_seq = "Configuration settings file exists for the current sequence number. [Sequence No={0}]".format(str(seq_no))
-            self.logger.log(config_exists_for_seq)
-            self.telemetry_writer.write_event(config_exists_for_seq, Constants.TelemetryEventLevel.Informational)
+            self.logger.log("Configuration settings file exists for the current sequence number. [Sequence No={0}]".format(str(seq_no)))
             return True
 
-        config_not_found = "Configuration settings file not found, for the current sequence number. [Sequence No={0}]".format(str(seq_no))
-        self.logger.log_error(config_not_found)
-        self.telemetry_writer.write_event(config_not_found, Constants.TelemetryEventLevel.Error)
+        self.logger.log_error("Configuration settings file not found, for the current sequence number. [Sequence No={0}]".format(str(seq_no)))
         return False
 
     def __get_seq_no_from_config_settings(self):
@@ -112,11 +92,7 @@ class ExtConfigSettingsHandler(object):
                     if re.match('^\d+' + self.file_ext + '$', file):
                         cur_seq_no = int(os.path.basename(file).split('.')[0])
                         file_modified_time = os.path.getmtime(os.path.join(self.config_folder, file))
-
-                        seq_no_in_consideration = "Sequence number being considered and the corresponding file modified time. [Sequence No={0}] [Modified={1}]".format(str(cur_seq_no), str(file_modified_time))
-                        self.logger.log(seq_no_in_consideration)
-                        self.telemetry_writer.write_event(seq_no_in_consideration, Constants.TelemetryEventLevel.Informational)
-
+                        self.logger.log("Sequence number being considered and the corresponding file modified time. [Sequence No={0}] [Modified={1}]".format(str(cur_seq_no), str(file_modified_time)))
                         if freshest_time is None:
                             freshest_time = file_modified_time
                             seq_no = cur_seq_no
@@ -128,14 +104,9 @@ class ExtConfigSettingsHandler(object):
                 except ValueError:
                     continue
         if seq_no is None:
-            seq_not_found_in_config = "Could not find sequence number from the config folder"
-            self.logger.log(seq_not_found_in_config)
-            self.telemetry_writer.write_event(seq_not_found_in_config, Constants.TelemetryEventLevel.Informational)
+            self.logger.log("Could not find sequence number from the config folder")
         else:
-            seq_found_in_config = "Most recent sequence number found from config settings is [Sequence No={0}]".format(str(seq_no))
-            self.logger.log(seq_found_in_config)
-            self.telemetry_writer.write_event(seq_found_in_config, Constants.TelemetryEventLevel.Informational)
-
+            self.logger.log("Most recent sequence number found from config settings is [Sequence No={0}]".format(str(seq_no)))
         return seq_no
 
     def read_file(self, seq_no):
@@ -170,39 +141,27 @@ class ExtConfigSettingsHandler(object):
         except Exception as error:
             error_msg = "Error processing config settings file. [Sequence Number={0}] [Exception= {1}]".format(seq_no, repr(error))
             self.logger.log_error(error_msg)
-            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
             raise
 
     def are_config_settings_valid(self, config_settings_json):
         """ Validates all the configs in <seq_no>.settings file. Raises an exception if any issues found """
         try:
             if config_settings_json is None or type(config_settings_json) is not dict or not bool(config_settings_json):
-                config_settings_error = "Configuration settings not of expected format"
-                self.logger.log_error(config_settings_error)
-                self.telemetry_writer.write_event(config_settings_error, Constants.TelemetryEventLevel.Error)
+                self.logger.log_error("Configuration settings not of expected format")
                 return False
-
             # file contains "runtimeSettings"
             if self.runtime_settings_key not in config_settings_json or type(config_settings_json[self.runtime_settings_key]) != list or config_settings_json[self.runtime_settings_key] is None or len(config_settings_json[self.runtime_settings_key]) == 0:
-                runtime_settings_error = "runtimeSettings not of expected format"
-                self.logger.log_error(runtime_settings_error)
-                self.telemetry_writer.write_event(runtime_settings_error, Constants.TelemetryEventLevel.Error)
+                self.logger.log_error("runtimeSettings not of expected format")
                 return False
-
             # file contains "handlerSettings"
             if self.handler_settings_key not in config_settings_json[self.runtime_settings_key][0] or type(config_settings_json[self.runtime_settings_key][0][self.handler_settings_key]) is not dict \
                     or config_settings_json[self.runtime_settings_key][0][self.handler_settings_key] is None or not bool(config_settings_json[self.runtime_settings_key][0][self.handler_settings_key]):
-                handler_settings_error = "handlerSettings not of expected format"
-                self.logger.log_error(handler_settings_error)
-                self.telemetry_writer.write_event(handler_settings_error, Constants.TelemetryEventLevel.Error)
+                self.logger.log_error("handlerSettings not of expected format")
                 return False
-
             # file contains "publicSettings"
             if self.public_settings_key not in config_settings_json[self.runtime_settings_key][0][self.handler_settings_key] or type(config_settings_json[self.runtime_settings_key][0][self.handler_settings_key][self.public_settings_key]) is not dict \
                     or config_settings_json[self.runtime_settings_key][0][self.handler_settings_key][self.public_settings_key] is None or not bool(config_settings_json[self.runtime_settings_key][0][self.handler_settings_key][self.public_settings_key]):
-                public_settings_error = "publicSettings not of expected format"
-                self.logger.log_error(public_settings_error)
-                self.telemetry_writer.write_event(public_settings_error, Constants.TelemetryEventLevel.Error)
+                self.logger.log_error("publicSettings not of expected format")
                 return False
 
             # verifying Configuration settings contain all the mandatory keys
@@ -210,9 +169,7 @@ class ExtConfigSettingsHandler(object):
                 if public_setting in config_settings_json[self.runtime_settings_key][0][self.handler_settings_key][self.public_settings_key] and config_settings_json[self.runtime_settings_key][0][self.handler_settings_key][self.public_settings_key][public_setting]:
                     continue
                 else:
-                    key_missing_error = "Mandatory key missing in publicSettings section of the configuration settings: " + str(public_setting)
-                    self.logger.log_error(key_missing_error)
-                    self.telemetry_writer.write_event(key_missing_error, Constants.TelemetryEventLevel.Error)
+                    self.logger.log_error("Mandatory key missing in publicSettings section of the configuration settings: " + str(public_setting))
                     return False
             return True
         except Exception as error:
@@ -233,3 +190,4 @@ class ExtConfigSettingsHandler(object):
                 else:
                     return None
         return None
+

@@ -22,18 +22,15 @@ from extension.src.Constants import Constants
 
 
 class JsonFileHandler(object):
-    def __init__(self, logger, telemetry_writer):
+    def __init__(self, logger):
         self.logger = logger
-        self.telemetry_writer = telemetry_writer
         self.retry_count = Constants.MAX_IO_RETRIES
 
     def get_json_file_content(self, file_name, dir_path, raise_if_not_found=False):
         """ Returns content read from the given json file under the directory/path. Re-tries the operation a certain number of times and raises an exception if it still fails """
         file_path = os.path.join(dir_path, file_name)
         error_msg = ""
-        reading_file_message = "Reading file. [File={0}]".format(file_name)
-        self.logger.log(reading_file_message)
-        self.telemetry_writer.write_event(reading_file_message, Constants.TelemetryEventLevel.Informational)
+        self.logger.log("Reading file. [File={0}]".format(file_name))
         for retry in range(0, self.retry_count):
             try:
                 time.sleep(retry)
@@ -43,25 +40,16 @@ class JsonFileHandler(object):
             except ValueError as e:
                 error_msg = "Incorrect file format. [File={0}] [Location={1}] [Exception={2}]".format(file_name, str(file_path), repr(e))
                 self.logger.log_warning(error_msg)
-                self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Warning)
             except Exception as e:
                 error_msg = "Trial {0}: Could not read file. [File={1}] [Location={2}] [Exception={3}]".format(retry + 1, file_name, str(file_path), repr(e))
                 self.logger.log_warning(error_msg)
-                self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Warning)
 
         error_msg = "Failed to read file after {0} tries. [File={1}] [Location={2}] [Exception={3}]".format(self.retry_count, file_name, str(file_path), error_msg)
         self.logger.log_warning(error_msg)
-        self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Warning)
-
         if raise_if_not_found:
-            extension_error_msg = "Extension cannot continue without this file. [File={0}]".format(file_name)
-            self.logger.log_error(extension_error_msg)
-            self.telemetry_writer.write_event(extension_error_msg, Constants.TelemetryEventLevel.Warning)
+            self.logger.log_error("Extension cannot continue without this file. [File={0}]".format(file_name))
             raise Exception(error_msg)
-
-        extension_error_msg = "Extension can continue without the file. [File={0}]".format(file_name)
-        self.logger.log(extension_error_msg)
-        self.telemetry_writer.write_event(extension_error_msg, Constants.TelemetryEventLevel.Informational)
+        self.logger.log("Extension can continue without the file. [File={0}]".format(file_name))
 
     @staticmethod
     def get_json_config_value_safely(handler_json, key, parent_key, raise_if_not_found=True):

@@ -33,11 +33,12 @@ class TestProcessHandler(unittest.TestCase):
         runtime = RuntimeComposer()
         self.logger = runtime.logger
         self.telemetry_writer = runtime.telemetry_writer
+        self.logger.telemetry_writer = self.telemetry_writer
         self.utility = runtime.utility
         self.json_file_handler = runtime.json_file_handler
         seq_no = 1234
         dir_path = os.path.join(os.path.pardir, "tests", "helpers")
-        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.telemetry_writer, self.utility, self.json_file_handler, dir_path)
+        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
         self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def tearDown(self):
@@ -84,10 +85,10 @@ class TestProcessHandler(unittest.TestCase):
         return 0
 
     def test_get_public_config_settings(self):
-        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.telemetry_writer, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
         seq_no = "1234"
         config_settings = ext_config_settings_handler.read_file(seq_no)
-        process_handler = ProcessHandler(self.logger, self.telemetry_writer, self.ext_output_status_handler)
+        process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         public_config_settings = process_handler.get_public_config_settings(config_settings)
         self.assertTrue(public_config_settings is not None)
         self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.operation), "Installation")
@@ -96,7 +97,7 @@ class TestProcessHandler(unittest.TestCase):
     def test_get_env_settings(self):
         handler_env_file_path = os.path.join(os.path.pardir, "tests", "helpers")
         ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=handler_env_file_path)
-        process_handler = ProcessHandler(self.logger, self.telemetry_writer, self.ext_output_status_handler)
+        process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         env_settings = process_handler.get_env_settings(ext_env_handler)
         self.assertTrue(env_settings is not None)
         self.assertEqual(env_settings.get(Constants.EnvSettingsFields.log_folder), "mockLog")
@@ -110,7 +111,7 @@ class TestProcessHandler(unittest.TestCase):
 
         # error in terminating process
         pid = 123
-        process_handler = ProcessHandler(self.logger, self.telemetry_writer, self.ext_output_status_handler)
+        process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         self.assertRaises(OSError, process_handler.kill_process, pid)
 
         # reseting mocks
@@ -120,7 +121,7 @@ class TestProcessHandler(unittest.TestCase):
     def test_get_python_cmd(self):
         # setting mocks
         run_command_output_backup = ProcessHandler.run_command_output
-        process_handler = ProcessHandler(self.logger, self.telemetry_writer, self.ext_output_status_handler)
+        process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
 
         # testing for 'python' command
         ProcessHandler.run_command_output = self.mock_run_command_output_for_python
@@ -144,7 +145,7 @@ class TestProcessHandler(unittest.TestCase):
         subprocess_popen_backup = subprocess.Popen
 
         # Initializing config env
-        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.telemetry_writer, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
         seq_no = "1234"
         config_settings = ext_config_settings_handler.read_file(seq_no)
         handler_env_file_path = os.path.join(os.path.pardir, "tests", "helpers")
@@ -152,19 +153,19 @@ class TestProcessHandler(unittest.TestCase):
 
         # process was not launched
         subprocess.Popen = self.mock_subprocess_popen_process_not_launched
-        process_handler = ProcessHandler(self.logger, self.telemetry_writer, self.ext_output_status_handler)
+        process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         process = process_handler.start_daemon(seq_no, config_settings, ext_env_handler)
         self.assertTrue(process is None)
 
         # process launched with no issues
         subprocess.Popen = self.mock_subprocess_popen_process_launched_with_no_issues
-        process_handler = ProcessHandler(self.logger, self.telemetry_writer, self.ext_output_status_handler)
+        process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         process = process_handler.start_daemon(seq_no, config_settings, ext_env_handler)
         self.assertTrue(process is not None)
 
         # process launched but is not running soon after
         subprocess.Popen = self.mock_subprocess_popen_process_not_running_after_launch
-        process_handler = ProcessHandler(self.logger, self.telemetry_writer, self.ext_output_status_handler)
+        process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
         process = process_handler.start_daemon(seq_no, config_settings, ext_env_handler)
         self.assertTrue(process is None)
 

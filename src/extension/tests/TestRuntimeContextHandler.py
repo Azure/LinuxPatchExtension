@@ -31,7 +31,7 @@ class TestRuntimeContextHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         runtime = RuntimeComposer()
         self.json_file_handler = runtime.json_file_handler
-        self.runtime_context_handler = RuntimeContextHandler(runtime.logger, runtime.telemetry_writer)
+        self.runtime_context_handler = RuntimeContextHandler(runtime.logger)
         self.core_state_fields = Constants.CoreStateFields
 
     def tearDown(self):

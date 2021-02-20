@@ -10,8 +10,8 @@ class RuntimeComposer(object):
     def __init__(self):
         self.logger = Logger()
         self.telemetry_writer = TelemetryWriter(self.logger)
-        self.utility = Utility(self.logger, self.telemetry_writer)
-        self.json_file_handler = JsonFileHandler(self.logger, self.telemetry_writer)
+        self.utility = Utility(self.logger)
+        self.json_file_handler = JsonFileHandler(self.logger)
         time.sleep = self.mock_sleep
 
     def mock_sleep(self, seconds):

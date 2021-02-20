@@ -27,9 +27,8 @@ from extension.src.Constants import Constants
 
 
 class ProcessHandler(object):
-    def __init__(self, logger, telemetry_writer, ext_output_status_handler):
+    def __init__(self, logger, ext_output_status_handler):
         self.logger = logger
-        self.telemetry_writer = telemetry_writer
         self.ext_output_status_handler = ext_output_status_handler
 
     @staticmethod
@@ -71,36 +70,23 @@ class ProcessHandler(object):
         args = " -sequenceNumber {0} -environmentSettings \'{1}\' -configSettings \'{2}\'".format(str(seq_no), env_settings, public_config_settings)
 
         # Verify the python version available on the machine to use
-        python_version = "Python version: " + " ".join(sys.version.splitlines())
-        self.logger.log(python_version)
-        self.telemetry_writer.write_event(python_version, Constants.TelemetryEventLevel.Informational)
+        self.logger.log("Python version: " + " ".join(sys.version.splitlines()))
 
         python_cmd = self.get_python_cmd()
         if python_cmd == Constants.PYTHON_NOT_FOUND:
-            cmd_not_found_error = "Cannot execute patch operation due to error. [Error={0}]".format(Constants.PYTHON_NOT_FOUND)
-            self.logger.log(cmd_not_found_error)
-            self.telemetry_writer.write_event(cmd_not_found_error, Constants.TelemetryEventLevel.Informational)
+            self.logger.log("Cannot execute patch operation due to error. [Error={0}]".format(Constants.PYTHON_NOT_FOUND))
             return
 
         command = [python_cmd + " " + exec_path + " " + args]
-
-        process_launch_msg = "Launching process. [command={0}]".format(str(command))
-        self.logger.log(process_launch_msg)
-        self.telemetry_writer.write_event(process_launch_msg, Constants.TelemetryEventLevel.Informational)
+        self.logger.log("Launching process. [command={0}]".format(str(command)))
 
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if process.pid is not None:
-
-            process_launch_success = "New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid))
-            self.logger.log(process_launch_success)
-            self.telemetry_writer.write_event(process_launch_success, Constants.TelemetryEventLevel.Informational)
-
+            self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
             did_process_start = self.__check_process_state(process, seq_no)
             return process if did_process_start else None
 
-        process_launch_error = "Error launching process for given sequence. [sequence={0}]".format(seq_no)
-        self.logger.log_error(process_launch_error)
-        self.telemetry_writer.write_event(process_launch_error, Constants.TelemetryEventLevel.Error)
+        self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
 
     def get_python_cmd(self):
         command_to_check_for_python = "which python"
@@ -200,19 +186,9 @@ class ProcessHandler(object):
                 break
         # if process is not running, log stdout and stderr
         if not did_process_start:
-
-            process_not_running = "Process not running for [sequence={0}]".format(seq_no)
-            self.logger.log(process_not_running)
-            self.telemetry_writer.write_event(process_not_running, Constants.TelemetryEventLevel.Informational)
-
-            stdout_for_process = "Stdout for the inactive process: [Output={0}]".format(str(process.stdout.read()))
-            self.logger.log(stdout_for_process)
-            self.telemetry_writer.write_event(stdout_for_process, Constants.TelemetryEventLevel.Informational)
-
-            stderr_for_process = "Stderr for the inactive process: [Error={0}]".format(str(process.stderr.read()))
-            self.logger.log(stderr_for_process)
-            self.telemetry_writer.write_event(stderr_for_process, Constants.TelemetryEventLevel.Informational)
-
+            self.logger.log("Process not running for [sequence={0}]".format(seq_no))
+            self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout.read())))
+            self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr.read())))
         return did_process_start
 
     def identify_running_processes(self, process_ids):
@@ -224,10 +200,7 @@ class ProcessHandler(object):
                 if self.is_process_running(process_id):
                     running_process_ids.append(process_id)
 
-        process_running_msg = "Processes still running from the previous request: [PIDs={0}]".format(str(running_process_ids))
-        self.logger.log(process_running_msg)
-        self.telemetry_writer.write_event(process_running_msg, Constants.TelemetryEventLevel.Informational)
-
+        self.logger.log("Processes still running from the previous request: [PIDs={0}]".format(str(running_process_ids)))
         return running_process_ids
 
     def is_process_running(self, pid):
@@ -250,18 +223,12 @@ class ProcessHandler(object):
     def kill_process(self, pid):
         try:
             if self.is_process_running(pid):
-
-                terminating_process_msg = "Terminating process: [PID={0}]".format(str(pid))
-                self.logger.log(terminating_process_msg)
-                self.telemetry_writer.write_event(terminating_process_msg, Constants.TelemetryEventLevel.Informational)
-
+                self.logger.log("Terminating process: [PID={0}]".format(str(pid)))
                 os.kill(pid, signal.SIGTERM)
 
         except OSError as error:
-            process_termination_error_msg = "Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error))
-            self.logger.log_error(process_termination_error_msg)
-            self.telemetry_writer.write_event(process_termination_error_msg, Constants.TelemetryEventLevel.Error)
-            self.ext_output_status_handler.add_error_to_status(process_termination_error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.logger.log_error("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)))
+            self.ext_output_status_handler.add_error_to_status("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
 
             if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                 error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))

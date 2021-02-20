@@ -22,16 +22,13 @@ from extension.src.local_loggers.FileLogger import FileLogger
 
 
 class Utility(object):
-    def __init__(self, logger, telemetry_writer):
+    def __init__(self, logger):
         self.logger = logger
-        self.telemetry_writer = telemetry_writer
         self.retry_count = Constants.MAX_IO_RETRIES
 
     def delete_file(self, dir_path, file, raise_if_not_found=True):
         """ Retries delete operation for a set number of times before failing """
-        message = "Deleting file. [File={0}]".format(file)
-        self.logger.log(message)
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Informational)
+        self.logger.log("Deleting file. [File={0}]".format(file))
         file_path = os.path.join(dir_path, file)
         error_msg = ""
         if os.path.exists(file_path) and os.path.isfile(file_path):
@@ -43,15 +40,12 @@ class Utility(object):
                 except Exception as e:
                     error_msg = "Trial {0}: Could not delete file. [File={1}] [Exception={2}]".format(retry+1, file, repr(e))
                     self.logger.log_warning(error_msg)
-                    self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Warning)
 
             error_msg = "Failed to delete file after {0} tries. [File={1}] [Exception={2}]".format(self.retry_count, file, error_msg)
             self.logger.log_error(error_msg)
-            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
         else:
             error_msg = "File Not Found: [File={0}] in [path={1}]".format(file, dir_path)
             self.logger.log_error(error_msg)
-            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
         if raise_if_not_found:
             raise Exception(error_msg)
 
@@ -59,14 +53,10 @@ class Utility(object):
         """ Creates <file_name>.ext.log file under the path for logFolder provided in HandlerEnvironment """
         file_path = file_name + str(".ext") + Constants.LOG_FILE_EXTENSION
         if file_name is not None and os.path.exists(log_folder):
-            message = "Creating log file. [File={0}]".format(file_path)
-            self.logger.log(message)
-            self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Informational)
+            self.logger.log("Creating log file. [File={0}]".format(file_path))
             return FileLogger(log_folder, file_path)
         else:
-            error_msg = "File creation error: [File={0}]".format(file_path)
-            self.logger.log_error(error_msg)
-            self.telemetry_writer.write_event(error_msg, Constants.TelemetryEventLevel.Error)
+            self.logger.log_error("File creation error: [File={0}]".format(file_path))
             return None
 
     @staticmethod

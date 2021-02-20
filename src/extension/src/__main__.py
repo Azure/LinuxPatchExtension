@@ -42,9 +42,9 @@ def main(argv):
         # initializing action handler
         # args will have values install, uninstall, etc, as given in MsftLinuxPatchExtShim.sh in the operation var
         cmd_exec_start_time = datetime.datetime.utcnow()
-        utility = Utility(logger, telemetry_writer)
-        runtime_context_handler = RuntimeContextHandler(logger, telemetry_writer)
-        json_file_handler = JsonFileHandler(logger, telemetry_writer)
+        utility = Utility(logger)
+        runtime_context_handler = RuntimeContextHandler(logger)
+        json_file_handler = JsonFileHandler(logger)
         ext_env_handler = ExtEnvHandler(json_file_handler)
 
         if ext_env_handler.handler_environment_json is not None and ext_env_handler.config_folder is not None:
@@ -53,11 +53,11 @@ def main(argv):
                 logger.log_error("Config folder not found at [{0}].".format(repr(config_folder)))
                 exit(Constants.ExitCode.MissingConfig)
 
-            ext_config_settings_handler = ExtConfigSettingsHandler(logger, telemetry_writer, json_file_handler, config_folder)
+            ext_config_settings_handler = ExtConfigSettingsHandler(logger, json_file_handler, config_folder)
             core_state_handler = CoreStateHandler(config_folder, json_file_handler)
             ext_state_handler = ExtStateHandler(config_folder, utility, json_file_handler)
-            ext_output_status_handler = ExtOutputStatusHandler(logger, telemetry_writer, utility, json_file_handler, ext_env_handler.status_folder)
-            process_handler = ProcessHandler(logger, telemetry_writer, ext_output_status_handler)
+            ext_output_status_handler = ExtOutputStatusHandler(logger, utility, json_file_handler, ext_env_handler.status_folder)
+            process_handler = ProcessHandler(logger, ext_output_status_handler)
             action_handler = ActionHandler(logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time)
             action_handler.determine_operation(argv[1])
         else:

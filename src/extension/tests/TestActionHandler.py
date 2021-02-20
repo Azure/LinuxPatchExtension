@@ -36,13 +36,13 @@ class TestActionHandler(unittest.TestCase):
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
-        runtime_context_handler = RuntimeContextHandler(self.runtime.logger, self.runtime.telemetry_writer)
+        runtime_context_handler = RuntimeContextHandler(self.runtime.logger)
         ext_env_handler = ExtEnvHandler(self.runtime.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
-        ext_config_settings_handler = ExtConfigSettingsHandler(self.runtime.logger, self.runtime.telemetry_writer, self.runtime.json_file_handler, ext_env_handler.config_folder)
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.runtime.logger, self.runtime.json_file_handler, ext_env_handler.config_folder)
         core_state_handler = CoreStateHandler(ext_env_handler.config_folder, self.runtime.json_file_handler)
         ext_state_handler = ExtStateHandler(ext_env_handler.config_folder, self.runtime.utility, self.runtime.json_file_handler)
-        ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.telemetry_writer, self.runtime.utility, self.runtime.json_file_handler, ext_env_handler.status_folder)
-        process_handler = ProcessHandler(self.runtime.logger, self.runtime.telemetry_writer, ext_output_status_handler)
+        ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, ext_env_handler.status_folder)
+        process_handler = ProcessHandler(self.runtime.logger, ext_output_status_handler)
         self.action_handler = ActionHandler(self.runtime.logger, self.runtime.telemetry_writer, self.runtime.utility, runtime_context_handler, self.runtime.json_file_handler, ext_env_handler,
                                             ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, "2020-09-02T13:40:54.8862542Z")
 
