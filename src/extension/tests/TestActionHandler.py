@@ -235,7 +235,7 @@ class TestActionHandler(unittest.TestCase):
         for event_file in event_files:
             with open(os.path.join(self.action_handler.telemetry_writer.events_folder_path, event_file), 'r+') as f:
                 events = json.load(f)
-                self.assertEquals(events[0]["OperationId"], self.action_handler.timestamp_for_telemetry)
+                self.assertEquals(events[0]["OperationId"], self.action_handler.operation_id_substitute_for_all_actions_in_telemetry)
 
         # Remove the directory after the test
         shutil.rmtree(test_dir)

@@ -43,6 +43,11 @@ class TestTelemetryWriter(unittest.TestCase):
             f.close()
 
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
+        with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[1]), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
+            self.assertEquals(events[0]["TaskName"], "Test Task2")
+            f.close()
 
     def test_write_multiple_events_in_same_file(self):
         time_backup = time.time

@@ -37,6 +37,7 @@ def main(argv):
     file_logger = None
     logger = Logger()
     telemetry_writer = TelemetryWriter(logger)
+    logger.telemetry_writer = telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
     try:
         # initializing action handler
         # args will have values install, uninstall, etc, as given in MsftLinuxPatchExtShim.sh in the operation var

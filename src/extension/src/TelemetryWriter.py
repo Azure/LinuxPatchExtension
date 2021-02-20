@@ -35,7 +35,7 @@ class TelemetryWriter(object):
     def __new_event_json(self, event_level, message, task_name):
         return {
             "Version": Constants.EXT_VERSION,
-            "Timestamp": str((datetime.datetime.utcnow()).strftime(Constants.UTC_DATETIME_FORMAT)),
+            "Timestamp": str(datetime.datetime.utcnow()),
             "TaskName": task_name,
             "EventLevel": event_level,
             "Message": self.__ensure_message_restriction_compliance(message),
@@ -50,7 +50,7 @@ class TelemetryWriter(object):
         formatted_message = re.sub(r"\s+", " ", str(full_message))
 
         if len(formatted_message.encode('utf-8')) > message_size_limit_in_bytes:
-            self.logger.log_telemetry("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
+            self.logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
             formatted_message = formatted_message.encode('utf-8')
             bytes_dropped = len(formatted_message) - message_size_limit_in_bytes + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES
             return formatted_message[:message_size_limit_in_bytes - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES].decode('utf-8') + '. [{0} bytes dropped]'.format(bytes_dropped)
@@ -66,8 +66,7 @@ class TelemetryWriter(object):
 
         event = self.__new_event_json(event_level, message, task_name)
         if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES:
-            self.logger.log_telemetry_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
-            # print("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
+            self.logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
         else:
             self.write_event_using_temp_file(self.events_folder_path, event)
 
@@ -77,7 +76,7 @@ class TelemetryWriter(object):
             # Not deleting any existing event files as the event directory does not exceed max limit. At least one new event file can be added. Not printing this statement as it will add repetitive logs
             return
 
-        self.logger.log_telemetry("Events directory size exceeds maximum limit. Deleting older event files until at least one new event file can be added.")
+        self.logger.log_telemetry_module("Events directory size exceeds maximum limit. Deleting older event files until at least one new event file can be added.")
         event_files = [os.path.join(self.events_folder_path, event_file) for event_file in os.listdir(self.events_folder_path) if (event_file.lower().endswith(".json"))]
         event_files.sort(key=os.path.getmtime, reverse=True)
 
@@ -89,9 +88,9 @@ class TelemetryWriter(object):
 
                 if os.path.exists(event_file):
                     os.remove(event_file)
-                    self.logger.log_telemetry("Deleted event file. [File={0}]".format(repr(event_file)))
+                    self.logger.log_telemetry_module("Deleted event file. [File={0}]".format(repr(event_file)))
             except Exception as e:
-                self.logger.log_telemetry_error("Error deleting event file. [File={0}] [Exception={1}]".format(repr(event_file), repr(e)))
+                self.logger.log_telemetry_module_error("Error deleting event file. [File={0}] [Exception={1}]".format(repr(event_file), repr(e)))
 
         if self.__get_events_dir_size() >= Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES:
             raise Exception("Older event files were not deleted. Current event will not be sent to telemetry as events directory size exceeds maximum limit")
