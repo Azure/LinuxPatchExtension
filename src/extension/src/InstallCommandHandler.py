@@ -78,3 +78,4 @@ class InstallCommandHandler(object):
             if key in config_type and config_type[key] and type(config_type[key]).__name__  not in data_type:
                 error_msg = "Unexpected data type. [config={0}] in [file={1}]".format(key, file)
                 self.logger.log_error_and_raise_new_exception(error_msg, Exception)
+

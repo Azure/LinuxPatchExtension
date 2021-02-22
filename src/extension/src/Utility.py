@@ -59,8 +59,11 @@ class Utility(object):
             self.logger.log_error("File creation error: [File={0}]".format(file_path))
             return None
 
-    def get_datetime_from_str(self, date_str):
+    @staticmethod
+    def get_datetime_from_str(date_str):
         return datetime.datetime.strptime(date_str, Constants.UTC_DATETIME_FORMAT)
 
-    def get_str_from_datetime(self, date):
+    @staticmethod
+    def get_str_from_datetime(date):
         return date.strftime(Constants.UTC_DATETIME_FORMAT)
+

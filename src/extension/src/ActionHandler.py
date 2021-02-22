@@ -29,8 +29,9 @@ from extension.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 class ActionHandler(object):
     """Responsible for identifying the action to perform based on the user input"""
-    def __init__(self, logger, utility, runtime_context_handler, json_file_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
+    def __init__(self, logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
         self.logger = logger
+        self.telemetry_writer = telemetry_writer
         self.utility = utility
         self.runtime_context_handler = runtime_context_handler
         self.json_file_handler = json_file_handler
@@ -43,6 +44,7 @@ class ActionHandler(object):
         self.cmd_exec_start_time = cmd_exec_start_time
         self.stdout_file_mirror = None
         self.file_logger = None
+        self.operation_id_substitute_for_all_actions_in_telemetry = str((datetime.datetime.utcnow()).strftime(Constants.UTC_DATETIME_FORMAT))
 
     def determine_operation(self, command):
         switcher = {
@@ -88,7 +90,10 @@ class ActionHandler(object):
             self.logger.log_error(err_msg)
         else:
             self.logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
-            self.logger.telemetry_writer.events_folder_path = events_folder
+            self.telemetry_writer.events_folder_path = events_folder
+            # As this is a common function used by all handler actions, setting operation_id such that it will be the same timestamp for all handler actions, which can be used for identifying all events for an operation.
+            # NOTE: Enable handler action will set operation_id to activity_id from config settings. And the same will be used in Core.
+            self.telemetry_writer.set_operation_id(self.operation_id_substitute_for_all_actions_in_telemetry)
 
     def install(self):
         try:
@@ -203,7 +208,7 @@ class ActionHandler(object):
     def enable(self):
         try:
             self.setup(action=Constants.ENABLE, log_message="Enable triggered on extension")
-            enable_command_handler = EnableCommandHandler(self.logger, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
+            enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
             return enable_command_handler.execute_handler_action()
 
         except Exception as error:

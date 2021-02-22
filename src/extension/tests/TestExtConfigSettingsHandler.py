@@ -33,6 +33,8 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
         self.logger = self.runtime.logger
+        self.telemetry_writer = self.runtime.telemetry_writer
+        self.logger.telemetry_writer = self.telemetry_writer
         self.json_file_handler = self.runtime.json_file_handler
         self.config_public_settings_fields = Constants.ConfigPublicSettingsFields
 

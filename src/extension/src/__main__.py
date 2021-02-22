@@ -35,8 +35,9 @@ from extension.src.Constants import Constants
 def main(argv):
     stdout_file_mirror = None
     file_logger = None
-    telemetry_writer = TelemetryWriter()
-    logger = Logger(telemetry_writer=telemetry_writer)
+    logger = Logger()
+    telemetry_writer = TelemetryWriter(logger)
+    logger.telemetry_writer = telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
     try:
         # initializing action handler
         # args will have values install, uninstall, etc, as given in MsftLinuxPatchExtShim.sh in the operation var
@@ -56,7 +57,7 @@ def main(argv):
             ext_state_handler = ExtStateHandler(config_folder, utility, json_file_handler)
             ext_output_status_handler = ExtOutputStatusHandler(logger, utility, json_file_handler, ext_env_handler.status_folder)
             process_handler = ProcessHandler(logger, ext_output_status_handler)
-            action_handler = ActionHandler(logger, utility, runtime_context_handler, json_file_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time)
+            action_handler = ActionHandler(logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time)
             action_handler.determine_operation(argv[1])
         else:
             error_cause = "No configuration provided in HandlerEnvironment" if ext_env_handler.handler_environment_json is None else "Path to config folder not specified in HandlerEnvironment"

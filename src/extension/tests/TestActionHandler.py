@@ -13,7 +13,8 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import glob
+import json
 import os
 import shutil
 import tempfile
@@ -42,7 +43,7 @@ class TestActionHandler(unittest.TestCase):
         ext_state_handler = ExtStateHandler(ext_env_handler.config_folder, self.runtime.utility, self.runtime.json_file_handler)
         ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, ext_env_handler.status_folder)
         process_handler = ProcessHandler(self.runtime.logger, ext_output_status_handler)
-        self.action_handler = ActionHandler(self.runtime.logger, self.runtime.utility, runtime_context_handler, self.runtime.json_file_handler, ext_env_handler,
+        self.action_handler = ActionHandler(self.runtime.logger, self.runtime.telemetry_writer, self.runtime.utility, runtime_context_handler, self.runtime.json_file_handler, ext_env_handler,
                                             ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, "2020-09-02T13:40:54.8862542Z")
 
     def tearDown(self):
@@ -95,7 +96,7 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
-        self.runtime.logger.telemetry_writer.events_folder_path = None
+        self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -115,7 +116,7 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
-        self.runtime.logger.telemetry_writer.events_folder_path = None
+        self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -135,7 +136,7 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
-        self.runtime.logger.telemetry_writer.events_folder_path = None
+        self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -155,7 +156,7 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
-        self.runtime.logger.telemetry_writer.events_folder_path = None
+        self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -167,7 +168,7 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.ext_env_handler.config_folder = '/test/config'
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.HandlerFailed)
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
-        self.runtime.logger.telemetry_writer.events_folder_path = None
+        self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -183,7 +184,7 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.HandlerFailed)
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
-        self.runtime.logger.telemetry_writer.events_folder_path = None
+        self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -198,7 +199,7 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.HandlerFailed)
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
-        self.runtime.logger.telemetry_writer.events_folder_path = None
+        self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
@@ -220,4 +221,22 @@ class TestActionHandler(unittest.TestCase):
             self.action_handler.enable()
 
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+
+    def test_timestamp_for_all_actions(self):
+        """ All handler actions, specially all non-enable actions should have the same timestamp in OperationId within telemetry event """
+        # Create a temporary directory
+        test_dir = tempfile.mkdtemp()
+        self.action_handler.ext_env_handler.events_folder = self.action_handler.ext_env_handler.config_folder = self.action_handler.ext_env_handler.log_folder = self.action_handler.ext_env_handler.status_folder = test_dir
+
+        self.action_handler.uninstall()
+        self.action_handler.reset()
+
+        event_files = glob.glob(self.action_handler.telemetry_writer.events_folder_path + '/*.json')
+        for event_file in event_files:
+            with open(os.path.join(self.action_handler.telemetry_writer.events_folder_path, event_file), 'r+') as f:
+                events = json.load(f)
+                self.assertEquals(events[0]["OperationId"], self.action_handler.operation_id_substitute_for_all_actions_in_telemetry)
+
+        # Remove the directory after the test
+        shutil.rmtree(test_dir)
 
