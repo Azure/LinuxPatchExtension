@@ -259,9 +259,9 @@ class TestCoreMain(unittest.TestCase):
     def test_assessment_operation_fail_due_to_no_telemetry(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.events_folder = None
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
-        runtime.execution_config.events_folder = None
         CoreMain(argument_composer.get_composed_arguments())
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
@@ -277,9 +277,9 @@ class TestCoreMain(unittest.TestCase):
         # testing on auto patching request
         argument_composer = ArgumentComposer()
         argument_composer.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+        argument_composer.events_folder = None
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
-        runtime.execution_config.events_folder = None
         CoreMain(argument_composer.get_composed_arguments())
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:

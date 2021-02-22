@@ -47,6 +47,7 @@ class RuntimeCompositor(object):
         self.container = bootstrapper.build_out_container()
         self.file_logger = bootstrapper.file_logger
         self.composite_logger = bootstrapper.composite_logger
+        self.telemetry_writer = bootstrapper.telemetry_writer
         self.lifecycle_manager, self.status_handler = bootstrapper.build_core_components(self.container)
 
         # Business logic components
