@@ -26,8 +26,6 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 class TestTelemetryWriter(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
-        self.runtime.telemetry_writer.events_folder_path = self.runtime.execution_config.events_folder
-        self.runtime.telemetry_writer.set_operation_id(self.runtime.execution_config.activity_id)
 
     def tearDown(self):
         self.runtime.stop()

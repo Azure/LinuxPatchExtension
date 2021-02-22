@@ -31,24 +31,13 @@ class TelemetryWriter(object):
         self.composite_logger = composite_logger
         self.env_layer = env_layer
         self.events_folder_path = None
-        self.__operation_id = ""
+        self.__execution_config = None
+        self.__is_telemetry_startup = False  # to avoid re-sending startup events to telemetry
 
-    def telemetry_startup(self):
+    def write_telemetry_startup_events(self):
         self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
         self.write_machine_config_info()
-
-        #todo later
-        #self.write_config_info(execution_config.config_settings, 'execution_config')
-
-    # def __init__(self, env_layer, execution_config):
-    #     self.data_transports = []
-    #     self.env_layer = env_layer
-    #     self.activity_id = execution_config.activity_id
-    #
-    #     # Init state report
-    #     self.send_runbook_state_info('Started Linux patch runbook.')
-    #     self.send_machine_config_info()
-    #     self.send_config_info(execution_config.config_settings, 'execution_config')
+        self.write_config_info(self.__execution_config.config_settings, 'execution_config')
 
     def write_config_info(self, config_info, config_type='unknown'):
         # Configuration info
@@ -61,7 +50,6 @@ class TelemetryWriter(object):
     def write_package_info(self, package_name, package_ver, package_size, install_dur, install_result, code_path, install_cmd, output=''):
         # Package information compiled after the package is attempted to be installed
         max_output_length = 1024
-        errors = ""
 
         # primary payload
         message = {'package_name': str(package_name), 'package_version': str(package_ver),
@@ -132,7 +120,7 @@ class TelemetryWriter(object):
             "Message": self.__ensure_message_restriction_compliance(message),
             "EventPid": "",
             "EventTid": "",
-            "OperationId": self.__operation_id  # activity id from from config settings
+            "OperationId": "" if self.__execution_config is None else self.__execution_config.activity_id  # activity id from from config settings
         }
 
     def __ensure_message_restriction_compliance(self, full_message):
@@ -208,8 +196,9 @@ class TelemetryWriter(object):
         except Exception as error:
             raise Exception("Unable to write to telemetry. [Event File={0}] [Error={1}].".format(str(file_path), repr(error)))
 
-    def set_operation_id(self, operation_id):
-        self.__operation_id = operation_id
+    def setup_telemetry(self, execution_config):
+        self.__execution_config = execution_config
+        self.events_folder_path = self.__execution_config.events_folder
 
     def __get_events_dir_size(self):
         return sum([os.path.getsize(os.path.join(self.events_folder_path, f)) for f in os.listdir(self.events_folder_path) if os.path.isfile(os.path.join(self.events_folder_path, f))])
@@ -227,3 +216,19 @@ class TelemetryWriter(object):
         with open(file_path, 'r') as file_handle:
             file_contents = file_handle.read()
             return json.loads(file_contents)
+
+    def startup_telemetry_if_agent_compatible(self):
+        """ Verifies if telemetry is available. Stops execution if not available. Sends startup events if telemetry is available """
+
+        if self.events_folder_path is None:
+            error_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine."
+            self.composite_logger.log_telemetry_error(error_msg)
+            raise Exception(error_msg)
+
+        self.composite_logger.log_telemetry("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
+        if not self.__is_telemetry_startup:
+            self.write_telemetry_startup_events()
+            self.__is_telemetry_startup = True
+        else:
+            self.composite_logger.log_telemetry("Telemetry startup was completed in an earlier instance, please check older telemetry events")
+

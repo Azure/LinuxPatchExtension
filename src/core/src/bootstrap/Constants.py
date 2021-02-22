@@ -167,14 +167,6 @@ class Constants(object):
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
-    # Telemetry Categories
-    # TELEMETRY_OPERATION_STATE = "State"
-    # TELEMETRY_CONFIG = "Config"
-    # TELEMETRY_PACKAGE = "PackageInfo"
-    # TELEMETRY_ERROR = "Error"
-    # TELEMETRY_INFO = "Info"
-    # TELEMETRY_DEBUG = "Debug"
-
     TELEMETRY_ENABLED_AT_EXTENSION = True
 
     # Telemetry Settings

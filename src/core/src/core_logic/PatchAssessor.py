@@ -35,7 +35,7 @@ class PatchAssessor(object):
     def start_assessment(self):
         """ Start an update assessment """
         self.status_handler.set_current_operation(Constants.ASSESSMENT)
-        self.telemetry_setup()
+        self.telemetry_writer.startup_telemetry_if_agent_compatible()
 
         self.composite_logger.log('\nStarting patch assessment...')
 
@@ -75,22 +75,4 @@ class PatchAssessor(object):
 
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
-
-    def telemetry_setup(self):
-        """ Verifies if telemetry is available. Stops execution is not available """
-
-        if self.is_telemetry_setup:  # to avoid executing this again on implicit assessment i.e. 2nd assessment after install
-            return
-
-        if self.execution_config.events_folder is None:
-            error_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine."
-            self.composite_logger.log_error(error_msg)
-            raise Exception(error_msg)
-
-        self.composite_logger.log("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
-        self.telemetry_writer.events_folder_path = self.execution_config.events_folder
-        self.telemetry_writer.set_operation_id(self.execution_config.activity_id)
-        self.telemetry_writer.telemetry_startup()
-        self.is_telemetry_setup = True
-
 

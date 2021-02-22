@@ -84,7 +84,8 @@ class CompositeLogger(object):
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         if self.file_logger is not None:
-            self.file_logger.write("\n" + self.TELEMETRY_ERROR + " " + message)
+            timestamp = self.env_layer.datetime.timestamp()
+            self.file_logger.write("\n" + timestamp + "> " + self.TELEMETRY_ERROR + message.strip(), fail_silently=False)
         else:
             print(self.TELEMETRY_ERROR + " " + message)
 
@@ -93,7 +94,8 @@ class CompositeLogger(object):
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         if self.file_logger is not None:
-            self.file_logger.write("\n" + self.TELEMETRY_LOG + " " + message)
+            timestamp = self.env_layer.datetime.timestamp()
+            self.file_logger.write("\n" + timestamp + "> " + self.TELEMETRY_LOG + message.strip(), fail_silently=False)
         else:
             print(self.TELEMETRY_LOG + " " + message)
 

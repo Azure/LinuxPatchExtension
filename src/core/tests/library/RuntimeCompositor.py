@@ -51,6 +51,7 @@ class RuntimeCompositor(object):
 
         # Business logic components
         self.execution_config = self.container.get('execution_config')
+        self.telemetry_writer.setup_telemetry(self.execution_config)
         self.package_manager = self.container.get('package_manager')
         self.reboot_manager = self.container.get('reboot_manager')
         self.reconfigure_reboot_manager()
@@ -63,7 +64,6 @@ class RuntimeCompositor(object):
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
 
     def stop(self):
-        # self.telemetry_writer.close_transports()
         self.file_logger.close(message_at_close="<Runtime stopped>")
         self.container.reset()
 

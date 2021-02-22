@@ -38,7 +38,7 @@ class CoreMain(object):
             composite_logger.log_debug("Building out full container...")
             container = bootstrapper.build_out_container()
             lifecycle_manager, telemetry_writer, status_handler = bootstrapper.build_core_components(container)
-            composite_logger.telemetry_writer = telemetry_writer  # Need to set telemetry_writer within composite logger to enable all logs to be sent to telemetry
+            composite_logger.telemetry_writer = telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
             composite_logger.log_debug("Completed building out full container.\n\n")
 
             # Basic environment check
@@ -49,6 +49,7 @@ class CoreMain(object):
             # Execution config retrieval
             composite_logger.log_debug("Obtaining execution configuration...")
             execution_config = container.get('execution_config')
+            telemetry_writer.setup_telemetry(execution_config)
             patch_operation_requested = execution_config.operation.lower()
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
@@ -81,7 +82,6 @@ class CoreMain(object):
 
             composite_logger.log_debug("Safely completing required operations after exception...")
             if telemetry_writer is not None:
-                # telemetry_writer.send_error_info("EXCEPTION: " + repr(error))
                 telemetry_writer.write_event("EXCEPTION: " + repr(error), Constants.TelemetryEventLevel.Error)
             if status_handler is not None:
                 composite_logger.log_debug(' - Status handler pending writes flags [I=' + str(patch_installation_successful) + ', A=' + str(patch_assessment_successful) + ']')
