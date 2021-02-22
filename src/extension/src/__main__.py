@@ -46,7 +46,6 @@ def main(argv):
         runtime_context_handler = RuntimeContextHandler(logger)
         json_file_handler = JsonFileHandler(logger)
         ext_env_handler = ExtEnvHandler(json_file_handler)
-
         if ext_env_handler.handler_environment_json is not None and ext_env_handler.config_folder is not None:
             config_folder = ext_env_handler.config_folder
             if config_folder is None or not os.path.exists(config_folder):

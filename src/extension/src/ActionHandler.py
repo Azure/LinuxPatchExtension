@@ -125,10 +125,8 @@ class ActionHandler(object):
             new_version_config_folder = self.ext_env_handler.config_folder
             extension_pardir = os.path.abspath(os.path.join(new_version_config_folder, os.path.pardir, os.path.pardir))
             self.logger.log("Parent directory for all extension version artifacts [Directory={0}]".format(str(extension_pardir)))
-
             paths_to_all_versions = self.get_all_versions(extension_pardir)
             self.logger.log("List of all extension versions found on the machine. [All Versions={0}]".format(paths_to_all_versions))
-
             if len(paths_to_all_versions) <= 1:
                 # Extension Update action called when
                 # a) artifacts for the preceding version do not exist on the machine, or
@@ -138,22 +136,18 @@ class ActionHandler(object):
 
             # identify the version preceding current
             self.logger.log("Fetching the extension version preceding current from all available versions...")
-
             paths_to_all_versions.sort(reverse=True, key=LooseVersion)
             preceding_version_path = paths_to_all_versions[1]
-
             if preceding_version_path is None or preceding_version_path == "" or not os.path.exists(preceding_version_path):
                 self.logger.log_error("Could not find path where preceding extension version artifacts are stored. Hence, cannot copy the required artifacts to the latest version. "
                                       "[Preceding extension version path={0}]".format(str(preceding_version_path)))
                 return Constants.ExitCode.HandlerFailed
-
             self.logger.log("Preceding version path. [Path={0}]".format(str(preceding_version_path)))
 
             # copy all required files from preceding version to current
             self.copy_config_files(preceding_version_path, new_version_config_folder)
 
             self.logger.log("All update actions from extension handler completed.")
-
             return Constants.ExitCode.Okay
 
         except Exception as error:

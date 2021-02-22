@@ -71,7 +71,6 @@ class ProcessHandler(object):
 
         # Verify the python version available on the machine to use
         self.logger.log("Python version: " + " ".join(sys.version.splitlines()))
-
         python_cmd = self.get_python_cmd()
         if python_cmd == Constants.PYTHON_NOT_FOUND:
             self.logger.log("Cannot execute patch operation due to error. [Error={0}]".format(Constants.PYTHON_NOT_FOUND))
@@ -79,13 +78,11 @@ class ProcessHandler(object):
 
         command = [python_cmd + " " + exec_path + " " + args]
         self.logger.log("Launching process. [command={0}]".format(str(command)))
-
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if process.pid is not None:
             self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
             did_process_start = self.__check_process_state(process, seq_no)
             return process if did_process_start else None
-
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
 
     def get_python_cmd(self):
@@ -199,7 +196,6 @@ class ProcessHandler(object):
                 process_id = int(process_id)
                 if self.is_process_running(process_id):
                     running_process_ids.append(process_id)
-
         self.logger.log("Processes still running from the previous request: [PIDs={0}]".format(str(running_process_ids)))
         return running_process_ids
 
@@ -225,11 +221,9 @@ class ProcessHandler(object):
             if self.is_process_running(pid):
                 self.logger.log("Terminating process: [PID={0}]".format(str(pid)))
                 os.kill(pid, signal.SIGTERM)
-
         except OSError as error:
             self.logger.log_error("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)))
             self.ext_output_status_handler.add_error_to_status("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-
             if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                 error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             raise

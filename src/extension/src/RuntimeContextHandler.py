@@ -30,7 +30,6 @@ class RuntimeContextHandler(object):
         if core_state_content is None or core_state_content.__getattribute__(self.core_state_fields.completed).lower() == 'true':
             self.logger.log("Previous request is complete")
             return
-
         # verify if processes from prev request are running
         running_process_ids = process_handler.identify_running_processes(core_state_content.__getattribute__(self.core_state_fields.process_ids))
         if len(running_process_ids) != 0:

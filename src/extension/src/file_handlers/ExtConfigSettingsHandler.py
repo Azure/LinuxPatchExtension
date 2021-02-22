@@ -137,7 +137,6 @@ class ExtConfigSettingsHandler(object):
             else:
                 config_invalid_due_to = "no content found in the file" if config_settings_json is None else "settings not in expected format"
                 raise Exception("Config Settings json file invalid due to " + config_invalid_due_to)
-
         except Exception as error:
             error_msg = "Error processing config settings file. [Sequence Number={0}] [Exception= {1}]".format(seq_no, repr(error))
             self.logger.log_error(error_msg)

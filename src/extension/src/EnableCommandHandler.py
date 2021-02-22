@@ -102,7 +102,6 @@ class EnableCommandHandler(object):
     def process_reenable_request(self, config_settings, core_state_content):
         """ Called when the current request has the same config as the one before it. Restarts the operation if the previous request has errors, no action otherwise """
         self.logger.log("This is the same request as the previous patch operation. Checking previous request's status")
-
         if core_state_content.__getattribute__(self.core_state_fields.completed).lower() == 'false':
             running_process_ids = self.process_handler.identify_running_processes(core_state_content.__getattribute__(self.core_state_fields.process_ids))
             if len(running_process_ids) == 0:
