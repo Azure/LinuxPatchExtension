@@ -27,17 +27,19 @@ from core.src.bootstrap.Constants import Constants
 class TelemetryWriter(object):
     """Class for writing telemetry data to data transports"""
 
-    def __init__(self, composite_logger, env_layer):
+    def __init__(self, composite_logger, env_layer, events_folder_path):
         self.composite_logger = composite_logger
         self.env_layer = env_layer
+        self.__is_agent_compatible = False
+        self.__operation_id = str(datetime.datetime.utcnow())
         self.events_folder_path = None
-        self.__execution_config = None
-        self.__is_telemetry_startup = False  # to avoid re-sending startup events to telemetry
 
-    def write_telemetry_startup_events(self):
+        if events_folder_path is not None and os.path.exists(events_folder_path):
+            self.events_folder_path = events_folder_path
+            self.__is_agent_compatible = True
+
         self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
         self.write_machine_config_info()
-        self.write_config_info(self.__execution_config.config_settings, 'execution_config')
 
     def write_config_info(self, config_info, config_type='unknown'):
         # Configuration info
@@ -120,7 +122,7 @@ class TelemetryWriter(object):
             "Message": self.__ensure_message_restriction_compliance(message),
             "EventPid": "",
             "EventTid": "",
-            "OperationId": "" if self.__execution_config is None else self.__execution_config.activity_id  # activity id from from config settings
+            "OperationId": self.__operation_id  # activity id from from config settings
         }
 
     def __ensure_message_restriction_compliance(self, full_message):
@@ -138,7 +140,8 @@ class TelemetryWriter(object):
 
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
-        if self.events_folder_path is None or not os.path.exists(self.events_folder_path) or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+        # if self.events_folder_path is None or not os.path.exists(self.events_folder_path) or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+        if not self.__is_agent_compatible or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
             return
 
         self.__delete_older_events()
@@ -196,10 +199,6 @@ class TelemetryWriter(object):
         except Exception as error:
             raise Exception("Unable to write to telemetry. [Event File={0}] [Error={1}].".format(str(file_path), repr(error)))
 
-    def setup_telemetry(self, execution_config):
-        self.__execution_config = execution_config
-        self.events_folder_path = self.__execution_config.events_folder
-
     def __get_events_dir_size(self):
         return sum([os.path.getsize(os.path.join(self.events_folder_path, f)) for f in os.listdir(self.events_folder_path) if os.path.isfile(os.path.join(self.events_folder_path, f))])
 
@@ -217,18 +216,16 @@ class TelemetryWriter(object):
             file_contents = file_handle.read()
             return json.loads(file_contents)
 
-    def startup_telemetry_if_agent_compatible(self):
-        """ Verifies if telemetry is available. Stops execution if not available. Sends startup events if telemetry is available """
+    def set_operation_id(self, operation_id):
+        self.__operation_id = operation_id
 
-        if self.events_folder_path is None:
+    def is_agent_compatible(self):
+        """ Verifies if telemetry is available. Stops execution if not available. """
+
+        if not self.__is_agent_compatible:
             error_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine."
             self.composite_logger.log_telemetry_module_error(error_msg)
             raise Exception(error_msg)
 
-        if not self.__is_telemetry_startup:
-            self.composite_logger.log_telemetry_module("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
-            self.write_telemetry_startup_events()
-            self.__is_telemetry_startup = True
-        else:
-            self.composite_logger.log_telemetry_module("Telemetry startup was completed in an earlier instance. Will continue to write to telemetry using that instance")
+        self.composite_logger.log_telemetry_module("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
 

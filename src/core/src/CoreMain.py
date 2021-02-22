@@ -26,7 +26,8 @@ class CoreMain(object):
         file_logger = bootstrapper.file_logger
         composite_logger = bootstrapper.composite_logger
         stdout_file_mirror = bootstrapper.stdout_file_mirror
-        lifecycle_manager = telemetry_writer = status_handler = None
+        telemetry_writer = bootstrapper.telemetry_writer
+        lifecycle_manager = status_handler = None
 
         # Init operation statuses
         patch_operation_requested = Constants.UNKNOWN
@@ -37,8 +38,7 @@ class CoreMain(object):
             # Level 2 bootstrapping
             composite_logger.log_debug("Building out full container...")
             container = bootstrapper.build_out_container()
-            lifecycle_manager, telemetry_writer, status_handler = bootstrapper.build_core_components(container)
-            composite_logger.telemetry_writer = telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
+            lifecycle_manager, status_handler = bootstrapper.build_core_components(container)
             composite_logger.log_debug("Completed building out full container.\n\n")
 
             # Basic environment check
@@ -49,7 +49,7 @@ class CoreMain(object):
             # Execution config retrieval
             composite_logger.log_debug("Obtaining execution configuration...")
             execution_config = container.get('execution_config')
-            telemetry_writer.setup_telemetry(execution_config)
+            telemetry_writer.set_operation_id(execution_config.activity_id)
             patch_operation_requested = execution_config.operation.lower()
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')

@@ -43,11 +43,11 @@ class ConfigurationFactory(object):
     """ Class for generating module definitions. Configuration is list of key value pairs. Please DON'T change key name.
     DI container relies on the key name to find and resolve dependencies. If you do need change it, please make sure to
     update the key name in all places that reference it. """
-    def __init__(self, log_file_path, real_record_path, recorder_enabled, emulator_enabled):
+    def __init__(self, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder):
         self.bootstrap_configurations = {
-            'prod_config':  self.new_bootstrap_configuration(Constants.PROD, log_file_path, real_record_path, recorder_enabled, emulator_enabled),
-            'dev_config':   self.new_bootstrap_configuration(Constants.DEV, log_file_path, real_record_path, recorder_enabled, emulator_enabled),
-            'test_config':  self.new_bootstrap_configuration(Constants.TEST, log_file_path, real_record_path, recorder_enabled, emulator_enabled)
+            'prod_config':  self.new_bootstrap_configuration(Constants.PROD, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder),
+            'dev_config':   self.new_bootstrap_configuration(Constants.DEV, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder),
+            'test_config':  self.new_bootstrap_configuration(Constants.TEST, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder)
         }
 
         self.configurations = {
@@ -106,7 +106,7 @@ class ConfigurationFactory(object):
 
     # region - Configuration Builders
     @staticmethod
-    def new_bootstrap_configuration(config_env, log_file_path, real_record_path, recorder_enabled, emulator_enabled):
+    def new_bootstrap_configuration(config_env, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder):
         """ Core configuration definition. """
         configuration = {
             'config_env': config_env,
@@ -134,6 +134,13 @@ class ConfigurationFactory(object):
                     'telemetry_writer': None  # Has to be initialized without telemetry_writer to avoid running into a circular dependency loop. Telemetry writer within composite logger will be set later after telemetry writer has been initialized
                 }
             },
+            'telemetry_writer': {
+                'component': TelemetryWriter,
+                'component_args': ['composite_logger', 'env_layer'],
+                'component_kwargs': {
+                    'events_folder_path': events_folder
+                }
+            },
         }
 
         if config_env is Constants.DEV or config_env is Constants.TEST:
@@ -154,11 +161,6 @@ class ConfigurationFactory(object):
             'status_handler': {
                 'component': StatusHandler,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
-                'component_kwargs': {}
-            },
-            'telemetry_writer': {
-                'component': TelemetryWriter,
-                'component_args': ['composite_logger'],
                 'component_kwargs': {}
             },
             'package_manager': {

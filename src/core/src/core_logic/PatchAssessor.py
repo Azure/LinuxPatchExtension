@@ -35,7 +35,7 @@ class PatchAssessor(object):
     def start_assessment(self):
         """ Start an update assessment """
         self.status_handler.set_current_operation(Constants.ASSESSMENT)
-        self.telemetry_writer.startup_telemetry_if_agent_compatible()
+        self.telemetry_writer.is_agent_compatible()
 
         self.composite_logger.log('\nStarting patch assessment...')
 
