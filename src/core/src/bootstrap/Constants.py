@@ -175,6 +175,8 @@ class Constants(object):
     TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 4194304  # 4MB
     TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 41943040  # 40MB
     TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES = 80  # buffer for the bytes dropped text added at the end of the truncated telemetry message
+    TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT = 60
+    TELEMETRY_MAX_TIME_FOR_EVENT_FILE_THROTTLE = 60
 
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):

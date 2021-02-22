@@ -25,6 +25,7 @@ class TestAptitudePackageManager(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
         self.container = self.runtime.container
+        self.runtime.telemetry_writer.startup_telemetry_if_agent_compatible()
 
     def tearDown(self):
         self.runtime.stop()

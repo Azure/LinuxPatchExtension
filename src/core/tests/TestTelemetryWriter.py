@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import datetime
 import json
 import os
 import re
@@ -26,6 +27,7 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 class TestTelemetryWriter(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
+        self.runtime.telemetry_writer.startup_telemetry_if_agent_compatible()
 
     def tearDown(self):
         self.runtime.stop()
@@ -153,6 +155,36 @@ class TestTelemetryWriter(unittest.TestCase):
         Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = telemetry_dir_size_backup
         Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_size_backup
         os.remove = os_remove_backup
+
+    def test_write_event_event_file_max_throttle_reached(self):
+        event_file_max_throttle_backup = Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT
+        Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT = 4
+        self.runtime.telemetry_writer.event_file_count = 0
+        self.runtime.telemetry_writer.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
+
+        self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
+        self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
+        self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task3")
+
+        self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4")
+        event_file_task3 = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, event_file_task3), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
+            self.assertTrue("Test Task4" in events[0]['TaskName'])
+            f.close()
+        self.assertTrue(self.runtime.telemetry_writer.event_file_count == 4)
+
+        self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task5")
+        self.assertTrue(self.runtime.telemetry_writer.event_file_count == 1)
+
+        max_time_for_event_file_throttle_backup = Constants.TELEMETRY_MAX_TIME_FOR_EVENT_FILE_THROTTLE
+        Constants.TELEMETRY_MAX_TIME_FOR_EVENT_FILE_THROTTLE = 0
+        self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task6")
+        self.assertTrue(self.runtime.telemetry_writer.event_file_count == 1)
+        Constants.TELEMETRY_MAX_TIME_FOR_EVENT_FILE_THROTTLE = max_time_for_event_file_throttle_backup
+
+        Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT = event_file_max_throttle_backup
 
 
 if __name__ == '__main__':
