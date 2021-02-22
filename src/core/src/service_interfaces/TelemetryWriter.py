@@ -225,10 +225,10 @@ class TelemetryWriter(object):
             self.composite_logger.log_telemetry_module_error(error_msg)
             raise Exception(error_msg)
 
-        self.composite_logger.log_telemetry_module("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
         if not self.__is_telemetry_startup:
+            self.composite_logger.log_telemetry_module("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
             self.write_telemetry_startup_events()
             self.__is_telemetry_startup = True
         else:
-            self.composite_logger.log_telemetry_module("Telemetry startup was completed in an earlier instance, please check older telemetry events")
+            self.composite_logger.log_telemetry_module("Telemetry startup was completed in an earlier instance. Will continue to write to telemetry using that instance")
 
