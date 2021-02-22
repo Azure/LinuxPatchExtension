@@ -31,6 +31,8 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
         self.logger = self.runtime.logger
+        self.telemetry_writer = self.runtime.telemetry_writer
+        self.logger.telemetry_writer = self.telemetry_writer
         self.utility = self.runtime.utility
         self.json_file_handler = self.runtime.json_file_handler
         self.status_file_fields = Constants.StatusFileFields

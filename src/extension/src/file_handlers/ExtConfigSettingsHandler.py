@@ -112,8 +112,8 @@ class ExtConfigSettingsHandler(object):
     def read_file(self, seq_no):
         """ Fetches config from <seq_no>.settings file in <self.config_folder>. Raises an exception if no content/file found/errors processing file """
         try:
-            file = str(seq_no) + self.file_ext
-            config_settings_json = self.json_file_handler.get_json_file_content(file, self.config_folder, raise_if_not_found=True)
+            file_name = str(seq_no) + self.file_ext
+            config_settings_json = self.json_file_handler.get_json_file_content(file_name, self.config_folder, raise_if_not_found=True)
             if config_settings_json is not None and self.are_config_settings_valid(config_settings_json):
                 operation = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.operation)
                 activity_id = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.activity_id)
@@ -135,8 +135,8 @@ class ExtConfigSettingsHandler(object):
                                                                                     self.public_settings_all_keys.maintenance_run_id])
                 return config_settings_values(operation, activity_id, start_time, max_duration, reboot_setting, include_classifications, include_patches, exclude_patches, internal_settings, maintenance_run_id)
             else:
-                #ToDo log which of the 2 conditions failed, similar to this logs in other multiple condition checks
-                raise Exception("Config Settings json file invalid")
+                config_invalid_due_to = "no content found in the file" if config_settings_json is None else "settings not in expected format"
+                raise Exception("Config Settings json file invalid due to " + config_invalid_due_to)
         except Exception as error:
             error_msg = "Error processing config settings file. [Sequence Number={0}] [Exception= {1}]".format(seq_no, repr(error))
             self.logger.log_error(error_msg)
@@ -189,3 +189,4 @@ class ExtConfigSettingsHandler(object):
                 else:
                     return None
         return None
+

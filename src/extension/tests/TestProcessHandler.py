@@ -32,6 +32,8 @@ class TestProcessHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         runtime = RuntimeComposer()
         self.logger = runtime.logger
+        self.telemetry_writer = runtime.telemetry_writer
+        self.logger.telemetry_writer = self.telemetry_writer
         self.utility = runtime.utility
         self.json_file_handler = runtime.json_file_handler
         seq_no = 1234
