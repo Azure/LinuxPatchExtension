@@ -79,8 +79,8 @@ class CompositeLogger(object):
         if self.file_logger is not None:
             self.file_logger.write("\n\t" + self.VERBOSE + " " + "\n\t".join(message.strip().splitlines()).strip())
 
-    def log_telemetry_error(self, message):
-        """Log telemetry error"""
+    def log_telemetry_module_error(self, message):
+        """Used exclusively by telemetry writer to log any errors raised within it's operation"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         if self.file_logger is not None:
@@ -89,8 +89,8 @@ class CompositeLogger(object):
         else:
             print(self.TELEMETRY_ERROR + " " + message)
 
-    def log_telemetry(self, message):
-        """Log telemetry"""
+    def log_telemetry_module(self, message):
+        """Used exclusively by telemetry writer to log messages from it's operation"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         if self.file_logger is not None:
