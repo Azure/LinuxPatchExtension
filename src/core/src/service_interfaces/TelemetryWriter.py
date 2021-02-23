@@ -33,6 +33,7 @@ class TelemetryWriter(object):
         self.__is_agent_compatible = False
         self.__operation_id = str(datetime.datetime.utcnow())
         self.events_folder_path = None
+        self.__telemetry_event_counter = 0  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
 
         if events_folder_path is not None and os.path.exists(events_folder_path):
             self.events_folder_path = events_folder_path
@@ -126,16 +127,20 @@ class TelemetryWriter(object):
         }
 
     def __ensure_message_restriction_compliance(self, full_message):
-        """ Removes line breaks, tabs and restricts message to a byte limit """
+        """ Removes line breaks, tabs and restricts message to a byte limit.
+        In case a message is truncated due to size restrictions, adds the count of bytes dropped at the end.
+        Adds a telemetry event counter at the end of every event, irrespective of truncation, which can be used in debugging operation flow. """
+
         message_size_limit_in_bytes = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES
         formatted_message = re.sub(r"\s+", " ", str(full_message))
 
-        if len(formatted_message.encode('utf-8')) > message_size_limit_in_bytes:
+        if len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES > message_size_limit_in_bytes:
             self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
             formatted_message = formatted_message.encode('utf-8')
-            bytes_dropped = len(formatted_message) - message_size_limit_in_bytes + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES
-            return formatted_message[:message_size_limit_in_bytes - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES].decode('utf-8') + '. [{0} bytes dropped]'.format(bytes_dropped)
+            bytes_dropped = len(formatted_message) - message_size_limit_in_bytes + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES
+            return formatted_message[:message_size_limit_in_bytes - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES - Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES].decode('utf-8') + '. [{0} bytes dropped]'.format(bytes_dropped)
 
+        formatted_message += " [TC={0}]".format(self.__telemetry_event_counter)
         return formatted_message
 
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
@@ -199,6 +204,7 @@ class TelemetryWriter(object):
                 json.dump(prev_events, tf, default=data.__str__())
                 tempname = tf.name
             shutil.move(tempname, file_path)
+            self.__telemetry_event_counter += 1
         except Exception as error:
             self.composite_logger.log_telemetry_module_error("Unable to write to telemetry. [Event File={0}] [Error={1}].".format(str(file_path), repr(error)))
             raise
