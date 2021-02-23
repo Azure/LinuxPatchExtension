@@ -20,8 +20,9 @@ from extension.src.Constants import Constants
 
 class EnableCommandHandler(object):
     """ Responsible for executing the action for enable command """
-    def __init__(self, logger, utility, runtime_context_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
+    def __init__(self, logger, telemetry_writer, utility, runtime_context_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
         self.logger = logger
+        self.telemetry_writer = telemetry_writer
         self.utility = utility
         self.runtime_context_handler = runtime_context_handler
         self.ext_env_handler = ext_env_handler
@@ -51,8 +52,8 @@ class EnableCommandHandler(object):
             config_settings = self.ext_config_settings_handler.read_file(self.seq_no)
 
             # set activity_id in telemetry
-            if self.logger.telemetry_writer is not None:
-                self.logger.telemetry_writer.set_operation_id(config_settings.__getattribute__(self.config_public_settings.activity_id))
+            if self.telemetry_writer is not None:
+                self.telemetry_writer.set_operation_id(config_settings.__getattribute__(self.config_public_settings.activity_id))
 
             operation = config_settings.__getattribute__(self.config_public_settings.operation)
 
@@ -149,5 +150,4 @@ class EnableCommandHandler(object):
             else:
                 self.ext_output_status_handler.add_error_to_status("Error executing NoOperation due to last reported error.", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.Error)
-
 

@@ -27,7 +27,6 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 class TestTelemetryWriter(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
-        self.runtime.telemetry_writer.startup_telemetry_if_agent_compatible()
 
     def tearDown(self):
         self.runtime.stop()

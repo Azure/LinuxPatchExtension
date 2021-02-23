@@ -9,8 +9,7 @@ from extension.src.local_loggers.Logger import Logger
 class RuntimeComposer(object):
     def __init__(self):
         self.logger = Logger()
-        telemetry_writer = TelemetryWriter()
-        self.logger = Logger(telemetry_writer=telemetry_writer)
+        self.telemetry_writer = TelemetryWriter(self.logger)
         self.utility = Utility(self.logger)
         self.json_file_handler = JsonFileHandler(self.logger)
         time.sleep = self.mock_sleep

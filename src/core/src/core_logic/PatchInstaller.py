@@ -46,8 +46,10 @@ class PatchInstaller(object):
 
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
-        self.composite_logger.log('\nStarting patch installation...')
         self.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.telemetry_writer.is_agent_compatible()
+
+        self.composite_logger.log('\nStarting patch installation...')
 
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
         self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)

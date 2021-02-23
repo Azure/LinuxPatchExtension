@@ -30,12 +30,12 @@ class Bootstrapper(object):
         # Environment awareness
         self.current_env = self.get_current_env()
         self.argv = argv
-        self.log_file_path, self.real_record_path = self.get_log_file_and_real_record_paths(argv)
+        self.log_file_path, self.real_record_path, self.events_folder = self.get_path_to_log_files_and_telemetry_dir(argv)
         self.recorder_enabled, self.emulator_enabled = self.get_recorder_emulator_flags(argv)
 
         # Container initialization
         print("Building bootstrap container configuration...")
-        self.configuration_factory = ConfigurationFactory(self.log_file_path, self.real_record_path, self.recorder_enabled, self.emulator_enabled)
+        self.configuration_factory = ConfigurationFactory(self.log_file_path, self.real_record_path, self.recorder_enabled, self.emulator_enabled, self.events_folder)
         self.container = Container()
         self.container.build(self.configuration_factory.get_bootstrap_configuration(self.current_env))
 
@@ -47,7 +47,8 @@ class Bootstrapper(object):
         if capture_stdout:
             self.stdout_file_mirror = StdOutFileMirror(self.env_layer, self.file_logger)
         self.composite_logger = self.container.get('composite_logger')
-        self.telemetry_writer = None
+        self.telemetry_writer = self.container.get('telemetry_writer')
+        self.composite_logger.telemetry_writer = self.telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
 
         print("\nCompleted building bootstrap container configuration.\n")
 
@@ -61,14 +62,15 @@ class Bootstrapper(object):
         print("Bootstrap environment: {0}".format(current_env))
         return current_env
 
-    def get_log_file_and_real_record_paths(self, argv):
+    def get_path_to_log_files_and_telemetry_dir(self, argv):
         """ Performs the minimum steps required to determine where to start logging """
         sequence_number = self.get_value_from_argv(argv, Constants.ARG_SEQUENCE_NUMBER)
         environment_settings = json.loads(base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_ENVIRONMENT_SETTINGS).replace("b\'", "")))
         log_folder = environment_settings[Constants.EnvSettings.LOG_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
         log_file_path = os.path.join(log_folder, str(sequence_number) + ".core.log")
         real_rec_path = os.path.join(log_folder, str(sequence_number) + ".core.rec")
-        return log_file_path, real_rec_path
+        events_folder = environment_settings[Constants.EnvSettings.EVENTS_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
+        return log_file_path, real_rec_path, events_folder
 
     def get_recorder_emulator_flags(self, argv):
         """ Determines if the recorder or emulator flags need to be changed from the defaults """
@@ -109,11 +111,9 @@ class Bootstrapper(object):
     def build_core_components(self, container):
         self.composite_logger.log_debug(" - Instantiating lifecycle manager.")
         lifecycle_manager = container.get('lifecycle_manager')
-        self.composite_logger.log_debug(" - Instantiating telemetry writer.")
-        telemetry_writer = container.get('telemetry_writer')
         self.composite_logger.log_debug(" - Instantiating progress status writer.")
         status_handler = container.get('status_handler')
-        return lifecycle_manager, telemetry_writer, status_handler
+        return lifecycle_manager, status_handler
 
     def bootstrap_splash_text(self):
         self.composite_logger.log("\n\n[%exec_name%] \t -- \t Copyright (c) Microsoft Corporation. All rights reserved. \nApplication version: 3.0.[%exec_sub_ver%]\n\n")

@@ -26,7 +26,7 @@ class ExecutionConfig(object):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.execution_parameters = eval(execution_parameters)
-
+        self.composite_logger.log_debug(" - Input parameters... [InputParameters={0}]".format(str(execution_parameters)))
         # Environment details
         self.global_exclusion_list = str(Constants.GLOBAL_EXCLUSION_LIST) if Constants.GLOBAL_EXCLUSION_LIST else None
 

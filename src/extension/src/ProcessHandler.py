@@ -31,7 +31,8 @@ class ProcessHandler(object):
         self.logger = logger
         self.ext_output_status_handler = ext_output_status_handler
 
-    def get_public_config_settings(self, config_settings):
+    @staticmethod
+    def get_public_config_settings(config_settings):
         """ Fetches only public settings from given config_settings and returns them in json format """
         public_config_settings = {}
         public_settings_keys = Constants.ConfigPublicSettingsFields
@@ -48,7 +49,8 @@ class ProcessHandler(object):
                                            public_settings_keys.maintenance_run_id: config_settings.__getattribute__(public_settings_keys.maintenance_run_id)})
         return public_config_settings
 
-    def get_env_settings(self, ext_env_handler):
+    @staticmethod
+    def get_env_settings(ext_env_handler):
         """ Fetches configs required by the core code from HandlerEnvironment file returns them in json format """
         env_settings = {}
         env_settings_keys = Constants.EnvSettingsFields
@@ -225,3 +227,4 @@ class ProcessHandler(object):
             if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                 error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             raise
+
