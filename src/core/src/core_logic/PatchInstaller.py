@@ -47,7 +47,7 @@ class PatchInstaller(object):
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
         self.status_handler.set_current_operation(Constants.INSTALLATION)
-        self.telemetry_writer.is_agent_compatible()
+        self.raise_if_agent_incompatible()
 
         self.composite_logger.log('\nStarting patch installation...')
 
@@ -114,6 +114,14 @@ class PatchInstaller(object):
             # NOTE: For auto patching requests, no need to report patch metadata to healthstore in case of failure
 
         return overall_patch_installation_successful
+
+    def raise_if_agent_incompatible(self):
+        if not self.telemetry_writer.is_agent_compatible():
+            error_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
+            self.composite_logger.log_error(error_msg)
+            raise Exception(error_msg)
+
+        self.composite_logger.log(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG)
 
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""

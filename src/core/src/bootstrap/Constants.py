@@ -186,6 +186,8 @@ class Constants(object):
         LogAlways = "LogAlways"
 
     TELEMETRY_TASK_NAME = "ExtensionCoreLog"
+    TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine following instructions here: http://aka.ms/UpdateLinuxAgent"
+    TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was met."
 
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -194,3 +196,4 @@ class Constants(object):
         PRIVILEGED_OP_MARKER = "Privileged_Op_e6df678d-d09b-436a-a08a-65f2f70a6798"
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
+

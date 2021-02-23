@@ -27,9 +27,9 @@ from core.src.bootstrap.Constants import Constants
 class TelemetryWriter(object):
     """Class for writing telemetry data to data transports"""
 
-    def __init__(self, composite_logger, env_layer, events_folder_path):
-        self.composite_logger = composite_logger
+    def __init__(self, env_layer, composite_logger, events_folder_path):
         self.env_layer = env_layer
+        self.composite_logger = composite_logger
         self.__is_agent_compatible = False
         self.__operation_id = str(datetime.datetime.utcnow())
         self.events_folder_path = None
@@ -83,7 +83,7 @@ class TelemetryWriter(object):
         error_payload = {
             'cmd': str(cmd),
             'code': str(code),
-            'output': str(output)[0:3072]
+            'output': str(output)
         }
         return self.write_event(error_payload, Constants.TelemetryEventLevel.Error)
     # endregion
@@ -140,17 +140,19 @@ class TelemetryWriter(object):
 
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
-        # if self.events_folder_path is None or not os.path.exists(self.events_folder_path) or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
-        if not self.__is_agent_compatible or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
-            return
+        try:
+            if not self.__is_agent_compatible or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+                return
 
-        self.__delete_older_events()
+            self.__delete_older_events()
 
-        event = self.__new_event_json(event_level, message, task_name)
-        if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES:
-            self.composite_logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
-        else:
-            self.write_event_using_temp_file(self.events_folder_path, event)
+            event = self.__new_event_json(event_level, message, task_name)
+            if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES:
+                self.composite_logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
+            else:
+                self.__write_event_using_temp_file(self.events_folder_path, event)
+        except Exception:
+            raise Exception("Internal reporting error. Execution could not complete.")
 
     def __delete_older_events(self):
         """ Delete older events until the at least one new event file can be added as per the size restrictions """
@@ -175,9 +177,10 @@ class TelemetryWriter(object):
                 self.composite_logger.log_telemetry_module_error("Error deleting event file. [File={0}] [Exception={1}]".format(repr(event_file), repr(e)))
 
         if self.__get_events_dir_size() >= Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES:
-            raise Exception("Older event files were not deleted. Current event will not be sent to telemetry as events directory size exceeds maximum limit")
+            self.composite_logger.log_telemetry_module_error("Older event files were not deleted. Current event will not be sent to telemetry as events directory size exceeds maximum limit")
+            raise
 
-    def write_event_using_temp_file(self, folder_path, data, mode='w'):
+    def __write_event_using_temp_file(self, folder_path, data, mode='w'):
         """ Writes to a temp file in a single operation and then moves/overrides the original file with the temp """
         file_path = self.__get_event_file_path(folder_path)
         prev_events = []
@@ -197,21 +200,30 @@ class TelemetryWriter(object):
                 tempname = tf.name
             shutil.move(tempname, file_path)
         except Exception as error:
-            raise Exception("Unable to write to telemetry. [Event File={0}] [Error={1}].".format(str(file_path), repr(error)))
+            self.composite_logger.log_telemetry_module_error("Unable to write to telemetry. [Event File={0}] [Error={1}].".format(str(file_path), repr(error)))
+            raise
 
     def __get_events_dir_size(self):
-        return sum([os.path.getsize(os.path.join(self.events_folder_path, f)) for f in os.listdir(self.events_folder_path) if os.path.isfile(os.path.join(self.events_folder_path, f))])
+        """ Returns total size, in bytes, of the events folder """
+        total_dir_size = 0
+        for f in os.listdir(self.events_folder_path):
+            if os.path.isfile(os.path.join(self.events_folder_path, f)):
+                total_dir_size += os.path.getsize(os.path.join(self.events_folder_path, f))
+        return total_dir_size
 
     @staticmethod
     def __get_event_file_path(folder_path):
+        """ Returns the filename, generated from current timestamp in seconds, to be used to write an event. Eg: 1614111606855.json"""
         return os.path.join(folder_path, str(int(round(time.time() * 1000))) + ".json")
 
     @staticmethod
     def get_file_size(file_path):
+        """ Returns the size of a file. Extracted out for mocking in unit test """
         return os.path.getsize(file_path)
 
     @staticmethod
     def __fetch_events_from_previous_file(file_path):
+        """ Fetch contents from the file """
         with open(file_path, 'r') as file_handle:
             file_contents = file_handle.read()
             return json.loads(file_contents)
@@ -221,11 +233,5 @@ class TelemetryWriter(object):
 
     def is_agent_compatible(self):
         """ Verifies if telemetry is available. Stops execution if not available. """
-
-        if not self.__is_agent_compatible:
-            error_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine."
-            self.composite_logger.log_telemetry_module_error(error_msg)
-            raise Exception(error_msg)
-
-        self.composite_logger.log_telemetry_module("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
+        return self.__is_agent_compatible
 

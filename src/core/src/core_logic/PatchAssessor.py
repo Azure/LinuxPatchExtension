@@ -27,7 +27,6 @@ class PatchAssessor(object):
 
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
-        self.is_telemetry_setup = False
         self.status_handler = status_handler
 
         self.package_manager = package_manager
@@ -35,7 +34,7 @@ class PatchAssessor(object):
     def start_assessment(self):
         """ Start an update assessment """
         self.status_handler.set_current_operation(Constants.ASSESSMENT)
-        self.telemetry_writer.is_agent_compatible()
+        self.raise_if_agent_incompatible()
 
         self.composite_logger.log('\nStarting patch assessment...')
 
@@ -75,4 +74,12 @@ class PatchAssessor(object):
 
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
+
+    def raise_if_agent_incompatible(self):
+        if not self.telemetry_writer.is_agent_compatible():
+            error_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
+            self.composite_logger.log_error(error_msg)
+            raise Exception(error_msg)
+
+        self.composite_logger.log(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG)
 
