@@ -66,6 +66,8 @@ class Constants(object):
     TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES = 80  # buffer for the bytes dropped text added at the end of the truncated telemetry message
 
     TELEMETRY_ENABLED_AT_EXTENSION = True
+    TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine following instructions here: http://aka.ms/UpdateLinuxAgent"
+    TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was met."
 
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):

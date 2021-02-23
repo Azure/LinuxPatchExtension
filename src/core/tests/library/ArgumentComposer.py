@@ -36,7 +36,7 @@ class ArgumentComposer(object):
         self.sequence_number = 1
 
         # environment settings
-        self.__log_folder = self.__config_folder = self.__status_folder = self.__events_folder = self.__get_scratch_folder()
+        self.__log_folder = self.__config_folder = self.__status_folder = self.events_folder = self.__get_scratch_folder()
 
         # config settings
         self.operation = Constants.INSTALLATION
@@ -58,7 +58,7 @@ class ArgumentComposer(object):
             "logFolder": self.__log_folder,
             "configFolder": self.__config_folder,
             "statusFolder": self.__status_folder,
-            "eventsFolder": self.__events_folder
+            "eventsFolder": self.events_folder
         }
 
         config_settings = {

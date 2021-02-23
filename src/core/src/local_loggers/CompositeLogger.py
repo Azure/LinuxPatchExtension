@@ -22,20 +22,25 @@ from core.src.bootstrap.Constants import Constants
 class CompositeLogger(object):
     """ Manages diverting different kinds of output to the right sinks for them. """
 
-    def __init__(self, env_layer=None, file_logger=None, current_env=None):
+    def __init__(self, env_layer=None, file_logger=None, current_env=None, telemetry_writer=None):
         self.env_layer = env_layer
         self.file_logger = file_logger
+        self.telemetry_writer = telemetry_writer  # Although telemetry_writer is an independent entity, it is used within composite_logger for ease of sending all logs to telemetry
         self.ERROR = "ERROR:"
         self.WARNING = "WARNING:"
         self.DEBUG = "DEBUG:"
         self.VERBOSE = "VERBOSE:"
+        self.TELEMETRY_ERROR = "TELEMETRY_ERROR:"
+        self.TELEMETRY_LOG = "TELEMETRY_LOG:"
         self.current_env = current_env
         self.NEWLINE_REPLACE_CHAR = " "
 
-    def log(self, message):
+    def log(self, message, message_type=Constants.TelemetryEventLevel.Informational):
         """log output"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = message.strip()
+        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
+            self.telemetry_writer.write_event(message, message_type)
         if self.current_env in (Constants.DEV, Constants.TEST):
             for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
                 print(line)
@@ -47,28 +52,50 @@ class CompositeLogger(object):
         """log errors"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = self.ERROR + (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
-        self.log(message)
+        self.log(message, message_type=Constants.TelemetryEventLevel.Error)
 
     def log_warning(self, message):
         """log warning"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = self.WARNING + (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
-        self.log(message)
+        self.log(message, message_type=Constants.TelemetryEventLevel.Warning)
 
     def log_debug(self, message):
         """log debug"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = message.strip()
+        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None and self.current_env not in (Constants.DEV, Constants.TEST):
+            self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Verbose)
         if self.current_env in (Constants.DEV, Constants.TEST):
-            self.log(self.current_env + ": " + message)  # send to standard output if dev or test env
+            self.log(self.current_env + ": " + message, Constants.TelemetryEventLevel.Verbose)  # send to standard output if dev or test env
         elif self.file_logger is not None:
             self.file_logger.write("\n\t" + self.DEBUG + " " + "\n\t".join(message.splitlines()).strip())
 
     def log_verbose(self, message):
         """log verbose"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
+        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
+            self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Verbose)
         if self.file_logger is not None:
             self.file_logger.write("\n\t" + self.VERBOSE + " " + "\n\t".join(message.strip().splitlines()).strip())
+
+    def log_telemetry_module_error(self, message):
+        """Used exclusively by telemetry writer to log any errors raised within it's operation"""
+        message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
+        if self.file_logger is not None:
+            timestamp = self.env_layer.datetime.timestamp()
+            self.file_logger.write("\n" + timestamp + "> " + self.TELEMETRY_ERROR + message.strip(), fail_silently=False)
+        else:
+            print(self.TELEMETRY_ERROR + " " + message)
+
+    def log_telemetry_module(self, message):
+        """Used exclusively by telemetry writer to log messages from it's operation"""
+        message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
+        if self.file_logger is not None:
+            timestamp = self.env_layer.datetime.timestamp()
+            self.file_logger.write("\n" + timestamp + "> " + self.TELEMETRY_LOG + message.strip(), fail_silently=False)
+        else:
+            print(self.TELEMETRY_LOG + " " + message)
 
     @staticmethod
     def __remove_substring_from_message(message, substring=Constants.ERROR_ADDED_TO_STATUS):

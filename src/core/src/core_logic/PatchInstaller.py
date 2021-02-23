@@ -46,8 +46,10 @@ class PatchInstaller(object):
 
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
-        self.composite_logger.log('\nStarting patch installation...')
         self.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.raise_if_agent_incompatible()
+
+        self.composite_logger.log('\nStarting patch installation...')
 
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
         self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
@@ -113,22 +115,30 @@ class PatchInstaller(object):
 
         return overall_patch_installation_successful
 
+    def raise_if_agent_incompatible(self):
+        if not self.telemetry_writer.is_agent_compatible():
+            error_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
+            self.composite_logger.log_error(error_msg)
+            raise Exception(error_msg)
+
+        self.composite_logger.log(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG)
+
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""
         self.composite_logger.log("\n\nGetting available updates...")
         package_manager.refresh_repo()
 
         packages, package_versions = package_manager.get_available_updates(self.package_filter)  # Initial, ignoring exclusions
-        self.telemetry_writer.send_debug_info("Initial package list: " + str(packages))
+        self.telemetry_writer.write_event("Initial package list: " + str(packages), Constants.TelemetryEventLevel.Verbose)
 
         not_included_packages, not_included_package_versions = self.get_not_included_updates(package_manager, packages)
-        self.telemetry_writer.send_debug_info("Not Included package list: " + str(not_included_packages))
+        self.telemetry_writer.write_event("Not Included package list: " + str(not_included_packages), Constants.TelemetryEventLevel.Verbose)
 
         excluded_packages, excluded_package_versions = self.get_excluded_updates(package_manager, packages, package_versions)
-        self.telemetry_writer.send_debug_info("Excluded package list: " + str(excluded_packages))
+        self.telemetry_writer.write_event("Excluded package list: " + str(excluded_packages), Constants.TelemetryEventLevel.Verbose)
 
         packages, package_versions = self.filter_out_excluded_updates(packages, package_versions, excluded_packages)  # Final, honoring exclusions
-        self.telemetry_writer.send_debug_info("Final package list: " + str(packages))
+        self.telemetry_writer.write_event("Final package list: " + str(packages), Constants.TelemetryEventLevel.Verbose)
 
         # Set initial statuses
         if not package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # 'Not included' list is not accurate when a repeat is required
@@ -138,7 +148,7 @@ class PatchInstaller(object):
         self.composite_logger.log("\nList of packages to be updated: \n" + str(packages))
 
         sec_packages, sec_package_versions = self.package_manager.get_security_updates()
-        self.telemetry_writer.send_debug_info("Security packages out of the final package list: " + str(sec_packages))
+        self.telemetry_writer.write_event("Security packages out of the final package list: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
         self.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, classification="Security")
 
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
@@ -154,7 +164,7 @@ class PatchInstaller(object):
         patch_installation_successful = True
         maintenance_window_exceeded = False
         all_packages, all_package_versions = package_manager.get_all_updates(True)  # cached is fine
-        self.telemetry_writer.send_debug_info("All available packages list: " + str(all_packages))
+        self.telemetry_writer.write_event("All available packages list: " + str(all_packages), Constants.TelemetryEventLevel.Verbose)
         self.last_still_needed_packages = all_packages
         self.last_still_needed_package_versions = all_package_versions
 
@@ -177,7 +187,6 @@ class PatchInstaller(object):
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(attempted_parent_update_count), str(successful_parent_update_count), str(failed_parent_update_count), str(installed_update_count - successful_parent_update_count),
                                                             "Processing package: " + str(package) + " (" + str(version) + ")")
             self.composite_logger.log(progress_status)
-            self.telemetry_writer.send_info(progress_status)
 
             # include all dependencies (with specified versions) explicitly
             package_and_dependencies = [package]
@@ -242,7 +251,6 @@ class PatchInstaller(object):
                     # status is not logged by design here, in case you were wondering if that's a bug
                     message = " - [Info] Dependency appears to have failed to install (note: it *may* be retried): " + str(dependency) + "(" + str(dependency_version) + ")"
                     self.composite_logger.log_debug(message)
-                    self.telemetry_writer.send_debug_info(message)
 
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
             installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(attempted_parent_update_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
@@ -250,7 +258,6 @@ class PatchInstaller(object):
         progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(attempted_parent_update_count), str(successful_parent_update_count), str(failed_parent_update_count), str(installed_update_count - successful_parent_update_count),
                                                         "Completed processing packages!")
         self.composite_logger.log(progress_status)
-        self.telemetry_writer.send_info(progress_status)
 
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)  # final reconciliation

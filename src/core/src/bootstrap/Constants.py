@@ -29,6 +29,9 @@ class Constants(object):
     GLOBAL_EXCLUSION_LIST = ""   # if a package needs to be blocked across all of Azure
     UNKNOWN = "Unknown"
 
+    # Extension version (todo: move to a different file)
+    EXT_VERSION = "1.6.15"
+
     # Runtime environments
     TEST = 'Test'
     DEV = 'Dev'
@@ -164,13 +167,28 @@ class Constants(object):
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
-    # Telemetry Categories
-    TELEMETRY_OPERATION_STATE = "State"
-    TELEMETRY_CONFIG = "Config"
-    TELEMETRY_PACKAGE = "PackageInfo"
-    TELEMETRY_ERROR = "Error"
-    TELEMETRY_INFO = "Info"
-    TELEMETRY_DEBUG = "Debug"
+    TELEMETRY_ENABLED_AT_EXTENSION = True
+
+    # Telemetry Settings
+    TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES = 3072  # 3KB
+    TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES = 6144  # 6KB
+    TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 4194304  # 4MB
+    TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 41943040  # 40MB
+    TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES = 80  # buffer for the bytes dropped text added at the end of the truncated telemetry message
+    TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES = 80  # buffer for telemetry event counter text added at the end of every message sent to telemetry
+
+    # Telemetry Event Level
+    class TelemetryEventLevel(EnumBackport):
+        Critical = "Critical"
+        Error = "Error"
+        Warning = "Warning"
+        Verbose = "Verbose"
+        Informational = "Informational"
+        LogAlways = "LogAlways"
+
+    TELEMETRY_TASK_NAME = "ExtensionCoreLog"
+    TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine following instructions here: http://aka.ms/UpdateLinuxAgent"
+    TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was met."
 
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -179,3 +197,4 @@ class Constants(object):
         PRIVILEGED_OP_MARKER = "Privileged_Op_e6df678d-d09b-436a-a08a-65f2f70a6798"
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
+

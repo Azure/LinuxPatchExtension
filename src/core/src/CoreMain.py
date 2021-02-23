@@ -26,7 +26,8 @@ class CoreMain(object):
         file_logger = bootstrapper.file_logger
         composite_logger = bootstrapper.composite_logger
         stdout_file_mirror = bootstrapper.stdout_file_mirror
-        lifecycle_manager = telemetry_writer = status_handler = None
+        telemetry_writer = bootstrapper.telemetry_writer
+        lifecycle_manager = status_handler = None
 
         # Init operation statuses
         patch_operation_requested = Constants.UNKNOWN
@@ -37,7 +38,7 @@ class CoreMain(object):
             # Level 2 bootstrapping
             composite_logger.log_debug("Building out full container...")
             container = bootstrapper.build_out_container()
-            lifecycle_manager, telemetry_writer, status_handler = bootstrapper.build_core_components(container)
+            lifecycle_manager, status_handler = bootstrapper.build_core_components(container)
             composite_logger.log_debug("Completed building out full container.\n\n")
 
             # Basic environment check
@@ -48,6 +49,7 @@ class CoreMain(object):
             # Execution config retrieval
             composite_logger.log_debug("Obtaining execution configuration...")
             execution_config = container.get('execution_config')
+            telemetry_writer.set_operation_id(execution_config.activity_id)
             patch_operation_requested = execution_config.operation.lower()
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
@@ -80,7 +82,7 @@ class CoreMain(object):
 
             composite_logger.log_debug("Safely completing required operations after exception...")
             if telemetry_writer is not None:
-                telemetry_writer.send_error_info("EXCEPTION: " + repr(error))
+                telemetry_writer.write_event("EXCEPTION: " + repr(error), Constants.TelemetryEventLevel.Error)
             if status_handler is not None:
                 composite_logger.log_debug(' - Status handler pending writes flags [I=' + str(patch_installation_successful) + ', A=' + str(patch_assessment_successful) + ']')
                 if patch_operation_requested == Constants.INSTALLATION.lower() and not patch_installation_successful:
@@ -103,8 +105,7 @@ class CoreMain(object):
             if lifecycle_manager is not None:
                 lifecycle_manager.update_core_sequence(completed=True)
 
-            telemetry_writer.send_runbook_state_info("Succeeded.")
-            telemetry_writer.close_transports()
+            telemetry_writer.write_event("Completed Linux Patch core operation.", Constants.TelemetryEventLevel.Informational)
 
             stdout_file_mirror.stop()
             file_logger.close(message_at_close="<End of output>")

@@ -54,5 +54,6 @@ class TestPatchAssessor(unittest.TestCase):
     def mock_refresh_repo(self):
         pass
 
+
 if __name__ == '__main__':
     unittest.main()
