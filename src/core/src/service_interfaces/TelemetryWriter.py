@@ -129,35 +129,37 @@ class TelemetryWriter(object):
         }
 
     def __ensure_message_restriction_compliance(self, full_message):
-        """ Removes line breaks, tabs and restricts message to a byte limit.
-        In case a message is truncated due to size restrictions, adds the count of bytes dropped at the end.
+        """ Removes line breaks, tabs and restricts message to a char limit.
+        In case a message is truncated due to size restrictions, adds the count of chars dropped at the end.
         Adds a telemetry event counter at the end of every event, irrespective of truncation, which can be used in debugging operation flow. """
 
-        message_size_limit_in_bytes = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES
+        message_size_limit_in_chars = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS
         formatted_message = re.sub(r"\s+", " ", str(full_message))
 
-        if len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES > message_size_limit_in_bytes:
+        if len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS > message_size_limit_in_chars:
             self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
             formatted_message = formatted_message.encode('utf-8')
-            bytes_dropped = len(formatted_message) - message_size_limit_in_bytes + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES
-            return formatted_message[:message_size_limit_in_bytes - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES - Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES].decode('utf-8') + '. [{0} bytes dropped]'.format(bytes_dropped)
+            chars_dropped = len(formatted_message) - message_size_limit_in_chars + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
+            formatted_message = formatted_message[:message_size_limit_in_chars - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS - Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS].decode('utf-8') + '. [{0} chars dropped]'.format(chars_dropped)
 
         formatted_message += " [TC={0}]".format(self.__telemetry_event_counter)
         return formatted_message
 
-    def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
-        """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
+    def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME, is_event_file_throttling_needed=True):
+        """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached
+        NOTE: is_event_file_throttling_needed is used to determine if event file throtting is required and as such should always be True.
+        The only scenario where this is False is when throttling is taking place and we write to telemetry about it. i.e. only from within __throttle_telemetry_writes_if_required()"""
         try:
-            if not self.__is_agent_compatible or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+            if not self.is_agent_compatible() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
+
+            # ensure file throttle limit is reached
+            self.__throttle_telemetry_writes_if_required(is_event_file_throttling_needed)
 
             self.__delete_older_events_if_dir_size_limit_not_met()
 
-            # ensure file throttle limit is reached
-            self.__ensure_event_file_max_count_is_met()
-
             event = self.__new_event_json(event_level, message, task_name)
-            if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES:
+            if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARS:
                 self.composite_logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
             else:
                 file_path, all_events = self.__get_file_and_content_to_write(self.events_folder_path, event)
@@ -167,7 +169,7 @@ class TelemetryWriter(object):
 
     def __delete_older_events_if_dir_size_limit_not_met(self):
         """ Delete older events until the at least one new event file can be added as per the size restrictions """
-        if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES:
+        if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS:
             # Not deleting any existing event files as the event directory does not exceed max limit. At least one new event file can be added. Not printing this statement as it will add repetitive logs
             return
 
@@ -177,7 +179,7 @@ class TelemetryWriter(object):
 
         for event_file in event_files:
             try:
-                if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES:
+                if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS:
                     # Not deleting any more event files as the event directory has sufficient space to add at least one new event file. Not printing this statement as it will add repetitive logs
                     break
 
@@ -187,7 +189,7 @@ class TelemetryWriter(object):
             except Exception as e:
                 self.composite_logger.log_telemetry_module_error("Error deleting event file. [File={0}] [Exception={1}]".format(repr(event_file), repr(e)))
 
-        if self.__get_events_dir_size() >= Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES:
+        if self.__get_events_dir_size() >= Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS:
             self.composite_logger.log_telemetry_module_error("Older event files were not deleted. Current event will not be sent to telemetry as events directory size exceeds maximum limit")
             raise
 
@@ -198,7 +200,7 @@ class TelemetryWriter(object):
         if os.path.exists(file_path):
             file_size = self.get_file_size(file_path)
             # if file_size exceeds max limit, sleep for 1 second, so the event can be written to a new file since the event file name is a timestamp
-            if file_size >= Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES:
+            if file_size >= Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS:
                 time.sleep(1)
                 file_path = self.__get_event_file_path(folder_path)
             else:
@@ -206,14 +208,22 @@ class TelemetryWriter(object):
         all_events.append(data)
         return file_path, all_events
 
-    def __ensure_event_file_max_count_is_met(self):
+    def __throttle_telemetry_writes_if_required(self, is_event_file_throttling_needed=True):
         """ Ensures the # of event files that can be written per time unit restriction is met. Returns False if the any updates are required after the restriction enforcement. For eg: file_name is a timestamp and should be modified if a wait is added here """
-        if (datetime.datetime.utcnow() - self.start_time_for_event_file_throttle_check).total_seconds() < Constants.TELEMETRY_MAX_TIME_FOR_EVENT_FILE_THROTTLE:
-            # If event file count limit reached before time period, wait out the remaining time
-            if self.event_file_count >= Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT:
-                time.sleep((datetime.datetime.utcnow() - self.start_time_for_event_file_throttle_check).total_seconds())
+        if not is_event_file_throttling_needed:
+            return
+
+        if (datetime.datetime.utcnow() - self.start_time_for_event_file_throttle_check).total_seconds() < Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE:
+            # If event file count limit reached before time period, wait out the remaining time. Checking against one less than max limit to allow room for writing a throttling msg to telemetry
+            if self.event_file_count >= Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT - 1:
+                time_to_wait = (datetime.datetime.utcnow() - self.start_time_for_event_file_throttle_check).total_seconds()
+                event_write_throttled_msg = "Max telemetry event file limit reached. Extension will wait until a telemetry event file can be written again. [WaitTime={0}]".format(str(time_to_wait))
+                self.composite_logger.log_telemetry_module(event_write_throttled_msg)
+                self.write_event(message=event_write_throttled_msg, event_level=Constants.TelemetryEventLevel.Informational, is_event_file_throttling_needed=False)
+                time.sleep(time_to_wait)
                 self.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
                 self.event_file_count = 0
+
         else:
             self.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
             self.event_file_count = 0

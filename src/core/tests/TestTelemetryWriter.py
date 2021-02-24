@@ -41,7 +41,7 @@ class TestTelemetryWriter(unittest.TestCase):
         return True
 
     def mock_get_file_size(self, file_path):
-        return Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES + 10
+        return Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS + 10
 
     def test_write_event(self):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
@@ -95,8 +95,8 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue(events is not None)
             self.assertEquals(events[0]["TaskName"], "Test Task")
             self.assertTrue(len(events[0]["Message"]) < len(message.encode('utf-8')))
-            bytes_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES
-            self.assertEquals(events[0]["Message"], "a"*(len(message.encode('utf-8')) - bytes_dropped) + ". [{0} bytes dropped]".format(bytes_dropped))
+            chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
+            self.assertTrue("a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[0]["Message"])
             f.close()
 
     def test_write_event_size_limit(self):
@@ -135,34 +135,34 @@ class TestTelemetryWriter(unittest.TestCase):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task3")
         old_events = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)]
-        telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES
-        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 1030
-        telemetry_event_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 1024
+        telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS
+        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = 1030
+        telemetry_event_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS
+        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = 1024
 
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4")
         new_events = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)]
         self.assertEquals(len(new_events), 1)
         self.assertTrue(old_events[0] not in new_events)
-        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = telemetry_dir_size_backup
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_size_backup
+        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = telemetry_dir_size_backup
+        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = telemetry_event_size_backup
 
         # error while deleting event files where the directory size exceeds limit even after deletion attempts
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task3")
         old_events = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)]
-        telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES
-        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 500
-        telemetry_event_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 400
+        telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS
+        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = 500
+        telemetry_event_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS
+        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = 400
         os_remove_backup = os.remove
         os.remove = self.mock_os_remove
 
         self.assertRaises(Exception, lambda: self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4"))
 
-        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = telemetry_dir_size_backup
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_size_backup
+        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = telemetry_dir_size_backup
+        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = telemetry_event_size_backup
         os.remove = os_remove_backup
 
     def test_write_event_event_file_max_throttle_reached(self):
@@ -174,24 +174,30 @@ class TestTelemetryWriter(unittest.TestCase):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task3")
-
-        self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4")
         event_file_task3 = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, event_file_task3), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
+            self.assertTrue("Test Task3" in events[0]['TaskName'])
+            f.close()
+
+        self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4")
+        event_file_task4 = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, event_file_task4), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
             self.assertTrue("Test Task4" in events[0]['TaskName'])
             f.close()
-        self.assertTrue(self.runtime.telemetry_writer.event_file_count == 4)
+        self.assertTrue(self.runtime.telemetry_writer.event_file_count == 1)
 
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task5")
-        self.assertTrue(self.runtime.telemetry_writer.event_file_count == 1)
+        self.assertTrue(self.runtime.telemetry_writer.event_file_count == 2)
 
-        max_time_for_event_file_throttle_backup = Constants.TELEMETRY_MAX_TIME_FOR_EVENT_FILE_THROTTLE
-        Constants.TELEMETRY_MAX_TIME_FOR_EVENT_FILE_THROTTLE = 0
+        max_time_for_event_file_throttle_backup = Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE
+        Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE = 0
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task6")
         self.assertTrue(self.runtime.telemetry_writer.event_file_count == 1)
-        Constants.TELEMETRY_MAX_TIME_FOR_EVENT_FILE_THROTTLE = max_time_for_event_file_throttle_backup
+        Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE = max_time_for_event_file_throttle_backup
 
         Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT = event_file_max_throttle_backup
 
