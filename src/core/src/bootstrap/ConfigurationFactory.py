@@ -136,7 +136,7 @@ class ConfigurationFactory(object):
             },
             'telemetry_writer': {
                 'component': TelemetryWriter,
-                'component_args': ['composite_logger', 'env_layer'],
+                'component_args': ['env_layer', 'composite_logger'],
                 'component_kwargs': {
                     'events_folder_path': events_folder
                 }

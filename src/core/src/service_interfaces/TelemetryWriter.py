@@ -27,16 +27,15 @@ from core.src.bootstrap.Constants import Constants
 class TelemetryWriter(object):
     """Class for writing telemetry data to data transports"""
 
-    def __init__(self, composite_logger, env_layer, events_folder_path):
-        self.composite_logger = composite_logger
+    def __init__(self, env_layer, composite_logger, events_folder_path):
         self.env_layer = env_layer
+        self.composite_logger = composite_logger
         self.__is_agent_compatible = False
         self.__operation_id = str(datetime.datetime.utcnow())
         self.events_folder_path = None
+        self.__telemetry_event_counter = 0  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
         self.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
         self.event_file_count = 0
-
-        # self.__is_telemetry_startup = False  # to avoid re-sending startup events to telemetry
 
         if events_folder_path is not None and os.path.exists(events_folder_path):
             self.events_folder_path = events_folder_path
@@ -87,7 +86,7 @@ class TelemetryWriter(object):
         error_payload = {
             'cmd': str(cmd),
             'code': str(code),
-            'output': str(output)[0:3072]
+            'output': str(output)
         }
         return self.write_event(error_payload, Constants.TelemetryEventLevel.Error)
     # endregion
@@ -130,34 +129,41 @@ class TelemetryWriter(object):
         }
 
     def __ensure_message_restriction_compliance(self, full_message):
-        """ Removes line breaks, tabs and restricts message to a byte limit """
+        """ Removes line breaks, tabs and restricts message to a byte limit.
+        In case a message is truncated due to size restrictions, adds the count of bytes dropped at the end.
+        Adds a telemetry event counter at the end of every event, irrespective of truncation, which can be used in debugging operation flow. """
+
         message_size_limit_in_bytes = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES
         formatted_message = re.sub(r"\s+", " ", str(full_message))
 
-        if len(formatted_message.encode('utf-8')) > message_size_limit_in_bytes:
+        if len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES > message_size_limit_in_bytes:
             self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
             formatted_message = formatted_message.encode('utf-8')
-            bytes_dropped = len(formatted_message) - message_size_limit_in_bytes + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES
-            return formatted_message[:message_size_limit_in_bytes - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES].decode('utf-8') + '. [{0} bytes dropped]'.format(bytes_dropped)
+            bytes_dropped = len(formatted_message) - message_size_limit_in_bytes + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES
+            return formatted_message[:message_size_limit_in_bytes - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES - Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES].decode('utf-8') + '. [{0} bytes dropped]'.format(bytes_dropped)
 
+        formatted_message += " [TC={0}]".format(self.__telemetry_event_counter)
         return formatted_message
 
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
-        if not self.__is_agent_compatible or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
-            return
+        try:
+            if not self.__is_agent_compatible or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+                return
 
-        self.__delete_older_events_if_dir_size_limit_not_met()
+            self.__delete_older_events_if_dir_size_limit_not_met()
 
-        # ensure file throttle limit is reached
-        self.ensure_event_file_max_count_is_met()
+            # ensure file throttle limit is reached
+            self.__ensure_event_file_max_count_is_met()
 
-        event = self.__new_event_json(event_level, message, task_name)
-        if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES:
-            self.composite_logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
-        else:
-            file_path, all_events = self.get_file_and_content_to_write(self.events_folder_path, event)
-            self.write_event_using_temp_file(file_path, all_events)
+            event = self.__new_event_json(event_level, message, task_name)
+            if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES:
+                self.composite_logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
+            else:
+                file_path, all_events = self.__get_file_and_content_to_write(self.events_folder_path, event)
+                self.__write_event_using_temp_file(file_path, all_events)
+        except Exception:
+            raise Exception("Internal reporting error. Execution could not complete.")
 
     def __delete_older_events_if_dir_size_limit_not_met(self):
         """ Delete older events until the at least one new event file can be added as per the size restrictions """
@@ -182,9 +188,10 @@ class TelemetryWriter(object):
                 self.composite_logger.log_telemetry_module_error("Error deleting event file. [File={0}] [Exception={1}]".format(repr(event_file), repr(e)))
 
         if self.__get_events_dir_size() >= Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES:
-            raise Exception("Older event files were not deleted. Current event will not be sent to telemetry as events directory size exceeds maximum limit")
+            self.composite_logger.log_telemetry_module_error("Older event files were not deleted. Current event will not be sent to telemetry as events directory size exceeds maximum limit")
+            raise
 
-    def get_file_and_content_to_write(self, folder_path, data):
+    def __get_file_and_content_to_write(self, folder_path, data):
         """ Identifies the file where the event is to be written can be an existing event file or a new one depending upon the size restrictions. If event is to be written to an existing file, fetches retains it's content """
         file_path = self.__get_event_file_path(folder_path)
         all_events = []
@@ -199,7 +206,7 @@ class TelemetryWriter(object):
         all_events.append(data)
         return file_path, all_events
 
-    def ensure_event_file_max_count_is_met(self):
+    def __ensure_event_file_max_count_is_met(self):
         """ Ensures the # of event files that can be written per time unit restriction is met. Returns False if the any updates are required after the restriction enforcement. For eg: file_name is a timestamp and should be modified if a wait is added here """
         if (datetime.datetime.utcnow() - self.start_time_for_event_file_throttle_check).total_seconds() < Constants.TELEMETRY_MAX_TIME_FOR_EVENT_FILE_THROTTLE:
             # If event file count limit reached before time period, wait out the remaining time
@@ -211,30 +218,40 @@ class TelemetryWriter(object):
             self.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
             self.event_file_count = 0
 
-    def write_event_using_temp_file(self, file_path, all_events, mode='w'):
+    def __write_event_using_temp_file(self, file_path, all_events, mode='w'):
         """ Writes to a temp file in a single operation and then moves/overrides the original file with the temp """
         try:
             with tempfile.NamedTemporaryFile(mode, dir=os.path.dirname(file_path), delete=False) as tf:
                 json.dump(all_events, tf, default=all_events.__str__())
                 tempname = tf.name
             shutil.move(tempname, file_path)
+            self.__telemetry_event_counter += 1
             self.event_file_count += 1
         except Exception as error:
-            raise Exception("Unable to write to telemetry. [Event File={0}] [Error={1}].".format(str(file_path), repr(error)))
+            self.composite_logger.log_telemetry_module_error("Unable to write to telemetry. [Event File={0}] [Error={1}].".format(str(file_path), repr(error)))
+            raise
 
     def __get_events_dir_size(self):
-        return sum([os.path.getsize(os.path.join(self.events_folder_path, f)) for f in os.listdir(self.events_folder_path) if os.path.isfile(os.path.join(self.events_folder_path, f))])
+        """ Returns total size, in bytes, of the events folder """
+        total_dir_size = 0
+        for f in os.listdir(self.events_folder_path):
+            if os.path.isfile(os.path.join(self.events_folder_path, f)):
+                total_dir_size += os.path.getsize(os.path.join(self.events_folder_path, f))
+        return total_dir_size
 
     @staticmethod
     def __get_event_file_path(folder_path):
+        """ Returns the filename, generated from current timestamp in seconds, to be used to write an event. Eg: 1614111606855.json"""
         return os.path.join(folder_path, str(int(round(time.time() * 1000))) + ".json")
 
     @staticmethod
     def get_file_size(file_path):
+        """ Returns the size of a file. Extracted out for mocking in unit test """
         return os.path.getsize(file_path)
 
     @staticmethod
     def __fetch_events_from_previous_file(file_path):
+        """ Fetch contents from the file """
         with open(file_path, 'r') as file_handle:
             file_contents = file_handle.read()
             return json.loads(file_contents)
@@ -244,11 +261,5 @@ class TelemetryWriter(object):
 
     def is_agent_compatible(self):
         """ Verifies if telemetry is available. Stops execution if not available. """
-
-        if not self.__is_agent_compatible:
-            error_msg = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine."
-            self.composite_logger.log_telemetry_module_error(error_msg)
-            raise Exception(error_msg)
-
-        self.composite_logger.log_telemetry_module("The minimum Azure Linux Agent version prerequisite for Linux patching was met.")
+        return self.__is_agent_compatible
 

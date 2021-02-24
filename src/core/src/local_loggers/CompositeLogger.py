@@ -81,7 +81,6 @@ class CompositeLogger(object):
 
     def log_telemetry_module_error(self, message):
         """Used exclusively by telemetry writer to log any errors raised within it's operation"""
-        message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         if self.file_logger is not None:
             timestamp = self.env_layer.datetime.timestamp()
@@ -91,7 +90,6 @@ class CompositeLogger(object):
 
     def log_telemetry_module(self, message):
         """Used exclusively by telemetry writer to log messages from it's operation"""
-        message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         if self.file_logger is not None:
             timestamp = self.env_layer.datetime.timestamp()

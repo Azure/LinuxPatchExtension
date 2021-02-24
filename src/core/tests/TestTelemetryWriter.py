@@ -46,19 +46,29 @@ class TestTelemetryWriter(unittest.TestCase):
     def test_write_event(self):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
+        telemetry_event_counter_in_first_test_event = None
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEquals(events[0]["TaskName"], "Test Task")
+            text_found = re.search('TC=([0-9]+)', events[0]['Message'])
+            telemetry_event_counter_in_first_test_event = text_found.group(1) if text_found else None
             f.close()
 
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
+        telemetry_event_counter_in_second_test_event = None
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEquals(events[-1]["TaskName"], "Test Task2")
+            text_found = re.search('TC=([0-9]+)', events[0]['Message'])
+            telemetry_event_counter_in_second_test_event = text_found.group(1) if text_found else None
             f.close()
+
+        self.assertTrue(telemetry_event_counter_in_first_test_event is not None)
+        self.assertTrue(telemetry_event_counter_in_second_test_event is not None)
+        self.assertTrue(int(telemetry_event_counter_in_second_test_event) - int(telemetry_event_counter_in_first_test_event) == 1)
 
     def test_write_multiple_events_in_same_file(self):
         time_backup = time.time
@@ -85,7 +95,7 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue(events is not None)
             self.assertEquals(events[0]["TaskName"], "Test Task")
             self.assertTrue(len(events[0]["Message"]) < len(message.encode('utf-8')))
-            bytes_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES
+            bytes_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES
             self.assertEquals(events[0]["Message"], "a"*(len(message.encode('utf-8')) - bytes_dropped) + ". [{0} bytes dropped]".format(bytes_dropped))
             f.close()
 
