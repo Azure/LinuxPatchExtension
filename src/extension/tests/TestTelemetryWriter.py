@@ -32,7 +32,7 @@ class TestTelemetryWriter(unittest.TestCase):
         return True
 
     def mock_get_file_size(self, file_path):
-        return Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES + 10
+        return Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS + 10
 
     def test_write_event(self):
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
@@ -72,8 +72,8 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue(events is not None)
             self.assertEquals(events[0]["TaskName"], "Test Task")
             self.assertTrue(len(events[0]["Message"]) < len(message.encode('utf-8')))
-            bytes_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES
-            self.assertEquals(events[0]["Message"], "a"*(len(message.encode('utf-8')) - bytes_dropped) + ". [{0} bytes dropped]".format(bytes_dropped))
+            chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS
+            self.assertEquals(events[0]["Message"], "a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped))
             f.close()
 
     def test_write_event_size_limit(self):
@@ -103,34 +103,34 @@ class TestTelemetryWriter(unittest.TestCase):
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task3")
         old_events = os.listdir(self.telemetry_writer.events_folder_path)
-        telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES
-        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 1030
-        telemetry_event_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 1024
+        telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS
+        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = 1030
+        telemetry_event_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS
+        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = 1024
 
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4")
         new_events = os.listdir(self.telemetry_writer.events_folder_path)
         self.assertEquals(len(new_events), 1)
         self.assertTrue(old_events[0] not in new_events)
-        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = telemetry_dir_size_backup
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_size_backup
+        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = telemetry_dir_size_backup
+        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = telemetry_event_size_backup
 
         # error while deleting event files where the directory size exceeds limit even after deletion attempts
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task3")
         old_events = os.listdir(self.telemetry_writer.events_folder_path)
-        telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES
-        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 500
-        telemetry_event_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 400
+        telemetry_dir_size_backup = Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS
+        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = 500
+        telemetry_event_size_backup = Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS
+        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = 400
         os_remove_backup = os.remove
         os.remove = self.mock_os_remove
 
         self.assertRaises(Exception, lambda: self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4"))
 
-        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = telemetry_dir_size_backup
-        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = telemetry_event_size_backup
+        Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = telemetry_dir_size_backup
+        Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = telemetry_event_size_backup
         os.remove = os_remove_backup
 
 

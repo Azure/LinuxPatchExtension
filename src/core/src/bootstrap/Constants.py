@@ -170,12 +170,15 @@ class Constants(object):
     TELEMETRY_ENABLED_AT_EXTENSION = True
 
     # Telemetry Settings
-    TELEMETRY_MSG_SIZE_LIMIT_IN_BYTES = 3072  # 3KB
-    TELEMETRY_EVENT_SIZE_LIMIT_IN_BYTES = 6144  # 6KB
-    TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_BYTES = 4194304  # 4MB
-    TELEMETRY_DIR_SIZE_LIMIT_IN_BYTES = 41943040  # 40MB
-    TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_BYTES = 80  # buffer for the bytes dropped text added at the end of the truncated telemetry message
-    TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_BYTES = 80  # buffer for telemetry event counter text added at the end of every message sent to telemetry
+    # Note: these limits are based on number of characters as confirmed with agent team
+    TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS = 3072
+    TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARS = 6144
+    TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = 4194304
+    TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = 41943040
+    TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS = 25  # buffer for the chars dropped text added at the end of the truncated telemetry message
+    TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS = 15  # buffer for telemetry event counter text added at the end of every message sent to telemetry
+    TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT = 60
+    TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE = 60
 
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):
