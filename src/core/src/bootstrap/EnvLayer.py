@@ -157,9 +157,9 @@ class EnvLayer(object):
     @staticmethod
     def __convert_process_output_to_ascii(output):
         if sys.version_info.major == 2:
-            return output.decode('utf8', 'ignore').encode("ascii", "ignore")
+            return output.decode('utf8', 'ignore').encode('ascii', 'ignore')
         elif sys.version_info.major == 3:
-            return output.encode("ascii", "ignore")
+            return output.decode('utf8', 'ignore')
         else:
             raise Exception("Unknown version of python encountered.")
 
