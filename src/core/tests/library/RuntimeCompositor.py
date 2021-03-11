@@ -18,6 +18,8 @@ import datetime
 import json
 import os
 import time
+
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.src.bootstrap.Bootstrapper import Bootstrapper
@@ -47,7 +49,12 @@ class RuntimeCompositor(object):
         self.container = bootstrapper.build_out_container()
         self.file_logger = bootstrapper.file_logger
         self.composite_logger = bootstrapper.composite_logger
-        self.telemetry_writer = bootstrapper.telemetry_writer
+
+        # re-initializing telemetry_writer, outside of Bootstrapper, to correctly set the env_layer configured for tests
+        self.telemetry_writer = TelemetryWriter(self.env_layer, self.composite_logger, bootstrapper.telemetry_writer.events_folder_path)
+        bootstrapper.telemetry_writer = self.telemetry_writer
+        bootstrapper.composite_logger.telemetry_writer = self.telemetry_writer
+
         self.lifecycle_manager, self.status_handler = bootstrapper.build_core_components(self.container)
 
         # Business logic components
