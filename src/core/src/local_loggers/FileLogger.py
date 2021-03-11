@@ -40,6 +40,7 @@ class FileLogger(object):
         try:
             if self.log_file_handle is not None:
                 self.log_file_handle.write(message)
+                self.flush()
         except Exception as error:
             # DO NOT write any errors here to stdout
             failure_message = "Fatal exception trying to write to log file: " + repr(error) + ". Attempted message: " + str(message)

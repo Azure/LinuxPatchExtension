@@ -74,6 +74,7 @@ class FileLogger(object):
         try:
             if self.log_file_handle is not None:
                 self.log_file_handle.write(message)
+                self.flush()
             else:
                 raise Exception("Log file not found")
         except IOError:

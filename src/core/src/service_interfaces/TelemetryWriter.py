@@ -33,9 +33,9 @@ class TelemetryWriter(object):
         self.__is_agent_compatible = False
         self.__operation_id = str(datetime.datetime.utcnow())
         self.events_folder_path = None
-        self.__telemetry_event_counter = 0  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
-        self.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
-        self.event_file_count = 0
+        self.__telemetry_event_counter = 1  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
+        self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
+        self.event_count = 1
 
         if events_folder_path is not None and os.path.exists(events_folder_path):
             self.events_folder_path = events_folder_path
@@ -213,20 +213,21 @@ class TelemetryWriter(object):
         if not is_event_file_throttling_needed:
             return
 
-        if (datetime.datetime.utcnow() - self.start_time_for_event_file_throttle_check).total_seconds() < Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE:
+        if (datetime.datetime.utcnow() - self.start_time_for_event_count_throttle_check).total_seconds() < Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE:
             # If event file count limit reached before time period, wait out the remaining time. Checking against one less than max limit to allow room for writing a throttling msg to telemetry
-            if self.event_file_count >= Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT - 1:
-                time_to_wait = (datetime.datetime.utcnow() - self.start_time_for_event_file_throttle_check).total_seconds()
-                event_write_throttled_msg = "Max telemetry event file limit reached. Extension will wait until a telemetry event file can be written again. [WaitTime={0}]".format(str(time_to_wait))
+            if self.event_count >= Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE - 1:
+                end_time_for_event_file_throttle = self.start_time_for_event_count_throttle_check + datetime.timedelta(seconds=Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE)
+                time_to_wait_in_secs = (end_time_for_event_file_throttle - datetime.datetime.utcnow()).total_seconds()
+                event_write_throttled_msg = "Max telemetry event file limit reached. Extension will wait until a telemetry event file can be written again. [WaitTimeInSecs={0}]".format(str(time_to_wait_in_secs))
                 self.composite_logger.log_telemetry_module(event_write_throttled_msg)
                 self.write_event(message=event_write_throttled_msg, event_level=Constants.TelemetryEventLevel.Informational, is_event_file_throttling_needed=False)
-                time.sleep(time_to_wait)
-                self.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
-                self.event_file_count = 0
+                time.sleep(time_to_wait_in_secs)
+                self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
+                self.event_count = 1
 
         else:
-            self.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
-            self.event_file_count = 0
+            self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
+            self.event_count = 1
 
     def __write_event_using_temp_file(self, file_path, all_events, mode='w'):
         """ Writes to a temp file in a single operation and then moves/overrides the original file with the temp """
@@ -236,7 +237,7 @@ class TelemetryWriter(object):
                 tempname = tf.name
             shutil.move(tempname, file_path)
             self.__telemetry_event_counter += 1
-            self.event_file_count += 1
+            self.event_count += 1
         except Exception as error:
             self.composite_logger.log_telemetry_module_error("Unable to write to telemetry. [Event File={0}] [Error={1}].".format(str(file_path), repr(error)))
             raise

@@ -166,8 +166,8 @@ class TestTelemetryWriter(unittest.TestCase):
         os.remove = os_remove_backup
 
     def test_write_event_event_file_max_throttle_reached(self):
-        event_file_max_throttle_backup = Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT
-        Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT = 4
+        event_file_max_throttle_backup = Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE
+        Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE = 4
         self.runtime.telemetry_writer.event_file_count = 0
         self.runtime.telemetry_writer.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
 
@@ -193,13 +193,13 @@ class TestTelemetryWriter(unittest.TestCase):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task5")
         self.assertTrue(self.runtime.telemetry_writer.event_file_count == 2)
 
-        max_time_for_event_file_throttle_backup = Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE
-        Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE = 0
+        max_time_for_event_file_throttle_backup = Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE
+        Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 0
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task6")
         self.assertTrue(self.runtime.telemetry_writer.event_file_count == 1)
-        Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE = max_time_for_event_file_throttle_backup
+        Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = max_time_for_event_file_throttle_backup
 
-        Constants.TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT = event_file_max_throttle_backup
+        Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE = event_file_max_throttle_backup
 
 
 if __name__ == '__main__':

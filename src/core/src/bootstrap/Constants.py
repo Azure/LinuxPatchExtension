@@ -177,8 +177,8 @@ class Constants(object):
     TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = 41943040
     TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS = 25  # buffer for the chars dropped text added at the end of the truncated telemetry message
     TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS = 15  # buffer for telemetry event counter text added at the end of every message sent to telemetry
-    TELEMETRY_MAX_EVENT_FILE_THROTTLE_COUNT = 60
-    TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_FILE_THROTTLE = 60
+    TELEMETRY_MAX_EVENT_COUNT_THROTTLE = 60
+    TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 60
 
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):
