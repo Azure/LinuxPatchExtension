@@ -31,12 +31,14 @@ class ArgumentComposer(object):
         self.__TESTS_FOLDER = "tests"
         self.__SCRATCH_FOLDER = "scratch"
         self.__ARG_TEMPLATE = "{0} {1} {2} {3} \'{4}\' {5} \'{6}\'"
+        self.__EVENTS_FOLDER = "events"
 
         # sequence number
         self.sequence_number = 1
 
         # environment settings
-        self.__log_folder = self.__config_folder = self.__status_folder = self.events_folder = self.__get_scratch_folder()
+        self.__log_folder = self.__config_folder = self.__status_folder = self.__get_scratch_folder()
+        self.events_folder = self.__get_events_folder(self.__log_folder)
 
         # config settings
         self.operation = Constants.INSTALLATION
@@ -47,7 +49,7 @@ class ArgumentComposer(object):
         self.classifications_to_include = []
         self.patches_to_include = []
         self.patches_to_exclude = []
-        self.maintenance_run_id = None #Since this is optional, all possible inputs for this are added in respective tests
+        self.maintenance_run_id = None  # Since this is optional, all possible inputs for this are added in respective tests
 
         # REAL environment settings
         self.emulator_enabled = False
@@ -92,6 +94,15 @@ class ArgumentComposer(object):
         if not os.path.exists(scratch_folder):
             os.mkdir(scratch_folder)
         return scratch_folder
+
+    def __get_events_folder(self, scratch_folder):
+        """ Returns a predetermined events folder and guarantees it exists and is empty. """
+        events_folder = os.path.join(scratch_folder, self.__EVENTS_FOLDER)
+        if os.path.exists(events_folder):
+            shutil.rmtree(events_folder, ignore_errors=True)
+        if not os.path.exists(events_folder):
+            os.mkdir(events_folder)
+        return events_folder
 
     def __try_get_tests_folder(self, path=os.getcwd()):
         """ Returns the current working directory if there's no folder with tests in its name in the absolute path
