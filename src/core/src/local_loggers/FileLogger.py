@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import os
 import sys
 
 
@@ -40,7 +40,6 @@ class FileLogger(object):
         try:
             if self.log_file_handle is not None:
                 self.log_file_handle.write(message)
-                self.flush()
         except Exception as error:
             # DO NOT write any errors here to stdout
             failure_message = "Fatal exception trying to write to log file: " + repr(error) + ". Attempted message: " + str(message)
@@ -55,11 +54,12 @@ class FileLogger(object):
                 timestamp = self.env_layer.datetime.timestamp()
                 fail_log.write("\n" + timestamp + "> " + message)
         except Exception:
-           pass
+            pass
 
     def flush(self):
         if self.log_file_handle is not None:
             self.log_file_handle.flush()
+            os.fsync(self.log_file_handle.fileno())
 
     def close(self, message_at_close='<Log file was closed.>'):
         if self.log_file_handle is not None:

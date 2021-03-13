@@ -167,11 +167,11 @@ class TestTelemetryWriter(unittest.TestCase):
         Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = telemetry_event_size_backup
         os.remove = os_remove_backup
 
-    def test_write_event_event_file_max_throttle_reached(self):
-        event_file_max_throttle_backup = Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE
+    def test_write_event_max_event_count_throttle_reached(self):
+        event_count_max_throttle_backup = Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE
         Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE = 5
         self.runtime.telemetry_writer.event_count = 1
-        self.runtime.telemetry_writer.start_time_for_event_file_throttle_check = datetime.datetime.utcnow()
+        self.runtime.telemetry_writer.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
 
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
@@ -195,13 +195,13 @@ class TestTelemetryWriter(unittest.TestCase):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task5")
         self.assertTrue(self.runtime.telemetry_writer.event_count == 3)
 
-        max_time_for_event_file_throttle_backup = Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE
+        max_time_for_event_count_throttle_backup = Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE
         Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 0
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task6")
         self.assertTrue(self.runtime.telemetry_writer.event_count == 2)
-        Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = max_time_for_event_file_throttle_backup
+        Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = max_time_for_event_count_throttle_backup
 
-        Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE = event_file_max_throttle_backup
+        Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE = event_count_max_throttle_backup
 
 
 if __name__ == '__main__':
