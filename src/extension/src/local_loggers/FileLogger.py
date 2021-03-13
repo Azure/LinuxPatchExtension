@@ -88,6 +88,7 @@ class FileLogger(object):
     def flush(self):
         if self.log_file_handle is not None:
             self.log_file_handle.flush()
+            os.fsync(self.log_file_handle.fileno())
 
     def close(self):
         if self.log_file_handle is not None:

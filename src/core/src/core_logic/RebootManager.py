@@ -83,6 +83,7 @@ class RebootManager(object):
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             else:
                 self.composite_logger.log_debug("Waiting for machine reboot. [ElapsedTimeInMinutes={0}] [MaxTimeInMinutes={1}]".format(str(elapsed_time_in_minutes), str(max_allowable_time_to_reboot_in_minutes)))
+                self.composite_logger.file_logger.flush()
                 time.sleep(60)
 
     def start_reboot_if_required_and_time_available(self, current_time_available):
