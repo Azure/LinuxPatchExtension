@@ -75,7 +75,8 @@ class TelemetryWriter(object):
                 self.logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
             else:
                 self.__write_event_using_temp_file(self.events_folder_path, event)
-        except Exception:
+        except Exception as e:
+            self.logger.log_telemetry_module_error("Error occurred while writing telemetry events. [Error={0}]".format(repr(e)))
             raise Exception("Internal reporting error. Execution could not complete.")
 
     def __delete_older_events(self):

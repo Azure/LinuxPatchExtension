@@ -152,7 +152,7 @@ class TelemetryWriter(object):
 
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME, is_event_file_throttling_needed=True):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached
-        NOTE: is_event_file_throttling_needed is used to determine if event file throtting is required and as such should always be True.
+        NOTE: is_event_file_throttling_needed is used to determine if event file throttling is required and as such should always be True.
         The only scenario where this is False is when throttling is taking place and we write to telemetry about it. i.e. only from within __throttle_telemetry_writes_if_required()"""
         try:
             if not self.is_agent_compatible() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
@@ -170,7 +170,8 @@ class TelemetryWriter(object):
                 file_path, all_events = self.__get_file_and_content_to_write(self.events_folder_path, event)
                 self.__write_event_using_temp_file(file_path, all_events)
 
-        except Exception:
+        except Exception as e:
+            self.composite_logger.log_telemetry_module_error("Error occurred while writing telemetry events. [Error={0}]".format(repr(e)))
             raise Exception("Internal reporting error. Execution could not complete.")
 
     def __delete_older_events_if_dir_size_limit_not_met(self):
@@ -224,7 +225,9 @@ class TelemetryWriter(object):
             raise
 
     def __throttle_telemetry_writes_if_required(self, is_event_file_throttling_needed=True):
-        """ Ensures the # of event files that can be written per time unit restriction is met. Returns False if the any updates are required after the restriction enforcement. For eg: file_name is a timestamp and should be modified if a wait is added here """
+        """ Ensures the # of event files that can be written per time unit restriction is met. Returns False if the any updates are required after the restriction enforcement. For eg: file_name is a timestamp and should be modified if a wait is added here.
+        NOTE: is_event_file_throttling_needed is used to determine if event file throttling is required and as such should always be True.
+        The only scenario where this is False is when throttling is taking place and we write to telemetry about it. i.e. while writing event_write_throttled_msg """
         try:
             if not is_event_file_throttling_needed:
                 return
