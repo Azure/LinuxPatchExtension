@@ -114,12 +114,18 @@ class ProcessHandler(object):
         Reports exceptions to Error if chk_err parameter is True
         """
 
-        def check_output(no_output, *popenargs, **kwargs):
+        def check_output(*popenargs, **kwargs):
             """
             Backport from subprocess module from python 2.7
             """
             if 'stdout' in kwargs:
                 raise ValueError('stdout argument not allowed, it will be overridden.')
+
+            no_output = False
+            if type(popenargs[0]) is bool:
+                no_output = popenargs[0]
+                popenargs = popenargs[1:]
+
             if no_output is True:
                 out_file = None
             else:
