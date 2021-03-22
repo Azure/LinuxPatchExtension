@@ -296,12 +296,10 @@ class PatchInstaller(object):
         still_needed_packages, still_needed_package_versions = package_manager.get_all_updates(False)  # do not use cache
         successful_packages = []
         successful_package_versions = []
-
-        for package, version in zip(self.last_still_needed_packages, self.last_still_needed_package_versions):
-            if package not in still_needed_packages:
-                index = self.last_still_needed_packages.index(package)
-                successful_packages.append(self.last_still_needed_packages.pop(index))
-                successful_package_versions.append(self.last_still_needed_package_versions.pop(index))
+        for i in range(0, len(self.last_still_needed_packages)):
+            if self.last_still_needed_packages[i] not in still_needed_packages:
+                successful_packages.append(self.last_still_needed_packages[i])
+                successful_package_versions.append(self.last_still_needed_package_versions[i])
 
         self.status_handler.set_package_install_status(successful_packages, successful_package_versions, Constants.INSTALLED)
         self.last_still_needed_packages = still_needed_packages
