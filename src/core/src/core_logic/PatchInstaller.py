@@ -282,7 +282,7 @@ class PatchInstaller(object):
             self.composite_logger.log_error('Error while checking for reboot pending: ' + repr(error))
             return True     # defaults for safety
 
-    # region Update Run Progress support
+    # region Installation Progress support
     def perform_status_reconciliation_conditionally(self, package_manager, condition=True):
         """Periodically based on the condition check, writes out success records as required; returns count of detected installs.
            This is mostly to capture the dependencies that get silently installed recorded.
@@ -296,10 +296,12 @@ class PatchInstaller(object):
         still_needed_packages, still_needed_package_versions = package_manager.get_all_updates(False)  # do not use cache
         successful_packages = []
         successful_package_versions = []
-        for i in range(0, len(self.last_still_needed_packages)):
-            if self.last_still_needed_packages[i] not in still_needed_packages:
-                successful_packages.append(self.last_still_needed_packages.pop(i))
-                successful_package_versions.append(self.last_still_needed_package_versions.pop(i))
+
+        for package, version in zip(self.last_still_needed_packages, self.last_still_needed_package_versions):
+            if package not in still_needed_packages:
+                index = self.last_still_needed_packages.index(package)
+                successful_packages.append(self.last_still_needed_packages.pop(index))
+                successful_package_versions.append(self.last_still_needed_package_versions.pop(index))
 
         self.status_handler.set_package_install_status(successful_packages, successful_package_versions, Constants.INSTALLED)
         self.last_still_needed_packages = still_needed_packages
