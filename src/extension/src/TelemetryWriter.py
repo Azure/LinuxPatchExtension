@@ -46,16 +46,21 @@ class TelemetryWriter(object):
 
     def __ensure_message_restriction_compliance(self, full_message):
         """ Removes line breaks, tabs and restricts message to a byte limit """
-        message_size_limit_in_chars = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS
-        formatted_message = re.sub(r"\s+", " ", str(full_message))
+        try:
+            message_size_limit_in_chars = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS
+            formatted_message = re.sub(r"\s+", " ", str(full_message))
 
-        if len(formatted_message.encode('utf-8')) > message_size_limit_in_chars:
-            self.logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
-            formatted_message = formatted_message.encode('utf-8')
-            chars_dropped = len(formatted_message) - message_size_limit_in_chars + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS
-            return formatted_message[:message_size_limit_in_chars - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS].decode('utf-8') + '. [{0} chars dropped]'.format(chars_dropped)
+            if len(formatted_message.encode('utf-8')) > message_size_limit_in_chars:
+                self.logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
+                formatted_message = formatted_message.encode('utf-8')
+                chars_dropped = len(formatted_message) - message_size_limit_in_chars + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS
+                return formatted_message[:message_size_limit_in_chars - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS].decode('utf-8') + '. [{0} chars dropped]'.format(chars_dropped)
 
-        return formatted_message
+            return formatted_message
+
+        except Exception as e:
+            self.logger.log_telemetry_module_error("Error occurred while formatting message for a telemetry event. [Error={0}]".format(repr(e)))
+            raise
 
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
@@ -70,33 +75,39 @@ class TelemetryWriter(object):
                 self.logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
             else:
                 self.__write_event_using_temp_file(self.events_folder_path, event)
-        except Exception:
+        except Exception as e:
+            self.logger.log_telemetry_module_error("Error occurred while writing telemetry events. [Error={0}]".format(repr(e)))
             raise Exception("Internal reporting error. Execution could not complete.")
 
     def __delete_older_events(self):
         """ Delete older events until the at least one new event file can be added as per the size restrictions """
-        if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS:
-            # Not deleting any existing event files as the event directory does not exceed max limit. At least one new event file can be added. Not printing this statement as it will add repetitive logs
-            return
+        try:
+            if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS:
+                # Not deleting any existing event files as the event directory does not exceed max limit. At least one new event file can be added. Not printing this statement as it will add repetitive logs
+                return
 
-        self.logger.log_telemetry_module("Events directory size exceeds maximum limit. Deleting older event files until at least one new event file can be added.")
-        event_files = [os.path.join(self.events_folder_path, event_file) for event_file in os.listdir(self.events_folder_path) if (event_file.lower().endswith(".json"))]
-        event_files.sort(key=os.path.getmtime, reverse=True)
+            self.logger.log_telemetry_module("Events directory size exceeds maximum limit. Deleting older event files until at least one new event file can be added.")
+            event_files = [os.path.join(self.events_folder_path, event_file) for event_file in os.listdir(self.events_folder_path) if (event_file.lower().endswith(".json"))]
+            event_files.sort(key=os.path.getmtime, reverse=True)
 
-        for event_file in event_files:
-            try:
-                if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS:
-                    # Not deleting any more event files as the event directory has sufficient space to add at least one new event file. Not printing this statement as it will add repetitive logs
-                    break
+            for event_file in event_files:
+                try:
+                    if self.__get_events_dir_size() < Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS - Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS:
+                        # Not deleting any more event files as the event directory has sufficient space to add at least one new event file. Not printing this statement as it will add repetitive logs
+                        break
 
-                if os.path.exists(event_file):
-                    os.remove(event_file)
-                    self.logger.log_telemetry_module("Deleted event file. [File={0}]".format(repr(event_file)))
-            except Exception as e:
-                self.logger.log_telemetry_module_error("Error deleting event file. [File={0}] [Exception={1}]".format(repr(event_file), repr(e)))
+                    if os.path.exists(event_file):
+                        os.remove(event_file)
+                        self.logger.log_telemetry_module("Deleted event file. [File={0}]".format(repr(event_file)))
+                except Exception as e:
+                    self.logger.log_telemetry_module_error("Error deleting event file. [File={0}] [Exception={1}]".format(repr(event_file), repr(e)))
 
-        if self.__get_events_dir_size() >= Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS:
-            self.logger.log_telemetry_module_error("Older event files were not deleted. Current event will not be sent to telemetry as events directory size exceeds maximum limit")
+            if self.__get_events_dir_size() >= Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS:
+                self.logger.log_telemetry_module_error("Older event files were not deleted. Current event will not be sent to telemetry as events directory size exceeds maximum limit")
+                raise
+
+        except Exception as e:
+            self.logger.log_telemetry_module_error("Error occurred while deleting older telemetry events. [Error={0}]".format(repr(e)))
             raise
 
     def __write_event_using_temp_file(self, folder_path, data, mode='w'):
