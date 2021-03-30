@@ -53,22 +53,26 @@ class CoreMain(object):
             patch_operation_requested = execution_config.operation.lower()
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
+            configure_patching = container.get('configure_patching')
 
-            # if this is an auto patching installation request, log and disable (if enabled by default) the current auto OS update status. NOTE: log status in a separate file in config settings
-            if execution_config.maintenance_run_id is not None and patch_operation_requested == Constants.INSTALLATION.lower():
-                package_manager.disable_auto_os_update()
+            # # if this is an auto patching installation request, log and disable (if enabled by default) the current auto OS update status. NOTE: log status in a separate file in config settings
+            # if execution_config.maintenance_run_id is not None and patch_operation_requested == Constants.INSTALLATION.lower():
+            #     package_manager.disable_auto_os_update()
 
-            # Assessment happens no matter what
-            patch_assessment_successful = patch_assessor.start_assessment()
-
-            # Patching + additional assessment occurs if the operation is 'Installation'
-            if patch_operation_requested == Constants.INSTALLATION.lower():
-                # setting current operation here, to include patch_installer init within installation actions, ensuring any exceptions during patch_installer init are added in installation summary errors object
-                status_handler.set_current_operation(Constants.INSTALLATION)
-                patch_installer = container.get('patch_installer')
-                patch_installation_successful = patch_installer.start_installation()
-                patch_assessment_successful = False
+            if patch_operation_requested == Constants.CONFIGURE_PATCHING.lower():
+                configure_patching.start_configure_patching()
+            else:
+                # Assessment happens no matter what
                 patch_assessment_successful = patch_assessor.start_assessment()
+
+                # Patching + additional assessment occurs if the operation is 'Installation'
+                if patch_operation_requested == Constants.INSTALLATION.lower():
+                    # setting current operation here, to include patch_installer init within installation actions, ensuring any exceptions during patch_installer init are added in installation summary errors object
+                    status_handler.set_current_operation(Constants.INSTALLATION)
+                    patch_installer = container.get('patch_installer')
+                    patch_installation_successful = patch_installer.start_installation()
+                    patch_assessment_successful = False
+                    patch_assessment_successful = patch_assessor.start_assessment()
 
         except Exception as error:
             # Privileged operation handling for non-production use
@@ -85,12 +89,17 @@ class CoreMain(object):
                 telemetry_writer.write_event("EXCEPTION: " + repr(error), Constants.TelemetryEventLevel.Error)
             if status_handler is not None:
                 composite_logger.log_debug(' - Status handler pending writes flags [I=' + str(patch_installation_successful) + ', A=' + str(patch_assessment_successful) + ']')
-                if patch_operation_requested == Constants.INSTALLATION.lower() and not patch_installation_successful:
-                    status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
-                    composite_logger.log_debug('  -- Persisted failed installation substatus.')
-                if not patch_assessment_successful:
-                    status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
-                    composite_logger.log_debug('  -- Persisted failed assessment substatus.')
+
+                if patch_operation_requested == Constants.CONFIGURE_PATCHING.lower():
+                    status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
+                    composite_logger.log_debug('  -- Persisted failed configure patching substatus.')
+                else:
+                    if patch_operation_requested == Constants.INSTALLATION.lower() and not patch_installation_successful:
+                        status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+                        composite_logger.log_debug('  -- Persisted failed installation substatus.')
+                    if not patch_assessment_successful:
+                        status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+                        composite_logger.log_debug('  -- Persisted failed assessment substatus.')
 
                 if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                     status_handler.add_error_to_status("Terminal exception {0}".format(repr(error)), Constants.PatchOperationErrorCodes.OPERATION_FAILED)

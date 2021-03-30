@@ -158,7 +158,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         # disable with non existing log file
         package_manager = self.container.get('package_manager')
 
-        package_manager.disable_auto_os_update()
+        self.assertRaises(Exception, package_manager.disable_auto_os_update)
         self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
         self.assertTrue(not os.path.exists(package_manager.os_patch_configuration_settings_file_path))
 

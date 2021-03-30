@@ -316,11 +316,15 @@ class EnvLayer(object):
             # only fully emulate non_exclusive_files from the real recording; exclusive files can be redirected and handled in emulator scenarios
             if not self.__emulator_enabled or (isinstance(file_path_or_handle, str) and os.path.basename(file_path_or_handle) not in self.__non_exclusive_files):
                 file_handle, was_path = self.__obtain_file_handle(file_path_or_handle, 'r')
-                value = file_handle.read()
-                if was_path:  # what was passed in was not a file handle, so close the handle that was init here
-                    file_handle.close()
-                self.__write_record(operation, code=0, output=value, delay=0)
-                return value
+                try:
+                    value = file_handle.read()
+                    if was_path:  # what was passed in was not a file handle, so close the handle that was init here
+                        file_handle.close()
+                    self.__write_record(operation, code=0, output=value, delay=0)
+                    return value
+                except Exception as error:
+                    print("Unable to read from {0} (retries exhausted). Error: {1}.".format(str(file_path_or_handle), repr(error)))
+                    return None
             else:
                 code, output = self.__read_record(operation)
                 return output

@@ -368,6 +368,38 @@ class AptitudePackageManager(PackageManager):
     # endregion
 
     # region auto OS updates
+    def get_current_auto_os_patch_state(self):
+        """ Gets the current auto OS update patch state on the machine """
+        self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
+        self.__get_current_auto_os_updates_setting_on_machine()
+        if self.unattended_upgrade_value != 0 or self.unattended_upgrade_value != 1:
+            return Constants.PATCH_STATE_UNKNOWN
+        elif self.unattended_upgrade_value:
+            return Constants.PATCH_STATE_ENABLED
+        else:
+            return Constants.PATCH_STATE_DISABLED
+
+    def __get_current_auto_os_updates_setting_on_machine(self):
+        """ Gets all the update settings related to auto OS updates currently set on the machine """
+        image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
+
+        if image_default_patch_configuration is None:
+            raise Exception("Configuration for default auto OS updates not found on the machine")
+
+        settings = image_default_patch_configuration.strip().split('\n')
+
+        for setting in settings:
+            if self.update_package_list in str(setting):
+                self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(setting)).group(1)
+            if self.unattended_upgrade in str(setting):
+                self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(setting)).group(1)
+
+        if self.update_package_list_value == "":
+            self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.update_package_list)))
+
+        if self.unattended_upgrade_value == "":
+            self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.unattended_upgrade)))
+
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
         try:
@@ -378,26 +410,14 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log("Successfully disabled auto OS updates")
         except Exception as error:
             self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
+            raise
 
     def backup_image_default_patch_configuration_if_not_exists(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
         try:
             if not self.image_default_patch_configuration_backup_exists():
-                image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
-                settings = image_default_patch_configuration.strip().split('\n')
-
-                for setting in settings:
-                    if self.update_package_list in str(setting):
-                        self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(setting)).group(1)
-                    if self.unattended_upgrade in str(setting):
-                        self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(setting)).group(1)
-
-                if self.update_package_list_value == "":
-                    self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.update_package_list)))
-
-                if self.unattended_upgrade_value == "":
-                    self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.unattended_upgrade)))
+                self.__get_current_auto_os_updates_setting_on_machine()
 
                 backup_image_default_patch_configuration_json = {
                     self.update_package_list: self.update_package_list_value,
@@ -410,6 +430,7 @@ class AptitudePackageManager(PackageManager):
         except Exception as error:
             error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
             self.composite_logger.log_error(error_message)
+            self.status_handler.add_error_to_status(error_message, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
@@ -445,7 +466,9 @@ class AptitudePackageManager(PackageManager):
             #ToDo: This adds some whitespace at the beginning of the first line in the settings file which is auto adjusted in the file later, so shouldn't have any issues right now. strip()/lstrip() on the string, does not work, will have to test accross versions and identify the impact
             self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path, '{0}'.format(updated_patch_configuration_sub_setting.lstrip()), mode='w+')
         except Exception as error:
-            self.composite_logger.log_error("Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error)))
+            error_msg = "Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error))
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
     # endregion
 

@@ -357,6 +357,10 @@ class ZypperPackageManager(PackageManager):
     # endregion
 
     # region auto OS updates
+    def get_current_auto_os_patch_state(self):
+        """ Gets the current auto OS update patch state on the machine """
+        pass
+
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
         pass
