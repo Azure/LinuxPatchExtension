@@ -803,9 +803,15 @@ class LegacyEnvLayerExtensions():
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
 
-            if sys.version_info.major == 2:
+            major_version = None
+            if hasattr(sys.version_info, 'major'):
+                major_version = sys.version_info.major
+            else:
+                major_version = sys.version_info[0]
+
+            if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
-            elif sys.version_info.major == 3:
+            elif major_version == 3:
                 return code, output.encode('ascii', 'ignore').decode('ascii', 'ignore')
             else:
                 raise Exception("Unknown version of python encountered.")

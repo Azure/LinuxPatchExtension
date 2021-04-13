@@ -408,5 +408,6 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertEqual(len(available_updates), 0)
         self.assertEqual(len(package_versions), 0)
 
+
 if __name__ == '__main__':
     unittest.main()

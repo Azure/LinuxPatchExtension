@@ -162,9 +162,15 @@ class EnvLayer(object):
 
     @staticmethod
     def __convert_process_output_to_ascii(output):
-        if sys.version_info.major == 2:
+        major_version = None
+        if hasattr(sys.version_info, 'major'):
+            major_version = sys.version_info.major
+        else:
+            major_version = sys.version_info[0]  # python 2.6 doesn't have attributes like 'major' within sys.version_info
+
+        if major_version == 2:
             return output.decode('utf8', 'ignore').encode('ascii', 'ignore')
-        elif sys.version_info.major == 3:
+        elif major_version == 3:
             return output.decode('utf8', 'ignore')
         else:
             raise Exception("Unknown version of python encountered.")
@@ -228,7 +234,13 @@ class EnvLayer(object):
         def linux_distribution(self):
             operation = "PLATFORM_LINUX_DISTRIBUTION"
             if not self.__emulator_enabled:
-                if sys.version_info.major == 2:
+                major_version = None
+                if hasattr(sys.version_info, 'major'):
+                    major_version = sys.version_info.major
+                else:
+                    major_version = sys.version_info[0]  # python 2.6 doesn't have attributes like 'major' within sys.version_info
+
+                if major_version == 2:
                     value = platform.linux_distribution()
                 else:
                     value = distro.linux_distribution()
