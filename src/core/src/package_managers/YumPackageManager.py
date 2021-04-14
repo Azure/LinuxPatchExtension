@@ -360,8 +360,8 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_debug(" - Reboot is detected to be required (L1).")
             return True
 
-        # Checking for restart for distro without -r flag such as RHEL 6
-        if 'Red Hat Enterprise Linux Server' in str(self.env_layer.platform.linux_distribution()[0]) and '6.' in str(self.env_layer.platform.linux_distribution()[1]):
+        # Checking for restart for distro without -r flag such as RHEL 6 and CentOS 6
+        if '6' == str(self.env_layer.platform.linux_distribution()[1]).split('.')[0]:
             code, out = self.env_layer.run_command_output(self.needs_restarting, False, False)
             self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
             if len(out.strip()) == 0 and code == 0:
