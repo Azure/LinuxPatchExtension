@@ -47,6 +47,13 @@ class LegacyEnvLayerExtensions():
     def check_sudo_status(self, raise_if_not_sudo=True):
         return True
 
+    @staticmethod
+    def get_python_major_version():
+        if hasattr(sys.version_info, 'major'):
+            return sys.version_info.major
+        else:
+            return sys.version_info[0]  # python 2.6 doesn't have attributes like 'major' within sys.version_info
+
     # To be deprecated over time
     def run_command_output(self, cmd, no_output=False, chk_err=True):
         if no_output:
@@ -803,12 +810,7 @@ class LegacyEnvLayerExtensions():
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
 
-            major_version = None
-            if hasattr(sys.version_info, 'major'):
-                major_version = sys.version_info.major
-            else:
-                major_version = sys.version_info[0]
-
+            major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
             elif major_version == 3:

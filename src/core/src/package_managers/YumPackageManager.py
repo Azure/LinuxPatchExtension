@@ -361,7 +361,7 @@ class YumPackageManager(PackageManager):
             return True
 
         # Checking for restart for distro without -r flag such as RHEL 6 and CentOS 6
-        if '6' == str(self.env_layer.platform.linux_distribution()[1]).split('.')[0]:
+        if str(self.env_layer.platform.linux_distribution()[1]).split('.')[0] == '6':
             code, out = self.env_layer.run_command_output(self.needs_restarting, False, False)
             self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
             if len(out.strip()) == 0 and code == 0:
