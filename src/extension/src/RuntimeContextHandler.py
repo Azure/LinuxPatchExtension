@@ -60,14 +60,17 @@ class RuntimeContextHandler(object):
             raise Exception("System Error: Unable to identify the time to wait for previous request to complete")
         max_wait_interval_in_seconds = 60
         current_time = datetime.datetime.utcnow()
-        remaining_wait_time = (time_for_prev_patch_to_complete - current_time).total_seconds()
+        remaining_wait_time = time_for_prev_patch_to_complete - current_time
+        # Computing seconds as per: https://docs.python.org/2/library/datetime.html#datetime.timedelta.total_seconds, since total_seconds() is not supported in python 2.6
+        remaining_wait_time_in_secs = ((remaining_wait_time.microseconds + (remaining_wait_time.seconds + remaining_wait_time.days * 24 * 3600) * 10 ** 6) / 10 ** 6)
         core_state_content = None
-        while remaining_wait_time > 0:
-            next_wait_time_in_seconds = max_wait_interval_in_seconds if remaining_wait_time > max_wait_interval_in_seconds else remaining_wait_time
+        while remaining_wait_time_in_secs > 0:
+            next_wait_time_in_seconds = max_wait_interval_in_seconds if remaining_wait_time_in_secs > max_wait_interval_in_seconds else remaining_wait_time_in_secs
             core_state_last_heartbeat = core_state_last_heartbeat if core_state_content is None else core_state_content.__getattribute__(self.core_state_fields.last_heartbeat)
             self.logger.log("Previous patch operation is still in progress with last status update at {0}. Waiting for a maximum of {1} seconds for it to complete with intermittent status change checks. Next check will be performed after {2} seconds.".format(str(core_state_last_heartbeat), str(remaining_wait_time), str(next_wait_time_in_seconds)))
             time.sleep(next_wait_time_in_seconds)
-            remaining_wait_time = (time_for_prev_patch_to_complete - datetime.datetime.utcnow()).total_seconds()
+            remaining_wait_time = time_for_prev_patch_to_complete - datetime.datetime.utcnow()
+            remaining_wait_time_in_secs = ((remaining_wait_time.microseconds + (remaining_wait_time.seconds + remaining_wait_time.days * 24 * 3600) * 10 ** 6) / 10 ** 6)  # Computing seconds as per: https://docs.python.org/2/library/datetime.html#datetime.timedelta.total_seconds, since total_seconds() is not supported in python 2.6
             # read CoreState.json file again, to verify if the previous processes is completed
             core_state_content = core_state_handler.read_file()
             if core_state_content.__getattribute__(self.core_state_fields.completed).lower() == 'true':

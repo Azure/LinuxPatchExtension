@@ -345,7 +345,7 @@ class YumPackageManager(PackageManager):
 
     def do_processes_require_restart(self):
         """Signals whether processes require a restart due to updates"""
-
+        self.composite_logger.log_debug("Checking if process requires reboot")
         # Checking using yum-utils
         self.composite_logger.log_debug("Ensuring yum-utils is present.")
         code, out = self.env_layer.run_command_output(self.yum_utils_prerequisite, False, False)  # idempotent, doesn't install if already present
@@ -360,14 +360,15 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_debug(" - Reboot is detected to be required (L1).")
             return True
 
-        # Checking for restart for distro without -r flag such as RHEL 6
-        code, out = self.env_layer.run_command_output(self.needs_restarting, False, False)
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
-        if len(out.strip()) == 0 and code == 0:
-            self.composite_logger.log_debug(" - Reboot not detected to be required (L2).")
-        else:
-            self.composite_logger.log_debug(" - Reboot is detected to be required (L2).")
-            return True
+        # Checking for restart for distro without -r flag such as RHEL 6 and CentOS 6
+        if str(self.env_layer.platform.linux_distribution()[1]).split('.')[0] == '6':
+            code, out = self.env_layer.run_command_output(self.needs_restarting, False, False)
+            self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+            if len(out.strip()) == 0 and code == 0:
+                self.composite_logger.log_debug(" - Reboot not detected to be required (L2).")
+            else:
+                self.composite_logger.log_debug(" - Reboot is detected to be required (L2).")
+                return True
 
         # Double-checking using yum ps (where available)
         self.composite_logger.log_debug("Ensuring yum-plugin-ps is present.")
