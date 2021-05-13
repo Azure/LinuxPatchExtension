@@ -24,8 +24,7 @@ class LegacyEnvLayerExtensions():
         self.legacy_test_type = "HappyPath"
 
     class LegacyPlatform(object):
-        @staticmethod
-        def linux_distribution():
+        def linux_distribution(self):
             return ['Ubuntu', '16.04', 'Xenial']
 
         @staticmethod
@@ -345,7 +344,7 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         package = cmd.replace('sudo yum list installed ', '')
                         whitelisted_versions = [
-                            '3.13.1-102.el7_3.16']  # any list of versions you want to work for *any* package
+                            '3.13.1-102.el7_3.16', '4.8.5-28.el7', '2:1.26-34.el7', '14:4.9.2-3.el7']  # any list of versions you want to work for *any* package
                         output = "Loaded plugins: product-id, search-disabled-repos, subscription-manager\n" + \
                                  "Installed Packages\n"
                         template = "<PACKAGE>                                                                                     <VERSION>                                                                                      @anaconda/7.3\n"
