@@ -69,7 +69,7 @@ class TestZypperPackageManager(unittest.TestCase):
         # legacy_test_type ='Happy Path'
         self.runtime.stop()
         argument_composer = ArgumentComposer()
-        argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[2]]
+        argument_composer.classifications_to_include = [Constants.PackageClassification.SECURITY]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
@@ -86,7 +86,7 @@ class TestZypperPackageManager(unittest.TestCase):
         # legacy_test_type ='Happy Path'
         self.runtime.stop()
         argument_composer = ArgumentComposer()
-        argument_composer.classifications_to_include = [Constants.PACKAGE_CLASSIFICATIONS[4]]
+        argument_composer.classifications_to_include = [Constants.PackageClassification.OTHER]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
