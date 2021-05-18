@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 
 """Package Filter"""
+
 from core.src.bootstrap.Constants import Constants
 import fnmatch
 
@@ -159,7 +160,8 @@ class PackageFilter(object):
 
     def is_msft_all_classification_included(self):
         """Returns true if all classifications were individually selected *OR* (nothing was selected AND no inclusion list is present) -- business logic"""
-        all_classifications_explicitly_selected = bool((len(self.installation_included_classifications) == len(Constants.PACKAGE_CLASSIFICATIONS) - 1))
+        all_classifications = [key for key in Constants.PackageClassification.__dict__.keys() if not key.startswith('__')]
+        all_classifications_explicitly_selected = bool(len(self.installation_included_classifications) == (len(all_classifications) - 1))
         no_classifications_selected = bool(len(self.installation_included_classifications) == 0)
         only_unclassified_selected = bool('Unclassified' in self.installation_included_classifications and len(self.installation_included_classifications) == 1)
         return all_classifications_explicitly_selected or ((no_classifications_selected or only_unclassified_selected) and not self.is_inclusion_list_present())

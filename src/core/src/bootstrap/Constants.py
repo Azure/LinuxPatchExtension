@@ -114,13 +114,12 @@ class Constants(object):
     MAX_ASSESSMENT_RETRY_COUNT = 5
     MAX_INSTALLATION_RETRY_COUNT = 3
 
-    # Package Classifications
-    PACKAGE_CLASSIFICATIONS = {
-        0: 'Unclassified',           # doesn't serve a functional purpose in bit mask, but stands in for 'All' in code
-        1: 'Critical',
-        2: 'Security',
-        4: 'Other'
-    }
+    class PackageClassification(EnumBackport):
+        UNCLASSIFIED = 'Unclassified'
+        CRITICAL = 'Critical'
+        SECURITY = 'Security'
+        OTHER = 'Other'
+
     PKG_MGR_SETTING_FILTER_CRITSEC_ONLY = 'FilterCritSecOnly'
     PKG_MGR_SETTING_IDENTITY = 'PackageManagerIdentity'
     PKG_MGR_SETTING_IGNORE_PKG_FILTER = 'IgnorePackageFilter'
