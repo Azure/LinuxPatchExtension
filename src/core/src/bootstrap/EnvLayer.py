@@ -17,9 +17,11 @@
 from __future__ import print_function
 import base64
 import datetime
+import getpass
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -54,6 +56,11 @@ class EnvLayer(object):
         self.datetime = self.DateTime(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record)
         self.file_system = self.FileSystem(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record,
                                            emulator_root_path=os.path.dirname(self.__real_record_path))
+
+        # components for tty config
+        self.etc_sudoers_file_path = "/etc/sudoers"
+        self.etc_sudoers_linux_patch_extension_file_path = "/etc/sudoers.d/linuxpatchextension"
+        self.require_tty_setting = "requiretty"
 
     def get_package_manager(self):
         """ Detects package manager type """
@@ -199,6 +206,85 @@ class EnvLayer(object):
                   "Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise
+
+    def ensure_tty_not_required(self):
+        """ Checks current tty settings in /etc/sudoers and disables it within the current user context, if required. Sudo commands don't execute if tty is required. """
+        try:
+            tty_required = self.is_tty_required()
+            if tty_required:
+                self.disable_tty_for_current_user()
+        except Exception as error:
+            # todo: raise error?
+            print("Error occurred while ensuring tty is disabled. [Error={0}]".format(repr(error)))
+
+    def is_tty_required(self):
+        """ Checks if tty is set to required within the VM and will be applicable to the current user (either via a generic config or a user specific one) """
+        if self.is_tty_required_in_sudoers():
+            if self.is_tty_disabled_in_linux_patch_extension_sudoers():
+                return False
+            return True
+        return False
+
+    def is_tty_required_in_sudoers(self):
+        """ Reads the default tty setting from /etc/sudoers """
+        try:
+            tty_set_to_required = False
+            sudoers_default_configuration = self.file_system.read_with_retry(self.etc_sudoers_file_path)
+            settings = sudoers_default_configuration.strip().split('\n')
+
+            for setting in settings:
+                if self.require_tty_setting not in str(setting):
+                    continue
+
+                if re.match('.*!' + self.require_tty_setting, setting):
+                    defaults_set_for = re.search('(.*)!' + self.require_tty_setting, setting).group(1)
+                    if self.get_current_user() in defaults_set_for or 'Defaults' == defaults_set_for.strip():
+                        tty_set_to_required = False
+                else:
+                    defaults_set_for = re.search('(.*)' + self.require_tty_setting, setting).group(1)
+                    if self.get_current_user() in defaults_set_for or 'Defaults' == defaults_set_for.strip():
+                        tty_set_to_required = True
+
+            return tty_set_to_required
+
+        except Exception as error:
+            print("Error occurred while fetching data from [FilePath={0}] [Exception={1}]".format(str(self.etc_sudoers_file_path), repr(error)))
+            raise
+
+    def is_tty_disabled_in_linux_patch_extension_sudoers(self):
+        """ Checks whether !requiretty is set for current user in the custom sudoers file for the extension """
+        try:
+            if not os.path.isfile(self.etc_sudoers_linux_patch_extension_file_path):
+                return False
+
+            sudoers_default_configuration = self.file_system.read_with_retry(self.etc_sudoers_linux_patch_extension_file_path)
+            settings = sudoers_default_configuration.strip().split('\n')
+            for setting in settings:
+                if self.require_tty_setting not in str(setting):
+                    continue
+
+                defaults_set_for = re.search('(.*)!' + self.require_tty_setting, setting).group(1)
+                if self.get_current_user() in defaults_set_for:
+                    return True
+            return False
+        except Exception as error:
+            print("Error occurred while fetching data from [FilePath={0}] [Exception={1}]".format(str(self.etc_sudoers_file_path), repr(error)))
+            raise
+
+    @staticmethod
+    def get_current_user():
+        return getpass.getuser()
+
+    def disable_tty_for_current_user(self):
+        """ Sets requiretty to False in the custom sudoers file for linuxpatchextension"""
+        try:
+            disable_tty_for_current_user_config = "Defaults:" + self.get_current_user() + " !" + self.require_tty_setting + "\n"
+            print("Disabling tty for current user in custom sudoers for the extension [FileName={0}] [ConfigAdded={1}]".format(str(self.etc_sudoers_linux_patch_extension_file_path), disable_tty_for_current_user_config))
+            self.file_system.write_with_retry(self.etc_sudoers_linux_patch_extension_file_path, disable_tty_for_current_user_config, mode='w+')
+            print("tty for current user disabled")
+        except Exception as error:
+            print("Error occurred while disabling tty for current user. [FileName={0}] [Error={1}]".format(str(self.etc_sudoers_linux_patch_extension_file_path), repr(error)))
+            raise
 
     def reboot_machine(self, reboot_cmd):
         operation = "REBOOT_MACHINE"

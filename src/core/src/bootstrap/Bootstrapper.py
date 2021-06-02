@@ -122,6 +122,8 @@ class Bootstrapper(object):
         self.composite_logger.log("Python version: " + " ".join(sys.version.splitlines()))
         self.composite_logger.log("Linux distribution: " + str(self.env_layer.platform.linux_distribution()) + "\n")
 
+        self.env_layer.ensure_tty_not_required()
+
         # Ensure sudo works in the environment
         sudo_check_result = self.env_layer.check_sudo_status()
         self.composite_logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")

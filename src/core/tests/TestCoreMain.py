@@ -398,6 +398,217 @@ class TestCoreMain(unittest.TestCase):
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
 
+    def test_ensure_tty_not_required_when_not_preset_in_sudoers(self):
+        argument_composer, runtime, mock_sudoers_file_path, mock_etc_sudoers_linux_patch_extension_file_path, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path = self.__ensure_tty_not_required_test_setup()
+
+        # when requiretty is not present in /etc/sudoers
+        mock_sudoers_content = "test"
+        runtime.write_to_file(mock_sudoers_file_path, mock_sudoers_content)
+        runtime.env_layer.etc_sudoers_file_path = mock_sudoers_file_path
+        runtime.env_layer.etc_sudoers_linux_patch_extension_file_path = mock_etc_sudoers_linux_patch_extension_file_path
+        CoreMain(argument_composer.get_composed_arguments())
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+
+        # wrap up
+        self.__wrap_up_ensure_tty_not_required_test(runtime, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
+
+    def test_ensure_tty_not_required_when_set_to_required_for_all_in_sudoers(self):
+        argument_composer, runtime, mock_sudoers_file_path, mock_etc_sudoers_linux_patch_extension_file_path, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path = self.__ensure_tty_not_required_test_setup()
+        # only Defaults requiretty present in /etc/sudoers
+        mock_sudoers_content = "Defaults requiretty"
+        runtime.write_to_file(mock_sudoers_file_path, mock_sudoers_content)
+        runtime.env_layer.etc_sudoers_file_path = mock_sudoers_file_path
+        runtime.env_layer.etc_sudoers_linux_patch_extension_file_path = mock_etc_sudoers_linux_patch_extension_file_path
+        CoreMain(argument_composer.get_composed_arguments())
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        with runtime.env_layer.file_system.open(runtime.env_layer.etc_sudoers_linux_patch_extension_file_path, 'r') as file_handle:
+            settings = file_handle.read()
+            self.assertTrue("Defaults:" + runtime.env_layer.get_current_user() + " !requiretty" in settings)
+        # wrap up
+        self.__wrap_up_ensure_tty_not_required_test(runtime, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
+
+    def test_ensure_tty_not_required_when_set_to_required_for_currentuser_in_sudoers(self):
+        argument_composer, runtime, mock_sudoers_file_path, mock_etc_sudoers_linux_patch_extension_file_path, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path = self.__ensure_tty_not_required_test_setup()
+        # only Defaults:currentuser requiretty present in /etc/sudoers
+        mock_sudoers_content = "Defaults:" + runtime.env_layer.get_current_user() + " requiretty"
+        runtime.write_to_file(mock_sudoers_file_path, mock_sudoers_content)
+        runtime.env_layer.etc_sudoers_file_path = mock_sudoers_file_path
+        runtime.env_layer.etc_sudoers_linux_patch_extension_file_path = mock_etc_sudoers_linux_patch_extension_file_path
+        CoreMain(argument_composer.get_composed_arguments())
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        with runtime.env_layer.file_system.open(runtime.env_layer.etc_sudoers_linux_patch_extension_file_path, 'r') as file_handle:
+            settings = file_handle.read()
+            self.assertTrue("Defaults:" + runtime.env_layer.get_current_user() + " !requiretty" in settings)
+        # wrap up
+        self.__wrap_up_ensure_tty_not_required_test(runtime, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
+
+    def test_ensure_tty_not_required_when_set_to_not_required_for_all_and_currentuser(self):
+        argument_composer, runtime, mock_sudoers_file_path, mock_etc_sudoers_linux_patch_extension_file_path, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path = self.__ensure_tty_not_required_test_setup()
+        # In /etc/sudoers: Defaults !requiretty and Defaults:currentuser !requiretty
+        mock_sudoers_content = "Defaults:" + runtime.env_layer.get_current_user() + " !requiretty" + "\n" + "Defaults !requiretty"
+        runtime.write_to_file(mock_sudoers_file_path, mock_sudoers_content)
+        runtime.env_layer.etc_sudoers_file_path = mock_sudoers_file_path
+        runtime.env_layer.etc_sudoers_linux_patch_extension_file_path = mock_etc_sudoers_linux_patch_extension_file_path
+        CoreMain(argument_composer.get_composed_arguments())
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertFalse(os.path.exists(runtime.env_layer.etc_sudoers_linux_patch_extension_file_path))
+
+        # wrap up
+        self.__wrap_up_ensure_tty_not_required_test(runtime, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
+
+    def test_ensure_tty_not_required_when_set_to_required_for_currentuser_and_not_required_for_all(self):
+        argument_composer, runtime, mock_sudoers_file_path, mock_etc_sudoers_linux_patch_extension_file_path, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path = self.__ensure_tty_not_required_test_setup()
+        # In /etc/sudoers: Defaults:currentuser requiretty and Defaults !requiretty
+        mock_sudoers_content = "Defaults:" + runtime.env_layer.get_current_user() + " requiretty" + "\n" + "Defaults !requiretty"
+        runtime.write_to_file(mock_sudoers_file_path, mock_sudoers_content)
+        runtime.env_layer.etc_sudoers_file_path = mock_sudoers_file_path
+        runtime.env_layer.etc_sudoers_linux_patch_extension_file_path = mock_etc_sudoers_linux_patch_extension_file_path
+        CoreMain(argument_composer.get_composed_arguments())
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertFalse(os.path.exists(runtime.env_layer.etc_sudoers_linux_patch_extension_file_path))
+
+        # wrap up
+        self.__wrap_up_ensure_tty_not_required_test(runtime, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
+
+    def test_ensure_tty_not_required_when_set_to_not_required_for_all_and_required_for_currentuser(self):
+        argument_composer, runtime, mock_sudoers_file_path, mock_etc_sudoers_linux_patch_extension_file_path, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path = self.__ensure_tty_not_required_test_setup()
+        # In /etc/sudoers: Defaults !requiretty and Defaults:currentuser requiretty
+        mock_sudoers_content = "Defaults !requiretty" + "\n" + "Defaults:" + runtime.env_layer.get_current_user() + " requiretty"
+        runtime.write_to_file(mock_sudoers_file_path, mock_sudoers_content)
+        runtime.env_layer.etc_sudoers_file_path = mock_sudoers_file_path
+        runtime.env_layer.etc_sudoers_linux_patch_extension_file_path = mock_etc_sudoers_linux_patch_extension_file_path
+        CoreMain(argument_composer.get_composed_arguments())
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        with runtime.env_layer.file_system.open(runtime.env_layer.etc_sudoers_linux_patch_extension_file_path, 'r') as file_handle:
+            settings = file_handle.read()
+            self.assertTrue("Defaults:" + runtime.env_layer.get_current_user() + " !requiretty" in settings)
+
+        # wrap up
+        self.__wrap_up_ensure_tty_not_required_test(runtime, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
+
+    def test_ensure_tty_not_required_when_set_to_required_for_all_and_not_required_for_currentuser(self):
+        argument_composer, runtime, mock_sudoers_file_path, mock_etc_sudoers_linux_patch_extension_file_path, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path = self.__ensure_tty_not_required_test_setup()
+        # In /etc/sudoers: Defaults requiretty and Defaults:currentuser !requiretty
+        mock_sudoers_content = "Defaults requiretty" + "\n" + "Defaults:" + runtime.env_layer.get_current_user() + " !requiretty"
+        runtime.write_to_file(mock_sudoers_file_path, mock_sudoers_content)
+        runtime.env_layer.etc_sudoers_file_path = mock_sudoers_file_path
+        runtime.env_layer.etc_sudoers_linux_patch_extension_file_path = mock_etc_sudoers_linux_patch_extension_file_path
+        CoreMain(argument_composer.get_composed_arguments())
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertFalse(os.path.exists(runtime.env_layer.etc_sudoers_linux_patch_extension_file_path))
+
+        # wrap up
+        self.__wrap_up_ensure_tty_not_required_test(runtime, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
+
+    def test_ensure_tty_not_required_when_tty_set_to_required_in_default_sudoers_and_tty_set_to_not_required_in_custom_sudoers_file_for_extension(self):
+        argument_composer, runtime, mock_sudoers_file_path, mock_etc_sudoers_linux_patch_extension_file_path, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path = self.__ensure_tty_not_required_test_setup()
+        # Defaults set to required and /etc/sudoers.d/linuxpatchextension already set
+        mock_sudoers_content = "Defaults requiretty" + "\n" + "Defaults:" + runtime.env_layer.get_current_user() + " requiretty"
+        runtime.write_to_file(mock_sudoers_file_path, mock_sudoers_content)
+        runtime.env_layer.etc_sudoers_file_path = mock_sudoers_file_path
+        mock_etc_sudoers_linux_patch_extension_content = "Defaults:" + runtime.env_layer.get_current_user() + " !requiretty" + "\n"
+        runtime.write_to_file(mock_etc_sudoers_linux_patch_extension_file_path, mock_etc_sudoers_linux_patch_extension_content)
+        runtime.env_layer.etc_sudoers_linux_patch_extension_file_path = mock_etc_sudoers_linux_patch_extension_file_path
+        CoreMain(argument_composer.get_composed_arguments())
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        with runtime.env_layer.file_system.open(runtime.env_layer.etc_sudoers_linux_patch_extension_file_path, 'r') as file_handle:
+            settings = file_handle.read()
+            self.assertTrue("Defaults:" + runtime.env_layer.get_current_user() + " !requiretty" in settings)
+
+        # wrap up
+        self.__wrap_up_ensure_tty_not_required_test(runtime, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
+
+    @staticmethod
+    def __ensure_tty_not_required_test_setup():
+        argument_composer = ArgumentComposer()
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        scratch_folder = runtime.execution_config.log_folder
+        mock_sudoers_file_path = os.path.join(scratch_folder, "etc-sudoers")
+        backup_etc_sudoers_file_path = runtime.env_layer.etc_sudoers_file_path
+        mock_etc_sudoers_linux_patch_extension_file_path = os.path.join(scratch_folder, "etc-sudoers.d-linuxpatchextension")
+        backup_etc_sudoers_linux_patch_extension_file_path = runtime.env_layer.etc_sudoers_linux_patch_extension_file_path
+
+        return argument_composer, runtime, mock_sudoers_file_path, mock_etc_sudoers_linux_patch_extension_file_path, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path
+
+    @staticmethod
+    def __wrap_up_ensure_tty_not_required_test(runtime, backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path):
+        runtime.env_layer.etc_sudoers_file_path = backup_etc_sudoers_file_path
+        runtime.env_layer.etc_sudoers_linux_patch_extension_file_path = backup_etc_sudoers_linux_patch_extension_file_path
+        runtime.stop()
+
     def __check_telemetry_events(self, runtime):
         all_events = os.listdir(runtime.telemetry_writer.events_folder_path)
         self.assertTrue(len(all_events) > 0)
