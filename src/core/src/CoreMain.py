@@ -42,6 +42,15 @@ class CoreMain(object):
             lifecycle_manager, status_handler = bootstrapper.build_core_components(container)
             composite_logger.log_debug("Completed building out full container.\n\n")
 
+            # Current operation in status handler is set to either assessment or installation when these operations begin. Setting it to assessment since that is the first operation that runs always.
+            # This ensures all errors occurring before assessment starts are logged within the error objects of assessment substatus
+            if status_handler.get_current_operation() is None:
+                status_handler.set_current_operation(Constants.ASSESSMENT)
+
+            # Environment startup
+            bootstrapper.bootstrap_splash_text()
+            lifecycle_manager.execution_start_check()  # terminates if this instance shouldn't be running (redundant)
+
             # Execution config retrieval
             composite_logger.log_debug("Obtaining execution configuration...")
             execution_config = container.get('execution_config')
@@ -49,9 +58,7 @@ class CoreMain(object):
             patch_operation_requested = execution_config.operation.lower()
 
             # Basic environment check
-            bootstrapper.bootstrap_splash_text()
             bootstrapper.basic_environment_health_check()
-            lifecycle_manager.execution_start_check()  # terminates if this instance shouldn't be running (redundant)
 
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
@@ -92,12 +99,6 @@ class CoreMain(object):
                 telemetry_writer.write_event("EXCEPTION: " + repr(error), Constants.TelemetryEventLevel.Error)
             if status_handler is not None:
                 composite_logger.log_debug(' - Status handler pending writes flags [I=' + str(overall_patch_installation_operation_successful) + ', A=' + str(patch_assessment_successful) + ']')
-
-                # Current operation is set to either assessment or installation when these operations begin.
-                # If None is set at this point that is an indication that something went wrong before the first assessment operation could start.
-                # Logging such errors under assessment substatus since, error details within installation will point to assessment errors
-                if status_handler.get_current_operation() is None:
-                    status_handler.set_current_operation(Constants.ASSESSMENT)
 
                 # Add any pending errors to appropriate substatus
                 if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
