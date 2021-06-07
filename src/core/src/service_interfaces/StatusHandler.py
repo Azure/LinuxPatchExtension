@@ -507,6 +507,9 @@ class StatusHandler(object):
     def set_current_operation(self, operation):
         self.__current_operation = operation
 
+    def get_current_operation(self):
+        return self.__current_operation
+
     def __get_total_error_count_from_prev_status(self, error_message):
         try:
             return int(re.search('(.+?) error/s reported.', error_message).group(1))
