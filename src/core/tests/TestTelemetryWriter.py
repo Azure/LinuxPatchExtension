@@ -122,6 +122,11 @@ class TestTelemetryWriter(unittest.TestCase):
         telemetry_get_event_file_size_backup = self.runtime.telemetry_writer.get_file_size
         self.runtime.telemetry_writer.get_file_size = self.mock_get_file_size
 
+        # forcing wait of 1 sec to ensure new file is created, since we have mocked time.sleep in RuntimeComposer
+        init_time = time.time()
+        while time.time() < init_time + 1:
+            pass
+
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         event_files = os.listdir(self.runtime.telemetry_writer.events_folder_path)
         self.assertTrue(len(event_files) > 1)

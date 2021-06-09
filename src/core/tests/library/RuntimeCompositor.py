@@ -39,6 +39,9 @@ class RuntimeCompositor(object):
         # Adapted bootstrapper
         bootstrapper = Bootstrapper(self.argv, capture_stdout=False)
 
+        # Overriding sudo status check
+        Bootstrapper.check_sudo_status = self.check_sudo_status
+
         # Reconfigure env layer for legacy mode tests
         self.env_layer = bootstrapper.env_layer
         if legacy_mode:
@@ -94,7 +97,6 @@ class RuntimeCompositor(object):
         self.env_layer.platform = self.legacy_env_layer_extensions.LegacyPlatform()
         self.env_layer.set_legacy_test_mode()
         self.env_layer.run_command_output = self.legacy_env_layer_extensions.run_command_output
-        self.env_layer.check_sudo_status = self.legacy_env_layer_extensions.check_sudo_status
 
     def reconfigure_reboot_manager(self):
         self.reboot_manager.start_reboot = self.start_reboot
@@ -104,6 +106,9 @@ class RuntimeCompositor(object):
 
     def mock_sleep(self, seconds):
         pass
+
+    def check_sudo_status(self, raise_if_not_sudo=True):
+        return True
 
     @staticmethod
     def write_to_file(path, data):

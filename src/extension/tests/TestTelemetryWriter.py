@@ -43,11 +43,19 @@ class TestTelemetryWriter(unittest.TestCase):
             f.close()
 
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
-        with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[1]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEquals(events[0]["TaskName"], "Test Task2")
-            f.close()
+        if len(os.listdir(self.telemetry_writer.events_folder_path)) > 1:
+            with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[1]), 'r+') as f:
+                events = json.load(f)
+                self.assertTrue(events is not None)
+                self.assertEquals(events[0]["TaskName"], "Test Task2")
+                f.close()
+        else:
+            with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
+                events = json.load(f)
+                self.assertTrue(events is not None)
+                self.assertEquals(len(events), 2)
+                self.assertEquals(events[1]["TaskName"], "Test Task2")
+                f.close()
 
     def test_write_multiple_events_in_same_file(self):
         time_backup = time.time
@@ -89,6 +97,11 @@ class TestTelemetryWriter(unittest.TestCase):
         os.path.exists = self.mock_os_path_exists
         telemetry_get_event_file_size_backup = self.telemetry_writer.get_file_size
         self.telemetry_writer.get_file_size = self.mock_get_file_size
+
+        # forcing wait of 1 sec to ensure new file is created, since we have mocked time.sleep in RuntimeComposer
+        init_time = time.time()
+        while time.time() < init_time + 1:
+            pass
 
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
         events = os.listdir(self.telemetry_writer.events_folder_path)
