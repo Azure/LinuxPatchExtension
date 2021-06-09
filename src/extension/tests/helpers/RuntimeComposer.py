@@ -2,7 +2,7 @@ import os
 import time
 
 from extension.src.EnvLayer import EnvLayer
-from extension.src.EnvManager import EnvManager
+from extension.src.EnvHealthManager import EnvHealthManager
 from extension.src.TelemetryWriter import TelemetryWriter
 from extension.src.Utility import Utility
 from extension.src.file_handlers.JsonFileHandler import JsonFileHandler
@@ -16,7 +16,7 @@ class RuntimeComposer(object):
         self.utility = Utility(self.logger)
         self.json_file_handler = JsonFileHandler(self.logger)
         self.env_layer = EnvLayer()
-        self.env_manager = EnvManager(self.env_layer)
+        self.env_manager = EnvHealthManager(self.env_layer)
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
         self.env_manager.check_sudo_status = self.mock_check_sudo_status

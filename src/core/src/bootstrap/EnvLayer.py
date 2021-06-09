@@ -17,11 +17,9 @@
 from __future__ import print_function
 import base64
 import datetime
-import getpass
 import json
 import os
 import platform
-import re
 import shutil
 import subprocess
 import sys
@@ -56,11 +54,6 @@ class EnvLayer(object):
         self.datetime = self.DateTime(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record)
         self.file_system = self.FileSystem(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record,
                                            emulator_root_path=os.path.dirname(self.__real_record_path))
-
-        # components for tty config
-        self.etc_sudoers_file_path = "/etc/sudoers"
-        self.etc_sudoers_linux_patch_extension_file_path = "/etc/sudoers.d/linuxpatchextension"
-        self.require_tty_setting = "requiretty"
 
     def get_package_manager(self):
         """ Detects package manager type """

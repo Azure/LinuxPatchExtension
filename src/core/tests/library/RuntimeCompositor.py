@@ -34,6 +34,7 @@ class RuntimeCompositor(object):
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
 
         # Overriding time.sleep to avoid delays in test execution
+        self.backup_time_sleep = time.sleep
         time.sleep = self.mock_sleep
 
         # Adapted bootstrapper

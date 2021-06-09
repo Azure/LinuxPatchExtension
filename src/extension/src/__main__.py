@@ -19,7 +19,7 @@ import os
 import sys
 from extension.src.ActionHandler import ActionHandler
 from extension.src.EnvLayer import EnvLayer
-from extension.src.EnvManager import EnvManager
+from extension.src.EnvHealthManager import EnvHealthManager
 from extension.src.RuntimeContextHandler import RuntimeContextHandler
 from extension.src.TelemetryWriter import TelemetryWriter
 from extension.src.file_handlers.JsonFileHandler import JsonFileHandler
@@ -49,7 +49,7 @@ def main(argv):
         json_file_handler = JsonFileHandler(logger)
         ext_env_handler = ExtEnvHandler(json_file_handler)
         env_layer = EnvLayer()
-        env_manager = EnvManager(env_layer)
+        env_manager = EnvHealthManager(env_layer)
         if ext_env_handler.handler_environment_json is not None and ext_env_handler.config_folder is not None:
             config_folder = ext_env_handler.config_folder
             if config_folder is None or not os.path.exists(config_folder):

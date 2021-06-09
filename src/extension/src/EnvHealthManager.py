@@ -15,7 +15,7 @@
 # Requires Python 2.7+
 
 
-class EnvManager(object):
+class EnvHealthManager(object):
 
     def __init__(self, env_layer):
         self.env_layer = env_layer

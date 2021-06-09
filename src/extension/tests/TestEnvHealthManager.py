@@ -23,7 +23,7 @@ import unittest
 from datetime import datetime
 from extension.src.Constants import Constants
 from extension.src.EnvLayer import EnvLayer
-from extension.src.EnvManager import EnvManager
+from extension.src.EnvHealthManager import EnvHealthManager
 from extension.src.RuntimeContextHandler import RuntimeContextHandler
 from extension.src.file_handlers.CoreStateHandler import CoreStateHandler
 from extension.src.EnableCommandHandler import EnableCommandHandler
@@ -43,7 +43,7 @@ class TestEnvManager(unittest.TestCase):
         # create tempdir which will have all the required files
         self.temp_dir = tempfile.mkdtemp()
         self.env_layer = EnvLayer()
-        self.env_manager = EnvManager(self.env_layer)
+        self.env_manager = EnvHealthManager(self.env_layer)
 
         # Overriding time.sleep to avoid delays in test execution
         time.sleep = self.mock_sleep
