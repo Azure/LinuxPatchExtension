@@ -60,7 +60,7 @@ def main(argv):
             core_state_handler = CoreStateHandler(config_folder, json_file_handler)
             ext_state_handler = ExtStateHandler(config_folder, utility, json_file_handler)
             ext_output_status_handler = ExtOutputStatusHandler(logger, utility, json_file_handler, ext_env_handler.status_folder)
-            process_handler = ProcessHandler(logger, ext_output_status_handler)
+            process_handler = ProcessHandler(logger, env_layer, ext_output_status_handler)
             action_handler = ActionHandler(logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, env_manager, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time)
             action_handler.determine_operation(argv[1])
         else:

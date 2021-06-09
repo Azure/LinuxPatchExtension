@@ -54,7 +54,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.core_state_handler = CoreStateHandler(self.config_folder, self.json_file_handler)
         self.ext_state_handler = ExtStateHandler(self.config_folder, self.utility, self.json_file_handler)
         self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, self.temp_dir)
-        self.process_handler = ProcessHandler(self.logger, self.ext_output_status_handler)
+        self.process_handler = ProcessHandler(self.logger, runtime.env_layer, self.ext_output_status_handler)
         self.enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.env_manager, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         self.constants = Constants
         self.start_daemon_backup = ProcessHandler.start_daemon
