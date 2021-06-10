@@ -20,11 +20,11 @@ from extension.src.Constants import Constants
 
 class EnableCommandHandler(object):
     """ Responsible for executing the action for enable command """
-    def __init__(self, logger, telemetry_writer, utility, env_manager, runtime_context_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
+    def __init__(self, logger, telemetry_writer, utility, env_health_manager, runtime_context_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
         self.logger = logger
         self.telemetry_writer = telemetry_writer
         self.utility = utility
-        self.env_manager = env_manager
+        self.env_health_manager = env_health_manager
         self.runtime_context_handler = runtime_context_handler
         self.ext_env_handler = ext_env_handler
         self.ext_config_settings_handler = ext_config_settings_handler
@@ -42,10 +42,10 @@ class EnableCommandHandler(object):
         """ Responsible for taking appropriate action for enable command as per the request sent in Handler Configuration file by user """
         try:
             # Disable tty for sudo access, if required
-            self.env_manager.ensure_tty_not_required()
+            self.env_health_manager.ensure_tty_not_required()
 
             # Ensure sudo works in the environment
-            sudo_check_result = self.env_manager.check_sudo_status()
+            sudo_check_result = self.env_health_manager.check_sudo_status()
             self.logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
 
             # fetch seq_no

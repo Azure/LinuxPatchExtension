@@ -16,10 +16,10 @@ class RuntimeComposer(object):
         self.utility = Utility(self.logger)
         self.json_file_handler = JsonFileHandler(self.logger)
         self.env_layer = EnvLayer()
-        self.env_manager = EnvHealthManager(self.env_layer)
+        self.env_health_manager = EnvHealthManager(self.env_layer)
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
-        self.env_manager.check_sudo_status = self.mock_check_sudo_status
+        self.env_health_manager.check_sudo_status = self.mock_check_sudo_status
 
     def mock_sleep(self, seconds):
         pass

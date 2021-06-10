@@ -43,7 +43,7 @@ class TestEnvManager(unittest.TestCase):
         # create tempdir which will have all the required files
         self.temp_dir = tempfile.mkdtemp()
         self.env_layer = EnvLayer()
-        self.env_manager = EnvHealthManager(self.env_layer)
+        self.env_health_manager = EnvHealthManager(self.env_layer)
 
         # Overriding time.sleep to avoid delays in test execution
         time.sleep = self.mock_sleep
@@ -68,7 +68,7 @@ class TestEnvManager(unittest.TestCase):
         self.assertFalse(self.env_layer.is_tty_disabled_in_linux_patch_extension_sudoers())
         self.assertFalse(self.env_layer.is_tty_required())
 
-        self.env_manager.ensure_tty_not_required()
+        self.env_health_manager.ensure_tty_not_required()
         self.assertFalse(os.path.exists(self.env_layer.etc_sudoers_linux_patch_extension_file_path))
         # wrap up
         self.__wrap_up_ensure_tty_not_required_test(backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
@@ -85,7 +85,7 @@ class TestEnvManager(unittest.TestCase):
         self.assertFalse(self.env_layer.is_tty_disabled_in_linux_patch_extension_sudoers())
         self.assertTrue(self.env_layer.is_tty_required())
 
-        self.env_manager.ensure_tty_not_required()
+        self.env_health_manager.ensure_tty_not_required()
         etc_sudoers_linux_patch_extension_configuration = self.env_layer.file_system.read_with_retry(self.env_layer.etc_sudoers_linux_patch_extension_file_path)
         settings = etc_sudoers_linux_patch_extension_configuration.strip().split('\n')
         self.assertTrue("Defaults:" + self.env_layer.get_current_user() + " !requiretty" in settings)
@@ -104,7 +104,7 @@ class TestEnvManager(unittest.TestCase):
         self.assertFalse(self.env_layer.is_tty_disabled_in_linux_patch_extension_sudoers())
         self.assertTrue(self.env_layer.is_tty_required())
 
-        self.env_manager.ensure_tty_not_required()
+        self.env_health_manager.ensure_tty_not_required()
         etc_sudoers_linux_patch_extension_configuration = self.env_layer.file_system.read_with_retry(self.env_layer.etc_sudoers_linux_patch_extension_file_path)
         settings = etc_sudoers_linux_patch_extension_configuration.strip().split('\n')
         self.assertTrue("Defaults:" + self.env_layer.get_current_user() + " !requiretty" in settings)
@@ -123,7 +123,7 @@ class TestEnvManager(unittest.TestCase):
         self.assertFalse(self.env_layer.is_tty_disabled_in_linux_patch_extension_sudoers())
         self.assertFalse(self.env_layer.is_tty_required())
 
-        self.env_manager.ensure_tty_not_required()
+        self.env_health_manager.ensure_tty_not_required()
         self.assertFalse(os.path.exists(self.env_layer.etc_sudoers_linux_patch_extension_file_path))
         # wrap up
         self.__wrap_up_ensure_tty_not_required_test(backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
@@ -140,7 +140,7 @@ class TestEnvManager(unittest.TestCase):
         self.assertFalse(self.env_layer.is_tty_disabled_in_linux_patch_extension_sudoers())
         self.assertFalse(self.env_layer.is_tty_required())
 
-        self.env_manager.ensure_tty_not_required()
+        self.env_health_manager.ensure_tty_not_required()
         self.assertFalse(os.path.exists(self.env_layer.etc_sudoers_linux_patch_extension_file_path))
         # wrap up
         self.__wrap_up_ensure_tty_not_required_test(backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
@@ -157,7 +157,7 @@ class TestEnvManager(unittest.TestCase):
         self.assertFalse(self.env_layer.is_tty_disabled_in_linux_patch_extension_sudoers())
         self.assertTrue(self.env_layer.is_tty_required())
 
-        self.env_manager.ensure_tty_not_required()
+        self.env_health_manager.ensure_tty_not_required()
         etc_sudoers_linux_patch_extension_configuration = self.env_layer.file_system.read_with_retry(self.env_layer.etc_sudoers_linux_patch_extension_file_path)
         settings = etc_sudoers_linux_patch_extension_configuration.strip().split('\n')
         self.assertTrue("Defaults:" + self.env_layer.get_current_user() + " !requiretty" in settings)
@@ -176,7 +176,7 @@ class TestEnvManager(unittest.TestCase):
         self.assertFalse(self.env_layer.is_tty_disabled_in_linux_patch_extension_sudoers())
         self.assertFalse(self.env_layer.is_tty_required())
 
-        self.env_manager.ensure_tty_not_required()
+        self.env_health_manager.ensure_tty_not_required()
         self.assertFalse(os.path.exists(self.env_layer.etc_sudoers_linux_patch_extension_file_path))
         # wrap up
         self.__wrap_up_ensure_tty_not_required_test(backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
@@ -195,7 +195,7 @@ class TestEnvManager(unittest.TestCase):
         self.assertTrue(self.env_layer.is_tty_disabled_in_linux_patch_extension_sudoers())
         self.assertFalse(self.env_layer.is_tty_required())
 
-        self.env_manager.ensure_tty_not_required()
+        self.env_health_manager.ensure_tty_not_required()
         etc_sudoers_linux_patch_extension_configuration = self.env_layer.file_system.read_with_retry(self.env_layer.etc_sudoers_linux_patch_extension_file_path)
         settings = etc_sudoers_linux_patch_extension_configuration.strip().split('\n')
         self.assertTrue("Defaults:" + self.env_layer.get_current_user() + " !requiretty" in settings)
