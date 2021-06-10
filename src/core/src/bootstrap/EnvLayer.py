@@ -170,36 +170,6 @@ class EnvLayer(object):
         else:
             raise Exception("Unknown version of python encountered.")
 
-    def check_sudo_status(self, raise_if_not_sudo=True):
-        """ Checks if we can invoke sudo successfully. """
-        try:
-            print("Performing sudo status check... This should complete within 10 seconds.")
-            return_code, output = self.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
-            # output should look like either this (bad):
-            #   [sudo] password for username:
-            #   False
-            # or this (good):
-            #   uid=0(root) gid=0(root) groups=0(root)
-            #   True
-
-            output_lines = output.splitlines()
-            if len(output_lines) < 2:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
-
-            if output_lines[1] == "True":
-                return True
-            elif output_lines[1] == "False":
-                if raise_if_not_sudo:
-                    raise Exception("Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
-                return False
-            else:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
-        except Exception as exception:
-            print("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
-                  "Exception details: " + str(exception))
-            if raise_if_not_sudo:
-                raise
-
     def reboot_machine(self, reboot_cmd):
         operation = "REBOOT_MACHINE"
         if not self.__emulator_enabled:

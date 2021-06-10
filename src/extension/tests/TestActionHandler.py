@@ -42,9 +42,9 @@ class TestActionHandler(unittest.TestCase):
         core_state_handler = CoreStateHandler(ext_env_handler.config_folder, self.runtime.json_file_handler)
         ext_state_handler = ExtStateHandler(ext_env_handler.config_folder, self.runtime.utility, self.runtime.json_file_handler)
         ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, ext_env_handler.status_folder)
-        process_handler = ProcessHandler(self.runtime.logger, ext_output_status_handler)
-        self.action_handler = ActionHandler(self.runtime.logger, self.runtime.telemetry_writer, self.runtime.utility, runtime_context_handler, self.runtime.json_file_handler, ext_env_handler,
-                                            ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, "2020-09-02T13:40:54.8862542Z")
+        process_handler = ProcessHandler(self.runtime.logger, self.runtime.env_layer, ext_output_status_handler)
+        self.action_handler = ActionHandler(self.runtime.logger, self.runtime.telemetry_writer, self.runtime.utility, runtime_context_handler, self.runtime.json_file_handler, self.runtime.env_health_manager,
+                                            ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, "2020-09-02T13:40:54.8862542Z")
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")

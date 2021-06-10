@@ -29,12 +29,13 @@ from extension.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 class ActionHandler(object):
     """Responsible for identifying the action to perform based on the user input"""
-    def __init__(self, logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
+    def __init__(self, logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, env_health_manager, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
         self.logger = logger
         self.telemetry_writer = telemetry_writer
         self.utility = utility
         self.runtime_context_handler = runtime_context_handler
         self.json_file_handler = json_file_handler
+        self.env_health_manager = env_health_manager
         self.ext_env_handler = ext_env_handler
         self.ext_config_settings_handler = ext_config_settings_handler
         self.core_state_handler = core_state_handler
@@ -208,7 +209,7 @@ class ActionHandler(object):
     def enable(self):
         try:
             self.setup(action=Constants.ENABLE, log_message="Enable triggered on extension")
-            enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
+            enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.env_health_manager, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
             return enable_command_handler.execute_handler_action()
 
         except Exception as error:

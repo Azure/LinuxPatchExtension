@@ -21,6 +21,7 @@ from extension.src.Constants import Constants
 from extension.src.local_loggers.FileLogger import FileLogger
 
 
+#TODO later: move utility to env Layer
 class Utility(object):
     def __init__(self, logger):
         self.logger = logger
