@@ -34,6 +34,9 @@ class TestTelemetryWriter(unittest.TestCase):
     def mock_get_file_size(self, file_path):
         return Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS + 10
 
+    def mock_os_listdir(self, file_path):
+        return ['testevent1.json', 'testevent2.json', 'testevent3.json', 'testevent4.json']
+
     def test_write_event(self):
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
@@ -140,6 +143,12 @@ class TestTelemetryWriter(unittest.TestCase):
         Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = telemetry_dir_size_backup
         Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = telemetry_event_size_backup
         os.remove = os_remove_backup
+
+    def test_events_deleted_outside_of_extension_while_extension_is_running(self):
+        backup_os_listdir = os.listdir
+        os.listdir = self.mock_os_listdir
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
+        os.listdir = backup_os_listdir
 
 
 if __name__ == '__main__':

@@ -140,8 +140,8 @@ class TelemetryWriter(object):
         """ Returns total size, in bytes, of the events folder """
         total_dir_size = 0
         for f in os.listdir(self.events_folder_path):
-            if os.path.isfile(os.path.join(self.events_folder_path, f)):
-                total_dir_size += os.path.getsize(os.path.join(self.events_folder_path, f))
+            file_path = os.path.join(self.events_folder_path, f)
+            total_dir_size += os.path.getsize(file_path) if os.path.exists(file_path) and os.path.isfile(file_path) else 0
         return total_dir_size
 
     @staticmethod
@@ -157,6 +157,9 @@ class TelemetryWriter(object):
     @staticmethod
     def __fetch_events_from_previous_file(file_path):
         """ Fetch contents from the file """
+        if not os.path.exists(file_path):
+            return []
+
         with open(file_path, 'r') as file_handle:
             file_contents = file_handle.read()
             return json.loads(file_contents)
