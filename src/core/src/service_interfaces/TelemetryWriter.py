@@ -274,7 +274,7 @@ class TelemetryWriter(object):
         total_dir_size = 0
         for f in os.listdir(self.events_folder_path):
             file_path = os.path.join(self.events_folder_path, f)
-            total_dir_size += os.path.getsize(file_path) if os.path.exists(file_path) and os.path.isfile(file_path) else 0
+            total_dir_size += os.path.getsize(file_path) if os.path.isfile(file_path) else 0
         return total_dir_size
 
     @staticmethod
