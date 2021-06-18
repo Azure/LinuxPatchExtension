@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 import datetime
+import errno
 import json
 import os
 import re
@@ -140,8 +141,16 @@ class TelemetryWriter(object):
         """ Returns total size, in bytes, of the events folder """
         total_dir_size = 0
         for f in os.listdir(self.events_folder_path):
-            file_path = os.path.join(self.events_folder_path, f)
-            total_dir_size += os.path.getsize(file_path) if os.path.isfile(file_path) else 0
+            try:
+                file_path = os.path.join(self.events_folder_path, f)
+                total_dir_size += os.path.getsize(file_path)
+            except OSError as error:
+                # ENOENT is for 'No such file or directory' error. Ignore if exception is raised for file not found, since Guest Agent can delete the file any time
+                if error.errno == errno.ENOENT:
+                    continue
+                else:
+                    self.logger.log_telemetry_module_error("Error occurred while fetching event directory size. [Error={0}].".format(repr(error)))
+                    raise
         return total_dir_size
 
     @staticmethod
@@ -154,13 +163,16 @@ class TelemetryWriter(object):
         """ Returns the size of a file. Extracted out for mocking in unit test """
         return os.path.getsize(file_path)
 
-    @staticmethod
-    def __fetch_events_from_previous_file(file_path):
+    def __fetch_events_from_previous_file(self, file_path):
         """ Fetch contents from the file """
-        if not os.path.exists(file_path):
-            return []
-
-        with open(file_path, 'r') as file_handle:
-            file_contents = file_handle.read()
-            return json.loads(file_contents)
+        try:
+            with open(file_path, 'r') as file_handle:
+                file_contents = file_handle.read()
+                return json.loads(file_contents)
+        except OSError as error:
+            if error.errno == errno.ENOENT:
+                return []
+            else:
+                self.logger.log_telemetry_module_error("Error occurred while fetching contents from existing event file. [File={0}] [Error={1}].".format(repr(file_path), repr(error)))
+                raise
 
