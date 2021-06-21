@@ -96,12 +96,18 @@ class EnvLayer(object):
         Reports exceptions to Error if chk_err parameter is True
         """
 
-        def check_output(no_output, *popenargs, **kwargs):
+        def check_output(*popenargs, **kwargs):
             """
             Backport from subprocess module from python 2.7
             """
             if 'stdout' in kwargs:
                 raise ValueError('stdout argument not allowed, it will be overridden.')
+
+            no_output = False
+            if type(popenargs[0]) is bool:
+                no_output = popenargs[0]
+                popenargs = popenargs[1:]
+
             if no_output is True:
                 out_file = None
             else:
@@ -156,42 +162,13 @@ class EnvLayer(object):
 
     @staticmethod
     def __convert_process_output_to_ascii(output):
-        if sys.version_info.major == 2:
+        major_version = EnvLayer.get_python_major_version()
+        if major_version == 2:
             return output.decode('utf8', 'ignore').encode('ascii', 'ignore')
-        elif sys.version_info.major == 3:
+        elif major_version == 3:
             return output.decode('utf8', 'ignore')
         else:
             raise Exception("Unknown version of python encountered.")
-
-    def check_sudo_status(self, raise_if_not_sudo=True):
-        """ Checks if we can invoke sudo successfully. """
-        try:
-            print("Performing sudo status check... This should complete within 10 seconds.")
-            return_code, output = self.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
-            # output should look like either this (bad):
-            #   [sudo] password for username:
-            #   False
-            # or this (good):
-            #   uid=0(root) gid=0(root) groups=0(root)
-            #   True
-
-            output_lines = output.splitlines()
-            if len(output_lines) < 2:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
-
-            if output_lines[1] == "True":
-                return True
-            elif output_lines[1] == "False":
-                if raise_if_not_sudo:
-                    raise Exception("Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
-                return False
-            else:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
-        except Exception as exception:
-            print("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
-                  "Exception details: " + str(exception))
-            if raise_if_not_sudo:
-                raise
 
     def reboot_machine(self, reboot_cmd):
         operation = "REBOOT_MACHINE"
@@ -211,6 +188,13 @@ class EnvLayer(object):
             self.__read_record(operation)   # will throw if it's not the expected operation
             raise Exception(Constants.EnvLayer.PRIVILEGED_OP_EXIT + str(code))
 
+    @staticmethod
+    def get_python_major_version():
+        if hasattr(sys.version_info, 'major'):
+            return sys.version_info.major
+        else:
+            return sys.version_info[0]  # python 2.6 doesn't have attributes like 'major' within sys.version_info
+
 # region - Platform emulation and extensions
     class Platform(object):
         def __init__(self, recorder_enabled=True, emulator_enabled=False, write_record_delegate=None, read_record_delegate=None):
@@ -222,7 +206,9 @@ class EnvLayer(object):
         def linux_distribution(self):
             operation = "PLATFORM_LINUX_DISTRIBUTION"
             if not self.__emulator_enabled:
-                if sys.version_info.major == 2:
+                major_version = EnvLayer.get_python_major_version()
+
+                if major_version == 2:
                     value = platform.linux_distribution()
                 else:
                     value = distro.linux_distribution()

@@ -56,6 +56,14 @@ class YumPackageManager(PackageManager):
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.YUM)
         self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
 
+        # if an Auto Patching request comes in on a CentOS machine with Security and/or Critical classifications selected, we need to install all patches
+        installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
+        if execution_config.maintenance_run_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
+                and 'CentOS' in str(env_layer.platform.linux_distribution()) \
+                and 'Critical' in installation_included_classifications and 'Security' in installation_included_classifications:
+            self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on CentOS machines")
+            execution_config.included_classifications_list = [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER]
+
     def refresh_repo(self):
         pass  # Refresh the repo is no ops in YUM
 
@@ -349,7 +357,7 @@ class YumPackageManager(PackageManager):
 
     def do_processes_require_restart(self):
         """Signals whether processes require a restart due to updates"""
-
+        self.composite_logger.log_debug("Checking if process requires reboot")
         # Checking using yum-utils
         self.composite_logger.log_debug("Ensuring yum-utils is present.")
         code, out = self.env_layer.run_command_output(self.yum_utils_prerequisite, False, False)  # idempotent, doesn't install if already present
@@ -364,14 +372,15 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_debug(" - Reboot is detected to be required (L1).")
             return True
 
-        # Checking for restart for distro without -r flag such as RHEL 6
-        code, out = self.env_layer.run_command_output(self.needs_restarting, False, False)
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
-        if len(out.strip()) == 0 and code == 0:
-            self.composite_logger.log_debug(" - Reboot not detected to be required (L2).")
-        else:
-            self.composite_logger.log_debug(" - Reboot is detected to be required (L2).")
-            return True
+        # Checking for restart for distro without -r flag such as RHEL 6 and CentOS 6
+        if str(self.env_layer.platform.linux_distribution()[1]).split('.')[0] == '6':
+            code, out = self.env_layer.run_command_output(self.needs_restarting, False, False)
+            self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+            if len(out.strip()) == 0 and code == 0:
+                self.composite_logger.log_debug(" - Reboot not detected to be required (L2).")
+            else:
+                self.composite_logger.log_debug(" - Reboot is detected to be required (L2).")
+                return True
 
         # Double-checking using yum ps (where available)
         self.composite_logger.log_debug("Ensuring yum-plugin-ps is present.")

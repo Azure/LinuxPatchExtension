@@ -18,6 +18,7 @@
 If the log file language is set to 'Python' in Notepad++, with code as implemented below, useful collapsibility is obtained."""
 import sys
 
+
 class StdOutFileMirror(object):
     """Mirrors all terminal output to a local file"""
 

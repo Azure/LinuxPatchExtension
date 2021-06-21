@@ -24,8 +24,7 @@ class LegacyEnvLayerExtensions():
         self.legacy_test_type = "HappyPath"
 
     class LegacyPlatform(object):
-        @staticmethod
-        def linux_distribution():
+        def linux_distribution(self):
             return ['Ubuntu', '16.04', 'Xenial']
 
         @staticmethod
@@ -44,8 +43,12 @@ class LegacyEnvLayerExtensions():
         """return passed in package manager name"""
         return self.legacy_package_manager_name
 
-    def check_sudo_status(self, raise_if_not_sudo=True):
-        return True
+    @staticmethod
+    def get_python_major_version():
+        if hasattr(sys.version_info, 'major'):
+            return sys.version_info.major
+        else:
+            return sys.version_info[0]  # python 2.6 doesn't have attributes like 'major' within sys.version_info
 
     # To be deprecated over time
     def run_command_output(self, cmd, no_output=False, chk_err=True):
@@ -338,7 +341,7 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         package = cmd.replace('sudo yum list installed ', '')
                         whitelisted_versions = [
-                            '3.13.1-102.el7_3.16']  # any list of versions you want to work for *any* package
+                            '3.13.1-102.el7_3.16', '4.8.5-28.el7', '2:1.26-34.el7', '14:4.9.2-3.el7']  # any list of versions you want to work for *any* package
                         output = "Loaded plugins: product-id, search-disabled-repos, subscription-manager\n" + \
                                  "Installed Packages\n"
                         template = "<PACKAGE>                                                                                     <VERSION>                                                                                      @anaconda/7.3\n"
@@ -803,9 +806,10 @@ class LegacyEnvLayerExtensions():
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
 
-            if sys.version_info.major == 2:
+            major_version = self.get_python_major_version()
+            if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
-            elif sys.version_info.major == 3:
+            elif major_version == 3:
                 return code, output.encode('ascii', 'ignore').decode('ascii', 'ignore')
             else:
                 raise Exception("Unknown version of python encountered.")

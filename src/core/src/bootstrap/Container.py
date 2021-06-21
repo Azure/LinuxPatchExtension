@@ -149,9 +149,15 @@ class Container(Singleton):
         if inspect.isclass(component):
             component = component.__init__
 
-        if sys.version_info.major == 2:
+        major_version = None
+        if hasattr(sys.version_info, 'major'):
+            major_version = sys.version_info.major
+        else:
+            major_version = sys.version_info[0]  # python 2.6 doesn't have attributes like 'major' within sys.version_info
+
+        if major_version == 2:
             component_args, vargs, vkw, defaults = inspect.getargspec(component)
-        elif sys.version_info.major == 3:
+        elif major_version == 3:
             component_args, vargs, vkw, defaults, kwonlyargs, kwonlydefaults, annotations = inspect.getfullargspec(component)
         else:
             raise Exception("Unknown version of python encountered.")

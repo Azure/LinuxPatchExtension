@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.16"
+    EXT_VERSION = "1.6.18"
 
     # Runtime environments
     TEST = 'Test'
@@ -126,13 +126,12 @@ class Constants(object):
     MAX_ASSESSMENT_RETRY_COUNT = 5
     MAX_INSTALLATION_RETRY_COUNT = 3
 
-    # Package Classifications
-    PACKAGE_CLASSIFICATIONS = {
-        0: 'Unclassified',           # doesn't serve a functional purpose in bit mask, but stands in for 'All' in code
-        1: 'Critical',
-        2: 'Security',
-        4: 'Other'
-    }
+    class PackageClassification(EnumBackport):
+        UNCLASSIFIED = 'Unclassified'
+        CRITICAL = 'Critical'
+        SECURITY = 'Security'
+        OTHER = 'Other'
+
     PKG_MGR_SETTING_FILTER_CRITSEC_ONLY = 'FilterCritSecOnly'
     PKG_MGR_SETTING_IDENTITY = 'PackageManagerIdentity'
     PKG_MGR_SETTING_IGNORE_PKG_FILTER = 'IgnorePackageFilter'
@@ -202,8 +201,9 @@ class Constants(object):
         LogAlways = "LogAlways"
 
     TELEMETRY_TASK_NAME = "ExtensionCoreLog"
-    TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine following instructions here: http://aka.ms/UpdateLinuxAgent"
-    TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was met."
+
+    TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
+    TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"
 
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 

@@ -94,22 +94,8 @@ class PatchInstaller(object):
 
         # Combining maintenance
         overall_patch_installation_successful = bool(update_run_successful and not maintenance_window_exceeded)
-        if overall_patch_installation_successful:
-            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
-            # update patch metadata in status for auto patching request, to be reported to healthstore
-            if self.execution_config.maintenance_run_id is not None:
-                try:
-                    #todo: temp fix to test auto patching, this will be reset to using the maintenanceRunId string as is, once the corresponding changes in RSM are made
-                    # patch_version = str(self.execution_config.maintenance_run_id)
-                    patch_version = datetime.datetime.strptime(self.execution_config.maintenance_run_id.split(" ")[0], "%m/%d/%Y").strftime('%Y.%m.%d')
-                    self.status_handler.set_patch_metadata_for_healthstore_substatus_json(patch_version=patch_version if patch_version is not None and patch_version != "" else Constants.PATCH_VERSION_UNKNOWN,
-                                                                                          report_to_healthstore=True,
-                                                                                          wait_after_update=False)
-                except ValueError as e:
-                    error_message = "Maintenance Run Id is in incorrect format. Expected=[DateTimeUTC]. Actual=[{0}]. Error=[{1}]".format(str(self.execution_config.maintenance_run_id), repr(e))
-                    self.composite_logger.log_error(error_message)
-                    raise Exception(error_message)
-        else:
+
+        if not overall_patch_installation_successful:
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
             # NOTE: For auto patching requests, no need to report patch metadata to healthstore in case of failure
 
@@ -282,7 +268,27 @@ class PatchInstaller(object):
             self.composite_logger.log_error('Error while checking for reboot pending: ' + repr(error))
             return True     # defaults for safety
 
-    # region Update Run Progress support
+    def mark_installation_completed(self):
+        """ Marks Installation operation as completed by updating the status of PatchInstallationSummary as success and patch metadata to be sent to healthstore.
+        This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as completed only after the implicit (2nd) assessment operation """
+        self.status_handler.set_current_operation(Constants.INSTALLATION)  # Required for status handler to log errors, that occur during marking installation completed, in installation substatus
+
+        self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+        # update patch metadata in status for auto patching request, to be reported to healthstore
+        if self.execution_config.maintenance_run_id is not None:
+            try:
+                # todo: temp fix to test auto patching, this will be reset to using the maintenanceRunId string as is, once the corresponding changes in RSM are made
+                # patch_version = str(self.execution_config.maintenance_run_id)
+                patch_version = datetime.datetime.strptime(self.execution_config.maintenance_run_id.split(" ")[0], "%m/%d/%Y").strftime('%Y.%m.%d')
+                self.status_handler.set_patch_metadata_for_healthstore_substatus_json(patch_version=patch_version if patch_version is not None and patch_version != "" else Constants.PATCH_VERSION_UNKNOWN,
+                                                                                      report_to_healthstore=True,
+                                                                                      wait_after_update=False)
+            except ValueError as e:
+                error_message = "Maintenance Run Id is in incorrect format. Expected=[DateTimeUTC]. Actual=[{0}]. Error=[{1}]".format(str(self.execution_config.maintenance_run_id), repr(e))
+                self.composite_logger.log_error(error_message)
+                raise Exception(error_message)
+
+    # region Installation Progress support
     def perform_status_reconciliation_conditionally(self, package_manager, condition=True):
         """Periodically based on the condition check, writes out success records as required; returns count of detected installs.
            This is mostly to capture the dependencies that get silently installed recorded.
@@ -298,8 +304,8 @@ class PatchInstaller(object):
         successful_package_versions = []
         for i in range(0, len(self.last_still_needed_packages)):
             if self.last_still_needed_packages[i] not in still_needed_packages:
-                successful_packages.append(self.last_still_needed_packages.pop(i))
-                successful_package_versions.append(self.last_still_needed_package_versions.pop(i))
+                successful_packages.append(self.last_still_needed_packages[i])
+                successful_package_versions.append(self.last_still_needed_package_versions[i])
 
         self.status_handler.set_package_install_status(successful_packages, successful_package_versions, Constants.INSTALLED)
         self.last_still_needed_packages = still_needed_packages

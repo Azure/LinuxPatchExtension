@@ -44,8 +44,8 @@ class TestUtility(unittest.TestCase):
         self.runtime.create_temp_file(test_dir, file_name, content=None)
         # delete file
         self.utility.delete_file(test_dir, "test.json")
-        # once the file is deleted, os.path.exists on the ful file path will return False
-        self.assertFalse(os.path.exists(file_path))
+        # once the file is deleted, parent directory is empty
+        self.assertTrue(len(os.listdir(test_dir)) == 0)
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 

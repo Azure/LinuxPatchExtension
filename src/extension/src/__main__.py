@@ -18,6 +18,8 @@ import datetime
 import os
 import sys
 from extension.src.ActionHandler import ActionHandler
+from extension.src.EnvLayer import EnvLayer
+from extension.src.EnvHealthManager import EnvHealthManager
 from extension.src.RuntimeContextHandler import RuntimeContextHandler
 from extension.src.TelemetryWriter import TelemetryWriter
 from extension.src.file_handlers.JsonFileHandler import JsonFileHandler
@@ -46,6 +48,8 @@ def main(argv):
         runtime_context_handler = RuntimeContextHandler(logger)
         json_file_handler = JsonFileHandler(logger)
         ext_env_handler = ExtEnvHandler(json_file_handler)
+        env_layer = EnvLayer()
+        env_health_manager = EnvHealthManager(env_layer)
         if ext_env_handler.handler_environment_json is not None and ext_env_handler.config_folder is not None:
             config_folder = ext_env_handler.config_folder
             if config_folder is None or not os.path.exists(config_folder):
@@ -56,8 +60,8 @@ def main(argv):
             core_state_handler = CoreStateHandler(config_folder, json_file_handler)
             ext_state_handler = ExtStateHandler(config_folder, utility, json_file_handler)
             ext_output_status_handler = ExtOutputStatusHandler(logger, utility, json_file_handler, ext_env_handler.status_folder)
-            process_handler = ProcessHandler(logger, ext_output_status_handler)
-            action_handler = ActionHandler(logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time)
+            process_handler = ProcessHandler(logger, env_layer, ext_output_status_handler)
+            action_handler = ActionHandler(logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, env_health_manager, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time)
             action_handler.determine_operation(argv[1])
         else:
             error_cause = "No configuration provided in HandlerEnvironment" if ext_env_handler.handler_environment_json is None else "Path to config folder not specified in HandlerEnvironment"

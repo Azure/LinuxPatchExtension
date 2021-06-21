@@ -232,11 +232,16 @@ class TelemetryWriter(object):
             if not is_event_file_throttling_needed:
                 return
 
-            if (datetime.datetime.utcnow() - self.start_time_for_event_count_throttle_check).total_seconds() < Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE:
+            time_from_event_count_throttle_check_start = (datetime.datetime.utcnow() - self.start_time_for_event_count_throttle_check)
+            # Computing seconds as per: https://docs.python.org/2/library/datetime.html#datetime.timedelta.total_seconds, since total_seconds() is not supported in python 2.6
+            time_from_throttle_start_check_total_seconds = ((time_from_event_count_throttle_check_start.microseconds + (time_from_event_count_throttle_check_start.seconds + time_from_event_count_throttle_check_start.days * 24 * 3600) * 10 ** 6) / 10 ** 6)
+
+            if time_from_throttle_start_check_total_seconds < Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE:
                 # If event count limit reached before time period, wait out the remaining time. Checking against one less than max limit to allow room for writing a throttling msg to telemetry
                 if self.event_count >= Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE - 1:
                     end_time_for_event_count_throttle_check = self.start_time_for_event_count_throttle_check + datetime.timedelta(seconds=Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE)
-                    time_to_wait_in_secs = (end_time_for_event_count_throttle_check - datetime.datetime.utcnow()).total_seconds()
+                    time_to_wait = (end_time_for_event_count_throttle_check - datetime.datetime.utcnow())
+                    time_to_wait_in_secs = ((time_to_wait.microseconds + (time_to_wait.seconds + time_to_wait.days * 24 * 3600) * 10 ** 6) / 10 ** 6)  # Computing seconds as per: https://docs.python.org/2/library/datetime.html#datetime.timedelta.total_seconds, since total_seconds() is not supported in python 2.6
                     event_write_throttled_msg = "Max telemetry event file limit reached. Extension will wait until a telemetry event file can be written again. [WaitTimeInSecs={0}]".format(str(time_to_wait_in_secs))
                     self.composite_logger.log_telemetry_module(event_write_throttled_msg)
                     self.write_event(message=event_write_throttled_msg, event_level=Constants.TelemetryEventLevel.Informational, is_event_file_throttling_needed=False)
