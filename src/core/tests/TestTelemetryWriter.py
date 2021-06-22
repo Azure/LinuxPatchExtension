@@ -43,6 +43,9 @@ class TestTelemetryWriter(unittest.TestCase):
     def mock_get_file_size(self, file_path):
         return Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS + 10
 
+    def mock_os_listdir(self, file_path):
+        return ['testevent1.json', 'testevent2.json', 'testevent3.json', 'testevent4.json']
+
     def test_write_event(self):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
@@ -205,6 +208,12 @@ class TestTelemetryWriter(unittest.TestCase):
         Constants.TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = max_time_for_event_count_throttle_backup
 
         Constants.TELEMETRY_MAX_EVENT_COUNT_THROTTLE = event_count_max_throttle_backup
+
+    def test_events_deleted_outside_of_extension_while_extension_is_running(self):
+        backup_os_listdir = os.listdir
+        os.listdir = self.mock_os_listdir
+        self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
+        os.listdir = backup_os_listdir
 
 
 if __name__ == '__main__':
