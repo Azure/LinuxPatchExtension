@@ -74,11 +74,6 @@ class EnableCommandHandler(object):
             self.ext_state_handler.create_file(self.seq_no, operation, prev_patch_max_end_time)
             core_state_content = self.core_state_handler.read_file()
 
-            # If ConfigurePatching is requested, do nothing, will be implemented in future
-            # if operation == Constants.CONFIGURE_PATCHING:
-            #     self.logger.log("Received a configure patching request, no action will be taken as it is not supported for now. [Operation Sequence={0}]".format(str(self.seq_no)))
-            #     exit(Constants.ExitCode.Okay)
-
             # if NoOperation is requested, terminate all running processes from previous operation and update status file
             if operation == Constants.NOOPERATION:
                 self.process_nooperation(config_settings, core_state_content)

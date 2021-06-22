@@ -64,7 +64,7 @@ class Constants(object):
         MAINTENANCE_RUN_ID = 'maintenanceRunId'
         PATCH_MODE = 'patchMode'
 
-        # File to save default settings for auto OS updates
+    # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
 
     # Operations
@@ -80,7 +80,7 @@ class Constants(object):
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
 
     # Patch Modes for Configure Patching
-    DEFAULT_FOR_IMAGE = "DefaultForImage"  # todo: cross check with CRP
+    IMAGE_DEFAULT = "ImageDefault"
     AUTOMATIC_BY_PLATFORM = "AutomaticByPlatform"
 
     # automatic OS patch states for configure patching

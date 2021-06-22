@@ -32,7 +32,7 @@ class PatchAssessor(object):
         self.package_manager = package_manager
 
     def start_assessment(self):
-        """ Start an patch assessment """
+        """ Start a patch assessment """
         self.status_handler.set_current_operation(Constants.ASSESSMENT)
         self.raise_if_agent_incompatible()
 
