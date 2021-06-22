@@ -36,7 +36,6 @@ class EnvLayer(object):
         self.etc_sudoers_linux_patch_extension_file_path = "/etc/sudoers.d/linuxpatchextension"
         self.require_tty_setting = "requiretty"
 
-    # todo: change the other run command call source in handler too
     def run_command_output(self, cmd, no_output=False, chk_err=False):
         code, output = self.__run_command_output_raw(cmd, no_output, chk_err)
         return code, output
