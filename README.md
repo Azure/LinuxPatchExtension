@@ -25,6 +25,7 @@ NoOperation can be used to cancel an ongoing assess or patch operation. (**requi
 (**optional for all operations**)
 * `patchesToExclude`: packages to exclude during the operation. Package names and versions are supported (both with wildcards) 
 (**optional for all operations**)
+* `patchMode`: is a setting that will be used to configure the automatic update by OS. Acceptable values: "ImageDefault" or "AutomaticByPlatform"
 
 > Example:
 >
