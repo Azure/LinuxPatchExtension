@@ -372,33 +372,32 @@ class AptitudePackageManager(PackageManager):
         """ Gets the current auto OS update patch state on the machine """
         self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
         self.__get_current_auto_os_updates_setting_on_machine()
-        if self.unattended_upgrade_value == 0:
+        if int(self.unattended_upgrade_value) == 0:
             return Constants.PATCH_STATE_DISABLED
-        elif self.unattended_upgrade_value == 1:
+        elif int(self.unattended_upgrade_value) == 1:
             return Constants.PATCH_STATE_ENABLED
         else:
             return Constants.PATCH_STATE_UNKNOWN
 
     def __get_current_auto_os_updates_setting_on_machine(self):
         """ Gets all the update settings related to auto OS updates currently set on the machine """
-        image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
+        try:
+            image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
+            settings = image_default_patch_configuration.strip().split('\n')
+            for setting in settings:
+                if self.update_package_list in str(setting):
+                    self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(setting)).group(1)
+                if self.unattended_upgrade in str(setting):
+                    self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(setting)).group(1)
 
-        if image_default_patch_configuration is None:
-            raise Exception("Configuration for default auto OS updates not found on the machine")
+            if self.update_package_list_value == "":
+                self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.update_package_list)))
 
-        settings = image_default_patch_configuration.strip().split('\n')
+            if self.unattended_upgrade_value == "":
+                self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.unattended_upgrade)))
 
-        for setting in settings:
-            if self.update_package_list in str(setting):
-                self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(setting)).group(1)
-            if self.unattended_upgrade in str(setting):
-                self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(setting)).group(1)
-
-        if self.update_package_list_value == "":
-            self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.update_package_list)))
-
-        if self.unattended_upgrade_value == "":
-            self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.unattended_upgrade)))
+        except Exception as error:
+            raise Exception("Error occurred in fetching default auto OS updates from the machine. [Exception={0}]".format(repr(error)))
 
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """

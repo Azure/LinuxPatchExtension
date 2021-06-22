@@ -134,7 +134,7 @@ class CoreMain(object):
             composite_logger.log_debug('  -- Persisted failed installation substatus.')
         #todo: Q to reviewer/team, if configure patching fails for a patch installation request, do we just report patch installation summary as failed or also assessment summary?
         # Right now, it reports both assessment and installation summary as failed and adds error message in each that the failure is due to configure patching
-        if not patch_assessment_successful:
+        if not patch_assessment_successful and patch_operation_requested != Constants.CONFIGURE_PATCHING.lower():
             status_handler.set_current_operation(Constants.ASSESSMENT)
             if not configure_patching_successful:
                 status_handler.add_error_to_status("Assessment failed due to configure patching failure. Please refer the error details in configure patching substatus")

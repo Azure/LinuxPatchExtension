@@ -305,16 +305,15 @@ class EnvLayer(object):
                 for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
                     try:
                         value = file_handle.read()
+                        if was_path:  # what was passed in was not a file handle, so close the handle that was init here
+                            file_handle.close()
                         self.__write_record(operation, code=0, output=value, delay=0)
                         return value
                     except Exception as error:
                         if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                             time.sleep(i + 1)
                         else:
-                            raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_handle.name), repr(error)))
-
-                if was_path:  # what was passed in was not a file handle, so close the handle that was init here
-                    file_handle.close()
+                            raise Exception("Unable to read from {0} (retries exhausted). Error: {1}.".format(str(file_path_or_handle), repr(error)))
             else:
                 code, output = self.__read_record(operation)
                 return output

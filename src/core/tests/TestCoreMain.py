@@ -325,30 +325,50 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[3]["status"] == Constants.STATUS_ERROR.lower())
         runtime.stop()
 
-    def test_operation_success_for_configure_patching_request(self):
-        #todo: update test with a proper patch setting file
-        pass
-        # argument_composer = ArgumentComposer()
-        # argument_composer.operation = Constants.CONFIGURE_PATCHING
-        # argument_composer.patch_mode = Constants.AUTOMATIC_BY_PLATFORM
-        # runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
-        # runtime.set_legacy_test_type('HappyPath')
-        # CoreMain(argument_composer.get_composed_arguments())
-        #
-        # # check telemetry events
-        # self.__check_telemetry_events(runtime)
-        #
-        # # check status file
-        # with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-        #     substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        # self.assertEquals(len(substatus_file_data), 1)
-        # self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        # self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
-        # runtime.stop()
+    def test_operation_success_for_configure_patching_request_for_apt(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.AUTOMATIC_BY_PLATFORM
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.os_patch_configuration_settings_file_path = os.path.join(runtime.execution_config.config_folder, "20auto-upgrades")
+        os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
+        runtime.write_to_file(runtime.package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        runtime.set_legacy_test_type('HappyPath')
+        CoreMain(argument_composer.get_composed_arguments())
 
-    def test_operation_fail_for_configure_patching_request(self):
-        # todo
-        pass
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
+        self.assertEquals(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        runtime.stop()
+
+    def test_operation_fail_for_configure_patching_request_for_apt(self):
+        # default auto OS updates config file not found on the machine
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.AUTOMATIC_BY_PLATFORM
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.set_legacy_test_type('HappyPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+        runtime.stop()
 
     def test_install_all_packages_for_centos_autopatching(self):
         """Unit test for auto patching request on CentOS, should install all patches irrespective of classification"""
