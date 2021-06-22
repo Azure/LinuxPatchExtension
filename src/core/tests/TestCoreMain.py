@@ -349,6 +349,73 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
+    def test_operation_success_for_installation_request_with_configure_patching_handled(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.INSTALLATION
+        argument_composer.maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.os_patch_configuration_settings_file_path = os.path.join(runtime.execution_config.config_folder, "20auto-upgrades")
+        os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
+        runtime.write_to_file(runtime.package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
+        image_default_patch_configuration_backup = json.loads(runtime.env_layer.file_system.read_with_retry(runtime.package_manager.image_default_patch_configuration_backup_path))
+        self.assertTrue(image_default_patch_configuration_backup is not None)
+        self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Update-Package-Lists'] == "1")
+        self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Unattended-Upgrade'] == "1")
+        os_patch_configuration_settings = runtime.env_layer.file_system.read_with_retry(runtime.package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(os_patch_configuration_settings is not None)
+        self.assertTrue('APT::Periodic::Update-Package-Lists "0"' in os_patch_configuration_settings)
+        self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in os_patch_configuration_settings)
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[3]["status"] == Constants.STATUS_SUCCESS.lower())
+
+        self.assertEquals(len(substatus_file_data), 4)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["name"], "samba-libs")
+        self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["classifications"]))
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
+        substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
+        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
+        self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
+        runtime.stop()
+
+    def test_operation_fail_for_configure_patching_agent_incompatible(self):
+        # todo: This maybe removed after team discussion on how to handle agent telemetry unavailability in configure patching request
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.AUTOMATIC_BY_PLATFORM
+        argument_composer.events_folder = None
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+        self.assertRaises(Exception, runtime.configure_patching.start_configure_patching)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+        runtime.stop()
+
     def test_operation_fail_for_configure_patching_request_for_apt(self):
         # default auto OS updates config file not found on the machine
         argument_composer = ArgumentComposer()
