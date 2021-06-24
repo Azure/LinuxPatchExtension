@@ -33,7 +33,7 @@ class ConfigurePatching(object):
         """ Start configure patching """
         try:
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
-            #ToDo: To verify with team if this is required
+            #ToDo: To verify with team if this is required -- windows does not check if agent supports telemetry in any of the operations -- update required, log error and continue with rest operation
             self.raise_if_agent_incompatible()
             self.composite_logger.log('\nStarting configure patching...')
 
@@ -47,9 +47,7 @@ class ConfigurePatching(object):
             self.status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_TRANSITIONING, automatic_os_patch_state=current_auto_os_patch_state)
 
             # disable auto OS updates if VM is configured for platform updates only.
-            if current_auto_os_patch_state == Constants.PATCH_STATE_ENABLED and \
-                    ((self.execution_config.operation.lower() == Constants.CONFIGURE_PATCHING.lower() and self.execution_config.patch_mode == Constants.AUTOMATIC_BY_PLATFORM) or
-                     (self.execution_config.operation.lower() == Constants.INSTALLATION.lower() and self.execution_config.maintenance_run_id is not None)):
+            if current_auto_os_patch_state == Constants.PATCH_STATE_ENABLED and self.execution_config.patch_mode == Constants.AUTOMATIC_BY_PLATFORM:
                 self.package_manager.disable_auto_os_update()
 
             # get current auto os updates on the machine and log it in status file
@@ -57,7 +55,7 @@ class ConfigurePatching(object):
             self.status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_SUCCESS, automatic_os_patch_state=current_auto_os_patch_state)
 
         except Exception as error:
-            #toDo: review wht windowsextension is doing in this case
+            #toDo: review wht windowsextension is doing in this case -- update errors here should not stop rest of the operation
             error_msg = 'Error: ' + repr(error)
             self.composite_logger.log_error(error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)

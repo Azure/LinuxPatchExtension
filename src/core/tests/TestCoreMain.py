@@ -349,10 +349,11 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
-    def test_operation_success_for_installation_request_with_configure_patching_handled(self):
+    def test_operation_success_for_installation_request_with_configure_patching(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         argument_composer.maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
+        argument_composer.patch_mode = Constants.AUTOMATIC_BY_PLATFORM
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
         runtime.package_manager.os_patch_configuration_settings_file_path = os.path.join(runtime.execution_config.config_folder, "20auto-upgrades")
