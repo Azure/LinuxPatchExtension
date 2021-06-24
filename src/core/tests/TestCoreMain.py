@@ -281,7 +281,6 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
-    #ToDO: check with team for telemetry error in configurepatching
     def test_assessment_operation_fail_due_to_no_telemetry(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
@@ -296,8 +295,10 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        #todo: uncomment after checking with team on how to handle telemetry unavailable in configure patching
-        #self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_ERROR.lower())
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_installation_operation_fail_due_to_no_telemetry(self):
@@ -315,14 +316,18 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        #todo: discuss with team and decide
-        #self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_ERROR.lower())
+        self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
+        self.assertFalse(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue("Installation failed due to assessment failure. Please refer the error details in assessment substatus" in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"] == Constants.STATUS_ERROR.lower())
+        self.assertEqual(len(json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"]), 1)
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_operation_success_for_configure_patching_request_for_apt(self):
@@ -400,14 +405,13 @@ class TestCoreMain(unittest.TestCase):
         runtime.stop()
 
     def test_operation_fail_for_configure_patching_agent_incompatible(self):
-        # todo: This maybe removed after team discussion on how to handle agent telemetry unavailability in configure patching request
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.CONFIGURE_PATCHING
         argument_composer.patch_mode = Constants.AUTOMATIC_BY_PLATFORM
         argument_composer.events_folder = None
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('HappyPath')
-        self.assertRaises(Exception, runtime.configure_patching.start_configure_patching)
+        runtime.configure_patching.start_configure_patching()
 
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:

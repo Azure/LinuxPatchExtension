@@ -32,8 +32,8 @@ class ConfigurePatching(object):
     def start_configure_patching(self):
         """ Start configure patching """
         try:
+            configure_patching_successful = False
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
-            #ToDo: To verify with team if this is required -- windows does not check if agent supports telemetry in any of the operations -- update required, log error and continue with rest operation
             self.raise_if_agent_incompatible()
             self.composite_logger.log('\nStarting configure patching...')
 
@@ -55,16 +55,17 @@ class ConfigurePatching(object):
             self.status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_SUCCESS, automatic_os_patch_state=current_auto_os_patch_state)
 
         except Exception as error:
-            #toDo: review wht windowsextension is doing in this case -- update errors here should not stop rest of the operation
             error_msg = 'Error: ' + repr(error)
             self.composite_logger.log_error(error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                 error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             self.status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
-            raise
+            configure_patching_successful = False
 
-        return True
+        configure_patching_successful = True
+        self.composite_logger.log("\nConfigure patching completed.\n")
+        return configure_patching_successful
 
     def raise_if_agent_incompatible(self):
         if not self.telemetry_writer.is_agent_compatible():

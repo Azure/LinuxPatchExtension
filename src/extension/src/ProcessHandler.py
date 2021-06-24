@@ -47,7 +47,8 @@ class ProcessHandler(object):
                                            public_settings_keys.include_patches: config_settings.__getattribute__(public_settings_keys.include_patches),
                                            public_settings_keys.exclude_patches: config_settings.__getattribute__(public_settings_keys.exclude_patches),
                                            public_settings_keys.internal_settings: config_settings.__getattribute__(public_settings_keys.internal_settings),
-                                           public_settings_keys.maintenance_run_id: config_settings.__getattribute__(public_settings_keys.maintenance_run_id)})
+                                           public_settings_keys.maintenance_run_id: config_settings.__getattribute__(public_settings_keys.maintenance_run_id),
+                                           public_settings_keys.patch_mode: config_settings.__getattribute__(public_settings_keys.patch_mode)})
         return public_config_settings
 
     @staticmethod

@@ -82,7 +82,7 @@ class CoreMain(object):
                 patch_assessment_successful = patch_assessor.start_assessment()
 
                 # PatchInstallationSummary to be marked as completed successfully only after the implicit (i.e. 2nd) assessment is completed, as per CRP's restrictions
-                if patch_assessment_successful and patch_installation_successful and configure_patching_successful:
+                if patch_assessment_successful and patch_installation_successful:
                     patch_installer.mark_installation_completed()
                     overall_patch_installation_operation_successful = True
 
@@ -127,18 +127,14 @@ class CoreMain(object):
     def update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger):
         if patch_operation_requested == Constants.INSTALLATION.lower() and not overall_patch_installation_operation_successful:
             status_handler.set_current_operation(Constants.INSTALLATION)
-            if not configure_patching_successful:
-                status_handler.add_error_to_status("Installation failed due to configure patching failure. Please refer the error details in configure patching substatus")
-            elif not patch_assessment_successful:
+            if not patch_assessment_successful:
                 status_handler.add_error_to_status("Installation failed due to assessment failure. Please refer the error details in assessment substatus")
             status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
             composite_logger.log_debug('  -- Persisted failed installation substatus.')
-        #todo: Q to reviewer/team, if configure patching fails for a patch installation request, do we just report patch installation summary as failed or also assessment summary?
-        # Right now, it reports both assessment and installation summary as failed and adds error message in each that the failure is due to configure patching
         if not patch_assessment_successful and patch_operation_requested != Constants.CONFIGURE_PATCHING.lower():
-            status_handler.set_current_operation(Constants.ASSESSMENT)
-            if not configure_patching_successful:
-                status_handler.add_error_to_status("Assessment failed due to configure patching failure. Please refer the error details in configure patching substatus")
             status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
             composite_logger.log_debug('  -- Persisted failed assessment substatus.')
+        if not configure_patching_successful:
+            status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
+            composite_logger.log_debug('  -- Persisted failed configure patching substatus.')
 

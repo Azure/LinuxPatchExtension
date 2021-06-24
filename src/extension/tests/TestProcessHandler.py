@@ -95,6 +95,7 @@ class TestProcessHandler(unittest.TestCase):
         self.assertTrue(public_config_settings is not None)
         self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.operation), "Installation")
         self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.maintenance_run_id), "2019-07-20T12:12:14Z")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.patch_mode), "AutomaticByPlatform")
 
     def test_get_env_settings(self):
         handler_env_file_path = os.path.join(os.path.pardir, "tests", "helpers")
