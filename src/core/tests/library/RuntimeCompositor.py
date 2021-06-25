@@ -64,6 +64,9 @@ class RuntimeCompositor(object):
         # Business logic components
         self.execution_config = self.container.get('execution_config')
         self.package_manager = self.container.get('package_manager')
+        self.backup_get_current_auto_os_patch_state = None
+        self.reconfigure_package_manager()
+        self.configure_patching = self.container.get('configure_patching')
         self.reboot_manager = self.container.get('reboot_manager')
         self.reconfigure_reboot_manager()
         self.package_filter = self.container.get('package_filter')
@@ -105,11 +108,18 @@ class RuntimeCompositor(object):
     def start_reboot(self, message="Test initiated reboot mock"):
         self.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
 
+    def reconfigure_package_manager(self):
+        self.backup_get_current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state
+        self.package_manager.get_current_auto_os_patch_state = self.get_current_auto_os_patch_state
+
     def mock_sleep(self, seconds):
         pass
 
     def check_sudo_status(self, raise_if_not_sudo=True):
         return True
+
+    def get_current_auto_os_patch_state(self):
+        return Constants.PATCH_STATE_DISABLED
 
     @staticmethod
     def write_to_file(path, data):

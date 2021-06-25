@@ -13,7 +13,8 @@
                 "patchesToInclude": ["*ern*=1.2*", "kern*=1.23.45"],
                 "patchesToExclude": ["test", "*test"],
                 "internalSettings": "test",
-                "maintenanceRunId": "2019-07-20T12:12:14Z"
+                "maintenanceRunId": "2019-07-20T12:12:14Z",
+                "patchMode": "AutomaticByPlatform"
             }
         }
     }]

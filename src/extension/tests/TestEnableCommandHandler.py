@@ -160,6 +160,11 @@ class TestEnableCommandHandler(unittest.TestCase):
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
         self.assertEqual(sys_exit.exception.code, Constants.ExitCode.Okay)
+        status_json = self.ext_output_status_handler.read_file('12')
+        parent_key = Constants.StatusFileFields.status
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_name], "Azure Patch Management")
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_operation], Constants.CONFIGURE_PATCHING)
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_status], Constants.Status.Transitioning.lower())
 
     def test_process_invalid_request(self):
         # setup to mock environment when enable is triggered with an invalid request
@@ -268,6 +273,10 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.ext_config_settings_handler.config_folder = config_folder_complete_path
         self.core_state_handler.dir_path = config_folder_complete_path
         self.ext_state_handler.dir_path = config_folder_complete_path
+
+        # Re-initializing ExtOutputStatusHandler with complete status folder dir path
+        self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, status_folder_complete_path)
+        self.enable_command_handler.ext_output_status_handler = self.ext_output_status_handler
 
         return config_file_path, config_folder_complete_path
 

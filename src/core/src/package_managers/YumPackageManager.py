@@ -335,8 +335,14 @@ class YumPackageManager(PackageManager):
     # endregion
 
     # region auto OS updates
+    def get_current_auto_os_patch_state(self):
+        """ Gets the current auto OS update patch state on the machine """
+        # NOTE: Implementation pending
+        pass
+
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        # NOTE: Implementation pending
         pass
 
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
@@ -345,9 +351,11 @@ class YumPackageManager(PackageManager):
     def backup_image_default_patch_configuration_if_not_exists(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
+        # NOTE: Implementation pending
         pass
 
     def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value):
+        # NOTE: Implementation pending
         pass
     # endregion
 

@@ -31,6 +31,7 @@ class CoreMain(object):
 
         # Init operation statuses
         patch_operation_requested = Constants.UNKNOWN
+        configure_patching_successful = False
         patch_assessment_successful = False
         patch_installation_successful = False
         overall_patch_installation_operation_successful = False
@@ -45,7 +46,7 @@ class CoreMain(object):
             # Current operation in status handler is set to either assessment or installation when these operations begin. Setting it to assessment since that is the first operation that runs always.
             # This ensures all errors occurring before assessment starts are logged within the error objects of assessment substatus
             if status_handler.get_current_operation() is None:
-                status_handler.set_current_operation(Constants.ASSESSMENT)
+                status_handler.set_current_operation(Constants.ASSESSMENT)  # Needs to be revisited
 
             # Environment startup
             bootstrapper.bootstrap_splash_text()
@@ -62,13 +63,13 @@ class CoreMain(object):
 
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
+            configure_patching = container.get('configure_patching')
 
-            # if this is an auto patching installation request, log and disable (if enabled by default) the current auto OS update status. NOTE: log status in a separate file in config settings
-            if execution_config.maintenance_run_id is not None and patch_operation_requested == Constants.INSTALLATION.lower():
-                package_manager.disable_auto_os_update()
+            configure_patching_successful = configure_patching.start_configure_patching()
 
-            # Assessment happens no matter what
-            patch_assessment_successful = patch_assessor.start_assessment()
+            # Assessment happens if operation requested is not Configure Patching
+            if patch_operation_requested != Constants.CONFIGURE_PATCHING.lower():
+                patch_assessment_successful = patch_assessor.start_assessment()
 
             # Patching + additional assessment occurs if the operation is 'Installation'
             if patch_operation_requested == Constants.INSTALLATION.lower():
@@ -106,7 +107,7 @@ class CoreMain(object):
                 else:
                     status_handler.add_error_to_status("Execution terminated due to last reported error.", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
 
-                self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, status_handler, composite_logger)
+                self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger)
 
             else:
                 composite_logger.log_error(' - Status handler is not initialized, and status data cannot be written.')
@@ -122,14 +123,17 @@ class CoreMain(object):
             file_logger.close(message_at_close="<End of output>")
 
     @staticmethod
-    def update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, status_handler, composite_logger):
+    def update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger):
         if patch_operation_requested == Constants.INSTALLATION.lower() and not overall_patch_installation_operation_successful:
+            status_handler.set_current_operation(Constants.INSTALLATION)
             if not patch_assessment_successful:
-                status_handler.set_current_operation(Constants.INSTALLATION)
                 status_handler.add_error_to_status("Installation failed due to assessment failure. Please refer the error details in assessment substatus")
             status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
             composite_logger.log_debug('  -- Persisted failed installation substatus.')
-        if not patch_assessment_successful:
+        if not patch_assessment_successful and patch_operation_requested != Constants.CONFIGURE_PATCHING.lower():
             status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
             composite_logger.log_debug('  -- Persisted failed assessment substatus.')
+        if not configure_patching_successful:
+            status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
+            composite_logger.log_debug('  -- Persisted failed configure patching substatus.')
 

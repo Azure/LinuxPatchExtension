@@ -20,6 +20,7 @@ import os
 from core.src.bootstrap.Constants import Constants
 from core.src.bootstrap.EnvLayer import EnvLayer
 
+from core.src.core_logic.ConfigurePatching import ConfigurePatching
 from core.src.core_logic.ExecutionConfig import ExecutionConfig
 from core.src.core_logic.MaintenanceWindow import MaintenanceWindow
 from core.src.core_logic.PackageFilter import PackageFilter
@@ -188,6 +189,11 @@ class ConfigurationFactory(object):
             'patch_installer': {
                 'component': PatchInstaller,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'lifecycle_manager', 'package_manager', 'package_filter', 'maintenance_window', 'reboot_manager'],
+                'component_kwargs': {}
+            },
+            'configure_patching': {
+                'component': ConfigurePatching,
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager'],
                 'component_kwargs': {}
             },
             'maintenance_window': {

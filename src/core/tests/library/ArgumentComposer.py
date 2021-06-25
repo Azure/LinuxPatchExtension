@@ -50,6 +50,7 @@ class ArgumentComposer(object):
         self.patches_to_include = []
         self.patches_to_exclude = []
         self.maintenance_run_id = None  # Since this is optional, all possible inputs for this are added in respective tests
+        self.patch_mode = None
 
         # REAL environment settings
         self.emulator_enabled = False
@@ -72,7 +73,8 @@ class ArgumentComposer(object):
             "classificationsToInclude": self.classifications_to_include,
             "patchesToInclude": self.patches_to_include,
             "patchesToExclude": self.patches_to_exclude,
-            "maintenanceRunId": self.maintenance_run_id
+            "maintenanceRunId": self.maintenance_run_id,
+            "patchMode": self.patch_mode
         }
 
         return str(self.__ARG_TEMPLATE.format(self.__EXEC, Constants.ARG_SEQUENCE_NUMBER, self.sequence_number,

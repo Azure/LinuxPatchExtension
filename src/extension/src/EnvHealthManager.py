@@ -57,7 +57,6 @@ class EnvHealthManager(object):
             if tty_required:
                 self.disable_tty_for_current_user()
         except Exception as error:
-            # todo: raise error?
             print("Error occurred while ensuring tty is disabled. [Error={0}]".format(repr(error)))
 
     def disable_tty_for_current_user(self):

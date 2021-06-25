@@ -59,6 +59,13 @@ class StatusHandler(object):
         self.__report_to_healthstore = False
         self.__patch_version = Constants.PATCH_VERSION_UNKNOWN
 
+        # Internal in-memory representation of Configure Patching data
+        self.__configure_patching_substatus_json = None
+        self.__configure_patching_summary_json = None
+        self.__configure_patching_automatic_os_patch_state = Constants.PATCH_STATE_UNKNOWN
+        self.__configure_patching_errors = []
+        self.__configure_patching_total_error_count = 0  # All errors during configure patching, includes errors not in error objects due to size limit
+
         # Load the currently persisted status file into memory
         self.__load_status_file_components(initial_load=True)
 
@@ -356,6 +363,36 @@ class StatusHandler(object):
             "shouldReportToHealthStore": report_to_healthstore
         }
 
+    def set_configure_patching_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0, automatic_os_patch_state=Constants.PATCH_STATE_UNKNOWN):
+        """ Prepare the configure patching substatus json including the message containing configure patching summary """
+        self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))
+
+        # Wrap default automatic OS patch state on the machine, at the time of this request, into configure patching summary
+        self.__configure_patching_summary_json = self.__new_configure_patching_summary_json(automatic_os_patch_state)
+
+        # Wrap configure patching summary into configure patching substatus
+        self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
+
+        # Update status on disk
+        self.__write_status_file()
+
+    def __new_configure_patching_summary_json(self, automatic_os_patch_state):
+        """ Called by: set_configure_patching_substatus_json
+            Purpose: This composes the message inside the configure patching summary substatus:
+                Root --> Status --> Substatus [name: "ConfigurePatchingSummary"] --> FormattedMessage --> **Message** """
+
+        if automatic_os_patch_state is not Constants.PATCH_STATE_UNKNOWN:
+            self.__configure_patching_automatic_os_patch_state = automatic_os_patch_state
+
+        # Compose substatus message
+        return {
+            "activityId": str(self.execution_config.activity_id),
+            "startTime": str(self.execution_config.start_time),
+            "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
+            "automaticOsPatchState": self.__configure_patching_automatic_os_patch_state,
+            "errors": self.__set_errors_json(self.__configure_patching_total_error_count, self.__configure_patching_errors)
+        }
+
     @staticmethod
     def __new_substatus_json_for_operation(operation_name, status="Transitioning", code=0, message=json.dumps("{}")):
         """ Generic substatus for assessment, installation and healthstore metadata """
@@ -410,6 +447,10 @@ class StatusHandler(object):
         self.__assessment_errors = []
         self.__metadata_for_healthstore_substatus_json = None
         self.__metadata_for_healthstore_summary_json = None
+        self.__configure_patching_substatus_json = None
+        self.__configure_patching_summary_json = None
+        self.__configure_patching_automatic_os_patch_state = Constants.PATCH_STATE_UNKNOWN
+        self.__configure_patching_errors = []
 
         # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.status_file_path) and initial_load:
@@ -440,6 +481,7 @@ class StatusHandler(object):
             raise
 
         # Load portions of data that need to be built on for next write - raise exception if corrupt data is encountered
+        # todo: refactor
         self.__high_level_status_message = status_file_data['status']['formattedMessage']['message']
         for i in range(0, len(status_file_data['status']['substatus'])):
             name = status_file_data['status']['substatus'][i]['name']
@@ -464,6 +506,14 @@ class StatusHandler(object):
             if name == Constants.PATCH_METADATA_FOR_HEALTHSTORE:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__metadata_for_healthstore_summary_json = json.loads(message)
+            if name == Constants.CONFIGURE_PATCHING:     # if it exists, it must be to spec, or an exception will get thrown
+                message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                self.__configure_patching_summary_json = json.loads(message)
+                self.__configure_patching_automatic_os_patch_state = self.__configure_patching_summary_json['automaticOsPatchState']
+                errors = self.__configure_patching_summary_json['errors']
+                if errors is not None and errors['details'] is not None:
+                    self.__configure_patching_errors = errors['details']
+                    self.__configure_patching_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
     def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
@@ -485,6 +535,18 @@ class StatusHandler(object):
                         __refresh_installation_reboot_status
                         errors
 
+                patch_metadata_for_healthstore_json = set_patch_metadata_for_healthstore_substatus_json
+                    __new_substatus_json_for_operation
+                    __metadata_for_healthstore_summary_json with external data --
+                        patchVersion
+                        shouldReportToHealthStore
+
+                configure_patching_substatus_json == set_configure_patching_substatus_json
+                    __new_substatus_json_for_operation
+                    __new_configure_patching_summary_json with external data --
+                        automatic_os_patch_state
+                        errors
+
         :return: None
         """
         status_file_payload = self.__new_basic_status_json()
@@ -496,6 +558,8 @@ class StatusHandler(object):
             status_file_payload['status']['substatus'].append(self.__installation_substatus_json)
         if self.__metadata_for_healthstore_substatus_json is not None:
             status_file_payload['status']['substatus'].append(self.__metadata_for_healthstore_substatus_json)
+        if self.__configure_patching_substatus_json is not None:
+            status_file_payload['status']['substatus'].append(self.__configure_patching_substatus_json)
         if os.path.isdir(self.status_file_path):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.status_file_path)
@@ -545,6 +609,15 @@ class StatusHandler(object):
                 self.set_installation_substatus_json(status=self.__installation_substatus_json["status"], code=self.__installation_substatus_json["code"])
             else:
                 self.set_installation_substatus_json()
+        elif self.__current_operation == Constants.CONFIGURE_PATCHING:
+            self.__add_error(self.__configure_patching_errors, error_detail)
+            self.__configure_patching_total_error_count += 1
+            # retain previously set status, code and patchMode for configure patching substatus
+            if self.__configure_patching_substatus_json is not None:
+                automatic_os_patch_state = json.loads(self.__configure_patching_substatus_json["formattedMessage"]["message"])["automaticOsPatchState"]
+                self.set_configure_patching_substatus_json(status=self.__configure_patching_substatus_json["status"], code=self.__configure_patching_substatus_json["code"], automatic_os_patch_state=automatic_os_patch_state)
+            else:
+                self.set_configure_patching_substatus_json()
         else:
             return
 

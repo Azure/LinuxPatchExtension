@@ -62,6 +62,7 @@ class Constants(object):
         PATCHES_TO_INCLUDE = 'patchesToInclude'
         PATCHES_TO_EXCLUDE = 'patchesToExclude'
         MAINTENANCE_RUN_ID = 'maintenanceRunId'
+        PATCH_MODE = 'patchMode'
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
@@ -69,12 +70,23 @@ class Constants(object):
     # Operations
     ASSESSMENT = "Assessment"
     INSTALLATION = "Installation"
+    CONFIGURE_PATCHING = "ConfigurePatching"
     PATCH_ASSESSMENT_SUMMARY = "PatchAssessmentSummary"
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
     PATCH_METADATA_FOR_HEALTHSTORE = "PatchMetadataForHealthStore"
+    CONFIGURE_PATCHING_SUMMARY = "ConfigurePatchingSummary"
 
     # patch versions for healthstore when there is no maintenance run id
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
+
+    # Patch Modes for Configure Patching
+    IMAGE_DEFAULT = "ImageDefault"
+    AUTOMATIC_BY_PLATFORM = "AutomaticByPlatform"
+
+    # automatic OS patch states for configure patching
+    PATCH_STATE_UNKNOWN = "Unknown"
+    PATCH_STATE_DISABLED = "Disabled"
+    PATCH_STATE_ENABLED = "Enabled"
 
     # wait time after status updates
     WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS = 20

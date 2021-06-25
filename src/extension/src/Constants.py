@@ -152,6 +152,7 @@ class Constants(object):
         internal_settings = "internalSettings"
         maintenance_run_id = "maintenanceRunId"
         patch_rollout_id = "patchRolloutId"
+        patch_mode = "patchMode"
 
     # ExtState.json keys
     class ExtStateFields(EnumBackport):
