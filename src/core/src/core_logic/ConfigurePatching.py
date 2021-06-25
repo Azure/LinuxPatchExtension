@@ -47,6 +47,7 @@ class ConfigurePatching(object):
             self.status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_TRANSITIONING, automatic_os_patch_state=current_auto_os_patch_state)
 
             # disable auto OS updates if VM is configured for platform updates only.
+            # NOTE: this condition will be false for Assessment operations, since patchMode is not sent in the API request
             if current_auto_os_patch_state == Constants.PATCH_STATE_ENABLED and self.execution_config.patch_mode == Constants.AUTOMATIC_BY_PLATFORM:
                 self.package_manager.disable_auto_os_update()
 
