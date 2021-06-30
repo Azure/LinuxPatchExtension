@@ -18,7 +18,7 @@
 from core.src.bootstrap.Constants import Constants
 
 
-class ConfigurePatching(object):
+class ConfigurePatchProcessor(object):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager):
         self.env_layer = env_layer
         self.execution_config = execution_config

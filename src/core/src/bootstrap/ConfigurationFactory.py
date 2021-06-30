@@ -20,7 +20,7 @@ import os
 from core.src.bootstrap.Constants import Constants
 from core.src.bootstrap.EnvLayer import EnvLayer
 
-from core.src.core_logic.ConfigurePatching import ConfigurePatching
+from core.src.core_logic.ConfigurePatchProcessor import ConfigurePatchProcessor
 from core.src.core_logic.ExecutionConfig import ExecutionConfig
 from core.src.core_logic.MaintenanceWindow import MaintenanceWindow
 from core.src.core_logic.PackageFilter import PackageFilter
@@ -192,7 +192,7 @@ class ConfigurationFactory(object):
                 'component_kwargs': {}
             },
             'configure_patching': {
-                'component': ConfigurePatching,
+                'component': ConfigurePatchProcessor,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager'],
                 'component_kwargs': {}
             },
