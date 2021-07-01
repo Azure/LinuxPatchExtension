@@ -66,7 +66,9 @@ class YumPackageManager(PackageManager):
 
         # Known errors and the corresponding action items
         self.known_errors_and_fixes = {"SSL peer rejected your certificate as expired": self.fix_ssl_certificate_issue,
-                                       "Error: Cannot retrieve repository metadata (repomd.xml) for repository": self.fix_ssl_certificate_issue}
+                                       "Error: Cannot retrieve repository metadata (repomd.xml) for repository": self.fix_ssl_certificate_issue,
+                                       "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
+        
         self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
 
     def refresh_repo(self):
