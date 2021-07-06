@@ -94,6 +94,7 @@ class PatchInstaller(object):
 
         # Combining maintenance
         overall_patch_installation_successful = bool(update_run_successful and not maintenance_window_exceeded)
+        # NOTE: Not updating installation substatus at this point because we need to wait for the implicit/second assessment to complete first, as per CRP's instructions
 
         return overall_patch_installation_successful
 
