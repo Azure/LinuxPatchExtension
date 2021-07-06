@@ -95,10 +95,6 @@ class PatchInstaller(object):
         # Combining maintenance
         overall_patch_installation_successful = bool(update_run_successful and not maintenance_window_exceeded)
 
-        if not overall_patch_installation_successful:
-            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
-            # NOTE: For auto patching requests, no need to report patch metadata to healthstore in case of failure
-
         return overall_patch_installation_successful
 
     def raise_if_agent_incompatible(self):

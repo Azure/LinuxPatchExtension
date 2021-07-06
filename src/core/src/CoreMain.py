@@ -84,6 +84,7 @@ class CoreMain(object):
                 if patch_assessment_successful and patch_installation_successful:
                     patch_installer.mark_installation_completed()
                     overall_patch_installation_operation_successful = True
+                self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger)
 
         except Exception as error:
             # Privileged operation handling for non-production use
@@ -129,6 +130,7 @@ class CoreMain(object):
             if not patch_assessment_successful:
                 status_handler.add_error_to_status("Installation failed due to assessment failure. Please refer the error details in assessment substatus")
             status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+            # NOTE: For auto patching requests, no need to report patch metadata to health store in case of failure
             composite_logger.log_debug('  -- Persisted failed installation substatus.')
         if not patch_assessment_successful and patch_operation_requested != Constants.CONFIGURE_PATCHING.lower():
             status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
