@@ -382,6 +382,8 @@ class YumPackageManager(PackageManager):
             if error in output:
                 self.known_errors_and_fixes[error]()
                 return True
+
+        self.composite_logger.log_debug("\nThis is not a known error for the extension and will require manual intervention")
         return False
 
     def fix_ssl_certificate_issue(self):

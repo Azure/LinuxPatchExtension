@@ -408,6 +408,57 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertEqual(len(available_updates), 0)
         self.assertEqual(len(package_versions), 0)
 
+    def test_ssl_certificate_issue_type1_fix_success(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType1HappyPathAfterFix')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        output = package_manager.invoke_package_manager(package_manager.yum_check)
+        self.assertTrue(len(output) > 0)
+
+    def test_ssl_certificate_issue_type1_fix_fail(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType1SadPathAfterFix')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        self.assertRaises(Exception, package_manager.invoke_package_manager, package_manager.yum_check)
+
+    def test_ssl_certificate_issue_type2_fix_success(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType2HappyPathAfterFix')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        output = package_manager.invoke_package_manager(package_manager.yum_check)
+        self.assertTrue(len(output) > 0)
+
+    def test_ssl_certificate_issue_type2_fix_fail(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType2SadPathAfterFix')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        self.assertRaises(Exception, package_manager.invoke_package_manager, package_manager.yum_check)
+
+    def test_ssl_certificate_issue_type3_fix_success(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType3HappyPathAfterFix')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        output = package_manager.invoke_package_manager(package_manager.yum_check)
+        self.assertTrue(len(output) > 0)
+
+    def test_ssl_certificate_issue_type3_fix_fail(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType3SadPathAfterFix')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        self.assertRaises(Exception, package_manager.invoke_package_manager, package_manager.yum_check)
+
 
 if __name__ == '__main__':
     unittest.main()
