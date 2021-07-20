@@ -66,7 +66,7 @@ class RuntimeCompositor(object):
         self.package_manager = self.container.get('package_manager')
         self.backup_get_current_auto_os_patch_state = None
         self.reconfigure_package_manager()
-        self.configure_patching = self.container.get('configure_patching')
+        self.configure_patching_processor = self.container.get('configure_patching_processor')
         self.reboot_manager = self.container.get('reboot_manager')
         self.reconfigure_reboot_manager()
         self.package_filter = self.container.get('package_filter')
@@ -119,7 +119,7 @@ class RuntimeCompositor(object):
         return True
 
     def get_current_auto_os_patch_state(self):
-        return Constants.PATCH_STATE_DISABLED
+        return Constants.AutomaticOsPatchStates.DISABLED
 
     @staticmethod
     def write_to_file(path, data):

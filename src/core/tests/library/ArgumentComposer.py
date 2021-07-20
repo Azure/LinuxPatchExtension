@@ -51,6 +51,8 @@ class ArgumentComposer(object):
         self.patches_to_exclude = []
         self.maintenance_run_id = None  # Since this is optional, all possible inputs for this are added in respective tests
         self.patch_mode = None
+        self.assessment_mode = None
+        self.maximum_assessment_interval = "PT3H"
 
         # REAL environment settings
         self.emulator_enabled = False
@@ -74,7 +76,9 @@ class ArgumentComposer(object):
             "patchesToInclude": self.patches_to_include,
             "patchesToExclude": self.patches_to_exclude,
             "maintenanceRunId": self.maintenance_run_id,
-            "patchMode": self.patch_mode
+            "patchMode": self.patch_mode,
+            "assessmentMode": self.assessment_mode,
+            "maximumAssessmentInterval": self.maximum_assessment_interval
         }
 
         return str(self.__ARG_TEMPLATE.format(self.__EXEC, Constants.ARG_SEQUENCE_NUMBER, self.sequence_number,

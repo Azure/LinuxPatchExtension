@@ -223,6 +223,7 @@ class ActionHandler(object):
             self.setup(action=Constants.DISABLE, log_message="Disable triggered on extension")
             prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.DISABLE_MAX_RUNTIME)
             self.runtime_context_handler.process_previous_patch_operation(self.core_state_handler, self.process_handler, prev_patch_max_end_time, core_state_content=None)
+            # todo: disable auto-assessment here
             self.logger.log("Extension disabled successfully")
             return Constants.ExitCode.Okay
 

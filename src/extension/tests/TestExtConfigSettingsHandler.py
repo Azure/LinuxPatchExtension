@@ -232,7 +232,9 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
                         self.config_public_settings_fields.exclude_patches: ["*", "test", "*test"],
                         self.config_public_settings_fields.internal_settings: "<serialized-json>",
                         self.config_public_settings_fields.maintenance_run_id: "2019-07-20T12:12:14Z",
-                        self.config_public_settings_fields.patch_mode: "AutomaticByPlatform"
+                        self.config_public_settings_fields.patch_mode: "AutomaticByPlatform",
+                        self.config_public_settings_fields.assessment_mode: "AutomaticByPlatform",
+                        self.config_public_settings_fields.maximum_assessment_interval: "PT3H",
                     }
                 }
             }]
@@ -358,6 +360,14 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         config_settings = ext_config_settings_handler.read_file("patch_rollout_id_bak_compat_test")
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), None)
         self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), "2019-07-22T12:12:14Z")
+
+        # verify assessmentMode is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.assessment_mode), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.assessment_mode), "AutomaticByPlatform")
+
+        # verify maximumAssessmentInterval is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maximum_assessment_interval), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maximum_assessment_interval), "3H")
 
 
 if __name__ == '__main__':

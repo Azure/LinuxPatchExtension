@@ -14,7 +14,9 @@
                 "patchesToExclude": ["test", "*test"],
                 "internalSettings": "test",
                 "maintenanceRunId": "2019-07-20T12:12:14Z",
-                "patchMode": "AutomaticByPlatform"
+                "patchMode": "AutomaticByPlatform",
+                "assessmentMode": "AutomaticByPlatform",
+                "maximumAssessmentInterval": "3H"
             }
         }
     }]

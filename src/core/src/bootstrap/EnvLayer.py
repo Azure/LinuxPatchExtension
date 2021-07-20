@@ -402,6 +402,11 @@ class EnvLayer(object):
         def utc_to_standard_datetime(utc_datetime):
             """ Converts string of format '"%Y-%m-%dT%H:%M:%SZ"' to datetime object """
             return datetime.datetime.strptime(utc_datetime.split(".")[0], "%Y-%m-%dT%H:%M:%S")
+
+        @staticmethod
+        def standard_datetime_to_utc(std_datetime):
+            """ Converts datetime object to string of format '"%Y-%m-%dT%H:%M:%SZ"' """
+            return std_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
 # endregion - DateTime emulator and extensions
 
 # region - Core Emulator support functions

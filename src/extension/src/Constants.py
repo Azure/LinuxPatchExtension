@@ -45,6 +45,7 @@ class Constants(object):
     CONFIG_SETTINGS_FILE_EXTENSION = '.settings'
     STATUS_FILE_EXTENSION = '.status'
     CORE_CODE_FILE_NAME = 'MsftLinuxPatchCore.py'
+    CORE_AUTO_ASSESS_SH_FILE_NAME = "MsftLinuxPatchAutoAssess.sh"
     LOG_FILE_EXTENSION = '.log'
     LOG_FILES_TO_RETAIN = 15
     MAX_LOG_FILES_ALLOWED = 40
@@ -98,6 +99,7 @@ class Constants(object):
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
     CONFIGURE_PATCHING = "ConfigurePatching"
     CONFIGURE_PATCHING_SUMMARY = "ConfigurePatchingSummary"
+    AUTO_ASSESSMENT_ONLY = "-AutoAssessmentOnly"
 
     # Handler actions
     ENABLE = "Enable"
@@ -138,6 +140,7 @@ class Constants(object):
     RUNTIME_SETTINGS = "runtimeSettings"
     HANDLER_SETTINGS = "handlerSettings"
     PUBLIC_SETTINGS = "publicSettings"
+    AUTO_ASSESS_ONLY = "autoAssessOnly"
 
     # Public Settings within Config Settings
     class ConfigPublicSettingsFields(EnumBackport):
@@ -153,6 +156,8 @@ class Constants(object):
         maintenance_run_id = "maintenanceRunId"
         patch_rollout_id = "patchRolloutId"
         patch_mode = "patchMode"
+        assessment_mode = 'assessmentMode'
+        maximum_assessment_interval = 'maximumAssessmentInterval'
 
     # ExtState.json keys
     class ExtStateFields(EnumBackport):

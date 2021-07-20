@@ -18,6 +18,7 @@ import base64
 import datetime
 import json
 import os
+import uuid
 from core.src.bootstrap.Constants import Constants
 
 
@@ -35,6 +36,7 @@ class ExecutionConfig(object):
         self.sequence_number = self.__get_value_from_argv(self.execution_parameters, Constants.ARG_SEQUENCE_NUMBER)
         self.environment_settings = self.__get_decoded_json_from_argv(self.execution_parameters, Constants.ARG_ENVIRONMENT_SETTINGS)
         self.config_settings = self.__get_decoded_json_from_argv(self.execution_parameters, Constants.ARG_CONFIG_SETTINGS)
+        self.exec_auto_assess_only = bool(self.__get_value_from_argv(self.execution_parameters, Constants.ARG_AUTO_ASSESS_ONLY, False))
 
         # Environment Settings
         self.composite_logger.log_debug(" - Parsing environment settings...")
@@ -58,6 +60,8 @@ class ExecutionConfig(object):
         else:
             self.reboot_setting = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.REBOOT_SETTING, Constants.REBOOT_NEVER)     # safe extension-level default
         self.patch_mode = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCH_MODE)
+        self.assessment_mode = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.ASSESSMENT_MODE)
+        self.maximum_assessment_interval = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAXIMUM_ASSESSMENT_INTERVAL)
 
         # Derived Settings
         self.composite_logger.log_debug(" - Establishing data publishing paths...")
@@ -66,14 +70,35 @@ class ExecutionConfig(object):
         self.status_file_path = os.path.join(self.status_folder, str(self.sequence_number) + ".status")
         self.composite_logger.log_debug("  -- Status file: " + str(self.status_file_path))
 
+        # Auto assessment overrides
+        if self.exec_auto_assess_only:
+            self.__transform_execution_config_for_auto_assessment()
+        else:
+            self.composite_logger.log_debug("Not executing in auto-assessment mode.")
+
+    def __transform_execution_config_for_auto_assessment(self):
+        self.composite_logger.log_debug("Setting execution configuration values for auto assessment.")
+        self.operation = Constants.AUTO_ASSESSMENT
+        self.activity_id = str(uuid.uuid4())
+        self.included_classifications_list = self.included_package_name_mask_list = self.excluded_package_name_mask_list = []
+        self.maintenance_run_id = None
+        self.start_time = self.env_layer.datetime.standard_datetime_to_utc(datetime.datetime.utcnow())
+        self.duration = Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION
+        self.reboot_setting = Constants.REBOOT_NEVER
+        self.patch_mode = None
+
     @staticmethod
-    def __get_value_from_argv(argv, key):
+    def __get_value_from_argv(argv, key, default_value=Constants.DEFAULT_UNSPECIFIED_VALUE):
         """ Discovers the value associated with a specific parameter in input arguments. """
         for x in range(1, len(argv)):
             if x % 2 == 1:  # key checker
                 if str(argv[x]).lower() == key.lower() and x < len(argv):
                     return str(argv[x+1])
-        raise Exception("Unable to find key {0} in core arguments: {1}.".format(key, str(argv)))
+
+        if default_value == Constants.DEFAULT_UNSPECIFIED_VALUE:
+            raise Exception("Unable to find key {0} in core arguments: {1}.".format(key, str(argv)))
+        else:
+            return default_value
 
     def __get_decoded_json_from_argv(self, argv, key):
         """ Discovers and decodes the JSON body of a specific base64 encoded JSON object in input arguments. """

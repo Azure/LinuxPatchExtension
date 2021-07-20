@@ -33,7 +33,6 @@ class CoreMain(object):
         patch_operation_requested = Constants.UNKNOWN
         configure_patching_successful = False
         patch_assessment_successful = False
-        patch_installation_successful = False
         overall_patch_installation_operation_successful = False
 
         try:
@@ -63,11 +62,13 @@ class CoreMain(object):
 
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
-            configure_patching = container.get('configure_patching')
+            configure_patching_processor = container.get('configure_patching_processor')
 
-            configure_patching_successful = configure_patching.start_configure_patching()
+            # Configure patching always runs first, except if it's AUTO_ASSESSMENT
+            if patch_operation_requested != Constants.AUTO_ASSESSMENT.lower():
+                configure_patching_successful = configure_patching_processor.start_configure_patching()
 
-            # Assessment happens if operation requested is not Configure Patching
+            # Assessment happens if operation requested is not Configure Patching [i.e. AUTO_ASSESSMENT, ASSESSMENT, INSTALLATION]
             if patch_operation_requested != Constants.CONFIGURE_PATCHING.lower():
                 patch_assessment_successful = patch_assessor.start_assessment()
 

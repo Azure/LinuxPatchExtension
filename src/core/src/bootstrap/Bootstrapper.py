@@ -67,8 +67,9 @@ class Bootstrapper(object):
         sequence_number = self.get_value_from_argv(argv, Constants.ARG_SEQUENCE_NUMBER)
         environment_settings = json.loads(base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_ENVIRONMENT_SETTINGS).replace("b\'", "")))
         log_folder = environment_settings[Constants.EnvSettings.LOG_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
-        log_file_path = os.path.join(log_folder, str(sequence_number) + ".core.log")
-        real_rec_path = os.path.join(log_folder, str(sequence_number) + ".core.rec")
+        exec_demarcator = ".aa" if bool(self.get_value_from_argv(argv, Constants.ARG_AUTO_ASSESS_ONLY, False)) else ""
+        log_file_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.log")
+        real_rec_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.rec")
         events_folder = environment_settings[Constants.EnvSettings.EVENTS_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
         return log_file_path, real_rec_path, events_folder
 
@@ -84,13 +85,17 @@ class Bootstrapper(object):
         return recorder_enabled, emulator_enabled
 
     @staticmethod
-    def get_value_from_argv(argv, key):
+    def get_value_from_argv(argv, key, default_value=Constants.DEFAULT_UNSPECIFIED_VALUE):
         """ Discovers the value assigned to a given key based on the core contract on arguments """
         for x in range(1, len(argv)):
             if x % 2 == 1:  # key checker
                 if str(argv[x]).lower() == key.lower() and x < len(argv):
                     return str(argv[x+1])
-        raise Exception("Unable to find key {0} in core arguments: {1}.".format(key, str(argv)))
+
+        if default_value == Constants.DEFAULT_UNSPECIFIED_VALUE:
+            raise Exception("Unable to find key {0} in core arguments: {1}.".format(key, str(argv)))
+        else:
+            return default_value
 
     def build_out_container(self):
         # First output in a positive bootstrap
@@ -152,7 +157,7 @@ class Bootstrapper(object):
                 raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
         except Exception as exception:
             self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
-                  "Exception details: " + str(exception))
+                                            "Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise
 
