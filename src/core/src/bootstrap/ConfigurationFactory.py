@@ -201,7 +201,7 @@ class ConfigurationFactory(object):
                 'component_kwargs': {
                     'service_name': Constants.AUTO_ASSESSMENT_SERVICE_NAME,
                     'service_desc': Constants.AUTO_ASSESSMENT_SERVICE_DESC,
-                    'service_exec_path': os.path.join(os.path.basename(os.getcwd()), Constants.CORE_AUTO_ASSESS_SH_FILE_NAME)
+                    'service_exec_path': os.path.join(os.path.dirname(os.path.realpath(__file__)), Constants.CORE_AUTO_ASSESS_SH_FILE_NAME)
                 }
             },
             'auto_assess_service_manager': {

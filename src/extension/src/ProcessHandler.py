@@ -109,7 +109,6 @@ class ProcessHandler(object):
 
             auto_assess_sh_data = "#!/usr/bin/env bash" +\
                                   "\r\n# Copyright 2021 Microsoft Corporation" +\
-                                  "\r\n cd \"$(dirname \"$0\")\"" +\
                                   "\r\n" + core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True"
 
             self.env_layer.file_system.write_with_retry(auto_assess_sh_path, auto_assess_sh_data)
