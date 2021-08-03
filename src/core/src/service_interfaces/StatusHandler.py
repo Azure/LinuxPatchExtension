@@ -420,12 +420,13 @@ class StatusHandler(object):
         self.env_layer.file_system.write_with_retry(self.status_file_path, '[{0}]'.format(json.dumps(self.__new_basic_status_json())), mode='w+')
 
     def __new_basic_status_json(self):
+        reported_operation = self.execution_config.operation if self.execution_config.operation != Constants.AUTO_ASSESSMENT else Constants.ASSESSMENT
         return {
             "version": 1.0,
             "timestampUTC": str(self.env_layer.datetime.timestamp()),
             "status": {
                 "name": "Azure Patch Management",
-                "operation": str(self.execution_config.operation),
+                "operation": str(reported_operation),
                 "status": "success",
                 "code": 0,
                 "formattedMessage": {

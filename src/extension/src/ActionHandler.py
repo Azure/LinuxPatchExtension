@@ -29,8 +29,9 @@ from extension.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 class ActionHandler(object):
     """Responsible for identifying the action to perform based on the user input"""
-    def __init__(self, logger, telemetry_writer, utility, runtime_context_handler, json_file_handler, env_health_manager, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
+    def __init__(self, logger, env_layer, telemetry_writer, utility, runtime_context_handler, json_file_handler, env_health_manager, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time):
         self.logger = logger
+        self.env_layer = env_layer
         self.telemetry_writer = telemetry_writer
         self.utility = utility
         self.runtime_context_handler = runtime_context_handler
@@ -223,7 +224,25 @@ class ActionHandler(object):
             self.setup(action=Constants.DISABLE, log_message="Disable triggered on extension")
             prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.DISABLE_MAX_RUNTIME)
             self.runtime_context_handler.process_previous_patch_operation(self.core_state_handler, self.process_handler, prev_patch_max_end_time, core_state_content=None)
-            # todo: disable auto-assessment here
+
+            # For the Linux Patch Extension lifecycle, disable comes in as a temporary part of the extension update flow. (Uninstall, with no further action, is not part of this extension's lifecycle)
+            # In this flow, it's best to temporarily block Core invocation in auto-assessment while keeping the separation of concerns in place between Ext and Core.
+            # The new extension version will take over the flow as needed, and lifecycle management has also blocked execution, so disablement here is best effort.
+            try:
+                exec_dir = os.path.dirname(os.path.realpath(__file__))
+                auto_assess_sh_path = os.path.join(exec_dir, Constants.CORE_AUTO_ASSESS_SH_FILE_NAME)
+                self.logger.log_debug("Discovered auto_assess_sh_path. [Path={0}]".format(auto_assess_sh_path))
+                if os.path.exists(auto_assess_sh_path):
+                    os.remove(auto_assess_sh_path)
+                auto_assess_sh_data = "#!/usr/bin/env bash" + \
+                                      "\r\n# Copyright 2021 Microsoft Corporation" + \
+                                      "\r\n printf \"Auto-assessment was paused by the Azure Linux Patch Extension.\""
+                self.env_layer.file_system.write_with_retry(auto_assess_sh_path, auto_assess_sh_data)
+                self.env_layer.run_command_output("chmod a+x " + auto_assess_sh_path)
+            except Exception as error:
+                self.logger.log_error("Error occurred during auto-assessment disable. [Error={0}]".format(repr(error)))
+            # End of temporary auto-assessment disablement
+
             self.logger.log("Extension disabled successfully")
             return Constants.ExitCode.Okay
 
