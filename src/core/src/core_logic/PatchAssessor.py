@@ -21,14 +21,14 @@ from core.src.bootstrap.Constants import Constants
 
 class PatchAssessor(object):
     """ Wrapper class of a single patch assessment """
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, lifecycle_manager_factory):
         self.env_layer = env_layer
         self.execution_config = execution_config
 
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
         self.status_handler = status_handler
-
+        self.lifecycle_manager = lifecycle_manager_factory.getLifecycleManagerObject()
         self.package_manager = package_manager
 
     def start_assessment(self):
@@ -49,9 +49,13 @@ class PatchAssessor(object):
 
         for i in range(0, Constants.MAX_ASSESSMENT_RETRY_COUNT):
             try:
+                if self.lifecycle_manager is not None:
+                    self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
                 packages, package_versions = self.package_manager.get_all_updates()
                 self.telemetry_writer.write_event("Full assessment: " + str(packages), Constants.TelemetryEventLevel.Verbose)
                 self.status_handler.set_package_assessment_status(packages, package_versions)
+                if self.lifecycle_manager is not None:
+                    self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
                 sec_packages, sec_package_versions = self.package_manager.get_security_updates()
                 self.telemetry_writer.write_event("Security assessment: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
                 self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, "Security")
@@ -76,7 +80,7 @@ class PatchAssessor(object):
         return True
 
     def raise_if_agent_incompatible(self):
-        if not self.telemetry_writer.is_agent_compatible():
+        if not self.telemetry_writer.is_agent_compatible() and self.env_layer.get_vm_environment() == Constants.VM_AZURE:
             error_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
             self.composite_logger.log_error(error_msg)
             raise Exception(error_msg)

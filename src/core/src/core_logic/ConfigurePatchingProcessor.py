@@ -124,7 +124,7 @@ class ConfigurePatchingProcessor(object):
                                                                   auto_assessment_state=self.current_auto_assessment_state)
 
     def __raise_if_agent_incompatible(self):
-        if not self.telemetry_writer.is_agent_compatible():
+        if not self.telemetry_writer.is_agent_compatible() and self.env_layer.get_vm_environment() == Constants.VM_AZURE:
             error_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
             self.composite_logger.log_error(error_msg)
             raise Exception(error_msg)

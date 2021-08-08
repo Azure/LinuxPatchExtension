@@ -40,7 +40,7 @@ from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
 
 from core.src.service_interfaces.LifecycleManager import LifecycleManager
-from core.src.service_interfaces.StatusHandler import StatusHandler
+from core.src.service_interfaces.LifecycleManagerFactory import LifecycleManagerFactory                                                       from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 
 
@@ -158,8 +158,8 @@ class ConfigurationFactory(object):
         configuration = {
             'config_env': Constants.PROD,
             'package_manager_name': package_manager_name,
-            'lifecycle_manager': {
-                'component': LifecycleManager,
+            'lifecycle_manager_factory': {
+                'component': LifecycleManagerFactory,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
                 'component_kwargs': {}
             },
@@ -187,12 +187,12 @@ class ConfigurationFactory(object):
             },
             'patch_assessor': {
                 'component': PatchAssessor,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager','lifecycle_manager_factory'],
                 'component_kwargs': {}
             },
             'patch_installer': {
                 'component': PatchInstaller,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'lifecycle_manager', 'package_manager', 'package_filter', 'maintenance_window', 'reboot_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'lifecycle_manager_factory', 'package_manager', 'package_filter', 'maintenance_window', 'reboot_manager'],
                 'component_kwargs': {}
             },
             'service_info': {

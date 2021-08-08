@@ -91,7 +91,9 @@ class Constants(object):
 
     # patch versions for healthstore when there is no maintenance run id
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
-
+    # Cosntants for VM Type
+    VM_AZURE = "Azure"
+    VM_ARC = "Arc"
     # Patch Modes for Configure Patching
     class PatchModes(EnumBackport):
         IMAGE_DEFAULT = "ImageDefault"

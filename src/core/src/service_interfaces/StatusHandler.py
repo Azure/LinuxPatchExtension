@@ -247,7 +247,7 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Setting assessment substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap patches into assessment summary
-        self.__assessment_summary_json = self.__new_assessment_summary_json(self.__assessment_packages)
+        self.__assessment_summary_json = self.__new_assessment_summary_json(self.__assessment_packages, status, code)
 
         # Wrap assessment summary into assessment substatus
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
@@ -255,7 +255,7 @@ class StatusHandler(object):
         # Update status on disk
         self.__write_status_file()
 
-    def __new_assessment_summary_json(self, assessment_packages_json):
+    def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
             Purpose: This composes the message inside the patch assessment summary substatus:
                 Root --> Status --> Substatus [name: "PatchAssessmentSummary"] --> FormattedMessage --> **Message** """
@@ -279,7 +279,9 @@ class StatusHandler(object):
             "patches": assessment_packages_json,
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
-            "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
+            "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors),
+            "patchAssessmentStatus":code,
+            "patchAssessmentStatusString":status 
         }
 
     def set_installation_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0):
@@ -375,7 +377,7 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap default automatic OS patch state on the machine, at the time of this request, into configure patching summary
-        self.__configure_patching_summary_json = self.__new_configure_patching_summary_json(automatic_os_patch_state, auto_assessment_state)
+        self.__configure_patching_summary_json = self.__new_configure_patching_summary_json(automatic_os_patch_state, auto_assessment_state, status, code)
 
         # Wrap configure patching summary into configure patching substatus
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
@@ -383,7 +385,7 @@ class StatusHandler(object):
         # Update status on disk
         self.__write_status_file()
 
-    def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state):
+    def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
             Purpose: This composes the message inside the configure patching summary substatus:
                 Root --> Status --> Substatus [name: "ConfigurePatchingSummary"] --> FormattedMessage --> **Message** """
@@ -398,7 +400,9 @@ class StatusHandler(object):
                 "autoAssessmentState": auto_assessment_state,
                 "errors": self.__set_errors_json(self.__configure_patching_auto_assessment_error_count, self.__configure_patching_auto_assessment_errors)
             },
-            "errors": self.__set_errors_json(self.__configure_patching_top_level_error_count, self.__configure_patching_errors)
+            "errors": self.__set_errors_json(self.__configure_patching_top_level_error_count, self.__configure_patching_errors),
+            "configurePatchStatus": code,
+            "configurePatchStatusString": status
         }
 
     @staticmethod

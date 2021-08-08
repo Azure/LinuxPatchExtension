@@ -115,7 +115,8 @@ class Bootstrapper(object):
 
     def build_core_components(self, container):
         self.composite_logger.log_debug(" - Instantiating lifecycle manager.")
-        lifecycle_manager = container.get('lifecycle_manager')
+        lifecycle_manager_factory = container.get('lifecycle_manager_factory')
+        lifecycle_manager = lifecycle_manager_factory.getLifecycleManagerObject()
         self.composite_logger.log_debug(" - Instantiating progress status writer.")
         status_handler = container.get('status_handler')
         return lifecycle_manager, status_handler
@@ -156,8 +157,7 @@ class Bootstrapper(object):
             else:
                 raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
         except Exception as exception:
-            self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
-                                            "Exception details: " + str(exception))
+            self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +"Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise
 

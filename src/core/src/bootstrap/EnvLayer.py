@@ -27,8 +27,10 @@ import tempfile
 import time
 from core.src.bootstrap.Constants import Constants
 from core.src.external_dependencies import distro
-
-
+try:
+    import urllib2 as urlreq   #Python 2.x
+except:
+    import urllib.request as urlreq   #Python 3.x
 class EnvLayer(object):
     """ Environment related functions """
 
@@ -78,6 +80,22 @@ class EnvLayer(object):
             ret = Constants.APT
 
         return ret
+    def get_vm_environment(self):
+        """ detects vm type """
+        ret = None
+
+        try:
+            metadata = "True"
+            request = urlreq.Request("http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01")
+            request.add_header('Metadata',metadata)
+            res = urlreq.urlopen(request,timeout=2)
+
+            if(res.getcode() == 200):
+                return Constants.VM_AZURE
+            else:
+                return Constants.VM_ARC
+        except:
+            return Constants.VM_ARC
 
     def run_command_output(self, cmd, no_output=False, chk_err=False):
         operation = "RUN_CMD_OUT"
