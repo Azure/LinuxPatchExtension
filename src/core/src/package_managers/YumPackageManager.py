@@ -80,12 +80,7 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
         code, out = self.env_layer.run_command_output(command, False, False)
 
-        # check for known issues in the output and fix. Run the command again to get results after fix
-        if "Error" in out or "Errno" in out:
-            issue_mitigated = self.mitigate_issue(out)
-            if issue_mitigated:
-                self.composite_logger.log_debug('\nPost mitigation, invoking package manager again using: ' + command)
-                code, out = self.env_layer.run_command_output(command, False, False)
+        code, out = self.try_mitigate_issues_if_any(command, code, out)
 
         if code not in [self.yum_exitcode_ok, self.yum_exitcode_no_applicable_packages, self.yum_exitcode_updates_available]:
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
@@ -375,11 +370,23 @@ class YumPackageManager(PackageManager):
     # endregion
 
     # region Handling known errors
-    def mitigate_issue(self, output):
+    def try_mitigate_issues_if_any(self, command, code, out):
+        """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found """
+        if "Error" in out or "Errno" in out:
+            issue_mitigated = self.check_known_issues_and_attempt_fix(out)
+            if issue_mitigated:
+                self.composite_logger.log_debug('\nPost mitigation, invoking package manager again using: ' + command)
+                code_after_fix_attempt, out_after_fix_attempt = self.env_layer.run_command_output(command, False, False)
+                return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt)
+        return code, out
+
+    def check_known_issues_and_attempt_fix(self, output):
+        """ Checks if issue falls into known issues and attempts to mitigate """
         self.composite_logger.log_debug("Output from package manager containing error: \n|\t" + "\n|\t".join(output.splitlines()))
         self.composite_logger.log_debug("\nChecking if this is a known error...")
         for error in self.known_errors_and_fixes:
             if error in output:
+                self.composite_logger.log_debug("\nFound a match within known errors list, attempting a fix...")
                 self.known_errors_and_fixes[error]()
                 return True
 
