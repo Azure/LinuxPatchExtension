@@ -43,6 +43,7 @@ class Bootstrapper(object):
         self.env_layer = self.container.get('env_layer')
 
         # Logging initializations
+        self.reset_auto_assessment_log_file_if_needed()
         self.file_logger = self.container.get('file_logger')
         if capture_stdout:
             self.stdout_file_mirror = StdOutFileMirror(self.env_layer, self.file_logger)
@@ -72,6 +73,12 @@ class Bootstrapper(object):
         real_rec_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.rec")
         events_folder = environment_settings[Constants.EnvSettings.EVENTS_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
         return log_file_path, real_rec_path, events_folder
+
+    def reset_auto_assessment_log_file_if_needed(self):
+        """ Deletes the auto assessment log file when needed to prevent excessive growth """
+        if bool(self.get_value_from_argv(self.argv, Constants.ARG_AUTO_ASSESS_ONLY, False)) and os.path.exists(self.log_file_path) \
+                and os.path.getsize(self.log_file_path) > Constants.MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES:
+            os.remove(self.log_file_path)
 
     def get_recorder_emulator_flags(self, argv):
         """ Determines if the recorder or emulator flags need to be changed from the defaults """

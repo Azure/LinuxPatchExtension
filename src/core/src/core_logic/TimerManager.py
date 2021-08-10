@@ -14,7 +14,7 @@
 #
 # Requires Python 2.7+
 
-""" ServiceManager """
+""" TimerManager """
 import os
 from core.src.bootstrap.Constants import Constants
 
@@ -30,7 +30,7 @@ class TimerManager(object):
         self.service_desc = service_info.service_desc
         self.service_exec_path = service_info.service_exec_path
 
-        self.__systemd_path = "/run/systemd/system/"
+        self.__systemd_path = Constants.Paths.SYSTEMD_ROOT
         self.__systemd_timer_unit_path = "/etc/systemd/system/{0}.timer"
 
         self.timer_start_cmd = "sudo systemctl start {0}.timer"
@@ -82,6 +82,7 @@ class TimerManager(object):
             Supports only a subset of the spec as applicable to patch management.
             No non-default period (Y,M,W,D) is supported. Time is supported (H,M,S).
             Can throw exceptions - expected to handled as appropriate in calling code.
+            E.g.: Input-->Output -- PT3H-->3h, PT5H7M6S-->5h7m6s
         """
         if 'PT' not in interval:
             raise Exception("Unexpected interval format. [Duration={0}]".format(interval))
@@ -125,7 +126,7 @@ class TimerManager(object):
     def systemctl_daemon_reload(self):
         """ Reloads daemon """
         code, out = self.__invoke_systemctl(self.systemctl_daemon_reload_cmd)
-        return True if code == 0 else False
+        return code == 0
 
     def __invoke_systemctl(self, command, action_description=None):
         """ Invokes systemctl with the specified command and standardized logging """

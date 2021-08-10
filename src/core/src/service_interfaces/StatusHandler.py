@@ -635,7 +635,7 @@ class StatusHandler(object):
             else:
                 self.set_installation_substatus_json()
         elif current_operation == Constants.CONFIGURE_PATCHING or current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
-            if current_operation == current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
+            if current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
                 self.__add_error(self.__configure_patching_auto_assessment_errors, error_detail)
                 self.__configure_patching_auto_assessment_error_count += 1
             else:

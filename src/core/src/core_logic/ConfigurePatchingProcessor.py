@@ -71,7 +71,11 @@ class ConfigurePatchingProcessor(object):
                 self.package_manager.disable_auto_os_update()
 
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
+
+            self.__report_consolidated_configure_patch_status()
+            self.composite_logger.log_debug("Completed processing patch mode configuration.")
         except Exception as error:
+            self.composite_logger.log_error("Error while processing patch mode configuration. [Error={0}]".format(repr(error)))
             self.__report_consolidated_configure_patch_status(status=Constants.STATUS_ERROR, error=error)
             self.configure_patching_successful &= False
 
@@ -93,12 +97,12 @@ class ConfigurePatchingProcessor(object):
                 self.auto_assess_service_manager.remove_service()
                 self.current_auto_assessment_state = Constants.AutoAssessmentStates.DISABLED
             else:
-                raise Exception("Unknown assessment mode specified. [AssessmentMode={0}]".format())
+                raise Exception("Unknown assessment mode specified. [AssessmentMode={0}]".format(self.execution_config.assessment_mode))
 
-            self.__report_consolidated_configure_patch_status(status=Constants.STATUS_SUCCESS)
-            self.composite_logger.log_debug("Completed configuring automatic assessment mode.")
+            self.__report_consolidated_configure_patch_status()
+            self.composite_logger.log_debug("Completed processing automatic assessment mode configuration.")
         except Exception as error:
-            self.composite_logger.log_error("Error while configuring automatic assessment mode. [Error={0}]".format(repr(error)))
+            self.composite_logger.log_error("Error while processing automatic assessment mode configuration. [Error={0}]".format(repr(error)))
             self.__report_consolidated_configure_patch_status(status=Constants.STATUS_ERROR, error=error)
             self.configure_patching_successful &= False
 
@@ -107,7 +111,7 @@ class ConfigurePatchingProcessor(object):
         self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
 
     def __report_consolidated_configure_patch_status(self, status=Constants.STATUS_TRANSITIONING, error=Constants.DEFAULT_UNSPECIFIED_VALUE):
-        """ """
+        """ Reports """
         self.composite_logger.log_debug("Reporting consolidated current configure patch status. [OSPatchState={0}][AssessmentState={1}]".format(self.current_auto_os_patch_state, self.current_auto_assessment_state))
 
         # report error if specified
@@ -130,8 +134,3 @@ class ConfigurePatchingProcessor(object):
             raise Exception(error_msg)
 
         self.composite_logger.log(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG)
-
-
-
-
-
