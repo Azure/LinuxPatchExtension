@@ -64,6 +64,13 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on CentOS machines")
             execution_config.included_classifications_list = [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER]
 
+        # Known errors and the corresponding action items
+        self.known_errors_and_fixes = {"SSL peer rejected your certificate as expired": self.fix_ssl_certificate_issue,
+                                       "Error: Cannot retrieve repository metadata (repomd.xml) for repository": self.fix_ssl_certificate_issue,
+                                       "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
+        
+        self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
+
     def refresh_repo(self):
         pass  # Refresh the repo is no ops in YUM
 
@@ -72,6 +79,9 @@ class YumPackageManager(PackageManager):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
         code, out = self.env_layer.run_command_output(command, False, False)
+
+        code, out = self.try_mitigate_issues_if_any(command, code, out)
+
         if code not in [self.yum_exitcode_ok, self.yum_exitcode_no_applicable_packages, self.yum_exitcode_updates_available]:
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
@@ -357,6 +367,50 @@ class YumPackageManager(PackageManager):
     def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value):
         # NOTE: Implementation pending
         pass
+    # endregion
+
+    # region Handling known errors
+    def try_mitigate_issues_if_any(self, command, code, out):
+        """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found """
+        if "Error" in out or "Errno" in out:
+            issue_mitigated = self.check_known_issues_and_attempt_fix(out)
+            if issue_mitigated:
+                self.composite_logger.log_debug('\nPost mitigation, invoking package manager again using: ' + command)
+                code_after_fix_attempt, out_after_fix_attempt = self.env_layer.run_command_output(command, False, False)
+                return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt)
+        return code, out
+
+    def check_known_issues_and_attempt_fix(self, output):
+        """ Checks if issue falls into known issues and attempts to mitigate """
+        self.composite_logger.log_debug("Output from package manager containing error: \n|\t" + "\n|\t".join(output.splitlines()))
+        self.composite_logger.log_debug("\nChecking if this is a known error...")
+        for error in self.known_errors_and_fixes:
+            if error in output:
+                self.composite_logger.log_debug("\nFound a match within known errors list, attempting a fix...")
+                self.known_errors_and_fixes[error]()
+                return True
+
+        self.composite_logger.log_debug("\nThis is not a known error for the extension and will require manual intervention")
+        return False
+
+    def fix_ssl_certificate_issue(self):
+        command = self.yum_update_client_package
+        self.composite_logger.log_debug("\nUpdating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
+        code, out = self.env_layer.run_command_output(command, False, False)
+        if code != self.yum_exitcode_no_applicable_packages:
+            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
+            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
+            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+            self.telemetry_writer.write_execution_error(command, code, out)
+            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+        else:
+            self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
+            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
+            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+            self.composite_logger.log_debug("==========================================================================\n\n")
+            self.composite_logger.log_debug("\nClient package update complete.")
     # endregion
 
     def do_processes_require_restart(self):

@@ -371,6 +371,17 @@ class PackageManager(object):
         pass
     # endregion
 
+    # region Handling known errors
+    def try_mitigate_issues_if_any(self, command, code, out):
+        """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found """
+        pass
+
+    def check_known_issues_and_attempt_fix(self, output):
+        """ Checks if issue falls into known issues and attempts to mitigate """
+        return True
+
+    # endregion
+
     @abstractmethod
     def do_processes_require_restart(self):
         """Signals whether processes require a restart due to updates to files"""
