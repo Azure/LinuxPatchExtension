@@ -411,7 +411,7 @@ class TestCoreMain(unittest.TestCase):
         argument_composer.events_folder = None
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('HappyPath')
-        runtime.configure_patching.start_configure_patching()
+        runtime.configure_patching_processor.start_configure_patching()
 
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
