@@ -119,7 +119,7 @@ class RuntimeCompositor(object):
         return True
 
     def get_current_auto_os_patch_state(self):
-        return Constants.PATCH_STATE_DISABLED
+        return Constants.AutomaticOsPatchStates.DISABLED
 
     @staticmethod
     def write_to_file(path, data):

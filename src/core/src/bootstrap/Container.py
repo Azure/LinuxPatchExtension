@@ -65,7 +65,7 @@ class Container(Singleton):
         self.components[component_id] = component, component_args, component_kwargs
 
     def get(self, component_id):
-        """Lookups the given property name in context.
+        """Looks up the given property name in context.
         Raises KeyError when no such property is found.
         """
         if component_id not in self.components:

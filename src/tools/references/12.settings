@@ -2,16 +2,21 @@
     "runtimeSettings": [{
         "handlerSettings": {
             "protectedSettingsCertThumbprint": "",
-            "protectedSettings": " ",
+            "protectedSettings": "",
             "publicSettings": {
                 "operation": "Installation",
-		        "activityId": "1612-2327-1324-23245-32192",
-		        "startTime": "2020-05-01T09:40:54.8862542Z",
-		        "maximumDuration": "PT2H",
-		        "rebootSetting": "IfRequired",
-		        "classificationsToInclude":["Critical","Security"],
-		        "patchesToInclude": ["mysql-server", "snapd"],
-		        "patchesToExclude": ["kernel*"]
+                "activityId": "12345-2312-1234-23245-32112",
+                "startTime": "2021-08-08T12:34:56Z",
+                "maximumDuration": "PT2H",
+                "rebootSetting": "IfRequired",
+                "classificationsToInclude":["Critical","Security"],
+                "patchesToInclude": ["*ern*=1.2*", "kern*=1.23.45"],
+                "patchesToExclude": ["test", "*test"],
+                "internalSettings": "test",
+                "maintenanceRunId": "2019-07-20T12:12:14Z",
+                "patchMode": "AutomaticByPlatform",
+                "assessmentMode": "AutomaticByPlatform",
+                "maximumAssessmentInterval": "PT3H"
             }
         }
     }]

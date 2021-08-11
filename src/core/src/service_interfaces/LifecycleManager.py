@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import errno
 import json
 import os
 import shutil
@@ -40,20 +40,75 @@ class LifecycleManager(object):
         extension_sequence = self.read_extension_sequence()
         core_sequence = self.read_core_sequence()
 
-        if int(extension_sequence['number']) == int(self.execution_config.sequence_number):
-            if core_sequence['completed'] is True:
-                # Block attempts to execute what last completed (fully) again
-                self.composite_logger.log_warning("LifecycleManager recorded false enable for completed sequence {0}.".format(str(extension_sequence['number'])))
+        if self.execution_config.operation == Constants.AUTO_ASSESSMENT:
+            # newer sequence number has been observed, do not run
+            if int(self.execution_config.sequence_number) < int(extension_sequence['number']) \
+                    or int(self.execution_config.sequence_number) < int(core_sequence['number']):
+                self.composite_logger.log_warning("Auto-assessment not started as newer sequence number detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]"
+                                                  .format(str(self.execution_config.sequence_number), str(extension_sequence['number']), str(core_sequence['number'])))
                 self.env_layer.exit(0)
-            else:
-                # Incomplete current execution
-                self.composite_logger.log_debug("Restarting execution for incomplete sequence number: {0}.".format(str(self.execution_config.sequence_number)))
-        elif int(extension_sequence['number']) < int(self.execution_config.sequence_number):
-            # Allow this but log a warning
-            self.composite_logger.log_warning("Unexpected lower sequence number: {0} < {1}.".format(str(self.execution_config.sequence_number), str(extension_sequence['number'])))
+
+            # anomalous extension state encountered, do not run - this needs to be investigated if ever encountered
+            if int(self.execution_config.sequence_number) > int(extension_sequence['number']) \
+                    or int(self.execution_config.sequence_number) > int(core_sequence['number']):
+                self.composite_logger.log_error("Auto-assessment not started as an extension state anomaly was detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]"
+                                                .format(str(self.execution_config.sequence_number), str(extension_sequence['number']),str(core_sequence['number'])))
+                self.env_layer.exit(0)
+
+            # attempted sequence number is same as recorded core sequence - expected
+            if int(self.execution_config.sequence_number) == int(core_sequence['number']):
+                if bool(core_sequence['completed']):
+                    self.composite_logger.log_debug("Auto-assessment is safe to start. Existing sequence number marked as completed.")
+                    self.update_core_sequence(completed=False)  # signalling core restart with auto-assessment as its safe to do so
+                else:
+                    self.composite_logger.log_debug("Auto-assessment may not be safe to start yet as core sequence is not marked completed.")
+                    if len(self.identify_running_processes(core_sequence['process_ids'])) != 0:
+                        # NOT SAFE TO START
+                        # Possible reasons: full core operation is in progress (okay), some previous auto-assessment is still running (bad scheduling, adhoc run, or process stalled)
+                        self.composite_logger.log_warning("Auto-assessment is NOT safe to start yet. Existing core process(es) running. Exiting. [LastHeartbeat={0}][Operation={1}]"
+                                                          .format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
+                        self.env_layer.exit(0)
+                    else:
+                        # MAY BE SAFE TO START
+                        self.composite_logger.log_warning("Auto-assessment is LIKELY safe to start, BUT core sequence anomalies were detected. Evaluating further. [LastHeartbeat={0}][Operation={1}]"
+                                                          .format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
+
+                        # wait to see if Core comes back from a restart
+                        timer_start_time = self.env_layer.datetime.datetime_utcnow()
+                        while True:
+                            core_sequence = self.read_core_sequence()
+
+                            # Main Core process suddenly started running (expected after reboot) - don't run
+                            if len(self.identify_running_processes(core_sequence['process_ids'])) != 0:
+                                self.composite_logger.log_warning("Auto-assessment is NOT safe to start as core process(es) started running. Exiting. [LastHeartbeat={0}][Operation={1}]"
+                                                                  .format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
+                                self.env_layer.exit(0)
+
+                            # If timed out without the main Core process starting, assume it's safe to proceed
+                            current_time = self.env_layer.datetime.datetime_utcnow()
+                            elapsed_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(current_time - timer_start_time)
+                            if elapsed_time_in_minutes > Constants.REBOOT_BUFFER_IN_MINUTES:
+                                self.composite_logger.log_debug("Auto-assessment is now considered safe to start since Core did not start after a reboot buffer wait period. [LastHeartbeat={0}][Operation={1}]"
+                                                                  .format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
+                                break
+
+                        self.update_core_sequence(completed=False)  # signaling core restart with auto-assessment as its safe to do so
         else:
-            # New sequence number
-            self.composite_logger.log_debug("New sequence number accepted for execution: {0} > {1}.".format(str(self.execution_config.sequence_number), str(extension_sequence['number'])))
+            # Logic for all non-Auto-assessment operations
+            if int(extension_sequence['number']) == int(self.execution_config.sequence_number):
+                if core_sequence['completed'] is True:
+                    # Block attempts to execute what last completed (fully) again
+                    self.composite_logger.log_warning("LifecycleManager recorded false enable for completed sequence {0}.".format(str(extension_sequence['number'])))
+                    self.env_layer.exit(0)
+                else:
+                    # Incomplete current execution
+                    self.composite_logger.log_debug("Restarting execution for incomplete sequence number: {0}.".format(str(self.execution_config.sequence_number)))
+            elif int(extension_sequence['number']) < int(self.execution_config.sequence_number):
+                # Allow this but log a warning
+                self.composite_logger.log_warning("Unexpected lower sequence number: {0} < {1}.".format(str(self.execution_config.sequence_number), str(extension_sequence['number'])))
+            else:
+                # New sequence number
+                self.composite_logger.log_debug("New sequence number accepted for execution: {0} > {1}.".format(str(self.execution_config.sequence_number), str(extension_sequence['number'])))
 
         self.composite_logger.log_debug("Completed execution start check.")
 
@@ -138,4 +193,34 @@ class LifecycleManager(object):
                     raise
 
         self.composite_logger.log_debug("Completed updating core sequence.")
+    # endregion
+
+    # region - Process Management
+    def identify_running_processes(self, process_ids):
+        """ Returns a list of all currently active processes from the given list of process ids """
+        running_process_ids = []
+        for process_id in process_ids:
+            if process_id != "":
+                process_id = int(process_id)
+                if self.is_process_running(process_id):
+                    running_process_ids.append(process_id)
+        self.composite_logger.log("Processes still running from the previous request: [PIDs={0}]".format(str(running_process_ids)))
+        return running_process_ids
+
+    def is_process_running(self, pid):
+        # check to see if the process is still alive
+        try:
+            # Sending signal 0 to a pid will raise an OSError exception if the pid is not running, and do nothing otherwise.
+            os.kill(pid, 0)
+            return True
+        except OSError as error:
+            if error.errno == errno.ESRCH:
+                # ESRCH == No such process
+                return False
+            elif error.errno == errno.EPERM:
+                # EPERM = No permission, which means there's a process to which access is denied
+                return True
+            else:
+                # According to "man 2 kill" possible error values are (EINVAL, EPERM, ESRCH) Thus considering this as an error
+                return False
     # endregion

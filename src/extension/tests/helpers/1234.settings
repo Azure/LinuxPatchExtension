@@ -6,7 +6,7 @@
             "publicSettings": {
                 "operation": "Installation",
                 "activityId": "12345-2312-1234-23245-32112",
-                "startTime": "2019-07-20T12:12:14Z",
+                "startTime": "2021-08-08T12:34:56Z",
                 "maximumDuration": "PT2H",
                 "rebootSetting": "IfRequired",
                 "classificationsToInclude":["Critical","Security"],
@@ -14,7 +14,9 @@
                 "patchesToExclude": ["test", "*test"],
                 "internalSettings": "test",
                 "maintenanceRunId": "2019-07-20T12:12:14Z",
-                "patchMode": "AutomaticByPlatform"
+                "patchMode": "AutomaticByPlatform",
+                "assessmentMode": "AutomaticByPlatform",
+                "maximumAssessmentInterval": "PT3H"
             }
         }
     }]

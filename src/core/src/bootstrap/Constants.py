@@ -42,9 +42,16 @@ class Constants(object):
     ARG_SEQUENCE_NUMBER = '-sequenceNumber'
     ARG_ENVIRONMENT_SETTINGS = "-environmentSettings"
     ARG_CONFIG_SETTINGS = "-configSettings"
+    ARG_AUTO_ASSESS_ONLY = "-autoAssessOnly"
     ARG_PROTECTED_CONFIG_SETTINGS = "-protectedConfigSettings"
     ARG_INTERNAL_RECORDER_ENABLED = "-recorderEnabled"
     ARG_INTERNAL_EMULATOR_ENABLED = "-emulatorEnabled"
+
+    # Max values
+    MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
+
+    class Paths(EnumBackport):
+        SYSTEMD_ROOT = "etc/systemd/system/"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -63,14 +70,23 @@ class Constants(object):
         PATCHES_TO_EXCLUDE = 'patchesToExclude'
         MAINTENANCE_RUN_ID = 'maintenanceRunId'
         PATCH_MODE = 'patchMode'
+        ASSESSMENT_MODE = 'assessmentMode'
+        MAXIMUM_ASSESSMENT_INTERVAL = 'maximumAssessmentInterval'
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
 
+    # Auto assessment shell script name
+    CORE_AUTO_ASSESS_SH_FILE_NAME = "MsftLinuxPatchAutoAssess.sh"
+    AUTO_ASSESSMENT_SERVICE_NAME = "MsftLinuxPatchAutoAssess"
+    AUTO_ASSESSMENT_SERVICE_DESC = "Microsoft Azure Linux Patch Extension - Auto Assessment"
+
     # Operations
+    AUTO_ASSESSMENT = 'AutoAssessment'
     ASSESSMENT = "Assessment"
     INSTALLATION = "Installation"
     CONFIGURE_PATCHING = "ConfigurePatching"
+    CONFIGURE_PATCHING_AUTO_ASSESSMENT = "ConfigurePatching_AutoAssessment"     # only used internally
     PATCH_ASSESSMENT_SUMMARY = "PatchAssessmentSummary"
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
     PATCH_METADATA_FOR_HEALTHSTORE = "PatchMetadataForHealthStore"
@@ -80,16 +96,30 @@ class Constants(object):
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
 
     # Patch Modes for Configure Patching
-    IMAGE_DEFAULT = "ImageDefault"
-    AUTOMATIC_BY_PLATFORM = "AutomaticByPlatform"
+    class PatchModes(EnumBackport):
+        IMAGE_DEFAULT = "ImageDefault"
+        AUTOMATIC_BY_PLATFORM = "AutomaticByPlatform"
+
+    class AssessmentModes(EnumBackport):
+        IMAGE_DEFAULT = "ImageDefault"
+        AUTOMATIC_BY_PLATFORM = "AutomaticByPlatform"
 
     # automatic OS patch states for configure patching
-    PATCH_STATE_UNKNOWN = "Unknown"
-    PATCH_STATE_DISABLED = "Disabled"
-    PATCH_STATE_ENABLED = "Enabled"
+    class AutomaticOsPatchStates(EnumBackport):
+        UNKNOWN = "Unknown"
+        DISABLED = "Disabled"
+        ENABLED = "Enabled"
+
+    # auto assessment states
+    class AutoAssessmentStates(EnumBackport):
+        UNKNOWN = "Unknown"
+        ERROR = "Error"
+        DISABLED = "Disabled"
+        ENABLED = "Enabled"
 
     # wait time after status updates
     WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS = 20
+    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"
 
     # Status file states
     STATUS_TRANSITIONING = "Transitioning"
@@ -212,4 +242,3 @@ class Constants(object):
         PRIVILEGED_OP_MARKER = "Privileged_Op_e6df678d-d09b-436a-a08a-65f2f70a6798"
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
-

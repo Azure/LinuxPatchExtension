@@ -28,6 +28,10 @@ from core.src.core_logic.RebootManager import RebootManager
 from core.src.core_logic.PatchAssessor import PatchAssessor
 from core.src.core_logic.PatchInstaller import PatchInstaller
 
+from core.src.core_logic.ServiceManager import ServiceManager
+from core.src.core_logic.ServiceManager import ServiceInfo
+from core.src.core_logic.TimerManager import TimerManager
+
 from core.src.local_loggers.FileLogger import FileLogger
 from core.src.local_loggers.CompositeLogger import CompositeLogger
 
@@ -191,9 +195,28 @@ class ConfigurationFactory(object):
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'lifecycle_manager', 'package_manager', 'package_filter', 'maintenance_window', 'reboot_manager'],
                 'component_kwargs': {}
             },
+            'service_info': {
+                'component': ServiceInfo,
+                'component_args': [],
+                'component_kwargs': {
+                    'service_name': Constants.AUTO_ASSESSMENT_SERVICE_NAME,
+                    'service_desc': Constants.AUTO_ASSESSMENT_SERVICE_DESC,
+                    'service_exec_path': os.path.join(os.path.dirname(os.path.realpath(__file__)), Constants.CORE_AUTO_ASSESS_SH_FILE_NAME)
+                }
+            },
+            'auto_assess_service_manager': {
+                'component': ServiceManager,
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'service_info'],
+                'component_kwargs': {}
+            },
+            'auto_assess_timer_manager': {
+                'component': TimerManager,
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'service_info'],
+                'component_kwargs': {}
+            },
             'configure_patching_processor': {
                 'component': ConfigurePatchingProcessor,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager', 'auto_assess_service_manager', 'auto_assess_timer_manager'],
                 'component_kwargs': {}
             },
             'maintenance_window': {

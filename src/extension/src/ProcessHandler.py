@@ -48,7 +48,9 @@ class ProcessHandler(object):
                                            public_settings_keys.exclude_patches: config_settings.__getattribute__(public_settings_keys.exclude_patches),
                                            public_settings_keys.internal_settings: config_settings.__getattribute__(public_settings_keys.internal_settings),
                                            public_settings_keys.maintenance_run_id: config_settings.__getattribute__(public_settings_keys.maintenance_run_id),
-                                           public_settings_keys.patch_mode: config_settings.__getattribute__(public_settings_keys.patch_mode)})
+                                           public_settings_keys.patch_mode: config_settings.__getattribute__(public_settings_keys.patch_mode),
+                                           public_settings_keys.assessment_mode: config_settings.__getattribute__(public_settings_keys.assessment_mode),
+                                           public_settings_keys.maximum_assessment_interval: config_settings.__getattribute__(public_settings_keys.maximum_assessment_interval)})
         return public_config_settings
 
     @staticmethod
@@ -78,7 +80,14 @@ class ProcessHandler(object):
             self.logger.log("Cannot execute patch operation due to error. [Error={0}]".format(Constants.PYTHON_NOT_FOUND))
             return
 
-        command = [python_cmd + " " + exec_path + " " + args]
+        # Generating core execution command
+        base_command = python_cmd + " " + exec_path + " " + args
+        command = [base_command]
+
+        # Stage auto-assessment shell script always
+        self.stage_auto_assess_sh_safely(base_command)
+
+        # Execute core process
         self.logger.log("Launching process. [command={0}]".format(str(command)))
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if process.pid is not None:
@@ -86,6 +95,35 @@ class ProcessHandler(object):
             did_process_start = self.__check_process_state(process, seq_no)
             return process if did_process_start else None
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
+
+    def stage_auto_assess_sh_safely(self, core_process_command):
+        """ Primes the auto-assessment shell script with the latest data """
+        self.logger.log_debug("Staging auto assessment shell script with latest config.")
+        try:
+            # resolving absolute paths needed
+            cmd_core_py_path = core_process_command.split(' ')[1]
+            exec_dir = os.path.dirname(os.path.abspath(cmd_core_py_path)) if os.path.isabs(cmd_core_py_path) else os.path.dirname(os.path.abspath(__file__))
+            core_py_path = os.path.join(exec_dir, Constants.CORE_CODE_FILE_NAME)
+            auto_assess_sh_path = os.path.join(exec_dir, Constants.CORE_AUTO_ASSESS_SH_FILE_NAME)
+            core_process_command = str.replace(core_process_command, cmd_core_py_path, core_py_path)
+            self.logger.log_debug("Path resolutions for auto-assessment. [CmdCore={0}][ExecDir={1}][CorePy={2}][AssessSh={3}][CoreCmdSh={4}]"
+                                  .format(cmd_core_py_path, exec_dir, core_py_path, auto_assess_sh_path, core_process_command))
+
+            # generating exec script
+            auto_assess_sh_data = "#!/usr/bin/env bash" +\
+                                  "\n# Copyright 2021 Microsoft Corporation." + \
+                                  "\ncd \"$(dirname \"$0\")\"" + \
+                                  "\n" + core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True"
+
+            # stage exec script
+            if os.path.exists(auto_assess_sh_path):
+                os.remove(auto_assess_sh_path)
+            self.env_layer.file_system.write_with_retry(auto_assess_sh_path, auto_assess_sh_data)
+            self.env_layer.run_command_output("chmod a+x " + auto_assess_sh_path)
+
+            self.logger.log_debug("Completed staging auto assessment shell script with latest config.")
+        except Exception as error:
+            self.logger.log_error("Unable to stage auto-assess shim. [Error={0}]".format(str(error)))
 
     def get_python_cmd(self):
         command_to_check_for_python = "which python"

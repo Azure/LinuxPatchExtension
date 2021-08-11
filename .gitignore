@@ -135,3 +135,4 @@ dmypy.json
 
 # Linux Patch Extension specific
 /src/core/tests/scratch/
+/src/extension/tests/MsftLinuxPatchAutoAssess.sh
