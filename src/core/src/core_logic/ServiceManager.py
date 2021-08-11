@@ -74,8 +74,10 @@ class ServiceManager(object):
         return code == 0
 
     def get_service_status(self):
-        code, out = self.__invoke_systemctl(self.service_stop_cmd.format(self.service_name), "Stopping the service.")
-        return code == 0
+        # To do: Soft-check status if configuration is as expected
+        # code, out = self.__invoke_systemctl(self.service_stop_cmd.format(self.service_name), "Stopping the service.")
+        # return code == 0
+        pass
 
     def enable_service(self):
         code, out = self.__invoke_systemctl(self.service_enable_cmd.format(self.service_name), "Enabling the service.")

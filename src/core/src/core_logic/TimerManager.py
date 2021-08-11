@@ -102,6 +102,7 @@ class TimerManager(object):
         return code == 0
 
     def get_timer_status(self):
+        # To do: Soft-check status if configuration is correct
         # code, out = self.__invoke_systemctl(self.timer_status_cmd.format(self.service_name), "Stopping the timer.")
         # return code == 0
         pass

@@ -92,7 +92,7 @@ class LifecycleManager(object):
                                                                   .format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
                                 break
 
-                        self.update_core_sequence(completed=False)  # signalling core restart with auto-assessment as its safe to do so
+                        self.update_core_sequence(completed=False)  # signaling core restart with auto-assessment as its safe to do so
         else:
             # Logic for all non-Auto-assessment operations
             if int(extension_sequence['number']) == int(self.execution_config.sequence_number):
