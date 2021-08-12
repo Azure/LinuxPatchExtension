@@ -30,6 +30,8 @@ class LifecycleManagerAzure(LifecycleManager):
         # Handshake file paths
         self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.EXT_STATE_FILE)
         self.core_state_file_path = os.path.join(self.execution_config.config_folder, Constants.CORE_STATE_FILE)
+        # Writing to log
+        self.composite_logger.log_debug("Initializing LifecycleManagerAzure")
 
     # region - State checkers
     def execution_start_check(self):
@@ -102,4 +104,21 @@ class LifecycleManagerAzure(LifecycleManager):
                 # New sequence number
                 self.composite_logger.log_debug("New sequence number accepted for execution: {0} > {1}.".format(str(self.execution_config.sequence_number), str(extension_sequence['number'])))
 
-        self.composite_logger.log_debug("Completed execution start check.")                                  
+        self.composite_logger.log_debug("Completed execution start check.")     
+
+    def lifecycle_status_check(self):
+        self.composite_logger.log_debug("Performing lifecycle status check...")
+        extension_sequence = self.read_extension_sequence()
+        if int(extension_sequence['number']) == int(self.execution_config.sequence_number):
+            self.composite_logger.log_debug("Extension sequence number verified to have not changed: {0}".format(str(extension_sequence['number'])))
+        else:
+            self.composite_logger.log_error("Extension goal state has changed. Terminating current sequence: {0}".format(self.execution_config.sequence_number))
+            self.update_core_sequence(completed=True)   # forced-to-complete scenario | extension wrapper will be watching for this event
+            self.env_layer.exit(0)
+        self.composite_logger.log_debug("Completed lifecycle status check.")   
+
+    # End region State checkers      
+    # region - Identity
+    def get_vm_context(self):
+        return Constants.VMType.AZURE
+    #endregion                    

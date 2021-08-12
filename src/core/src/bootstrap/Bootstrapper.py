@@ -115,8 +115,7 @@ class Bootstrapper(object):
 
     def build_core_components(self, container):
         self.composite_logger.log_debug(" - Instantiating lifecycle manager.")
-        lifecycle_manager_factory = container.get('lifecycle_manager_factory')
-        lifecycle_manager = lifecycle_manager_factory.getLifecycleManagerObject()
+        lifecycle_manager = container.get('lifecycle_manager')
         self.composite_logger.log_debug(" - Instantiating progress status writer.")
         status_handler = container.get('status_handler')
         return lifecycle_manager, status_handler

@@ -21,15 +21,22 @@ import time
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.LifecycleManager import LifecycleManager
 
-class LifecycleManagerARC(LifecycleManager):
+class LifecycleManagerArc(LifecycleManager):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
-        super(LifecycleManagerARC,self).__init__(env_layer,execution_config,composite_logger,telemetry_writer)
+        super(LifecycleManagerArc,self).__init__(env_layer,execution_config,composite_logger,telemetry_writer)
 
         # Handshake file paths
         self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.EXT_STATE_FILE)
         self.core_state_file_path = os.path.join(self.execution_config.config_folder, Constants.CORE_STATE_FILE)
+        #Writing to log
+        self.composite_logger.log_debug("Initializing LifecycleManagerArc")
+        #Variables
+        self.arc_root = "/var/lib/waagent/"
+        self.core_file_name = "CoreState.json"
+        self.arc_extension_folder_pattern = "Microsoft.SoftwareUpdateManagement.LinuxOsUpdateExtension-*"
+        self.config_folder_path = "/config/"
 
     # region - State checkers
     def execution_start_check(self):
@@ -115,9 +122,8 @@ class LifecycleManagerARC(LifecycleManager):
 
     def get_arc_core_state_file(self):
         """ Retrieve Arc folder path (including version ) """
-        arc_root = "/var/lib/waagent/"
-        cmd = "ls /var/lib/waagent/ | grep Microsoft.SoftwareUpdateManagement.LinuxOsUpdateExtension-*"
-        core_file_name = "CoreState.json"
+        cmd = "ls " + self.arc_root + " | grep " + self.arc_extension_folder_pattern
+        
         code, out = self.env_layer.run_command_output(cmd,False,False)
 
         if out == "" or "not recognized as an internal or external command" in out:
@@ -125,7 +131,7 @@ class LifecycleManagerARC(LifecycleManager):
             return ""
         lines = out.split("\n")
         dir_name = lines[0].lstrip()
-        core_state_file_path = arc_root + dir_name + "/config/" + core_file_name
+        core_state_file_path = self.arc_root + dir_name + self.config_folder_path + self.core_file_name
         return core_state_file_path
 
     def read_arc_core_sequence(self):
@@ -154,3 +160,28 @@ class LifecycleManagerARC(LifecycleManager):
                 else:
                     self.composite_logger.log_error("Unable to read arc core state file (retries exhausted). [Exception={0}]".format(repr(error)))
                     raise
+    
+    def lifecycle_status_check(self):
+        self.composite_logger.log_debug("Performing lifecycle status check...")
+        extension_sequence = self.read_extension_sequence()
+        arc_core_sequence = self.read_arc_core_sequence()
+
+        if int(extension_sequence['number']) == int(self.execution_config.sequence_number):
+            self.composite_logger.log_debug("Extension sequence number verified to have not changed: {0}".format(str(extension_sequence['number'])))
+        else:
+            self.composite_logger.log_error("Extension goal state has changed. Terminating current sequence: {0}".format(self.execution_config.sequence_number))
+            self.update_core_sequence(completed=True)   # forced-to-complete scenario | extension wrapper will be watching for this event
+            self.env_layer.exit(0)
+        self.composite_logger.log_debug("Completed lifecycle status check.")
+
+        if arc_core_sequence['completed'] == "False":
+            self.composite_logger.log_warning("ARC agent is currently running, sequence number {0}.".format(str(arc_core_sequence['number'])))
+            self.update_core_sequence(completed=True)   # forced-to-complete scenario | extension wrapper will be watching for this event
+            self.env_layer.exit(0)
+
+    # End region State checkers 
+
+    # region - Identity
+    def get_vm_context(self):
+        return Constants.VMType.ARC
+    #endregion 

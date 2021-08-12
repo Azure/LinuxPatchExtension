@@ -91,9 +91,7 @@ class Constants(object):
 
     # patch versions for healthstore when there is no maintenance run id
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
-    # Cosntants for VM Type
-    VM_AZURE = "Azure"
-    VM_ARC = "Arc"
+
     # Patch Modes for Configure Patching
     class PatchModes(EnumBackport):
         IMAGE_DEFAULT = "ImageDefault"
@@ -184,6 +182,14 @@ class Constants(object):
         STARTED = "Started"
         COMPLETED = "Completed"
         FAILED = "Failed"
+    
+    # Enum for VM Type
+    class VMType(EnumBackport):
+        AZURE = "Azure"
+        ARC = "Arc"
+        UNKNOWN = "Unknown"
+
+    IMDS_END_POINT = "http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01"
 
     # Maintenance Window
     PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES = 5
@@ -204,6 +210,7 @@ class Constants(object):
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         OPERATION_FAILED = "OPERATION_FAILED"
         DEFAULT_ERROR = "ERROR"  # default error code
+    
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 

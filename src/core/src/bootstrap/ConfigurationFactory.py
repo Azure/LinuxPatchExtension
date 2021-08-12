@@ -40,8 +40,15 @@ from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
 
 from core.src.service_interfaces.LifecycleManager import LifecycleManager
-from core.src.service_interfaces.LifecycleManagerFactory import LifecycleManagerFactory                                                       from core.src.service_interfaces.StatusHandler import StatusHandler
+from core.src.service_interfaces.LifecycleManagerAzure import LifecycleManagerAzure
+from core.src.service_interfaces.LifecycleManagerArc import LifecycleManagerArc                                                      
+from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
+
+try:
+    import urllib2 as urlreq   #Python 2.x
+except:
+    import urllib.request as urlreq   #Python 3.x
 
 
 class ConfigurationFactory(object):
@@ -68,6 +75,9 @@ class ConfigurationFactory(object):
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
             'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
         }
+        
+        self.vm_context = self.get_vm_environment()
+        self.lifecycle_manager_component = self.get_lifecycle_manager_component(self.vm_context)
 
     # region - Configuration Getters
     def get_bootstrap_configuration(self, env):
@@ -143,7 +153,7 @@ class ConfigurationFactory(object):
                 'component': TelemetryWriter,
                 'component_args': ['env_layer', 'composite_logger'],
                 'component_kwargs': {
-                    'events_folder_path': events_folder
+                    'events_folder_path': events_folder,
                 }
             },
         }
@@ -155,18 +165,21 @@ class ConfigurationFactory(object):
 
     def new_prod_configuration(self, package_manager_name, package_manager_component):
         """ Base configuration for Prod V2. """
+
         configuration = {
             'config_env': Constants.PROD,
             'package_manager_name': package_manager_name,
-            'lifecycle_manager_factory': {
-                'component': LifecycleManagerFactory,
+            'lifecycle_manager': {
+                'component': self.lifecycle_manager_component,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
                 'component_kwargs': {}
             },
             'status_handler': {
                 'component': StatusHandler,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
-                'component_kwargs': {}
+                'component_kwargs': {
+                    'vm_context': self.vm_context
+                }
             },
             'package_manager': {
                 'component': package_manager_component,
@@ -187,12 +200,12 @@ class ConfigurationFactory(object):
             },
             'patch_assessor': {
                 'component': PatchAssessor,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager','lifecycle_manager_factory'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager','lifecycle_manager'],
                 'component_kwargs': {}
             },
             'patch_installer': {
                 'component': PatchInstaller,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'lifecycle_manager_factory', 'package_manager', 'package_filter', 'maintenance_window', 'reboot_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'lifecycle_manager', 'package_manager', 'package_filter', 'maintenance_window', 'reboot_manager'],
                 'component_kwargs': {}
             },
             'service_info': {
@@ -240,4 +253,31 @@ class ConfigurationFactory(object):
         configuration['config_env'] = Constants.TEST
         # perform desired modifications to configuration
         return configuration
+
+    def get_lifecycle_manager_component(self,vm_context):
+        """ fnding life cycle manager based on vm and returning component name add in the prod configuration"""
+        azure_package_manager_component = LifecycleManagerAzure
+        arc_package_manager_component = LifecycleManagerArc
+        if(vm_context == Constants.VMType.AZURE):
+            return azure_package_manager_component
+        elif (vm_context == Constants.VMType.ARC):
+            return arc_package_manager_component
+        
+        return azure_package_manager_component
+   
+    def get_vm_environment(self):
+        """ detects vm type; how to check this only when it is Auto Assessment operation??? """
+        try:
+            metadata = "True"
+            request = urlreq.Request(Constants.IMDS_END_POINT)
+            request.add_header('Metadata',metadata)
+            res = urlreq.urlopen(request,timeout=2)
+
+            if(res.getcode() == 200):
+                return Constants.VMType.AZURE
+            else:
+                return Constants.VMType.ARC
+        except:
+            return Constants.VMType.ARC
+
     # endregion

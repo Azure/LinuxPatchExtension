@@ -39,15 +39,7 @@ class LifecycleManager(object):
         pass
 
     def lifecycle_status_check(self):
-        self.composite_logger.log_debug("Performing lifecycle status check...")
-        extension_sequence = self.read_extension_sequence()
-        if int(extension_sequence['number']) == int(self.execution_config.sequence_number):
-            self.composite_logger.log_debug("Extension sequence number verified to have not changed: {0}".format(str(extension_sequence['number'])))
-        else:
-            self.composite_logger.log_error("Extension goal state has changed. Terminating current sequence: {0}".format(self.execution_config.sequence_number))
-            self.update_core_sequence(completed=True)   # forced-to-complete scenario | extension wrapper will be watching for this event
-            self.env_layer.exit(0)
-        self.composite_logger.log_debug("Completed lifecycle status check.")
+        pass
     # endregion
 
     # region - State management
@@ -150,3 +142,8 @@ class LifecycleManager(object):
                 # According to "man 2 kill" possible error values are (EINVAL, EPERM, ESRCH) Thus considering this as an error
                 return False
     # endregion
+
+    # region - Identity
+    def get_vm_context(self):
+        pass
+    #endregion

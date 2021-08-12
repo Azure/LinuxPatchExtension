@@ -25,7 +25,7 @@ from core.src.bootstrap.Constants import Constants
 class StatusHandler(object):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, vm_conext):
         # Map supporting components for operation
         self.env_layer = env_layer
         self.execution_config = execution_config
@@ -33,6 +33,7 @@ class StatusHandler(object):
         self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
+        self.vm_context = vm_conext
 
         # Status components
         self.__high_level_status_message = ""
@@ -271,7 +272,7 @@ class StatusHandler(object):
                 other_patch_count += 1
 
         # Compose substatus message
-        return {
+        substatus_message =  {
             "assessmentActivityId": str(self.execution_config.activity_id),
             "rebootPending": self.is_reboot_pending,
             "criticalAndSecurityPatchCount": critsec_patch_count,
@@ -279,10 +280,12 @@ class StatusHandler(object):
             "patches": assessment_packages_json,
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
-            "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors),
-            "patchAssessmentStatus":code,
-            "patchAssessmentStatusString":status 
+            "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
         }
+        if(self.vm_context == Constants.VMType.ARC):
+            substatus_message["patchAssessmentStatus"] = code
+            substatus_message["patchAssessmentStatusString"] = status
+        return substatus_message
 
     def set_installation_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0):
         """ Prepare the deployment substatus json including the message containing deployment summary """
@@ -391,7 +394,7 @@ class StatusHandler(object):
                 Root --> Status --> Substatus [name: "ConfigurePatchingSummary"] --> FormattedMessage --> **Message** """
 
         # Compose substatus message
-        return {
+        substatus_message =  {
             "activityId": str(self.execution_config.activity_id),
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
@@ -400,10 +403,12 @@ class StatusHandler(object):
                 "autoAssessmentState": auto_assessment_state,
                 "errors": self.__set_errors_json(self.__configure_patching_auto_assessment_error_count, self.__configure_patching_auto_assessment_errors)
             },
-            "errors": self.__set_errors_json(self.__configure_patching_top_level_error_count, self.__configure_patching_errors),
-            "configurePatchStatus": code,
-            "configurePatchStatusString": status
+            "errors": self.__set_errors_json(self.__configure_patching_top_level_error_count, self.__configure_patching_errors)
         }
+        if(self.vm_context == Constants.VMType.ARC):
+            substatus_message["patchAssessmentStatus"] = code
+            substatus_message["patchAssessmentStatusString"] = status
+        return substatus_message
 
     @staticmethod
     def __new_substatus_json_for_operation(operation_name, status="Transitioning", code=0, message=json.dumps("{}")):

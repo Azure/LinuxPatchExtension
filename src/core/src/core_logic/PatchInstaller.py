@@ -23,14 +23,14 @@ from core.src.bootstrap.Constants import Constants
 
 class PatchInstaller(object):
     """" Wrapper class for a single patch installation operation """
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, lifecycle_manager_factory, package_manager, package_filter, maintenance_window, reboot_manager):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, lifecycle_manager, package_manager, package_filter, maintenance_window, reboot_manager):
         self.env_layer = env_layer
         self.execution_config = execution_config
 
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
         self.status_handler = status_handler
-        self.lifecycle_manager = lifecycle_manager_factory.getLifecycleManagerObject()
+        self.lifecycle_manager = lifecycle_manager
 
         self.package_manager = package_manager
         self.package_filter = package_filter
@@ -102,7 +102,7 @@ class PatchInstaller(object):
         return overall_patch_installation_successful
 
     def raise_if_agent_incompatible(self):
-        if not self.telemetry_writer.is_agent_compatible() and self.env_layer.get_vm_environment() == Constants.VM_AZURE:
+        if not self.telemetry_writer.is_agent_compatible() and self.lifecycle_manager.get_vm_context() == Constants.VMType.AZURE:
             error_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
             self.composite_logger.log_error(error_msg)
             raise Exception(error_msg)
