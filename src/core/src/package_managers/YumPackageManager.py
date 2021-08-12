@@ -72,6 +72,13 @@ class YumPackageManager(PackageManager):
 
         
 
+        # Known errors and the corresponding action items
+        self.known_errors_and_fixes = {"SSL peer rejected your certificate as expired": self.fix_ssl_certificate_issue,
+                                       "Error: Cannot retrieve repository metadata (repomd.xml) for repository": self.fix_ssl_certificate_issue,
+                                       "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
+        
+        self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
+
     def refresh_repo(self):
         pass  # Refresh the repo is no ops in YUM
 
@@ -80,7 +87,9 @@ class YumPackageManager(PackageManager):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
         code, out = self.env_layer.run_command_output(command, False, False)
+
         code, out = self.try_mitigate_issues_if_any(command, code, out)
+
         if code not in [self.yum_exitcode_ok, self.yum_exitcode_no_applicable_packages, self.yum_exitcode_updates_available]:
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))

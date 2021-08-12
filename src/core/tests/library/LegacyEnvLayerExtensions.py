@@ -866,6 +866,8 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = "Error: Cannot retrieve repository metadata (repomd.xml) for repository: addons. Please verify its path and try again"
 
+
+
             major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')

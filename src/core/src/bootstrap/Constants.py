@@ -49,7 +49,6 @@ class Constants(object):
 
     # Max values
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
-    
     class Paths(EnumBackport):
         SYSTEMD_ROOT = "etc/systemd/system/"
 
@@ -251,4 +250,3 @@ class Constants(object):
         PRIVILEGED_OP_MARKER = "Privileged_Op_e6df678d-d09b-436a-a08a-65f2f70a6798"
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
-

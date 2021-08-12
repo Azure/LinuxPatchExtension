@@ -79,7 +79,7 @@ class Bootstrapper(object):
         if bool(self.get_value_from_argv(self.argv, Constants.ARG_AUTO_ASSESS_ONLY, False)) and os.path.exists(self.log_file_path) \
                 and os.path.getsize(self.log_file_path) > Constants.MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES:
             os.remove(self.log_file_path)
-            
+
     def get_recorder_emulator_flags(self, argv):
         """ Determines if the recorder or emulator flags need to be changed from the defaults """
         recorder_enabled = False
@@ -163,7 +163,8 @@ class Bootstrapper(object):
             else:
                 raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
         except Exception as exception:
-            self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +                                            "Exception details: " + str(exception)))              
+            self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
+                                            "Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise
 
