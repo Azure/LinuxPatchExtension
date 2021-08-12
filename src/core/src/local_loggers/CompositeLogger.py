@@ -39,7 +39,7 @@ class CompositeLogger(object):
         """log output"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = message.strip()
-        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
+        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None and self.current_env != Constants.DEV:  # turned off for dev environment as it severely slows down execution
             self.telemetry_writer.write_event(message, message_type)
         if self.current_env in (Constants.DEV, Constants.TEST):
             for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
@@ -67,7 +67,7 @@ class CompositeLogger(object):
         if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None and self.current_env not in (Constants.DEV, Constants.TEST):
             self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Verbose)
         if self.current_env in (Constants.DEV, Constants.TEST):
-            self.log(self.current_env + ": " + message, Constants.TelemetryEventLevel.Verbose)  # send to standard output if dev or test env
+            self.log(self.current_env + ": " + str(self.env_layer.datetime.datetime_utcnow()) + ": " + message, Constants.TelemetryEventLevel.Verbose)  # send to standard output if dev or test env
         elif self.file_logger is not None:
             self.file_logger.write("\n\t" + self.DEBUG + " " + "\n\t".join(message.splitlines()).strip())
 

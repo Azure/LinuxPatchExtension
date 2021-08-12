@@ -805,6 +805,66 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("force-dpkg-failure") > -1:
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
+            elif self.legacy_test_type == 'SSLCertificateIssueType1HappyPathAfterFix':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("yum update -y --disablerepo='*' --enablerepo='*microsoft*'") > -1:
+                        code = 0
+                        output = "Loaded plugins: langpacks, product-id, search-disabled-repos " \
+                                 "Updated:" \
+                                 "rhui-azure-rhel7.noarch 0:2.2-222" \
+                                 "Complete!"
+                        self.legacy_test_type = "HappyPath"
+                    else:
+                        code = 0
+                        output = 'https://rhui-1.microsoft.com/pulp/repos//content/dist/rhel/rhui/server/7/7Server/x86_64/dotnet/1/os/repodata/repomd.xml: [Errno 14] curl#58 - "SSL peer rejected your certificate as expired."'
+            elif self.legacy_test_type == 'SSLCertificateIssueType1SadPathAfterFix':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("yum update -y --disablerepo='*' --enablerepo='*microsoft*'") > -1:
+                        code = 1
+                        output = "Update not successful"
+                    else:
+                        code = 0
+                        output = 'https://rhui-1.microsoft.com/pulp/repos//content/dist/rhel/rhui/server/7/7Server/x86_64/dotnet/1/os/repodata/repomd.xml: [Errno 14] curl#58 - "SSL peer rejected your certificate as expired."'
+            elif self.legacy_test_type == 'SSLCertificateIssueType2HappyPathAfterFix':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("yum update -y --disablerepo='*' --enablerepo='*microsoft*'") > -1:
+                        code = 0
+                        output = "Loaded plugins: langpacks, product-id, search-disabled-repos " \
+                                 "Updated:" \
+                                 "rhui-azure-rhel7.noarch 0:2.2-222" \
+                                 "Complete!"
+                        self.legacy_test_type = "HappyPath"
+                    else:
+                        code = 0
+                        output = "Error: Failed to download metadata for repo 'rhui-rhel-8-for-x86_64-baseos-rhui-rpms': Cannot download repomd.xml: Cannot download repodata/repomd.xml: All mirrors were tried"
+            elif self.legacy_test_type == 'SSLCertificateIssueType2SadPathAfterFix':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("yum update -y --disablerepo='*' --enablerepo='*microsoft*'") > -1:
+                        code = 1
+                        output = "Update not successful"
+                    else:
+                        code = 0
+                        output = "Error: Failed to download metadata for repo 'rhui-rhel-8-for-x86_64-baseos-rhui-rpms': Cannot download repomd.xml: Cannot download repodata/repomd.xml: All mirrors were tried"
+            elif self.legacy_test_type == 'SSLCertificateIssueType3HappyPathAfterFix':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("yum update -y --disablerepo='*' --enablerepo='*microsoft*'") > -1:
+                        code = 0
+                        output = "Loaded plugins: langpacks, product-id, search-disabled-repos " \
+                                 "Updated:" \
+                                 "rhui-azure-rhel7.noarch 0:2.2-222" \
+                                 "Complete!"
+                        self.legacy_test_type = "HappyPath"
+                    else:
+                        code = 0
+                        output = "Error: Cannot retrieve repository metadata (repomd.xml) for repository: addons. Please verify its path and try again"
+            elif self.legacy_test_type == 'SSLCertificateIssueType3SadPathAfterFix':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("yum update -y --disablerepo='*' --enablerepo='*microsoft*'") > -1:
+                        code = 1
+                        output = "Update not successful"
+                    else:
+                        code = 0
+                        output = "Error: Cannot retrieve repository metadata (repomd.xml) for repository: addons. Please verify its path and try again"
 
             major_version = self.get_python_major_version()
             if major_version == 2:

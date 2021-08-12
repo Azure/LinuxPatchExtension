@@ -47,6 +47,9 @@ class Constants(object):
     ARG_INTERNAL_RECORDER_ENABLED = "-recorderEnabled"
     ARG_INTERNAL_EMULATOR_ENABLED = "-emulatorEnabled"
 
+    # Max values
+    MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
+    
     class Paths(EnumBackport):
         SYSTEMD_ROOT = "etc/systemd/system/"
 

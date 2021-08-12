@@ -28,6 +28,7 @@ import time
 from core.src.bootstrap.Constants import Constants
 from core.src.external_dependencies import distro
 
+
 class EnvLayer(object):
     """ Environment related functions """
 
@@ -383,7 +384,7 @@ class EnvLayer(object):
         def timestamp(self):
             operation = "DATETIME_TIMESTAMP"
             if not self.__emulator_enabled:
-                value = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                value = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
                 self.__write_record(operation, code=0, output=value, delay=0)
                 return value
             else:

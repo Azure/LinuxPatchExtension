@@ -21,7 +21,7 @@ from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
-class TestContainer(unittest.TestCase):
+class TestConfigurationFactory(unittest.TestCase):
     def setUp(self):
         self.argument_composer = ArgumentComposer().get_composed_arguments()
         self.runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.ZYPPER)

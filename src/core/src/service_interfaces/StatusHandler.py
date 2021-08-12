@@ -406,8 +406,8 @@ class StatusHandler(object):
             "errors": self.__set_errors_json(self.__configure_patching_top_level_error_count, self.__configure_patching_errors)
         }
         if(self.vm_context == Constants.VMType.ARC):
-            substatus_message["patchAssessmentStatus"] = code
-            substatus_message["patchAssessmentStatusString"] = status
+            substatus_message["configurePatchStatus"] = code
+            substatus_message["configurePatchStatusString"] = status
         return substatus_message
 
     @staticmethod
@@ -644,7 +644,7 @@ class StatusHandler(object):
             else:
                 self.set_installation_substatus_json()
         elif current_operation == Constants.CONFIGURE_PATCHING or current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
-            if current_operation == current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
+            if current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
                 self.__add_error(self.__configure_patching_auto_assessment_errors, error_detail)
                 self.__configure_patching_auto_assessment_error_count += 1
             else:

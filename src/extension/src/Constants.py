@@ -99,7 +99,6 @@ class Constants(object):
     PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
     CONFIGURE_PATCHING = "ConfigurePatching"
     CONFIGURE_PATCHING_SUMMARY = "ConfigurePatchingSummary"
-    AUTO_ASSESSMENT_ONLY = "-AutoAssessmentOnly"
 
     # Handler actions
     ENABLE = "Enable"

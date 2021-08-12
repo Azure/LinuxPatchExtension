@@ -30,7 +30,7 @@ class ServiceManager(object):
         self.service_desc = service_info.service_desc
         self.service_exec_path = service_info.service_exec_path
 
-        self.__systemd_path = "/run/systemd/system/"
+        self.__systemd_path = Constants.Paths.SYSTEMD_ROOT
         self.__systemd_service_unit_path = "/etc/systemd/system/{0}.service"
 
         self.service_start_cmd = "sudo systemctl start {0}.service"
@@ -55,7 +55,7 @@ class ServiceManager(object):
     def create_and_set_service_idem(self):
         """ Idempotent creation and setting of the service associated with the service the class is instantiated with """
         self.remove_service()
-        self.create_service_unit_file(exec_start="/bin/bash " + self.service_exec_path, desc="Microsoft Linux Patch Extension - Auto-assessment")
+        self.create_service_unit_file(exec_start="/bin/bash " + self.service_exec_path, desc=Constants.AUTO_ASSESSMENT_SERVICE_DESC)
         self.systemctl_daemon_reload()
         self.enable_service()
         self.start_service()
@@ -74,8 +74,10 @@ class ServiceManager(object):
         return code == 0
 
     def get_service_status(self):
-        code, out = self.__invoke_systemctl(self.service_stop_cmd.format(self.service_name), "Stopping the service.")
-        return code == 0
+        # To do: Soft-check status if configuration is as expected
+        # code, out = self.__invoke_systemctl(self.service_stop_cmd.format(self.service_name), "Stopping the service.")
+        # return code == 0
+        pass
 
     def enable_service(self):
         code, out = self.__invoke_systemctl(self.service_enable_cmd.format(self.service_name), "Enabling the service.")
@@ -97,7 +99,7 @@ class ServiceManager(object):
     def systemctl_daemon_reload(self):
         """ Reloads daemon """
         code, out = self.__invoke_systemctl(self.systemctl_daemon_reload_cmd)
-        return True if code == 0 else False
+        return code == 0
 
     def __invoke_systemctl(self, command, action_description=None):
         """ Invokes systemctl with the specified command and standardized logging """

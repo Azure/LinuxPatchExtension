@@ -38,7 +38,6 @@ class TestProcessHandler(unittest.TestCase):
         self.utility = runtime.utility
         self.json_file_handler = runtime.json_file_handler
         self.env_layer = runtime.env_layer
-        seq_no = 1234
         dir_path = os.path.join(os.path.pardir, "tests", "helpers")
         self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
         self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
