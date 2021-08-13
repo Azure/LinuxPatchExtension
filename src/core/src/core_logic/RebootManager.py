@@ -104,6 +104,11 @@ class RebootManager(object):
             self.composite_logger.log(" - There was no reboot pending detected. Reboot is being skipped as it's not required, as per patch installation configuration (" + str(Constants.REBOOT_IF_REQUIRED) + ").")
             return False
 
+        # prevent repeated reboots
+        if self.reboot_setting == Constants.REBOOT_ALWAYS and not reboot_pending and self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
+            self.composite_logger.log(" - At least one reboot has occurred, and there's no reboot pending, so the conditions for the 'Reboot Always' setting is fulfilled and reboot won't be repeated.")
+            return False
+
         # attempt to reboot is enough time is available
         if self.reboot_setting == Constants.REBOOT_ALWAYS or (self.reboot_setting == Constants.REBOOT_IF_REQUIRED and reboot_pending):
             if self.is_reboot_time_available(current_time_available):
