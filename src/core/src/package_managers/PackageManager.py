@@ -304,7 +304,7 @@ class PackageManager(object):
 
     # region Package Manager Settings
     def get_package_manager_setting(self, setting_key, default_value='d5414abb-62f9-40e3-96e1-d579f85a79ba'):
-        # type: (str, object) ->  # type hinting to remove a warning
+        # type: (str, object) -> "" # type hinting to remove a warning
         """Gets any set package manager setting"""
         if setting_key in self.package_manager_settings:
             return self.package_manager_settings[setting_key]
@@ -316,7 +316,7 @@ class PackageManager(object):
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
     def set_package_manager_setting(self, setting_key, setting_value=""):
-        # type: (str, object) ->  # type hinting to remove a warning
+        # type: (str, object) -> "" # type hinting to remove a warning
         """Sets package manager setting"""
         self.package_manager_settings[setting_key] = setting_value
     # endregion
