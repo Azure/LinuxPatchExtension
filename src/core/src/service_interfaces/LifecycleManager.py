@@ -144,6 +144,6 @@ class LifecycleManager(object):
     # endregion
 
     # region - Identity
-    def get_vm_context(self):
+    def get_vm_cloud_type(self):
         pass
     #endregion

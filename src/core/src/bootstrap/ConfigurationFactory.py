@@ -76,8 +76,8 @@ class ConfigurationFactory(object):
             'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
         }
         
-        self.vm_context = self.get_vm_environment()
-        self.lifecycle_manager_component = self.get_lifecycle_manager_component(self.vm_context)
+        self.vm_cloud_type = self.get_vm_cloud_type()
+        self.lifecycle_manager_component = self.get_lifecycle_manager_component(self.vm_cloud_type)
 
     # region - Configuration Getters
     def get_bootstrap_configuration(self, env):
@@ -178,7 +178,7 @@ class ConfigurationFactory(object):
                 'component': StatusHandler,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
                 'component_kwargs': {
-                    'vm_context': self.vm_context
+                    'vm_cloud_type': self.vm_cloud_type
                 }
             },
             'package_manager': {
@@ -254,19 +254,20 @@ class ConfigurationFactory(object):
         # perform desired modifications to configuration
         return configuration
 
-    def get_lifecycle_manager_component(self,vm_context):
-        """ fnding life cycle manager based on vm and returning component name add in the prod configuration"""
-        azure_package_manager_component = LifecycleManagerAzure
-        arc_package_manager_component = LifecycleManagerArc
-        if(vm_context == Constants.VMType.AZURE):
-            return azure_package_manager_component
-        elif (vm_context == Constants.VMType.ARC):
-            return arc_package_manager_component
+    def get_lifecycle_manager_component(self, vm_cloud_type):
+        """ finding life cycle manager based on vm and returning component name added in the prod configuration """
+        azure_lifecycle_manager_component = LifecycleManagerAzure
+        arc_lifecycle_manager_component = LifecycleManagerArc
+        if(vm_cloud_type == Constants.VMCloudType.AZURE):
+            return azure_lifecycle_manager_component
+        elif (vm_cloud_type == Constants.VMCloudType.ARC):
+            return arc_lifecycle_manager_component
         
-        return azure_package_manager_component
+        return azure_lifecycle_manager_component
    
-    def get_vm_environment(self):
-        """ detects vm type; how to check this only when it is Auto Assessment operation??? """
+    def get_vm_cloud_type(self):
+        """ detects vm type.
+        Todo:  how to check this only when it is Auto Assessment operation??? """
         try:
             metadata = "True"
             request = urlreq.Request(Constants.IMDS_END_POINT)
@@ -274,10 +275,10 @@ class ConfigurationFactory(object):
             res = urlreq.urlopen(request,timeout=2)
 
             if(res.getcode() == 200):
-                return Constants.VMType.AZURE
+                return Constants.VMCloudType.AZURE
             else:
-                return Constants.VMType.ARC
+                return Constants.VMCloudType.ARC
         except:
-            return Constants.VMType.ARC
+            return Constants.VMCloudType.ARC
 
     # endregion

@@ -1,4 +1,4 @@
-# Copyright 2020 Microsoft Corporation
+# Copyright 2021 Microsoft Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ class LifecycleManagerArc(LifecycleManager):
         self.composite_logger.log_debug("Initializing LifecycleManagerArc")
         #Variables
         self.arc_root = "/var/lib/waagent/"
-        self.core_file_name = "CoreState.json"
+        self.arc_core_state_file_name = "CoreState.json"
         self.arc_extension_folder_pattern = "Microsoft.SoftwareUpdateManagement.LinuxOsUpdateExtension-*"
         self.config_folder_path = "/config/"
 
@@ -54,16 +54,12 @@ class LifecycleManagerArc(LifecycleManager):
             # newer sequence number has been observed, do not run
             if int(self.execution_config.sequence_number) < int(extension_sequence['number']) \
                     or int(self.execution_config.sequence_number) < int(core_sequence['number']):
-                self.composite_logger.log_warning("Auto-assessment not started as newer sequence number detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]".format(str(self.execution_config.sequence_number), str(extension_sequence['number']), str(core_sequence['number'])))
-                                                                                                                                                                                                         
+                self.composite_logger.log_warning("Auto-assessment not started as newer sequence number detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]".format(str(self.execution_config.sequence_number), str(extension_sequence['number']), str(core_sequence['number'])))                                                                                                                                                                                  
                 self.env_layer.exit(0)
-
 
             # anomalous extension state encountered, do not run - this needs to be investigated if ever encountered
             if int(self.execution_config.sequence_number) > int(extension_sequence['number']) \
-                    or int(self.execution_config.sequence_number) > int(core_sequence['number']):
-                                                  
-                                                                             
+                    or int(self.execution_config.sequence_number) > int(core_sequence['number']):                                                             
                 self.composite_logger.log_error("Auto-assessment not started as an extension state anomaly was detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]".format(str(self.execution_config.sequence_number), str(extension_sequence['number']),str(core_sequence['number'])))
                 self.env_layer.exit(0)
 
@@ -82,7 +78,6 @@ class LifecycleManagerArc(LifecycleManager):
                     else:
                         # MAY BE SAFE TO START
                         self.composite_logger.log_warning("Auto-assessment is LIKELY safe to start, BUT core sequence anomalies were detected. Evaluating further. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
-
                         # wait to see if Core comes back from a restart
                         timer_start_time = self.env_layer.datetime.datetime_utcnow()
                         while True:
@@ -123,15 +118,13 @@ class LifecycleManagerArc(LifecycleManager):
     def get_arc_core_state_file(self):
         """ Retrieve Arc folder path (including version ) """
         cmd = "ls " + self.arc_root + " | grep " + self.arc_extension_folder_pattern
-        
         code, out = self.env_layer.run_command_output(cmd,False,False)
-
         if out == "" or "not recognized as an internal or external command" in out:
             self.composite_logger.log_warning("Could not find location of ARC core status file")
             return ""
         lines = out.split("\n")
         dir_name = lines[0].lstrip()
-        core_state_file_path = self.arc_root + dir_name + self.config_folder_path + self.core_file_name
+        core_state_file_path = self.arc_root + dir_name + self.config_folder_path + self.arc_core_state_file_name
         return core_state_file_path
 
     def read_arc_core_sequence(self):
@@ -182,6 +175,6 @@ class LifecycleManagerArc(LifecycleManager):
     # End region State checkers 
 
     # region - Identity
-    def get_vm_context(self):
-        return Constants.VMType.ARC
+    def get_vm_cloud_type(self):
+        return Constants.VMCloudType.ARC
     #endregion 

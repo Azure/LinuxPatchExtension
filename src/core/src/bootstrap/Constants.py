@@ -49,6 +49,7 @@ class Constants(object):
 
     # Max values
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
+    
     class Paths(EnumBackport):
         SYSTEMD_ROOT = "etc/systemd/system/"
 
@@ -186,10 +187,10 @@ class Constants(object):
         FAILED = "Failed"
     
     # Enum for VM Type
-    class VMType(EnumBackport):
+    class VMCloudType(EnumBackport):
+        UNKNOWN = "Unknown"
         AZURE = "Azure"
         ARC = "Arc"
-        UNKNOWN = "Unknown"
 
     IMDS_END_POINT = "http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01"
 

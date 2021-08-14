@@ -25,7 +25,7 @@ from core.src.bootstrap.Constants import Constants
 class StatusHandler(object):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, vm_conext):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, vm_cloud_type):
         # Map supporting components for operation
         self.env_layer = env_layer
         self.execution_config = execution_config
@@ -33,7 +33,7 @@ class StatusHandler(object):
         self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
-        self.vm_context = vm_conext
+        self.vm_cloud_type = vm_cloud_type
 
         # Status components
         self.__high_level_status_message = ""
@@ -282,7 +282,7 @@ class StatusHandler(object):
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
             "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
         }
-        if(self.vm_context == Constants.VMType.ARC):
+        if(self.vm_context == Constants.VMCloudType.ARC):
             substatus_message["patchAssessmentStatus"] = code
             substatus_message["patchAssessmentStatusString"] = status
         return substatus_message
@@ -405,7 +405,7 @@ class StatusHandler(object):
             },
             "errors": self.__set_errors_json(self.__configure_patching_top_level_error_count, self.__configure_patching_errors)
         }
-        if(self.vm_context == Constants.VMType.ARC):
+        if(self.vm_cloud_type == Constants.VMCloudType.ARC):
             substatus_message["configurePatchStatus"] = code
             substatus_message["configurePatchStatusString"] = status
         return substatus_message

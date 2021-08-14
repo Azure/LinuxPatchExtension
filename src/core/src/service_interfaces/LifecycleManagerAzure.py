@@ -119,6 +119,6 @@ class LifecycleManagerAzure(LifecycleManager):
 
     # End region State checkers      
     # region - Identity
-    def get_vm_context(self):
-        return Constants.VMType.AZURE
+    def get_vm_cloud_type(self):
+        return Constants.VMCloudType.AZURE
     #endregion                    
