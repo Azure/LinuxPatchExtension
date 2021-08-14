@@ -203,6 +203,10 @@ class StatusHandler(object):
     # endregion
 
     # region - Installation Reboot Status
+    def get_installation_reboot_status(self):
+        """ Safe retrieval of currently stored reboot status (stateful) """
+        return self.__installation_reboot_status
+
     def set_installation_reboot_status(self, new_reboot_status):
         """ Valid reboot statuses: NotNeeded, Required, Started, Failed, Completed """
         if new_reboot_status not in [Constants.RebootStatus.NOT_NEEDED, Constants.RebootStatus.REQUIRED, Constants.RebootStatus.STARTED, Constants.RebootStatus.FAILED, Constants.RebootStatus.COMPLETED]:
@@ -271,7 +275,10 @@ class StatusHandler(object):
             else:
                 other_patch_count += 1
 
-        # Compose substatus message
+        # discern started by
+        started_by = Constants.PatchAssessmentSummaryStartedBy.PLATFORM if self.execution_config.operation == Constants.AUTO_ASSESSMENT else Constants.PatchAssessmentSummaryStartedBy.USER
+
+        # Compose sub-status message
         substatus_message =  {
             "assessmentActivityId": str(self.execution_config.activity_id),
             "rebootPending": self.is_reboot_pending,
@@ -280,6 +287,7 @@ class StatusHandler(object):
             "patches": assessment_packages_json,
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
+            "startedBy": str(started_by),
             "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
         }
         if(self.vm_context == Constants.VMCloudType.ARC):
