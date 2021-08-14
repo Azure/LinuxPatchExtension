@@ -229,7 +229,7 @@ class ConfigurationFactory(object):
             },
             'configure_patching_processor': {
                 'component': ConfigurePatchingProcessor,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager', 'auto_assess_service_manager', 'auto_assess_timer_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager', 'auto_assess_service_manager', 'auto_assess_timer_manager', 'lifecycle_manager'],
                 'component_kwargs': {}
             },
             'maintenance_window': {
@@ -266,19 +266,23 @@ class ConfigurationFactory(object):
         return azure_lifecycle_manager_component
    
     def get_vm_cloud_type(self):
-        """ detects vm type.
+        """ detects vm type. logic taken from HCRP code: https://github.com/PowerShell/DesiredStateConfiguration/blob/dev/src/dsc/dsc_service/service_main.cpp#L115
         Todo:  how to check this only when it is Auto Assessment operation??? """
+        metadata_value = "True"
+        user_agent_value = "ArcAgent"
+        request = urlreq.Request(Constants.IMDS_END_POINT)
+        request.add_header('Metadata',metadata_value)
+        request.add_header('UserAgent',user_agent_value)
         try:
-            metadata = "True"
-            request = urlreq.Request(Constants.IMDS_END_POINT)
-            request.add_header('Metadata',metadata)
             res = urlreq.urlopen(request,timeout=2)
-
-            if(res.getcode() == 200):
-                return Constants.VMCloudType.AZURE
-            else:
-                return Constants.VMCloudType.ARC
         except:
+            """ Failed to connect to Azure IMDS endpoint. This is expected on Arc machine - but not expected on Azure machine."""
             return Constants.VMCloudType.ARC
-
+            
+        if(res.getcode() == 200):
+            return Constants.VMCloudType.AZURE
+        else:
+            """ Failed to connect to Azure IMDS endpoint. This is expected on Arc machine - but not expected on Azure machine."""
+            return Constants.VMCloudType.ARC
+            
     # endregion

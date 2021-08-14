@@ -99,7 +99,7 @@ class PatchInstaller(object):
         return overall_patch_installation_successful
 
     def raise_if_agent_incompatible(self):
-        if not self.telemetry_writer.is_agent_compatible() and self.lifecycle_manager.get_vm_cloud_type() == Constants.VMType.AZURE:
+        if not self.telemetry_writer.is_agent_compatible() and self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.AZURE:
             error_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
             self.composite_logger.log_error(error_msg)
             raise Exception(error_msg)
