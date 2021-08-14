@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.19"
+    EXT_VERSION = "1.6.20"
 
     # Runtime environments
     TEST = 'Test'
@@ -185,6 +185,11 @@ class Constants(object):
         STARTED = "Started"
         COMPLETED = "Completed"
         FAILED = "Failed"
+
+    # StartedBy Patch Assessment Summary Status Values
+    class PatchAssessmentSummaryStartedBy(EnumBackport):
+        USER = "User"
+        PLATFORM = "Platform"
 
     # Maintenance Window
     PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES = 5
