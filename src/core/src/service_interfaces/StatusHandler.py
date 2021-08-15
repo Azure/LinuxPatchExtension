@@ -290,7 +290,7 @@ class StatusHandler(object):
             "startedBy": str(started_by),
             "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
         }
-        if(self.vm_context == Constants.VMCloudType.ARC):
+        if(self.vm_cloud_type == Constants.VMCloudType.ARC):
             substatus_message["patchAssessmentStatus"] = code
             substatus_message["patchAssessmentStatusString"] = status
         return substatus_message

@@ -56,6 +56,9 @@ class ConfigurationFactory(object):
     DI container relies on the key name to find and resolve dependencies. If you do need change it, please make sure to
     update the key name in all places that reference it. """
     def __init__(self, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder):
+        self.vm_cloud_type = self.get_vm_cloud_type()
+        self.lifecycle_manager_component = self.get_lifecycle_manager_component(self.vm_cloud_type)
+
         self.bootstrap_configurations = {
             'prod_config':  self.new_bootstrap_configuration(Constants.PROD, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder),
             'dev_config':   self.new_bootstrap_configuration(Constants.DEV, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder),
@@ -76,8 +79,7 @@ class ConfigurationFactory(object):
             'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
         }
         
-        self.vm_cloud_type = self.get_vm_cloud_type()
-        self.lifecycle_manager_component = self.get_lifecycle_manager_component(self.vm_cloud_type)
+
 
     # region - Configuration Getters
     def get_bootstrap_configuration(self, env):
@@ -284,5 +286,5 @@ class ConfigurationFactory(object):
         else:
             """ Failed to connect to Azure IMDS endpoint. This is expected on Arc machine - but not expected on Azure machine."""
             return Constants.VMCloudType.ARC
-            
+
     # endregion
