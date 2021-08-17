@@ -49,7 +49,7 @@ class Constants(object):
 
     # Max values
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
-    
+
     class Paths(EnumBackport):
         SYSTEMD_ROOT = "etc/systemd/system/"
 
@@ -186,7 +186,7 @@ class Constants(object):
         COMPLETED = "Completed"
         FAILED = "Failed"
     
-    # Enum for VM Type
+    # Enum for VM Cloud Type
     class VMCloudType(EnumBackport):
         UNKNOWN = "Unknown"
         AZURE = "Azure"
@@ -218,7 +218,6 @@ class Constants(object):
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         OPERATION_FAILED = "OPERATION_FAILED"
         DEFAULT_ERROR = "ERROR"  # default error code
-    
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 

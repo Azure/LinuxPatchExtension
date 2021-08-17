@@ -118,7 +118,7 @@ class LifecycleManagerArc(LifecycleManager):
     def get_arc_core_state_file(self):
         """ Retrieve Arc folder path (including version ) """
         cmd = "ls " + self.arc_root + " | grep " + self.arc_extension_folder_pattern
-        code, out = self.env_layer.run_command_output(cmd,False,False)
+        code, out = self.env_layer.run_command_output(cmd, False, False)
         if out == "" or "not recognized as an internal or external command" in out:
             self.composite_logger.log_warning("Could not find location of ARC core status file")
             return ""
@@ -177,4 +177,5 @@ class LifecycleManagerArc(LifecycleManager):
     # region - Identity
     def get_vm_cloud_type(self):
         return Constants.VMCloudType.ARC
-    #endregion 
+    #endregion
+

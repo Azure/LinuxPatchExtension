@@ -79,7 +79,7 @@ class ProcessHandler(object):
         if python_cmd == Constants.PYTHON_NOT_FOUND:
             self.logger.log("Cannot execute patch operation due to error. [Error={0}]".format(Constants.PYTHON_NOT_FOUND))
             return
-            
+
         # Generating core execution command
         base_command = python_cmd + " " + exec_path + " " + args
         command = [base_command]

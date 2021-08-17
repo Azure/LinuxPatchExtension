@@ -20,7 +20,7 @@ from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
-class TestLifecycleManager(unittest.TestCase):
+class TestLifecycleManagerAzure(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
         self.container = self.runtime.container

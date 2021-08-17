@@ -17,6 +17,7 @@
 """ Configure factory. This module populates configuration based on package manager and environment, e.g. TEST/DEV/PROD"""
 from __future__ import print_function
 import os
+import time
 from core.src.bootstrap.Constants import Constants
 from core.src.bootstrap.EnvLayer import EnvLayer
 
@@ -78,8 +79,6 @@ class ConfigurationFactory(object):
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
             'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
         }
-        
-
 
     # region - Configuration Getters
     def get_bootstrap_configuration(self, env):
@@ -260,7 +259,7 @@ class ConfigurationFactory(object):
         """ finding life cycle manager based on vm and returning component name added in the prod configuration """
         azure_lifecycle_manager_component = LifecycleManagerAzure
         arc_lifecycle_manager_component = LifecycleManagerArc
-        if(vm_cloud_type == Constants.VMCloudType.AZURE):
+        if (vm_cloud_type == Constants.VMCloudType.AZURE):
             return azure_lifecycle_manager_component
         elif (vm_cloud_type == Constants.VMCloudType.ARC):
             return arc_lifecycle_manager_component
@@ -273,18 +272,25 @@ class ConfigurationFactory(object):
         metadata_value = "True"
         user_agent_value = "ArcAgent"
         request = urlreq.Request(Constants.IMDS_END_POINT)
-        request.add_header('Metadata',metadata_value)
-        request.add_header('UserAgent',user_agent_value)
-        try:
-            res = urlreq.urlopen(request,timeout=2)
-        except:
-            """ Failed to connect to Azure IMDS endpoint. This is expected on Arc machine - but not expected on Azure machine."""
-            return Constants.VMCloudType.ARC
+        request.add_header('Metadata', metadata_value)
+        request.add_header('UserAgent', user_agent_value)
+        print("\nTrying to connect IMDS end point. URL:{0}.".format(str(Constants.IMDS_END_POINT)))
+        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT + 1):
+            try:
+                res = urlreq.urlopen(request, timeout=2)
+                print(res.get_code())
+                if(res.getcode() == 200):
+                    print("Connection to IMDS end point. This is expected in Azure VM. VMCloudType is Azure\n")
+                    return Constants.VMCloudType.AZURE
+                else:
+                    raise
+            except:
+                """ Failed to connect to Azure IMDS endpoint. This is expected on Arc machine - but not expected on Azure machine."""
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
+                    print("Failed to connect to IMDS end point. [Retry Count={0}].".format(str(i)))
+                    time.sleep(i+1)
+                else:
+                    print("Failed to connect IMDS end point. This is expected in ARC VM. VMCloudType is Arc\n")
+                    return Constants.VMCloudType.ARC
             
-        if(res.getcode() == 200):
-            return Constants.VMCloudType.AZURE
-        else:
-            """ Failed to connect to Azure IMDS endpoint. This is expected on Arc machine - but not expected on Azure machine."""
-            return Constants.VMCloudType.ARC
-
     # endregion

@@ -121,4 +121,6 @@ class LifecycleManagerAzure(LifecycleManager):
     # region - Identity
     def get_vm_cloud_type(self):
         return Constants.VMCloudType.AZURE
-    #endregion                    
+    #endregion
+
+  
