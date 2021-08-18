@@ -280,7 +280,7 @@ class ConfigurationFactory(object):
                 res = urlreq.urlopen(request, timeout=2)
                 print(res.get_code())
                 if(res.getcode() == 200):
-                    print("Connection to IMDS end point. This is expected in Azure VM. VMCloudType is Azure\n")
+                    print("Connection to IMDS end point successfully established.VMCloudType is Azure\n")
                     return Constants.VMCloudType.AZURE
                 else:
                     raise
