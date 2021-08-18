@@ -275,7 +275,7 @@ class ConfigurationFactory(object):
         request.add_header('Metadata', metadata_value)
         request.add_header('UserAgent', user_agent_value)
         print("\nTrying to connect IMDS end point. URL:{0}.".format(str(Constants.IMDS_END_POINT)))
-        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT + 1):
+        for i in range(0, Constants.IMDS_CONNECTION_RETRY_COUNT + 1):
             try:
                 res = urlreq.urlopen(request, timeout=2)
                 print(res.get_code())
@@ -286,7 +286,7 @@ class ConfigurationFactory(object):
                     raise
             except:
                 """ Failed to connect to Azure IMDS endpoint. This is expected on Arc machine - but not expected on Azure machine."""
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
+                if i < Constants.IMDS_CONNECTION_RETRY_COUNT:
                     print("Failed to connect to IMDS end point. [Retry Count={0}].".format(str(i)))
                     time.sleep(i+1)
                 else:

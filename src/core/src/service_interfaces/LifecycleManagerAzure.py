@@ -44,7 +44,6 @@ class LifecycleManagerAzure(LifecycleManager):
             if int(self.execution_config.sequence_number) < int(extension_sequence['number']) \
                     or int(self.execution_config.sequence_number) < int(core_sequence['number']):
                 self.composite_logger.log_warning("Auto-assessment not started as newer sequence number detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]".format(str(self.execution_config.sequence_number), str(extension_sequence['number']), str(core_sequence['number'])))
-                                                                                                                                                                                                         
                 self.env_layer.exit(0)
 
             # anomalous extension state encountered, do not run - this needs to be investigated if ever encountered
@@ -123,4 +122,3 @@ class LifecycleManagerAzure(LifecycleManager):
         return Constants.VMCloudType.AZURE
     #endregion
 
-  
