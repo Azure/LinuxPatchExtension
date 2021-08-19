@@ -144,7 +144,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         if runtime.vm_cloud_type == Constants.VMCloudType.AZURE:
             self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
             self.assertTrue(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-            self.assertEquals(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"], "Error: Exception('Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent')")
+            self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         else:
             self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
