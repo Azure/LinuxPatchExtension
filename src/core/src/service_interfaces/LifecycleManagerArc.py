@@ -147,7 +147,7 @@ class LifecycleManagerArc(LifecycleManager):
                     core_sequence = json.load(file_handle)['coreSequence']
                     return core_sequence
             except Exception as error:
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
                     self.composite_logger.log_warning("Exception on arc core sequence read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i + 1)
                 else:
