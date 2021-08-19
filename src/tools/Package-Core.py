@@ -32,7 +32,8 @@ VERY_FIRST_IMPORTS = [
     'from __future__ import print_function\n',
     'from abc import ABCMeta, abstractmethod\n',
     'from datetime import timedelta\n',
-    'from external_dependencies import distro\n']
+    'from external_dependencies import distro\n',
+    'try:\n import urllib2 as urlreq   #Python 2.x \nexcept:\n import urllib.request as urlreq   #Python 3.x\n']
 GLOBAL_IMPORTS = set()
 
 
@@ -127,7 +128,7 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
                     continue
                 elif 'external_dependencies' in file_path:
                     continue
-                elif os.path.basename(file_path) in ('PackageManager.py', 'Constants.py'):
+                elif os.path.basename(file_path) in ('PackageManager.py', 'Constants.py', 'LifecycleManager.py'):
                     modules_to_be_merged.insert(0, file_path)
                 else:
                     if len(modules_to_be_merged) > 0 and '__main__.py' in modules_to_be_merged[-1]:

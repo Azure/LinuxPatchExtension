@@ -199,14 +199,14 @@ class TestStatusHandler(unittest.TestCase):
     def test_status_file_initial_load(self):
         # for non autopatching request, with Reboot started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         self.assertTrue(status_handler is not None)
 
         # for autopatching request, with reboot started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
         self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json()
         self.runtime.execution_config.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertTrue(len(substatus_file_data) == 1)
@@ -214,7 +214,7 @@ class TestStatusHandler(unittest.TestCase):
         # for autopatching request, with reboot not started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)
         self.runtime.execution_config.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertTrue(status_handler is not None)
