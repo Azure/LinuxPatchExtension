@@ -19,7 +19,7 @@ from core.src.bootstrap.Constants import Constants
 
 
 class ConfigurePatchingProcessor(object):
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, auto_assess_service_manager, auto_assess_timer_manager):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, auto_assess_service_manager, auto_assess_timer_manager, lifecycle_manager):
         self.env_layer = env_layer
         self.execution_config = execution_config
 
@@ -30,6 +30,7 @@ class ConfigurePatchingProcessor(object):
         self.package_manager = package_manager
         self.auto_assess_service_manager = auto_assess_service_manager
         self.auto_assess_timer_manager = auto_assess_timer_manager
+        self.lifecycle_manager = lifecycle_manager
 
         self.current_auto_os_patch_state = Constants.AutomaticOsPatchStates.UNKNOWN
         self.current_auto_assessment_state = Constants.AutoAssessmentStates.UNKNOWN
@@ -128,6 +129,9 @@ class ConfigurePatchingProcessor(object):
                                                                   auto_assessment_state=self.current_auto_assessment_state)
 
     def __raise_if_agent_incompatible(self):
+        if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
+            self.composite_logger.log("Skipping agent compatibility check for Arc cloud type when operation is not manual")
+            return
         if not self.telemetry_writer.is_agent_compatible():
             error_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
             self.composite_logger.log_error(error_msg)

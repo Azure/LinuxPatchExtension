@@ -17,6 +17,7 @@
 """ Configure factory. This module populates configuration based on package manager and environment, e.g. TEST/DEV/PROD"""
 from __future__ import print_function
 import os
+import time
 from core.src.bootstrap.Constants import Constants
 from core.src.bootstrap.EnvLayer import EnvLayer
 
@@ -40,8 +41,15 @@ from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
 
 from core.src.service_interfaces.LifecycleManager import LifecycleManager
+from core.src.service_interfaces.LifecycleManagerAzure import LifecycleManagerAzure
+from core.src.service_interfaces.LifecycleManagerArc import LifecycleManagerArc                                                      
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
+
+try:
+    import urllib2 as urlreq   #Python 2.x
+except:
+    import urllib.request as urlreq   #Python 3.x
 
 
 class ConfigurationFactory(object):
@@ -49,6 +57,9 @@ class ConfigurationFactory(object):
     DI container relies on the key name to find and resolve dependencies. If you do need change it, please make sure to
     update the key name in all places that reference it. """
     def __init__(self, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder):
+        self.vm_cloud_type = self.get_vm_cloud_type()
+        self.lifecycle_manager_component = self.get_lifecycle_manager_component(self.vm_cloud_type)
+
         self.bootstrap_configurations = {
             'prod_config':  self.new_bootstrap_configuration(Constants.PROD, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder),
             'dev_config':   self.new_bootstrap_configuration(Constants.DEV, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder),
@@ -155,18 +166,21 @@ class ConfigurationFactory(object):
 
     def new_prod_configuration(self, package_manager_name, package_manager_component):
         """ Base configuration for Prod V2. """
+
         configuration = {
             'config_env': Constants.PROD,
             'package_manager_name': package_manager_name,
             'lifecycle_manager': {
-                'component': LifecycleManager,
+                'component': self.lifecycle_manager_component,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
                 'component_kwargs': {}
             },
             'status_handler': {
                 'component': StatusHandler,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
-                'component_kwargs': {}
+                'component_kwargs': {
+                    'vm_cloud_type': self.vm_cloud_type
+                }
             },
             'package_manager': {
                 'component': package_manager_component,
@@ -187,7 +201,7 @@ class ConfigurationFactory(object):
             },
             'patch_assessor': {
                 'component': PatchAssessor,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager', 'lifecycle_manager'],
                 'component_kwargs': {}
             },
             'patch_installer': {
@@ -216,7 +230,7 @@ class ConfigurationFactory(object):
             },
             'configure_patching_processor': {
                 'component': ConfigurePatchingProcessor,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager', 'auto_assess_service_manager', 'auto_assess_timer_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager', 'auto_assess_service_manager', 'auto_assess_timer_manager', 'lifecycle_manager'],
                 'component_kwargs': {}
             },
             'maintenance_window': {
@@ -240,4 +254,43 @@ class ConfigurationFactory(object):
         configuration['config_env'] = Constants.TEST
         # perform desired modifications to configuration
         return configuration
+
+    def get_lifecycle_manager_component(self, vm_cloud_type):
+        """ finding life cycle manager based on vm and returning component name added in the prod configuration """
+        azure_lifecycle_manager_component = LifecycleManagerAzure
+        arc_lifecycle_manager_component = LifecycleManagerArc
+        if (vm_cloud_type == Constants.VMCloudType.AZURE):
+            return azure_lifecycle_manager_component
+        elif (vm_cloud_type == Constants.VMCloudType.ARC):
+            return arc_lifecycle_manager_component
+        
+        return azure_lifecycle_manager_component
+   
+    def get_vm_cloud_type(self):
+        """ detects vm type. logic taken from HCRP code: https://github.com/PowerShell/DesiredStateConfiguration/blob/dev/src/dsc/dsc_service/service_main.cpp#L115
+        Todo:  how to check this only when it is Auto Assessment operation??? """
+        metadata_value = "True"
+        user_agent_value = "ArcAgent"
+        request = urlreq.Request(Constants.IMDS_END_POINT)
+        request.add_header('Metadata', metadata_value)
+        request.add_header('UserAgent', user_agent_value)
+        print("\nTrying to connect IMDS end point. URL:{0}.".format(str(Constants.IMDS_END_POINT)))
+        for i in range(0, Constants.MAX_IMDS_CONNECTION_RETRY_COUNT):
+            try:
+                res = urlreq.urlopen(request, timeout=2)
+                print(res.get_code())
+                if(res.getcode() == 200):
+                    print("Connection to IMDS end point successfully established. VMCloudType is Azure\n")
+                    return Constants.VMCloudType.AZURE
+                else:
+                    raise
+            except:
+                """ Failed to connect to Azure IMDS endpoint. This is expected on Arc machine - but not expected on Azure machine."""
+                if i < Constants.MAX_IMDS_CONNECTION_RETRY_COUNT - 1:
+                    print("Failed to connect to IMDS end point. [Retry Count={0}].".format(str(i)))
+                    time.sleep(i+1)
+                else:
+                    print("Failed to connect IMDS end point. This is expected in ARC VM. VMCloudType is Arc\n")
+                    return Constants.VMCloudType.ARC
+            
     # endregion

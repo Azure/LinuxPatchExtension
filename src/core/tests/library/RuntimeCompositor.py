@@ -73,7 +73,7 @@ class RuntimeCompositor(object):
         self.patch_assessor = self.container.get('patch_assessor')
         self.patch_installer = self.container.get('patch_installer')
         self.maintenance_window = self.container.get('maintenance_window')
-
+        self.vm_cloud_type = bootstrapper.configuration_factory.vm_cloud_type
         # Extension handler dependency
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
 

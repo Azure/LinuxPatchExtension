@@ -25,7 +25,7 @@ from core.src.bootstrap.Constants import Constants
 class StatusHandler(object):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, vm_cloud_type):
         # Map supporting components for operation
         self.env_layer = env_layer
         self.execution_config = execution_config
@@ -33,6 +33,7 @@ class StatusHandler(object):
         self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
+        self.vm_cloud_type = vm_cloud_type
 
         # Status components
         self.__high_level_status_message = ""
@@ -251,7 +252,7 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Setting assessment substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap patches into assessment summary
-        self.__assessment_summary_json = self.__new_assessment_summary_json(self.__assessment_packages)
+        self.__assessment_summary_json = self.__new_assessment_summary_json(self.__assessment_packages, status, code)
 
         # Wrap assessment summary into assessment substatus
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
@@ -259,7 +260,7 @@ class StatusHandler(object):
         # Update status on disk
         self.__write_status_file()
 
-    def __new_assessment_summary_json(self, assessment_packages_json):
+    def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
             Purpose: This composes the message inside the patch assessment summary substatus:
                 Root --> Status --> Substatus [name: "PatchAssessmentSummary"] --> FormattedMessage --> **Message** """
@@ -278,7 +279,7 @@ class StatusHandler(object):
         started_by = Constants.PatchAssessmentSummaryStartedBy.PLATFORM if self.execution_config.operation == Constants.AUTO_ASSESSMENT else Constants.PatchAssessmentSummaryStartedBy.USER
 
         # Compose sub-status message
-        return {
+        substatus_message =  {
             "assessmentActivityId": str(self.execution_config.activity_id),
             "rebootPending": self.is_reboot_pending,
             "criticalAndSecurityPatchCount": critsec_patch_count,
@@ -289,6 +290,10 @@ class StatusHandler(object):
             "startedBy": str(started_by),
             "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
         }
+        if(self.vm_cloud_type == Constants.VMCloudType.ARC):
+            substatus_message["patchAssessmentStatus"] = code
+            substatus_message["patchAssessmentStatusString"] = status
+        return substatus_message
 
     def set_installation_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0):
         """ Prepare the deployment substatus json including the message containing deployment summary """
@@ -383,7 +388,7 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap default automatic OS patch state on the machine, at the time of this request, into configure patching summary
-        self.__configure_patching_summary_json = self.__new_configure_patching_summary_json(automatic_os_patch_state, auto_assessment_state)
+        self.__configure_patching_summary_json = self.__new_configure_patching_summary_json(automatic_os_patch_state, auto_assessment_state, status, code)
 
         # Wrap configure patching summary into configure patching substatus
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
@@ -391,13 +396,13 @@ class StatusHandler(object):
         # Update status on disk
         self.__write_status_file()
 
-    def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state):
+    def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
             Purpose: This composes the message inside the configure patching summary substatus:
                 Root --> Status --> Substatus [name: "ConfigurePatchingSummary"] --> FormattedMessage --> **Message** """
 
         # Compose substatus message
-        return {
+        substatus_message =  {
             "activityId": str(self.execution_config.activity_id),
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
@@ -408,6 +413,10 @@ class StatusHandler(object):
             },
             "errors": self.__set_errors_json(self.__configure_patching_top_level_error_count, self.__configure_patching_errors)
         }
+        if(self.vm_cloud_type == Constants.VMCloudType.ARC):
+            substatus_message["configurePatchStatus"] = code
+            substatus_message["configurePatchStatusString"] = status
+        return substatus_message
 
     @staticmethod
     def __new_substatus_json_for_operation(operation_name, status="Transitioning", code=0, message=json.dumps("{}")):

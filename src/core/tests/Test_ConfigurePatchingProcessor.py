@@ -141,7 +141,12 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+        if runtime.vm_cloud_type == Constants.VMCloudType.AZURE:
+            self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+            self.assertTrue(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
+            self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        else:
+            self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
     def test_operation_fail_for_configure_patching_request_for_apt(self):
