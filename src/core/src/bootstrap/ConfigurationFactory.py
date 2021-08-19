@@ -201,7 +201,7 @@ class ConfigurationFactory(object):
             },
             'patch_assessor': {
                 'component': PatchAssessor,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager','lifecycle_manager'],
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager', 'lifecycle_manager'],
                 'component_kwargs': {}
             },
             'patch_installer': {
@@ -280,7 +280,7 @@ class ConfigurationFactory(object):
                 res = urlreq.urlopen(request, timeout=2)
                 print(res.get_code())
                 if(res.getcode() == 200):
-                    print("Connection to IMDS end point successfully established.VMCloudType is Azure\n")
+                    print("Connection to IMDS end point successfully established. VMCloudType is Azure\n")
                     return Constants.VMCloudType.AZURE
                 else:
                     raise
