@@ -46,7 +46,7 @@ class LifecycleManagerArc(LifecycleManager):
         arc_core_sequence = self.read_arc_core_sequence()
 
         if arc_core_sequence['completed'] == "False":
-            self.composite_logger.log_warning("Arc extension with sequence number {0} is currently running, Exiting autoassessment".format(str(arc_core_sequence['number'])))
+            self.composite_logger.log_warning("Arc extension with sequence number {0} is currently running. Exiting autoassessment".format(str(arc_core_sequence['number'])))
             self.update_core_sequence(completed=True)   # forced-to-complete scenario | extension wrapper will be watching for this event
             self.env_layer.exit(0)
 
@@ -168,7 +168,7 @@ class LifecycleManagerArc(LifecycleManager):
         self.composite_logger.log_debug("Completed lifecycle status check.")
 
         if arc_core_sequence['completed'] == "False":
-            self.composite_logger.log_warning("Arc extension with sequence number {0} is currently running, Exiting autoassessment".format(str(arc_core_sequence['number'])))
+            self.composite_logger.log_warning("Arc extension with sequence number {0} is currently running. Exiting autoassessment".format(str(arc_core_sequence['number'])))
             self.update_core_sequence(completed=True)   # forced-to-complete scenario | extension wrapper will be watching for this event
             self.env_layer.exit(0)
 
