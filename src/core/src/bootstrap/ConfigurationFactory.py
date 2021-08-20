@@ -278,7 +278,6 @@ class ConfigurationFactory(object):
         for i in range(0, Constants.MAX_IMDS_CONNECTION_RETRY_COUNT):
             try:
                 res = urlreq.urlopen(request, timeout=2)
-                print(res.get_code())
                 if(res.getcode() == 200):
                     print("Connection to IMDS end point successfully established. VMCloudType is Azure\n")
                     return Constants.VMCloudType.AZURE
