@@ -287,11 +287,11 @@ class ConfigurationFactory(object):
             except Exception as error:
                 """ Failed to connect to Azure IMDS endpoint. This is expected on Arc machine - but not expected on Azure machine."""
                 print('Exception from IMDS connection http request: ' + repr(error))
+                print("Failed to connect to IMDS end point. [Retry Count={0}].".format(str(i)))
                 if i < Constants.MAX_IMDS_CONNECTION_RETRY_COUNT - 1:
-                    print("Failed to connect to IMDS end point. [Retry Count={0}].".format(str(i)))
                     time.sleep(i+1)
                 else:
-                    print("Failed to connect IMDS end point. This is expected in ARC VM. VMCloudType is Arc\n")
+                    print("Failed to connect IMDS end point after 5 retries. This is expected in ARC VM. VMCloudType is Arc\n")
                     return Constants.VMCloudType.ARC
             
     # endregion
