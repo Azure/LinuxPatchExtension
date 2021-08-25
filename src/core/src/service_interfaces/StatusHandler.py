@@ -543,10 +543,15 @@ class StatusHandler(object):
             if name == Constants.PATCH_METADATA_FOR_HEALTHSTORE:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__metadata_for_healthstore_summary_json = json.loads(message)
-            if name == Constants.CONFIGURE_PATCHING:     # if it exists, it must be to spec, or an exception will get thrown
+            if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__configure_patching_summary_json = json.loads(message)
+                status = status_file_data['status']['substatus'][i]['status']
+                code = status_file_data['status']['substatus'][i]['code']
                 errors = self.__configure_patching_summary_json['errors']
+                auto_assess_status = self.__configure_patching_summary_json['autoAssessmentStatus']['autoAssessmentState']
+                auto_patch_status = self.__configure_patching_summary_json['automaticOsPatchState']
+                self.set_configure_patching_substatus_json(status,code,auto_patch_status,auto_assess_status)
                 if errors is not None and errors['details'] is not None:
                     self.__configure_patching_errors = errors['details']
                     self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
