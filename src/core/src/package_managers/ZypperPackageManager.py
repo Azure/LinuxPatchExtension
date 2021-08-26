@@ -16,6 +16,7 @@
 
 """ZypperPackageManager for SUSE"""
 import re
+import os
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
@@ -64,6 +65,11 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+
+            process_lock_tree = self.get_process_tree_from_package_manager_msg(out)
+            if process_lock_tree is not None:
+                self.composite_logger.log_warning(" - Process tree of package manager locking process: \n{}".format(process_lock_tree))
+
             self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
@@ -78,6 +84,25 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_debug(" - Package manager update detected. Patch installation run will be repeated.")
             self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
         return out
+
+    def get_process_tree_from_package_manager_msg(self, message):
+        # Find pid xxxxx within output string
+        regex = re.compile(' pid \d+ ')
+        pid_substr_search = regex.search(message)
+        if pid_substr_search is None:
+            return None
+
+        # Extract just pid text from substring
+        regex = re.compile('\d+')
+        pid_search = regex.search(pid_substr_search.group())
+        if pid_search is None:
+            return None
+
+        pid = pid_search.group()
+        # Gives a process tree so the calling process name(s) can be identified
+        process_tree = os.system("ps --forest -o pid,cmd -g $(ps -o sid= -p {})".format(pid))
+
+        return process_tree
 
     # region Classification-based (incl. All) update check
     def get_all_updates(self, cached=False):
