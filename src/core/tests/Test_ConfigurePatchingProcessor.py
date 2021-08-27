@@ -69,6 +69,8 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertEquals(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)
 
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
@@ -168,6 +170,91 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertEquals(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+        runtime.stop()
+
+    def test_configure_patching_with_assessment_mode_by_platform(self):
+
+        # create and adjust arguments
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.PatchModes.IMAGE_DEFAULT
+        argument_composer.assessment_mode = Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM
+
+        # create and patch runtime
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.os_patch_configuration_settings_file_path = os.path.join(runtime.execution_config.config_folder, "20auto-upgrades")
+        runtime.set_legacy_test_type('HappyPath')
+
+        # mock os patch configuration
+        os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
+        runtime.write_to_file(runtime.package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+
+        # execute Core
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file for configure patching patch mode
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+        # check status file for configure patching patch state
+        self.assertEquals(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.ENABLED)  # no change is made on Auto OS updates for patch mode 'ImageDefault'
+
+        # check status file for configure patching assessment state
+        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
+
+        # stop test runtime
+        runtime.stop()
+
+    def test_configure_patching_with_patch_mode_and_assessment_mode_by_platform(self):
+
+        # create and adjust arguments
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
+        argument_composer.assessment_mode = Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM
+
+        # create and patch runtime
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.os_patch_configuration_settings_file_path = os.path.join(runtime.execution_config.config_folder, "20auto-upgrades")
+        runtime.set_legacy_test_type('HappyPath')
+
+        # mock os patch configuration
+        os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
+        runtime.write_to_file(runtime.package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+
+        # execute Core
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file for configure patching patch mode
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+        # check status file for configure patching patch state
+        self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
+        self.assertEquals(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)  # auto OS updates are disabled on patch mode 'AutomaticByPlatform'
+
+        # check status file for configure patching assessment state
+        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
+
+        # stop test runtime
         runtime.stop()
 
     def __check_telemetry_events(self, runtime):

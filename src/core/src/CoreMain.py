@@ -65,15 +65,15 @@ class CoreMain(object):
             configure_patching_processor = container.get('configure_patching_processor')
 
             # Configure patching always runs first, except if it's AUTO_ASSESSMENT
-            if patch_operation_requested != Constants.AUTO_ASSESSMENT.lower():
+            if not execution_config.exec_auto_assess_only:
                 configure_patching_successful = configure_patching_processor.start_configure_patching()
 
-            # Assessment happens if operation requested is not Configure Patching [i.e. AUTO_ASSESSMENT, ASSESSMENT, INSTALLATION]
-            if patch_operation_requested != Constants.CONFIGURE_PATCHING.lower():
+            # Assessment happens for an Auto Assessment request or for Non Auto Assessment operations, if the operation requested is not Configure Patching
+            if execution_config.exec_auto_assess_only or patch_operation_requested != Constants.CONFIGURE_PATCHING.lower():
                 patch_assessment_successful = patch_assessor.start_assessment()
 
-            # Patching + additional assessment occurs if the operation is 'Installation'
-            if patch_operation_requested == Constants.INSTALLATION.lower():
+            # Patching + additional assessment occurs if the operation is 'Installation' and not Auto Assessment. Need to check both since operation_requested from prev run is preserved in Auto Assessment
+            if not execution_config.exec_auto_assess_only and patch_operation_requested == Constants.INSTALLATION.lower():
                 # setting current operation here, to include patch_installer init within installation actions, ensuring any exceptions during patch_installer init are added in installation summary errors object
                 status_handler.set_current_operation(Constants.INSTALLATION)
                 patch_installer = container.get('patch_installer')

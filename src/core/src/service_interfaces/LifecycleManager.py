@@ -125,7 +125,8 @@ class LifecycleManager(object):
         self.composite_logger.log("Processes still running from the previous request: [PIDs={0}]".format(str(running_process_ids)))
         return running_process_ids
 
-    def is_process_running(self, pid):
+    @staticmethod
+    def is_process_running(pid):
         # check to see if the process is still alive
         try:
             # Sending signal 0 to a pid will raise an OSError exception if the pid is not running, and do nothing otherwise.
@@ -146,4 +147,5 @@ class LifecycleManager(object):
     # region - Identity
     def get_vm_cloud_type(self):
         pass
-    #endregion
+    # endregion
+

@@ -36,7 +36,7 @@ class ExecutionConfig(object):
         self.sequence_number = self.__get_value_from_argv(self.execution_parameters, Constants.ARG_SEQUENCE_NUMBER)
         self.environment_settings = self.__get_decoded_json_from_argv(self.execution_parameters, Constants.ARG_ENVIRONMENT_SETTINGS)
         self.config_settings = self.__get_decoded_json_from_argv(self.execution_parameters, Constants.ARG_CONFIG_SETTINGS)
-        self.exec_auto_assess_only = bool(self.__get_value_from_argv(self.execution_parameters, Constants.ARG_AUTO_ASSESS_ONLY, False))
+        self.exec_auto_assess_only = True if (self.__get_value_from_argv(self.execution_parameters, Constants.ARG_AUTO_ASSESS_ONLY, False)).lower() == 'true' else False
 
         # Environment Settings
         self.composite_logger.log_debug(" - Parsing environment settings...")
@@ -78,7 +78,6 @@ class ExecutionConfig(object):
 
     def __transform_execution_config_for_auto_assessment(self):
         self.composite_logger.log_debug("Setting execution configuration values for auto assessment.")
-        self.operation = Constants.AUTO_ASSESSMENT
         self.activity_id = str(uuid.uuid4())
         self.included_classifications_list = self.included_package_name_mask_list = self.excluded_package_name_mask_list = []
         self.maintenance_run_id = None

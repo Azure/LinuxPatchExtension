@@ -98,7 +98,7 @@ class ServiceManager(object):
 
     def systemctl_daemon_reload(self):
         """ Reloads daemon """
-        code, out = self.__invoke_systemctl(self.systemctl_daemon_reload_cmd)
+        code, out = self.__invoke_systemctl(self.systemctl_daemon_reload_cmd, "Reloading daemon.")
         return code == 0
 
     def __invoke_systemctl(self, command, action_description=None):

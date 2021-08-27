@@ -46,6 +46,7 @@ from core.src.service_interfaces.LifecycleManagerArc import LifecycleManagerArc
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 
+# Todo: find a different way to import these
 try:
     import urllib2 as urlreq   #Python 2.x
 except:
@@ -255,18 +256,20 @@ class ConfigurationFactory(object):
         # perform desired modifications to configuration
         return configuration
 
-    def get_lifecycle_manager_component(self, vm_cloud_type):
+    @staticmethod
+    def get_lifecycle_manager_component(vm_cloud_type):
         """ finding life cycle manager based on vm and returning component name added in the prod configuration """
         azure_lifecycle_manager_component = LifecycleManagerAzure
         arc_lifecycle_manager_component = LifecycleManagerArc
-        if (vm_cloud_type == Constants.VMCloudType.AZURE):
+        if vm_cloud_type == Constants.VMCloudType.AZURE:
             return azure_lifecycle_manager_component
-        elif (vm_cloud_type == Constants.VMCloudType.ARC):
+        elif vm_cloud_type == Constants.VMCloudType.ARC:
             return arc_lifecycle_manager_component
         
         return azure_lifecycle_manager_component
-   
-    def get_vm_cloud_type(self):
+
+    @staticmethod
+    def get_vm_cloud_type():
         """ detects vm type. logic taken from HCRP code: https://github.com/PowerShell/DesiredStateConfiguration/blob/dev/src/dsc/dsc_service/service_main.cpp#L115
         Todo:  how to check this only when it is Auto Assessment operation??? """
         metadata_value = "True"
@@ -280,7 +283,7 @@ class ConfigurationFactory(object):
                 print("Connecting to IMDS endpoint...")
                 res = urlreq.urlopen(request, timeout=2)
                 print("Return code from IMDS connection http request: {0}.".format(str(res.getcode())))
-                if(res.getcode() == 200):
+                if res.getcode() == 200:
                     print("Connection to IMDS end point successfully established. VMCloudType is Azure\n")
                     return Constants.VMCloudType.AZURE
                 else:
@@ -294,5 +297,5 @@ class ConfigurationFactory(object):
                 else:
                     print("Failed to connect IMDS end point after 5 retries. This is expected in ARC VM. VMCloudType is Arc\n")
                     return Constants.VMCloudType.ARC
-            
     # endregion
+

@@ -31,6 +31,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.stop()
 
     def test_set_package_assessment_status(self):
+        # startedBy should be set to User in status for Assessment
         packages, package_versions = self.runtime.package_manager.get_all_updates()
         self.runtime.status_handler.set_package_assessment_status(packages, package_versions)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
@@ -43,8 +44,9 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["startedBy"], Constants.PatchAssessmentSummaryStartedBy.USER)
 
-    def test_set_package_assessment_status_started_by(self):
-        self.runtime.execution_config.operation = Constants.AUTO_ASSESSMENT
+    def test_set_package_assessment_status_for_auto_assessment(self):
+        # startedBy should be set to Platform in status for Auto Assessment
+        self.runtime.execution_config.exec_auto_assess_only = True
         packages, package_versions = self.runtime.package_manager.get_all_updates()
         self.runtime.status_handler.set_package_assessment_status(packages, package_versions)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
