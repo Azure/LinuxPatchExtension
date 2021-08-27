@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 
+import os
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -182,6 +183,52 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # test for unsuccessfully installing a package
         self.assertEquals(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+
+    def test_get_process_tree_from_package_manager_msg_success(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+
+        # Get this process' pid to test output with a real running process
+        test_process_pid = os.getpid()
+        self.assertIsNotNone(test_process_pid)
+
+        # Create example package manager message and include this process' pid
+        package_manager_msg = 'Output from package manager: | System management is locked by the application with pid {} (/usr/bin/zypper).'
+        package_manager_msg = package_manager_msg.format(str(test_process_pid))
+
+        # Test to make sure a valid string was returned with process information
+        self.assertIsNotNone(package_manager.get_process_tree_from_package_manager_msg(package_manager_msg))
+
+    def test_get_process_tree_from_package_manager_msg_failure_nonexistent_process(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+
+        # Test with a nonexistent pid
+        test_process_pid = -1
+
+        # Create example package manager message and include the test pid
+        package_manager_msg = 'Output from package manager: | System management is locked by the application with pid {} (/usr/bin/zypper).'
+        package_manager_msg = package_manager_msg.format(str(test_process_pid))
+
+        # Test to make sure nothing was returned from an invalid process
+        self.assertIsNone(package_manager.get_process_tree_from_package_manager_msg(package_manager_msg))
+
+    def test_get_process_tree_from_package_manager_msg_failure_no_pid(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+
+        # Create example package manager message
+        package_manager_msg = 'Example error message without a valid pid.'
+
+        # Test to make sure nothing was returned from an error message that doesn't contain a pid
+        self.assertIsNone(package_manager.get_process_tree_from_package_manager_msg(package_manager_msg))
+
 
 if __name__ == '__main__':
     unittest.main()

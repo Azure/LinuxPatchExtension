@@ -140,6 +140,10 @@ class ZypperPackageManager(PackageManager):
         if code is not 0:
             return None
 
+        # Also failed to get process tree
+        if len(out) == 0:
+            return None
+
         return out
 
     # region Classification-based (incl. All) update check
