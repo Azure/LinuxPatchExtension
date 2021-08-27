@@ -523,15 +523,18 @@ class StatusHandler(object):
         for i in range(0, len(status_file_data['status']['substatus'])):
             name = status_file_data['status']['substatus'][i]['name']
             if name == Constants.PATCH_INSTALLATION_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
-                message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                self.__installation_summary_json = json.loads(message)
-                self.__installation_packages = self.__installation_summary_json['patches']
-                self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
-                self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
-                errors = self.__installation_summary_json['errors']
-                if errors is not None and errors['details'] is not None:
-                    self.__installation_errors = errors['details']
-                    self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
+                if self.execution_config.operation == Constants.AUTO_ASSESSMENT:
+                    self.__installation_substatus_json = status_file_data['status']['substatus'][i]
+                else:
+                    message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                    self.__installation_summary_json = json.loads(message)
+                    self.__installation_packages = self.__installation_summary_json['patches']
+                    self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
+                    self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
+                    errors = self.__installation_summary_json['errors']
+                    if errors is not None and errors['details'] is not None:
+                        self.__installation_errors = errors['details']
+                        self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__assessment_summary_json = json.loads(message)
@@ -541,20 +544,21 @@ class StatusHandler(object):
                     self.__assessment_errors = errors['details']
                     self.__assessment_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_METADATA_FOR_HEALTHSTORE:     # if it exists, it must be to spec, or an exception will get thrown
-                message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                self.__metadata_for_healthstore_summary_json = json.loads(message)
+                if self.execution_config.operation == Constants.AUTO_ASSESSMENT:
+                    self.__metadata_for_healthstore_substatus_json = status_file_data['status']['substatus'][i]
+                else:
+                    message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                    self.__metadata_for_healthstore_summary_json = json.loads(message)
             if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
-                message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                self.__configure_patching_summary_json = json.loads(message)
-                status = status_file_data['status']['substatus'][i]['status']
-                code = status_file_data['status']['substatus'][i]['code']
-                errors = self.__configure_patching_summary_json['errors']
-                auto_assess_status = self.__configure_patching_summary_json['autoAssessmentStatus']['autoAssessmentState']
-                auto_patch_status = self.__configure_patching_summary_json['automaticOsPatchState']
-                self.set_configure_patching_substatus_json(status,code,auto_patch_status,auto_assess_status)
-                if errors is not None and errors['details'] is not None:
-                    self.__configure_patching_errors = errors['details']
-                    self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
+                if self.execution_config.operation == Constants.AUTO_ASSESSMENT:
+                    self.__configure_patching_substatus_json = status_file_data['status']['substatus'][i]
+                else:
+                    message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                    self.__configure_patching_summary_json = json.loads(message)
+                    errors = self.__configure_patching_summary_json['errors']
+                    if errors is not None and errors['details'] is not None:
+                        self.__configure_patching_errors = errors['details']
+                        self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
     def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
