@@ -43,6 +43,7 @@ class ZypperPackageManager(PackageManager):
 
         # Package manager exit code(s)
         self.zypper_exitcode_ok = 0
+        self.zypper_exitcode_zypper_locked = 7
         self.zypper_exitcode_zypper_updated = 103
 
         # Support to check for processes requiring restart
@@ -66,9 +67,10 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
 
-            process_lock_tree = self.get_process_tree_from_package_manager_msg(out)
-            if process_lock_tree is not None:
-                self.composite_logger.log_warning(" - Process tree of package manager locking process: \n{}".format(process_lock_tree))
+            if code == self.zypper_exitcode_zypper_locked:
+                process_lock_tree = self.get_process_tree_from_package_manager_msg(out)
+                if process_lock_tree is not None:
+                    self.composite_logger.log_warning(" - Process tree of package manager locking process: \n{}".format(process_lock_tree))
 
             self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
