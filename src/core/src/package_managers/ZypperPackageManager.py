@@ -111,9 +111,9 @@ class ZypperPackageManager(PackageManager):
             Example:
                 'Output from package manager: | System management is locked by the application with pid 7914 (/usr/bin/zypper).'
 
-            pid_substr_search will contain: ' pid 7914 '
+            pid_substr_search will contain: ' pid 7914'
         """
-        regex = re.compile(' pid \d+ ')
+        regex = re.compile(' pid \d+')
         pid_substr_search = regex.search(message)
         if pid_substr_search is None:
             return None
@@ -122,7 +122,7 @@ class ZypperPackageManager(PackageManager):
             Now extract just pid text from pid_substr_search.
             
             Example (pid_substr_search): 
-                ' pid 7914 '
+                ' pid 7914'
                 
             pid_search will contain: '7914'
         """
