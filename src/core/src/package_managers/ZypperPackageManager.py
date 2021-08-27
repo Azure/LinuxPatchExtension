@@ -16,7 +16,6 @@
 
 """ZypperPackageManager for SUSE"""
 import re
-import os
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
@@ -43,7 +42,6 @@ class ZypperPackageManager(PackageManager):
 
         # Package manager exit code(s)
         self.zypper_exitcode_ok = 0
-        self.zypper_exitcode_zypper_locked = 7
         self.zypper_exitcode_zypper_updated = 103
 
         # Support to check for processes requiring restart
@@ -51,6 +49,7 @@ class ZypperPackageManager(PackageManager):
 
         # Miscellaneous
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.ZYPPER)
+        self.zypper_get_process_tree_cmd = 'ps --forest -o pid,cmd -g $(ps -o sid= -p {})'
 
     def refresh_repo(self):
         self.composite_logger.log("Refreshing local repo...")
@@ -67,10 +66,9 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
             self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
 
-            if code == self.zypper_exitcode_zypper_locked:
-                process_lock_tree = self.get_process_tree_from_package_manager_msg(out)
-                if process_lock_tree is not None:
-                    self.composite_logger.log_warning(" - Process tree of package manager locking process: \n{}".format(process_lock_tree))
+            process_lock_tree = self.get_process_tree_from_package_manager_msg(out)
+            if process_lock_tree is not None:
+                self.composite_logger.log_warning(" - Process tree of package manager locking process: \n{}".format(str(process_lock_tree)))
 
             self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
@@ -87,14 +85,47 @@ class ZypperPackageManager(PackageManager):
             self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
         return out
 
+    """
+        When given a string containing a pid, returns a multi-line string with a list of parent/child processes for that pid.
+        See pattern matching inside the function for details on specific strings that are accepted.
+        
+        Example:
+            input: 
+                message (string): Output from package manager: | System management is locked by the application with pid 7914 (/usr/bin/zypper).
+                
+            returns (string):
+                  PID CMD
+                 7736 /bin/bash
+                 7912  \_ python3 package_test.py
+                 7913  |   \_ sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run bind-utils
+                 7914  |       \_ zypper --non-interactive update --dry-run bind-utils
+                 7982  |           \_ /usr/bin/python3 /usr/lib/zypp/plugins/urlresolver/susecloud
+                 7984  |               \_ /usr/bin/python3 /usr/bin/azuremetadata --api latest --subscriptionId --billingTag --attestedData --signature
+                 7986  \_ python3 package_test.py
+                 8298      \_ sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run grub2-i386-pc
+    """
     def get_process_tree_from_package_manager_msg(self, message):
-        # Find pid xxxxx within output string
+        """
+            First find pid xxxxx within output string.
+
+            Example:
+                'Output from package manager: | System management is locked by the application with pid 7914 (/usr/bin/zypper).'
+
+            pid_substr_search will contain: ' pid 7914 '
+        """
         regex = re.compile(' pid \d+ ')
         pid_substr_search = regex.search(message)
         if pid_substr_search is None:
             return None
 
-        # Extract just pid text from substring
+        """
+            Now extract just pid text from pid_substr_search.
+            
+            Example (pid_substr_search): 
+                ' pid 7914 '
+                
+            pid_search will contain: '7914'
+        """
         regex = re.compile('\d+')
         pid_search = regex.search(pid_substr_search.group())
         if pid_search is None:
@@ -102,9 +133,14 @@ class ZypperPackageManager(PackageManager):
 
         pid = pid_search.group()
         # Gives a process tree so the calling process name(s) can be identified
-        process_tree = os.system("ps --forest -o pid,cmd -g $(ps -o sid= -p {})".format(pid))
+        get_process_tree_cmd = self.zypper_get_process_tree_cmd.format(str(pid))
+        code, out = self.env_layer.run_command_output(get_process_tree_cmd, False, False)
 
-        return process_tree
+        # Failed to get process tree
+        if code is not 0:
+            return None
+
+        return out
 
     # region Classification-based (incl. All) update check
     def get_all_updates(self, cached=False):
