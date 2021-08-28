@@ -97,7 +97,7 @@ class ExecutionConfig(object):
         if default_value == Constants.DEFAULT_UNSPECIFIED_VALUE:
             raise Exception("Unable to find key {0} in core arguments: {1}.".format(key, str(argv)))
         else:
-            return default_value
+            return str(default_value)
 
     def __get_decoded_json_from_argv(self, argv, key):
         """ Discovers and decodes the JSON body of a specific base64 encoded JSON object in input arguments. """
