@@ -199,7 +199,7 @@ class TestZypperPackageManager(unittest.TestCase):
         package_manager_msg = package_manager_msg.format(str(test_process_pid))
 
         # Test to make sure a valid string was returned with process information
-        self.assertIsNotNone(package_manager.get_process_tree_from_package_manager_msg(package_manager_msg))
+        self.assertIsNotNone(package_manager.get_process_tree_from_pid_in_output(package_manager_msg))
 
     def test_get_process_tree_from_package_manager_msg_failure_nonexistent_process(self):
         self.runtime.set_legacy_test_type('HappyPath')
@@ -215,7 +215,7 @@ class TestZypperPackageManager(unittest.TestCase):
         package_manager_msg = package_manager_msg.format(str(test_process_pid))
 
         # Test to make sure nothing was returned from an invalid process
-        self.assertIsNone(package_manager.get_process_tree_from_package_manager_msg(package_manager_msg))
+        self.assertIsNone(package_manager.get_process_tree_from_pid_in_output(package_manager_msg))
 
     def test_get_process_tree_from_package_manager_msg_failure_no_pid(self):
         self.runtime.set_legacy_test_type('HappyPath')
@@ -227,7 +227,7 @@ class TestZypperPackageManager(unittest.TestCase):
         package_manager_msg = 'Example error message without a valid pid.'
 
         # Test to make sure nothing was returned from an error message that doesn't contain a pid
-        self.assertIsNone(package_manager.get_process_tree_from_package_manager_msg(package_manager_msg))
+        self.assertIsNone(package_manager.get_process_tree_from_pid_in_output(package_manager_msg))
 
 
 if __name__ == '__main__':
