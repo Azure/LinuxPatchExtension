@@ -128,13 +128,17 @@ class ZypperPackageManager(PackageManager):
             return None
 
         pid = pid_search.group()
+
+        # TODO: Check to make sure the pid is actually a running process
+        # this is because the below command will always return something, even for nonexistent pids
+
         # Gives a process tree so the calling process name(s) can be identified
         # TODO: consider revisiting in the future to reduce the result to this pid only instead of entire tree
         get_process_tree_cmd = self.zypper_get_process_tree_cmd.format(str(pid))
         code, out = self.env_layer.run_command_output(get_process_tree_cmd, False, False)
 
         # Failed to get process tree
-        if code is not 0:
+        if code != 0:
             return None
 
         # Also failed to get process tree
