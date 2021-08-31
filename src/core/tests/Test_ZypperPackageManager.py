@@ -219,6 +219,29 @@ class TestZypperPackageManager(unittest.TestCase):
         # Test to make sure nothing was returned from an error message that doesn't contain a pid
         self.assertIsNone(package_manager.get_process_tree_from_pid_in_output(package_manager_output))
 
+    def test_get_process_tree_from_package_manager_output_failure_cmd_error_code(self):
+        self.runtime.set_legacy_test_type('SadPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+
+        # Create example package manager message
+        package_manager_output = 'Output from package manager: | System management is locked by the application with pid 7914 (/usr/bin/zypper).'
+
+        # Test to make sure nothing was returned from a non-zero command output code
+        self.assertIsNone(package_manager.get_process_tree_from_pid_in_output(package_manager_output))
+
+    def test_get_process_tree_from_package_manager_output_failure_cmd_empty_output(self):
+        self.runtime.set_legacy_test_type('UnalignedPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+
+        # Create example package manager message
+        package_manager_output = 'Output from package manager: | System management is locked by the application with pid 7914 (/usr/bin/zypper).'
+
+        # Test to make sure nothing was returned from an empty string from the command output
+        self.assertIsNone(package_manager.get_process_tree_from_pid_in_output(package_manager_output))
 
 if __name__ == '__main__':
     unittest.main()

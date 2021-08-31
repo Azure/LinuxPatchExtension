@@ -500,6 +500,9 @@ class LegacyEnvLayerExtensions():
                         output = ''
                 elif self.legacy_package_manager_name is Constants.ZYPPER:
                     output = ''
+                    if cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p') > -1:
+                        output = 'test'
+                        code = 1
             elif self.legacy_test_type == 'UnalignedPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -528,6 +531,9 @@ class LegacyEnvLayerExtensions():
                 elif self.legacy_package_manager_name is Constants.ZYPPER:
                     code = 100
                     output = ''
+                    if cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p') > -1:
+                        output = ''
+                        code = 0
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
