@@ -86,13 +86,9 @@ class ZypperPackageManager(PackageManager):
         return out
 
     def get_process_tree_from_pid_in_output(self, message):
-        """ When given a string containing a pid, returns a multi-line string with a list of parent/child processes for that pid.
-            See pattern matching inside the function for details on specific strings that are accepted.
-
+        """ Fetches pid from the error message by searching for the text 'pid' and returns the process tree with all details.
             Example:
-                input:
-                    message (string): Output from package manager: | System management is locked by the application with pid 7914 (/usr/bin/zypper).
-
+                input: message (string): Output from package manager: | System management is locked by the application with pid 7914 (/usr/bin/zypper).
                 returns (string):
                       PID CMD
                      7736 /bin/bash
@@ -102,26 +98,19 @@ class ZypperPackageManager(PackageManager):
                      7982  |           \_ /usr/bin/python3 /usr/lib/zypp/plugins/urlresolver/susecloud
                      7984  |               \_ /usr/bin/python3 /usr/bin/azuremetadata --api latest --subscriptionId --billingTag --attestedData --signature
                      7986  \_ python3 package_test.py
-                     8298      \_ sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run grub2-i386-pc
-        """
+                     8298      \_ sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run grub2-i386-pc """
 
         """ First find pid xxxxx within output string.
-
             Example: 'Output from package manager: | System management is locked by the application with pid 7914 (/usr/bin/zypper).'
-
-            pid_substr_search will contain: ' pid 7914'
-        """
+            pid_substr_search will contain: ' pid 7914' """
         regex = re.compile(' pid \d+')
         pid_substr_search = regex.search(message)
         if pid_substr_search is None:
             return None
 
         """ Now extract just pid text from pid_substr_search.
-            
-            Example (pid_substr_search): ' pid 7914'
-                
-            pid_search will contain: '7914'
-        """
+            Example (pid_substr_search): ' pid 7914'   
+            pid_search will contain: '7914' """
         regex = re.compile('\d+')
         pid_search = regex.search(pid_substr_search.group())
         if pid_search is None:
@@ -138,11 +127,7 @@ class ZypperPackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(get_process_tree_cmd, False, False)
 
         # Failed to get process tree
-        if code != 0:
-            return None
-
-        # Also failed to get process tree
-        if len(out) == 0:
+        if code != 0 or len(out) == 0:
             return None
 
         return out
