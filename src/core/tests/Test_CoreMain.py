@@ -17,7 +17,6 @@ import datetime
 import json
 import os
 import re
-import time
 import unittest
 import uuid
 
