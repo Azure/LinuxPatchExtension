@@ -68,7 +68,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
         self.assertEquals(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)
 
@@ -108,13 +108,13 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertTrue('APT::Periodic::Update-Package-Lists "0"' in os_patch_configuration_settings)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in os_patch_configuration_settings)
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
         self.assertEquals(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
         self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
@@ -123,7 +123,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["classifications"]))
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
@@ -144,11 +144,11 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertEquals(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         if runtime.vm_cloud_type == Constants.VMCloudType.AZURE:
-            self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+            self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
             self.assertTrue(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
             self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         else:
-            self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+            self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
     def test_operation_fail_for_configure_patching_request_for_apt(self):
@@ -169,7 +169,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEquals(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         runtime.stop()
 
     def test_configure_patching_with_assessment_mode_by_platform(self):
@@ -203,7 +203,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check status file for configure patching patch state
         self.assertEquals(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.ENABLED)  # no change is made on Auto OS updates for patch mode 'ImageDefault'
 
@@ -246,7 +246,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
         self.assertEquals(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"] == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)  # auto OS updates are disabled on patch mode 'AutomaticByPlatform'
 

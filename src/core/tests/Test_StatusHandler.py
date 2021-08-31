@@ -222,7 +222,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue(status_handler is not None)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], False)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(substatus_file_data["status"].lower(), Constants.STATUS_SUCCESS.lower())
 
     def test_set_patch_metadata_for_healthstore_substatus_json(self):
         # setting healthstore properties
@@ -231,7 +231,7 @@ class TestStatusHandler(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], True)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], "2020-07-08")
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(substatus_file_data["status"].lower(), Constants.STATUS_SUCCESS.lower())
 
         # using default values
         self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json()
@@ -239,7 +239,7 @@ class TestStatusHandler(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], False)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(substatus_file_data["status"].lower(), Constants.STATUS_SUCCESS.lower())
 
 
 if __name__ == '__main__':
