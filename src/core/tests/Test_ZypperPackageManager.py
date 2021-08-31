@@ -196,12 +196,12 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager.get_process_tree_from_pid_in_output(package_manager_output))
 
     def test_get_process_tree_from_package_manager_output_failure_nonexistent_process(self):
-        self.runtime.set_legacy_test_type('SadPath')
+        self.runtime.set_legacy_test_type('HappyPath')
 
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
 
-        # Create example package manager message and include test pid
+        # Create example package manager message and include pid that isn't expected in the output
         package_manager_output = 'Output from package manager: | System management is locked by the application with pid 9999 (/usr/bin/zypper).'
 
         # Test to make sure nothing was returned from an invalid process

@@ -215,7 +215,7 @@ class LegacyEnvLayerExtensions():
                                  "\n" + \
                                  "You may wish to restart these processes.\n" + \
                                  "See 'man zypper' for information about the meaning of values in the above table.\n"
-                    elif cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p 7914)') > -1:
+                    elif cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p') > -1:
                         code = 0
                         output = "PID CMD\n" + \
                                  "7736 /bin/bash\n" + \
