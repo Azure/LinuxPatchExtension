@@ -21,11 +21,12 @@ import time
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.LifecycleManager import LifecycleManager
 
+
 class LifecycleManagerAzure(LifecycleManager):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
-        super(LifecycleManagerAzure,self).__init__(env_layer,execution_config,composite_logger,telemetry_writer)
+        super(LifecycleManagerAzure, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer)
 
         # Handshake file paths
         self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.EXT_STATE_FILE)
@@ -39,7 +40,7 @@ class LifecycleManagerAzure(LifecycleManager):
         extension_sequence = self.read_extension_sequence()
         core_sequence = self.read_core_sequence()
 
-        if self.execution_config.operation == Constants.AUTO_ASSESSMENT:
+        if self.execution_config.exec_auto_assess_only:
             # newer sequence number has been observed, do not run
             if int(self.execution_config.sequence_number) < int(extension_sequence['number']) \
                     or int(self.execution_config.sequence_number) < int(core_sequence['number']):
@@ -54,12 +55,12 @@ class LifecycleManagerAzure(LifecycleManager):
 
             # attempted sequence number is same as recorded core sequence - expected
             if int(self.execution_config.sequence_number) == int(core_sequence['number']):
-                if bool(core_sequence['completed']):
+                if core_sequence['completed'].lower() == 'true':
                     self.composite_logger.log_debug("Auto-assessment is safe to start. Existing sequence number marked as completed.")
                     self.update_core_sequence(completed=False)  # signalling core restart with auto-assessment as its safe to do so
                 else:
                     self.composite_logger.log_debug("Auto-assessment may not be safe to start yet as core sequence is not marked completed.")
-                    if len(self.identify_running_processes(core_sequence['process_ids'])) != 0:
+                    if len(self.identify_running_processes(core_sequence['processIds'])) != 0:
                         # NOT SAFE TO START
                         # Possible reasons: full core operation is in progress (okay), some previous auto-assessment is still running (bad scheduling, adhoc run, or process stalled)
                         self.composite_logger.log_warning("Auto-assessment is NOT safe to start yet. Existing core process(es) running. Exiting. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
@@ -74,7 +75,7 @@ class LifecycleManagerAzure(LifecycleManager):
                             core_sequence = self.read_core_sequence()
 
                             # Main Core process suddenly started running (expected after reboot) - don't run
-                            if len(self.identify_running_processes(core_sequence['process_ids'])) != 0:
+                            if len(self.identify_running_processes(core_sequence['processIds'])) != 0:
                                 self.composite_logger.log_warning("Auto-assessment is NOT safe to start as core process(es) started running. Exiting. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
                                 self.env_layer.exit(0)
 
@@ -120,5 +121,5 @@ class LifecycleManagerAzure(LifecycleManager):
     # region - Identity
     def get_vm_cloud_type(self):
         return Constants.VMCloudType.AZURE
-    #endregion
+    # endregion
 
