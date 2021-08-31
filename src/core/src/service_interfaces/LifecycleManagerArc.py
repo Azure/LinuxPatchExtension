@@ -65,7 +65,7 @@ class LifecycleManagerArc(LifecycleManager):
 
             # attempted sequence number is same as recorded core sequence - expected
             if int(self.execution_config.sequence_number) == int(core_sequence['number']):
-                if core_sequence['completed'].lower() == 'false':
+                if core_sequence['completed'].lower() == 'true':
                     self.composite_logger.log_debug("Auto-assessment is safe to start. Existing sequence number marked as completed.")
                     self.update_core_sequence(completed=False)  # signalling core restart with auto-assessment as its safe to do so
                 else:
