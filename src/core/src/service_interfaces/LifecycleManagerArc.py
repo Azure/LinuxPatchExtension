@@ -30,9 +30,9 @@ class LifecycleManagerArc(LifecycleManager):
         # Handshake file paths
         self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.EXT_STATE_FILE)
         self.core_state_file_path = os.path.join(self.execution_config.config_folder, Constants.CORE_STATE_FILE)
-        #Writing to log
+        # Writing to log
         self.composite_logger.log_debug("Initializing LifecycleManagerArc")
-        #Variables
+        # Variables
         self.arc_root = "/var/lib/waagent/"
         self.arc_core_state_file_name = "CoreState.json"
         self.arc_extension_folder_pattern = "Microsoft.SoftwareUpdateManagement.LinuxOsUpdateExtension-*"
@@ -50,7 +50,7 @@ class LifecycleManagerArc(LifecycleManager):
             self.update_core_sequence(completed=True)   # forced-to-complete scenario | extension wrapper will be watching for this event
             self.env_layer.exit(0)
 
-        if self.execution_config.operation == Constants.AUTO_ASSESSMENT:
+        if self.execution_config.exec_auto_assess_only:
             # newer sequence number has been observed, do not run
             if int(self.execution_config.sequence_number) < int(extension_sequence['number']) \
                     or int(self.execution_config.sequence_number) < int(core_sequence['number']):
@@ -65,12 +65,12 @@ class LifecycleManagerArc(LifecycleManager):
 
             # attempted sequence number is same as recorded core sequence - expected
             if int(self.execution_config.sequence_number) == int(core_sequence['number']):
-                if bool(core_sequence['completed']):
+                if core_sequence['completed'].lower() == 'true':
                     self.composite_logger.log_debug("Auto-assessment is safe to start. Existing sequence number marked as completed.")
                     self.update_core_sequence(completed=False)  # signalling core restart with auto-assessment as its safe to do so
                 else:
                     self.composite_logger.log_debug("Auto-assessment may not be safe to start yet as core sequence is not marked completed.")
-                    if len(self.identify_running_processes(core_sequence['process_ids'])) != 0:
+                    if len(self.identify_running_processes(core_sequence['processIds'])) != 0:
                         # NOT SAFE TO START
                         # Possible reasons: full core operation is in progress (okay), some previous auto-assessment is still running (bad scheduling, adhoc run, or process stalled)
                         self.composite_logger.log_warning("Auto-assessment is NOT safe to start yet. Existing core process(es) running. Exiting. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
@@ -84,7 +84,7 @@ class LifecycleManagerArc(LifecycleManager):
                             core_sequence = self.read_core_sequence()
 
                             # Main Core process suddenly started running (expected after reboot) - don't run
-                            if len(self.identify_running_processes(core_sequence['process_ids'])) != 0:
+                            if len(self.identify_running_processes(core_sequence['processIds'])) != 0:
                                 self.composite_logger.log_warning("Auto-assessment is NOT safe to start as core process(es) started running. Exiting. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
                                 self.env_layer.exit(0)
 
@@ -134,10 +134,10 @@ class LifecycleManagerArc(LifecycleManager):
             ''' Dummy core sequence in case of arc core state is not found '''
             completed = True
             core_sequence = {'number': 0,
-                         'action': self.execution_config.operation,
-                         'completed': str(completed),
-                         'lastHeartbeat': str(self.env_layer.datetime.timestamp()),
-                         'processIds': []}
+                             'action': self.execution_config.operation,
+                             'completed': str(completed),
+                             'lastHeartbeat': str(self.env_layer.datetime.timestamp()),
+                             'processIds': []}
             return core_sequence
         
         # Read (with retries for only IO Errors) - TODO: Refactor common code
@@ -177,5 +177,5 @@ class LifecycleManagerArc(LifecycleManager):
     # region - Identity
     def get_vm_cloud_type(self):
         return Constants.VMCloudType.ARC
-    #endregion
+    # endregion
 

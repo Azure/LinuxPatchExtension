@@ -30,7 +30,7 @@ class ArgumentComposer(object):
         self.__EXEC = "MsftLinuxPatchCore.py"
         self.__TESTS_FOLDER = "tests"
         self.__SCRATCH_FOLDER = "scratch"
-        self.__ARG_TEMPLATE = "{0} {1} {2} {3} \'{4}\' {5} \'{6}\'"
+        self.__ARG_TEMPLATE = "{0} {1} {2} {3} \'{4}\' {5} \'{6}\' {7} {8}"
         self.__EVENTS_FOLDER = "events"
 
         # sequence number
@@ -53,6 +53,8 @@ class ArgumentComposer(object):
         self.patch_mode = None
         self.assessment_mode = None
         self.maximum_assessment_interval = "PT3H"
+
+        self.exec_auto_assess_only = False
 
         # REAL environment settings
         self.emulator_enabled = False
@@ -84,6 +86,7 @@ class ArgumentComposer(object):
         return str(self.__ARG_TEMPLATE.format(self.__EXEC, Constants.ARG_SEQUENCE_NUMBER, self.sequence_number,
                                               Constants.ARG_ENVIRONMENT_SETTINGS, self.__get_encoded_json_str(environment_settings),
                                               Constants.ARG_CONFIG_SETTINGS, self.__get_encoded_json_str(config_settings),
+                                              Constants.ARG_AUTO_ASSESS_ONLY, self.exec_auto_assess_only,
                                               Constants.ARG_INTERNAL_RECORDER_ENABLED, str(False),
                                               Constants.ARG_INTERNAL_EMULATOR_ENABLED, str(self.emulator_enabled))).split(' ')
 

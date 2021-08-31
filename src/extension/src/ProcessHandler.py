@@ -146,16 +146,21 @@ class ProcessHandler(object):
     def __check_process_state(self, process, seq_no):
         """ Checks if the process is running by polling every second for a certain period and reports an error if the process is not found """
         did_process_start = False
+        retcode = -1
+        output = ""
+        unused_err = ""
         for retry in range(0, Constants.MAX_PROCESS_STATUS_CHECK_RETRIES):
             time.sleep(retry)
-            if process.poll() is None:
+            output, unused_err = process.communicate()
+            retcode = process.poll()
+            if retcode is None:
                 did_process_start = True
                 break
         # if process is not running, log stdout and stderr
         if not did_process_start:
             self.logger.log("Process not running for [sequence={0}]".format(seq_no))
-            self.logger.log("Stdout for the inactive process: [Output={0}]".format(str(process.stdout.read())))
-            self.logger.log("Stderr for the inactive process: [Error={0}]".format(str(process.stderr.read())))
+            self.logger.log("Output for the inactive process: [Output={0}]".format(str(output)))
+            self.logger.log("Error for the inactive process: [Error={0}]".format(str(unused_err)))
         return did_process_start
 
     def identify_running_processes(self, process_ids):
