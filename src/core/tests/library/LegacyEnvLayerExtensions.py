@@ -215,6 +215,17 @@ class LegacyEnvLayerExtensions():
                                  "\n" + \
                                  "You may wish to restart these processes.\n" + \
                                  "See 'man zypper' for information about the meaning of values in the above table.\n"
+                    elif cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p') > -1:
+                        code = 0
+                        output = "PID CMD\n" + \
+                                 "7736 /bin/bash\n" + \
+                                 "7912  \_ python3 package_test.py\n" + \
+                                 "7913  |   \_ sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run bind-utils\n" + \
+                                 "7914  |       \_ zypper --non-interactive update --dry-run bind-utils\n" + \
+                                 "7982  |           \_ /usr/bin/python3 /usr/lib/zypp/plugins/urlresolver/susecloud\n" + \
+                                 "7984  |               \_ /usr/bin/python3 /usr/bin/azuremetadata --api latest --subscriptionId --billingTag --attestedData --signature\n" + \
+                                 "7986  \_ python3 package_test.py\n" + \
+                                 "8298      \_ sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run grub2-i386-pc\n"
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("--security check-update") > -1:
                         code = 100
@@ -489,6 +500,9 @@ class LegacyEnvLayerExtensions():
                         output = ''
                 elif self.legacy_package_manager_name is Constants.ZYPPER:
                     output = ''
+                    if cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p') > -1:
+                        output = 'test'
+                        code = 1
             elif self.legacy_test_type == 'UnalignedPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -517,6 +531,9 @@ class LegacyEnvLayerExtensions():
                 elif self.legacy_package_manager_name is Constants.ZYPPER:
                     code = 100
                     output = ''
+                    if cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p') > -1:
+                        output = ''
+                        code = 0
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
