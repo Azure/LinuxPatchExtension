@@ -32,7 +32,7 @@ class ConfigurePatchingProcessor(object):
         self.auto_assess_timer_manager = auto_assess_timer_manager
         self.lifecycle_manager = lifecycle_manager
 
-        self.current_auto_os_patch_state = Constants.AutomaticOsPatchStates.UNKNOWN
+        self.current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
         self.current_auto_assessment_state = Constants.AutoAssessmentStates.UNKNOWN
         self.configure_patching_successful = True
 
@@ -69,7 +69,7 @@ class ConfigurePatchingProcessor(object):
 
             # disable auto OS updates if VM is configured for platform updates only.
             # NOTE: this condition will be false for Assessment operations, since patchMode is not sent in the API request
-            if self.current_auto_os_patch_state == Constants.AutomaticOsPatchStates.ENABLED and self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM:
+            if self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.ENABLED and self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM:
                 self.package_manager.disable_auto_os_update()
 
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()

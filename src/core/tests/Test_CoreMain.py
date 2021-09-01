@@ -457,7 +457,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
-        self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
+        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
@@ -490,7 +490,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
+        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
@@ -521,7 +521,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
+        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
@@ -556,7 +556,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
+        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
@@ -595,7 +595,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
-        self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor, this is tested in Test-ConfigurePatchingProcessor
+        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor, this is tested in Test-ConfigurePatchingProcessor
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
@@ -637,7 +637,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
-        self.assertEqual(message["automaticOsPatchState"], Constants.AutomaticOsPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
+        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input

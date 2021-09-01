@@ -142,7 +142,7 @@ class RuntimeCompositor(object):
         return True
 
     def get_current_auto_os_patch_state(self):
-        return Constants.AutomaticOsPatchStates.DISABLED
+        return Constants.AutomaticOSPatchStates.DISABLED
 
     def mock_urlopen(url, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, cafile=None, capath=None, cadefault=False, context=None):
         resp = urlreq.addinfourl(StringIO("mock file"), "mock message", "mockurl")
