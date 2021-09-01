@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.22"
+    EXT_VERSION = "1.6.23"
 
     # Runtime environments
     TEST = 'Test'
@@ -105,7 +105,7 @@ class Constants(object):
         AUTOMATIC_BY_PLATFORM = "AutomaticByPlatform"
 
     # automatic OS patch states for configure patching
-    class AutomaticOsPatchStates(EnumBackport):
+    class AutomaticOSPatchStates(EnumBackport):
         UNKNOWN = "Unknown"
         DISABLED = "Disabled"
         ENABLED = "Enabled"

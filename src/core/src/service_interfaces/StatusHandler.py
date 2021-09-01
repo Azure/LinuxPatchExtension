@@ -383,7 +383,7 @@ class StatusHandler(object):
         }
 
     def set_configure_patching_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0,
-                                              automatic_os_patch_state=Constants.AutomaticOsPatchStates.UNKNOWN,
+                                              automatic_os_patch_state=Constants.AutomaticOSPatchStates.UNKNOWN,
                                               auto_assessment_state=Constants.AutoAssessmentStates.UNKNOWN):
         """ Prepare the configure patching substatus json including the message containing configure patching summary """
         self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))
@@ -407,7 +407,7 @@ class StatusHandler(object):
             "activityId": str(self.execution_config.activity_id),
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
-            "automaticOsPatchState": automatic_os_patch_state,
+            "automaticOSPatchState": automatic_os_patch_state,
             "autoAssessmentStatus": {
                 "autoAssessmentState": auto_assessment_state,
                 "errors": self.__set_errors_json(self.__configure_patching_auto_assessment_error_count, self.__configure_patching_auto_assessment_errors)
@@ -670,7 +670,7 @@ class StatusHandler(object):
 
             # retain previously set status, code, patchMode and M for configure patching substatus
             if self.__configure_patching_substatus_json is not None:
-                automatic_os_patch_state = json.loads(self.__configure_patching_substatus_json["formattedMessage"]["message"])["automaticOsPatchState"]
+                automatic_os_patch_state = json.loads(self.__configure_patching_substatus_json["formattedMessage"]["message"])["automaticOSPatchState"]
                 auto_assessment_status = self.__json_try_get_key_value(self.__configure_patching_substatus_json["formattedMessage"]["message"],"autoAssessmentStatus","{}")
                 auto_assessment_state = self.__json_try_get_key_value(json.dumps(auto_assessment_status), "autoAssessmentState", Constants.AutoAssessmentStates.UNKNOWN)
                 self.set_configure_patching_substatus_json(status=self.__configure_patching_substatus_json["status"], code=self.__configure_patching_substatus_json["code"],
