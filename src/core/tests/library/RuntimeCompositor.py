@@ -38,11 +38,12 @@ except ImportError:
     from io import StringIO ## for Python 3
 
 class RuntimeCompositor(object):
-    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT):
+    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE):
         # Init data
         self.current_env = Constants.DEV
         os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
+        self.vm_cloud_type = vm_cloud_type
 
         # Overriding time.sleep and urlopen to avoid delays in test execution
         self.backup_time_sleep = time.sleep
@@ -144,11 +145,14 @@ class RuntimeCompositor(object):
     def get_current_auto_os_patch_state(self):
         return Constants.AutomaticOSPatchStates.DISABLED
 
-    def mock_urlopen(url, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, cafile=None, capath=None, cadefault=False, context=None):
-        resp = urlreq.addinfourl(StringIO("mock file"), "mock message", "mockurl")
-        resp.code = 200
-        resp.msg = "OK"
-        return resp
+    def mock_urlopen(self, url, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, cafile=None, capath=None, cadefault=False, context=None):
+        if self.vm_cloud_type == Constants.VMCloudType.AZURE:
+            resp = urlreq.addinfourl(StringIO("mock file"), "mock message", "mockurl")
+            resp.code = 200
+            resp.msg = "OK"
+            return resp
+        else:
+            raise Exception
 
     def mock_create_and_set_service_idem(self):
         pass
