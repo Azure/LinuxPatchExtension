@@ -37,7 +37,6 @@ class LifecycleManagerArc(LifecycleManager):
         self.arc_core_state_file_name = "CoreState.json"
         self.arc_extension_folder_pattern = "Microsoft.SoftwareUpdateManagement.LinuxOsUpdateExtension-*"
         self.config_folder_path = "/config/"
-        self.arc_core_state_file_path = self.get_arc_core_state_file()
 
     # region - State checkers
     def execution_start_check(self):
@@ -130,8 +129,7 @@ class LifecycleManagerArc(LifecycleManager):
 
     def read_arc_core_sequence(self):
         self.composite_logger.log_debug("Reading arc extension core sequence...")
-        core_state_file_path = self.arc_core_state_file_path
-
+        core_state_file_path = self.get_arc_core_state_file()
         if not os.path.exists(core_state_file_path) or not os.path.isfile(core_state_file_path):
             ''' Dummy core sequence in case of arc core state is not found '''
             completed = True
