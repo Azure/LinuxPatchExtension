@@ -64,6 +64,9 @@ class TestProcessHandler(unittest.TestCase):
     def mock_get_python_cmd(self):
         return "python"
 
+    def mock_run_command_to_set_auto_assess_shell_file_permission(self, cmd, no_output=False, chk_err=False):
+        return 0, "permissions set"
+
     def mock_subprocess_popen_process_not_running_after_launch(self, command, shell, stdout, stderr):
         self.process.pid = 1
         self.process.poll = self.mock_process_poll_return_Not_None
@@ -168,12 +171,18 @@ class TestProcessHandler(unittest.TestCase):
         # process launched but is not running soon after
         subprocess.Popen = self.mock_subprocess_popen_process_not_running_after_launch
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
+
+        # mock run command output for Auto Assess shell file permission change
+        run_command_output_backup = process_handler.env_layer.run_command_output
+        process_handler.env_layer.run_command_output = self.mock_run_command_to_set_auto_assess_shell_file_permission
+
         process = process_handler.start_daemon(seq_no, config_settings, ext_env_handler)
         self.assertTrue(process is None)
 
         # resetting mocks
         ProcessHandler.get_python_cmd = get_python_cmd_backup
         subprocess.Popen = subprocess_popen_backup
+        process_handler.env_layer.run_command_output = run_command_output_backup
 
 
 if __name__ == '__main__':

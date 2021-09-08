@@ -17,6 +17,7 @@
 import datetime
 import json
 import os
+import socket
 import time
 
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
@@ -25,6 +26,16 @@ from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.src.bootstrap.Bootstrapper import Bootstrapper
 from core.src.bootstrap.Constants import Constants
 
+# Todo: find a different way to import these
+try:
+    import urllib2 as urlreq   #Python 2.x
+except:
+    import urllib.request as urlreq   #Python 3.x
+
+try:
+    from StringIO import StringIO ## for Python 2
+except ImportError:
+    from io import StringIO ## for Python 3
 
 class RuntimeCompositor(object):
     def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT):
@@ -33,9 +44,11 @@ class RuntimeCompositor(object):
         os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
 
-        # Overriding time.sleep to avoid delays in test execution
+        # Overriding time.sleep and urlopen to avoid delays in test execution
         self.backup_time_sleep = time.sleep
         time.sleep = self.mock_sleep
+        self.backup_url_open = urlreq.urlopen
+        urlreq.urlopen = self.mock_urlopen
 
         # Adapted bootstrapper
         bootstrapper = Bootstrapper(self.argv, capture_stdout=False)
@@ -73,9 +86,19 @@ class RuntimeCompositor(object):
         self.patch_assessor = self.container.get('patch_assessor')
         self.patch_installer = self.container.get('patch_installer')
         self.maintenance_window = self.container.get('maintenance_window')
-
+        self.vm_cloud_type = bootstrapper.configuration_factory.vm_cloud_type
         # Extension handler dependency
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
+
+        # Mock service and timer creation and removal used for Auto Assessment
+        self.backup_create_and_set_service_idem = self.configure_patching_processor.auto_assess_service_manager.create_and_set_service_idem
+        self.configure_patching_processor.auto_assess_service_manager.create_and_set_service_idem = self.mock_create_and_set_service_idem
+        self.backup_mock_create_and_set_timer_idem = self.configure_patching_processor.auto_assess_timer_manager.create_and_set_timer_idem
+        self.configure_patching_processor.auto_assess_timer_manager.create_and_set_timer_idem = self.mock_create_and_set_timer_idem
+        self.backup_remove_service = self.configure_patching_processor.auto_assess_service_manager.remove_service
+        self.configure_patching_processor.auto_assess_service_manager.remove_service = self.mock_remove_service
+        self.backup_remove_timer = self.configure_patching_processor.auto_assess_timer_manager.remove_timer
+        self.configure_patching_processor.auto_assess_timer_manager.remove_timer = self.mock_remove_timer
 
     def stop(self):
         self.file_logger.close(message_at_close="<Runtime stopped>")
@@ -119,7 +142,25 @@ class RuntimeCompositor(object):
         return True
 
     def get_current_auto_os_patch_state(self):
-        return Constants.AutomaticOsPatchStates.DISABLED
+        return Constants.AutomaticOSPatchStates.DISABLED
+
+    def mock_urlopen(url, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, cafile=None, capath=None, cadefault=False, context=None):
+        resp = urlreq.addinfourl(StringIO("mock file"), "mock message", "mockurl")
+        resp.code = 200
+        resp.msg = "OK"
+        return resp
+
+    def mock_create_and_set_service_idem(self):
+        pass
+
+    def mock_create_and_set_timer_idem(self):
+        pass
+
+    def mock_remove_service(self):
+        pass
+
+    def mock_remove_timer(self):
+        pass
 
     @staticmethod
     def write_to_file(path, data):

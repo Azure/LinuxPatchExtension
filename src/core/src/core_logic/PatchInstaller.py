@@ -99,6 +99,9 @@ class PatchInstaller(object):
         return overall_patch_installation_successful
 
     def raise_if_agent_incompatible(self):
+        if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
+            self.composite_logger.log("Skipping agent compatibility check for Arc cloud type when operation is not manual")
+            return
         if not self.telemetry_writer.is_agent_compatible():
             error_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
             self.composite_logger.log_error(error_msg)

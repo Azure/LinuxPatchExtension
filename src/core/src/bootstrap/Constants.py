@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.20"
+    EXT_VERSION = "1.6.24"
 
     # Runtime environments
     TEST = 'Test'
@@ -105,7 +105,7 @@ class Constants(object):
         AUTOMATIC_BY_PLATFORM = "AutomaticByPlatform"
 
     # automatic OS patch states for configure patching
-    class AutomaticOsPatchStates(EnumBackport):
+    class AutomaticOSPatchStates(EnumBackport):
         UNKNOWN = "Unknown"
         DISABLED = "Disabled"
         ENABLED = "Enabled"
@@ -155,6 +155,7 @@ class Constants(object):
     MAX_FILE_OPERATION_RETRY_COUNT = 5
     MAX_ASSESSMENT_RETRY_COUNT = 5
     MAX_INSTALLATION_RETRY_COUNT = 3
+    MAX_IMDS_CONNECTION_RETRY_COUNT = 5
 
     class PackageClassification(EnumBackport):
         UNCLASSIFIED = 'Unclassified'
@@ -185,6 +186,19 @@ class Constants(object):
         STARTED = "Started"
         COMPLETED = "Completed"
         FAILED = "Failed"
+    
+    # Enum for VM Cloud Type
+    class VMCloudType(EnumBackport):
+        UNKNOWN = "Unknown"
+        AZURE = "Azure"
+        ARC = "Arc"
+
+    IMDS_END_POINT = "http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01"
+
+    # StartedBy Patch Assessment Summary Status Values
+    class PatchAssessmentSummaryStartedBy(EnumBackport):
+        USER = "User"
+        PLATFORM = "Platform"
 
     # StartedBy Patch Assessment Summary Status Values
     class PatchAssessmentSummaryStartedBy(EnumBackport):

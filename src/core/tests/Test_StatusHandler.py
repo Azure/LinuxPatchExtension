@@ -31,6 +31,22 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.stop()
 
     def test_set_package_assessment_status(self):
+        # startedBy should be set to User in status for Assessment
+        packages, package_versions = self.runtime.package_manager.get_all_updates()
+        self.runtime.status_handler.set_package_assessment_status(packages, package_versions)
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), 3)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["name"], "samba-libs")
+        self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["startedBy"], Constants.PatchAssessmentSummaryStartedBy.USER)
+
+    def test_set_package_assessment_status_for_auto_assessment(self):
+        # startedBy should be set to Platform in status for Auto Assessment
+        self.runtime.execution_config.exec_auto_assess_only = True
         packages, package_versions = self.runtime.package_manager.get_all_updates()
         self.runtime.status_handler.set_package_assessment_status(packages, package_versions)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
@@ -199,14 +215,14 @@ class TestStatusHandler(unittest.TestCase):
     def test_status_file_initial_load(self):
         # for non autopatching request, with Reboot started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         self.assertTrue(status_handler is not None)
 
         # for autopatching request, with reboot started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
         self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json()
         self.runtime.execution_config.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertTrue(len(substatus_file_data) == 1)
@@ -214,13 +230,13 @@ class TestStatusHandler(unittest.TestCase):
         # for autopatching request, with reboot not started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)
         self.runtime.execution_config.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer)
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertTrue(status_handler is not None)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], False)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(substatus_file_data["status"].lower(), Constants.STATUS_SUCCESS.lower())
 
     def test_set_patch_metadata_for_healthstore_substatus_json(self):
         # setting healthstore properties
@@ -229,7 +245,7 @@ class TestStatusHandler(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], True)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], "2020-07-08")
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(substatus_file_data["status"].lower(), Constants.STATUS_SUCCESS.lower())
 
         # using default values
         self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json()
@@ -237,7 +253,7 @@ class TestStatusHandler(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], False)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(substatus_file_data["status"].lower(), Constants.STATUS_SUCCESS.lower())
 
 
 if __name__ == '__main__':

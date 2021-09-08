@@ -25,7 +25,7 @@ from core.src.bootstrap.Constants import Constants
 class StatusHandler(object):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, vm_cloud_type):
         # Map supporting components for operation
         self.env_layer = env_layer
         self.execution_config = execution_config
@@ -33,6 +33,7 @@ class StatusHandler(object):
         self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
+        self.vm_cloud_type = vm_cloud_type
 
         # Status components
         self.__high_level_status_message = ""
@@ -251,7 +252,7 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Setting assessment substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap patches into assessment summary
-        self.__assessment_summary_json = self.__new_assessment_summary_json(self.__assessment_packages)
+        self.__assessment_summary_json = self.__new_assessment_summary_json(self.__assessment_packages, status, code)
 
         # Wrap assessment summary into assessment substatus
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
@@ -259,7 +260,7 @@ class StatusHandler(object):
         # Update status on disk
         self.__write_status_file()
 
-    def __new_assessment_summary_json(self, assessment_packages_json):
+    def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
             Purpose: This composes the message inside the patch assessment summary substatus:
                 Root --> Status --> Substatus [name: "PatchAssessmentSummary"] --> FormattedMessage --> **Message** """
@@ -275,10 +276,10 @@ class StatusHandler(object):
                 other_patch_count += 1
 
         # discern started by
-        started_by = Constants.PatchAssessmentSummaryStartedBy.PLATFORM if self.execution_config.operation == Constants.AUTO_ASSESSMENT else Constants.PatchAssessmentSummaryStartedBy.USER
+        started_by = Constants.PatchAssessmentSummaryStartedBy.PLATFORM if self.execution_config.exec_auto_assess_only else Constants.PatchAssessmentSummaryStartedBy.USER
 
         # Compose sub-status message
-        return {
+        substatus_message = {
             "assessmentActivityId": str(self.execution_config.activity_id),
             "rebootPending": self.is_reboot_pending,
             "criticalAndSecurityPatchCount": critsec_patch_count,
@@ -289,6 +290,11 @@ class StatusHandler(object):
             "startedBy": str(started_by),
             "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
         }
+
+        if self.vm_cloud_type == Constants.VMCloudType.ARC:
+            substatus_message["patchAssessmentStatus"] = code
+            substatus_message["patchAssessmentStatusString"] = status
+        return substatus_message
 
     def set_installation_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0):
         """ Prepare the deployment substatus json including the message containing deployment summary """
@@ -377,13 +383,13 @@ class StatusHandler(object):
         }
 
     def set_configure_patching_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0,
-                                              automatic_os_patch_state=Constants.AutomaticOsPatchStates.UNKNOWN,
+                                              automatic_os_patch_state=Constants.AutomaticOSPatchStates.UNKNOWN,
                                               auto_assessment_state=Constants.AutoAssessmentStates.UNKNOWN):
         """ Prepare the configure patching substatus json including the message containing configure patching summary """
         self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap default automatic OS patch state on the machine, at the time of this request, into configure patching summary
-        self.__configure_patching_summary_json = self.__new_configure_patching_summary_json(automatic_os_patch_state, auto_assessment_state)
+        self.__configure_patching_summary_json = self.__new_configure_patching_summary_json(automatic_os_patch_state, auto_assessment_state, status, code)
 
         # Wrap configure patching summary into configure patching substatus
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
@@ -391,23 +397,27 @@ class StatusHandler(object):
         # Update status on disk
         self.__write_status_file()
 
-    def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state):
+    def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
             Purpose: This composes the message inside the configure patching summary substatus:
                 Root --> Status --> Substatus [name: "ConfigurePatchingSummary"] --> FormattedMessage --> **Message** """
 
         # Compose substatus message
-        return {
+        substatus_message = {
             "activityId": str(self.execution_config.activity_id),
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
-            "automaticOsPatchState": automatic_os_patch_state,
+            "automaticOSPatchState": automatic_os_patch_state,
             "autoAssessmentStatus": {
                 "autoAssessmentState": auto_assessment_state,
                 "errors": self.__set_errors_json(self.__configure_patching_auto_assessment_error_count, self.__configure_patching_auto_assessment_errors)
             },
             "errors": self.__set_errors_json(self.__configure_patching_top_level_error_count, self.__configure_patching_errors)
         }
+        if self.vm_cloud_type == Constants.VMCloudType.ARC:
+            substatus_message["configurePatchStatus"] = code
+            substatus_message["configurePatchStatusString"] = status
+        return substatus_message
 
     @staticmethod
     def __new_substatus_json_for_operation(operation_name, status="Transitioning", code=0, message=json.dumps("{}")):
@@ -428,13 +438,12 @@ class StatusHandler(object):
         self.env_layer.file_system.write_with_retry(self.status_file_path, '[{0}]'.format(json.dumps(self.__new_basic_status_json())), mode='w+')
 
     def __new_basic_status_json(self):
-        reported_operation = self.execution_config.operation if self.execution_config.operation != Constants.AUTO_ASSESSMENT else Constants.ASSESSMENT
         return {
             "version": 1.0,
             "timestampUTC": str(self.env_layer.datetime.timestamp()),
             "status": {
                 "name": "Azure Patch Management",
-                "operation": str(reported_operation),
+                "operation": str(self.execution_config.operation),
                 "status": "success",
                 "code": 0,
                 "formattedMessage": {
@@ -514,15 +523,18 @@ class StatusHandler(object):
         for i in range(0, len(status_file_data['status']['substatus'])):
             name = status_file_data['status']['substatus'][i]['name']
             if name == Constants.PATCH_INSTALLATION_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
-                message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                self.__installation_summary_json = json.loads(message)
-                self.__installation_packages = self.__installation_summary_json['patches']
-                self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
-                self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
-                errors = self.__installation_summary_json['errors']
-                if errors is not None and errors['details'] is not None:
-                    self.__installation_errors = errors['details']
-                    self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
+                if self.execution_config.exec_auto_assess_only:
+                    self.__installation_substatus_json = status_file_data['status']['substatus'][i]
+                else:
+                    message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                    self.__installation_summary_json = json.loads(message)
+                    self.__installation_packages = self.__installation_summary_json['patches']
+                    self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
+                    self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
+                    errors = self.__installation_summary_json['errors']
+                    if errors is not None and errors['details'] is not None:
+                        self.__installation_errors = errors['details']
+                        self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__assessment_summary_json = json.loads(message)
@@ -532,15 +544,21 @@ class StatusHandler(object):
                     self.__assessment_errors = errors['details']
                     self.__assessment_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_METADATA_FOR_HEALTHSTORE:     # if it exists, it must be to spec, or an exception will get thrown
-                message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                self.__metadata_for_healthstore_summary_json = json.loads(message)
-            if name == Constants.CONFIGURE_PATCHING:     # if it exists, it must be to spec, or an exception will get thrown
-                message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                self.__configure_patching_summary_json = json.loads(message)
-                errors = self.__configure_patching_summary_json['errors']
-                if errors is not None and errors['details'] is not None:
-                    self.__configure_patching_errors = errors['details']
-                    self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
+                if self.execution_config.exec_auto_assess_only:
+                    self.__metadata_for_healthstore_substatus_json = status_file_data['status']['substatus'][i]
+                else:
+                    message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                    self.__metadata_for_healthstore_summary_json = json.loads(message)
+            if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
+                if self.execution_config.exec_auto_assess_only:
+                    self.__configure_patching_substatus_json = status_file_data['status']['substatus'][i]
+                else:
+                    message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                    self.__configure_patching_summary_json = json.loads(message)
+                    errors = self.__configure_patching_summary_json['errors']
+                    if errors is not None and errors['details'] is not None:
+                        self.__configure_patching_errors = errors['details']
+                        self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
     def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
@@ -652,7 +670,7 @@ class StatusHandler(object):
 
             # retain previously set status, code, patchMode and M for configure patching substatus
             if self.__configure_patching_substatus_json is not None:
-                automatic_os_patch_state = json.loads(self.__configure_patching_substatus_json["formattedMessage"]["message"])["automaticOsPatchState"]
+                automatic_os_patch_state = json.loads(self.__configure_patching_substatus_json["formattedMessage"]["message"])["automaticOSPatchState"]
                 auto_assessment_status = self.__json_try_get_key_value(self.__configure_patching_substatus_json["formattedMessage"]["message"],"autoAssessmentStatus","{}")
                 auto_assessment_state = self.__json_try_get_key_value(json.dumps(auto_assessment_status), "autoAssessmentState", Constants.AutoAssessmentStates.UNKNOWN)
                 self.set_configure_patching_substatus_json(status=self.__configure_patching_substatus_json["status"], code=self.__configure_patching_substatus_json["code"],
