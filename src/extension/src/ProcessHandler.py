@@ -151,22 +151,16 @@ class ProcessHandler(object):
         unused_err = ""
         for retry in range(0, Constants.MAX_PROCESS_STATUS_CHECK_RETRIES):
             time.sleep(retry)
+            output, unused_err = process.communicate()
             retcode = process.poll()
             if retcode is None:
                 did_process_start = True
                 break
         # if process is not running, log stdout and stderr
-        # TASK 10881186 for 'I/O operation on closed file' exception. removed process.communicate from loop and checking only when process do not start
-        try:
-            output, unused_err = process.communicate()
-        except Exception as error:
-            self.logger.log("Exception from process.communicate() while trying to communicate to core process. Exeption:{0}".format(repr(error)))
-
         if not did_process_start:
             self.logger.log("Process not running for [sequence={0}]".format(seq_no))
             self.logger.log("Output for the inactive process: [Output={0}]".format(str(output)))
             self.logger.log("Error for the inactive process: [Error={0}]".format(str(unused_err)))
-                
         return did_process_start
 
     def identify_running_processes(self, process_ids):
