@@ -200,11 +200,6 @@ class Constants(object):
         USER = "User"
         PLATFORM = "Platform"
 
-    # StartedBy Patch Assessment Summary Status Values
-    class PatchAssessmentSummaryStartedBy(EnumBackport):
-        USER = "User"
-        PLATFORM = "Platform"
-
     # Maintenance Window
     PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES = 5
 
