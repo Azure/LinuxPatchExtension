@@ -38,7 +38,10 @@ class TelemetryWriter(object):
         self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
         self.event_count = 1
 
-        if events_folder_path is not None and os.path.exists(events_folder_path):
+        if events_folder_path is not None:
+            if not os.path.exists(events_folder_path):
+                os.mkdir(events_folder_path) # ensure events folder exists, even though telemetry should have created it
+
             self.events_folder_path = events_folder_path
             self.__is_agent_compatible = True
 
