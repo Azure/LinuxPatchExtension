@@ -86,7 +86,7 @@ class ArgumentComposer(object):
         return str(self.__ARG_TEMPLATE.format(self.__EXEC, Constants.ARG_SEQUENCE_NUMBER, self.sequence_number,
                                               Constants.ARG_ENVIRONMENT_SETTINGS, self.__get_encoded_json_str(environment_settings),
                                               Constants.ARG_CONFIG_SETTINGS, self.__get_encoded_json_str(config_settings),
-                                              Constants.ARG_AUTO_ASSESS_ONLY, self.exec_auto_assess_only,
+                                              Constants.ARG_AUTO_ASSESS_ONLY, str(self.exec_auto_assess_only),
                                               Constants.ARG_INTERNAL_RECORDER_ENABLED, str(False),
                                               Constants.ARG_INTERNAL_EMULATOR_ENABLED, str(self.emulator_enabled))).split(' ')
 

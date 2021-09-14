@@ -44,8 +44,8 @@ class CoreMain(object):
 
             # Current operation in status handler is set to either assessment or installation when these operations begin. Setting it to assessment since that is the first operation that runs always.
             # This ensures all errors occurring before assessment starts are logged within the error objects of assessment substatus
-            if status_handler.get_current_operation() is None:
-                status_handler.set_current_operation(Constants.ASSESSMENT)  # Needs to be revisited
+            if status_handler.get_current_operation() is None and not bootstrapper.auto_assessment_only:
+                status_handler.set_current_operation(Constants.ASSESSMENT)
 
             # Environment startup
             bootstrapper.bootstrap_splash_text()

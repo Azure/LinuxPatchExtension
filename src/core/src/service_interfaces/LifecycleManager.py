@@ -91,7 +91,7 @@ class LifecycleManager(object):
                          'action': self.execution_config.operation,
                          'completed': str(completed),
                          'lastHeartbeat': str(self.env_layer.datetime.timestamp()),
-                         'processIds': [os.getpid()]}
+                         'processIds': [os.getpid()] if not completed else []}
         core_state_payload = json.dumps({"coreSequence": core_sequence})
 
         if os.path.isdir(self.core_state_file_path):
