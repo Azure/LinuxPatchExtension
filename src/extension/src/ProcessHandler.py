@@ -157,7 +157,7 @@ class ProcessHandler(object):
                 did_process_start = True
                 break
 
-        # if process is not running, log stdout and stderr
+        # if process did not start, log stdout and stderr
         if not did_process_start:
             try:
                 output, unused_err = process.communicate()  # process.communicate() is used to fetch the output and error logs after a process has terminated
@@ -165,7 +165,7 @@ class ProcessHandler(object):
                 self.logger.log("Exception from process.communicate() while getting output from core process. Exception:{0}".format(repr(error)))
 
             self.logger.log("Process not running for [sequence={0}]".format(seq_no))
-            self.logger.log("Output and Error for the inactive process: [Output={0}] [Error={1}]".format(str(output), str(unused_err)))
+            self.logger.log("Output and error for the inactive process: [Output={0}] [Error={1}]".format(str(output), str(unused_err)))
 
         return did_process_start
 
