@@ -20,7 +20,8 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        shutil.rmtree(self.telemetry_writer.events_folder_path)
+        if self.telemetry_writer.events_folder_path is not None:
+            shutil.rmtree(self.telemetry_writer.events_folder_path)
 
     def mock_time(self):
         return 1234
@@ -149,6 +150,25 @@ class TestTelemetryWriter(unittest.TestCase):
         os.listdir = self.mock_os_listdir
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         os.listdir = backup_os_listdir
+
+    def test_write_event_events_folder_path_is_none(self):
+        self.telemetry_writer.events_folder_path = None
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
+        # simply returns and does nothing
+
+        # restore normal events_folder_path for other tests
+        self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
+
+    def test_write_event_events_folder_path_is_not_none_and_not_exists(self):
+        self.telemetry_writer.events_folder_path = os.path.join(tempfile.mkdtemp(), "nonexistentdir")
+        self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
+        new_events = os.listdir(self.telemetry_writer.events_folder_path)
+        # should create dir even though it doesn't exist and write to it
+        self.assertEquals(len(new_events), 1)
+
+        # restore normal events_folder_path for other tests
+        self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
+
 
 
 if __name__ == '__main__':
