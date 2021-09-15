@@ -70,9 +70,6 @@ class TelemetryWriter(object):
             if self.events_folder_path is None or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
 
-            if not os.path.exists(self.events_folder_path):
-                os.mkdir(self.events_folder_path)
-
             self.__delete_older_events()
 
             event = self.__new_event_json(event_level, message, task_name)
