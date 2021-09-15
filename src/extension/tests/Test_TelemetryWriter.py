@@ -20,8 +20,7 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        if self.telemetry_writer.events_folder_path is not None:
-            shutil.rmtree(self.telemetry_writer.events_folder_path)
+        shutil.rmtree(self.telemetry_writer.events_folder_path)
 
     def mock_time(self):
         return 1234
@@ -150,6 +149,7 @@ class TestTelemetryWriter(unittest.TestCase):
         os.listdir = self.mock_os_listdir
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         os.listdir = backup_os_listdir
+
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestTelemetryWriter)
