@@ -214,8 +214,14 @@ class TestActionHandler(unittest.TestCase):
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
 
-        # event folder is set within HandlerEnvironment but the directory path is invalid. i.e. Telemetry setup not valid
-        self.action_handler.ext_env_handler.events_folder = "testfolder"
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+
+    def test_telemetry_available_events_folder_not_exists(self):
+        # handler actions will continue to execute after logging telemetry not suported message
+        events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
+        
+        # events folder is set within HandlerEnvironment but the directory path is invalid, so Telemetry is setup but events folder wasn't created
+        self.action_handler.ext_env_handler.events_folder = os.path.join(tempfile.mkdtemp(), "testfolder")
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
