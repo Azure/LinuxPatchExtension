@@ -88,10 +88,14 @@ class ActionHandler(object):
     def setup_telemetry(self):
         # check if events folder exists, if it does init telemetry, if events folder does not exist, log that telemetry is not supported by agent since events folder does not exist
         events_folder = self.ext_env_handler.events_folder
-        if events_folder is None or not os.path.exists(events_folder):
+        if events_folder is None:
             err_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
             self.logger.log_error(err_msg)
         else:
+            if not os.path.exists(events_folder):
+                os.mkdir(events_folder)
+                self.logger.log("Events folder path found in HandlerEnvironment but does not exist on disk. Creating now. [Path={0}]".format(str(events_folder)))
+            
             self.logger.log(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG)
             self.telemetry_writer.events_folder_path = events_folder
             # As this is a common function used by all handler actions, setting operation_id such that it will be the same timestamp for all handler actions, which can be used for identifying all events for an operation.
