@@ -74,7 +74,6 @@ class TestCoreMain(unittest.TestCase):
         argument_composer.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('FailInstallPath')
-        time.sleep = runtime.mock_sleep
         CoreMain(argument_composer.get_composed_arguments())
 
         # check telemetry events
