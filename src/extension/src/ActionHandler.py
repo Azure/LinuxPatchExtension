@@ -93,7 +93,7 @@ class ActionHandler(object):
         else:
             if not os.path.exists(events_folder):
                 os.mkdir(events_folder)
-                self.logger.log("Events folder path found in HandlerManifest but does not exist on disk. Creating now. [Path={0}]".format(str(events_folder)))
+                self.logger.log("Events folder path found in HandlerEnvironment but does not exist on disk. Creating now. [Path={0}]".format(str(events_folder)))
             
             self.logger.log(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG)
             self.telemetry_writer.events_folder_path = events_folder

@@ -67,7 +67,7 @@ class TelemetryWriter(object):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
         try:
 
-            if self.events_folder_path is None or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+            if self.events_folder_path is None or not os.path.exists(self.events_folder_path) or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
 
             self.__delete_older_events()
