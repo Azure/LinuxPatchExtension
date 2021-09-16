@@ -214,9 +214,7 @@ class TestActionHandler(unittest.TestCase):
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
 
-        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
-
-    def test_telemetry_available_events_folder_not_exists(self):
+    def test_telemetry_available_but_events_folder_not_exists(self):
         # handler actions will continue to execute after logging telemetry not suported message
         events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
         
