@@ -49,6 +49,7 @@ class CoreMain(object):
 
             # Environment startup
             bootstrapper.bootstrap_splash_text()
+            bootstrapper.basic_environment_health_check()
             lifecycle_manager.execution_start_check()  # terminates if this instance shouldn't be running (redundant)
 
             # Execution config retrieval
@@ -56,9 +57,6 @@ class CoreMain(object):
             execution_config = container.get('execution_config')
             telemetry_writer.set_operation_id(execution_config.activity_id)
             patch_operation_requested = execution_config.operation.lower()
-
-            # Basic environment check
-            bootstrapper.basic_environment_health_check()
 
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
@@ -122,7 +120,7 @@ class CoreMain(object):
             telemetry_writer.write_event("Completed Linux Patch core operation.", Constants.TelemetryEventLevel.Informational)
 
             stdout_file_mirror.stop()
-            file_logger.close(message_at_close="<End of output>")
+            file_logger.close(message_at_close="\n<End of output>")
 
     @staticmethod
     def update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger):

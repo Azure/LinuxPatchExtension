@@ -59,6 +59,7 @@ class AptitudePackageManager(PackageManager):
         os.environ['DEBIAN_FRONTEND'] = 'noninteractive'  # Avoid a config prompt
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.APT)
         self.STR_DPKG_WAS_INTERRUPTED = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
+        self.ESM_MARKER = "The following packages could receive security updates with UA Infra: ESM service enabled:"
 
     def refresh_repo(self):
         self.composite_logger.log("\nRefreshing local repo...")
@@ -180,7 +181,28 @@ class AptitudePackageManager(PackageManager):
             packages.append(package[0])
             versions.append(package[1])
 
-        self.composite_logger.log_debug("Extracted package and version data for " + str(len(packages)) + " packages.")
+        self.composite_logger.log_debug(" - Extracted package and version data for " + str(len(packages)) + " packages [BASIC].")
+
+        # Discovering ESM packages - Distro versions with extended security maintenance
+        lines = output.strip().split('\n')
+        esm_marker_found = False
+        esm_packages = []
+        for line_index in range(0, len(lines)-1):
+            line = lines[line_index].strip()
+
+            if not esm_marker_found:
+                if self.ESM_MARKER in line:
+                   esm_marker_found = True
+                continue
+
+            esm_packages = line.split()
+            break
+
+        for package in esm_packages:
+            packages.append(package)
+            versions.append(Constants.UA_ESM_REQUIRED)
+        self.composite_logger.log_debug(" - Extracted package and version data for " + str(len(packages)) + " packages [TOTAL].")
+
         return packages, versions
     # endregion
     # endregion

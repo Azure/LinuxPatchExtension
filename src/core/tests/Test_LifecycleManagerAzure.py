@@ -103,6 +103,7 @@ class TestLifecycleManagerAzure(unittest.TestCase):
         dummy_folder = os.path.join(self.runtime.execution_config.config_folder, "CoreExt_lifecycle_manager_test")
         os.mkdir(dummy_folder)
         self.lifecycle_manager.core_state_file_path = dummy_folder
+        self.lifecycle_manager.read_only_mode = False
         self.lifecycle_manager.update_core_sequence()
         self.assertTrue(os.path.exists(self.lifecycle_manager.core_state_file_path) and os.path.isfile(self.lifecycle_manager.core_state_file_path))
         core_sequence_json = self.lifecycle_manager.read_core_sequence()

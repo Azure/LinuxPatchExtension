@@ -93,3 +93,4 @@ class FileLogger(object):
     def close(self):
         if self.log_file_handle is not None:
             self.log_file_handle.close()
+            self.log_file_handle = None

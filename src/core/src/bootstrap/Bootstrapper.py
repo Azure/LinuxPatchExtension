@@ -138,6 +138,7 @@ class Bootstrapper(object):
     def basic_environment_health_check(self):
         self.composite_logger.log("Python version: " + " ".join(sys.version.splitlines()))
         self.composite_logger.log("Linux distribution: " + str(self.env_layer.platform.linux_distribution()) + "\n")
+        self.composite_logger.log("Process id: " + str(os.getpid()))
 
         # Ensure sudo works in the environment
         sudo_check_result = self.check_sudo_status()

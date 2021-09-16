@@ -117,7 +117,7 @@ class TestTelemetryWriter(unittest.TestCase):
     #         self.assertTrue(events is not None)
     #         self.assertTrue(task_name not in events[-1]['TaskName'])
     #         f.close()
-
+    #
     # def test_write_to_new_file_if_event_file_limit_reached(self):
     #     self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
     #     first_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
@@ -136,9 +136,8 @@ class TestTelemetryWriter(unittest.TestCase):
     #     self.assertFalse(first_event_file == second_event_file)
     #     os.path.exists = os_path_exists_backup
     #     self.runtime.telemetry_writer.get_file_size = telemetry_get_event_file_size_backup
-
-    # def test_delete_older_events(self):
     #
+    # def test_delete_older_events(self):
     #     # deleting older event files before adding new one
     #     self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
     #     self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")

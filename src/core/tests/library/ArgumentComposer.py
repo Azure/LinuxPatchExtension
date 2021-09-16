@@ -50,6 +50,7 @@ class ArgumentComposer(object):
         self.patches_to_include = []
         self.patches_to_exclude = []
         self.maintenance_run_id = None  # Since this is optional, all possible inputs for this are added in respective tests
+        self.health_store_id = None
         self.patch_mode = None
         self.assessment_mode = None
         self.maximum_assessment_interval = "PT3H"
@@ -78,6 +79,7 @@ class ArgumentComposer(object):
             "patchesToInclude": self.patches_to_include,
             "patchesToExclude": self.patches_to_exclude,
             "maintenanceRunId": self.maintenance_run_id,
+            "healthStoreId": self.health_store_id,
             "patchMode": self.patch_mode,
             "assessmentMode": self.assessment_mode,
             "maximumAssessmentInterval": self.maximum_assessment_interval

@@ -17,20 +17,12 @@
 """ ServiceManager """
 import os
 from core.src.bootstrap.Constants import Constants
+from core.src.core_logic.SystemctlManager import SystemctlManager
 
 
-class ServiceManager(object):
+class ServiceManager(SystemctlManager):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, service_info):
-        self.env_layer = env_layer
-        self.execution_config = execution_config
-        self.composite_logger = composite_logger
-        self.telemetry_writer = telemetry_writer
-
-        self.service_name = service_info.service_name
-        self.service_desc = service_info.service_desc
-        self.service_exec_path = service_info.service_exec_path
-
-        self.__systemd_path = Constants.Paths.SYSTEMD_ROOT
+        super(ServiceManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, service_info)
         self.__systemd_service_unit_path = "/etc/systemd/system/{0}.service"
 
         self.service_start_cmd = "sudo systemctl start {0}.service"
@@ -38,12 +30,11 @@ class ServiceManager(object):
         self.service_reload_cmd = "sudo systemctl reload-or-restart {0}.service"
         self.service_enable_cmd = "sudo systemctl enable {0}.service"
         self.service_disable_cmd = "sudo systemctl disable {0}.service"
+        self.service_status_cmd = "sudo systemctl status {0}.service"
         self.service_is_enabled_cmd = "sudo systemctl is-enabled {0}.service"
         self.service_is_active_cmd = "sudo systemctl is-active {0}.service"
 
-        self.systemctl_daemon_reload_cmd = "sudo systemctl daemon-reload"
-        self.systemctl_version = "systemctl --version"
-
+    # region - Service Creation / Removal
     def remove_service(self):
         service_path = self.__systemd_service_unit_path.format(self.service_name)
         if os.path.exists(service_path):
@@ -58,56 +49,42 @@ class ServiceManager(object):
         self.create_service_unit_file(exec_start="/bin/bash " + self.service_exec_path, desc=Constants.AUTO_ASSESSMENT_SERVICE_DESC)
         self.systemctl_daemon_reload()
         self.enable_service()
-        self.start_service()
+        if not self.start_service():
+            self.get_service_status()
+    # endregion
 
     # region - Service Management
     def start_service(self):
-        code, out = self.__invoke_systemctl(self.service_start_cmd.format(self.service_name), "Starting the service.")
+        code, out = self.invoke_systemctl(self.service_start_cmd.format(self.service_name), "Starting the service.")
         return code == 0
 
     def stop_service(self):
-        code, out = self.__invoke_systemctl(self.service_stop_cmd.format(self.service_name), "Stopping the service.")
+        code, out = self.invoke_systemctl(self.service_stop_cmd.format(self.service_name), "Stopping the service.")
         return code == 0
 
     def reload_service(self):
-        code, out = self.__invoke_systemctl(self.service_reload_cmd.format(self.service_name), "Reloading the service.")
+        code, out = self.invoke_systemctl(self.service_reload_cmd.format(self.service_name), "Reloading the service.")
         return code == 0
 
     def get_service_status(self):
-        # To do: Soft-check status if configuration is as expected
-        # code, out = self.__invoke_systemctl(self.service_stop_cmd.format(self.service_name), "Stopping the service.")
-        # return code == 0
-        pass
+        code, out = self.invoke_systemctl(self.service_status_cmd.format(self.service_name), "Getting the service status.")
+        return code == 0
 
     def enable_service(self):
-        code, out = self.__invoke_systemctl(self.service_enable_cmd.format(self.service_name), "Enabling the service.")
+        code, out = self.invoke_systemctl(self.service_enable_cmd.format(self.service_name), "Enabling the service.")
         return code == 0
 
     def disable_service(self):
-        code, out = self.__invoke_systemctl(self.service_enable_cmd.format(self.service_name), "Disabling the service.")
+        code, out = self.invoke_systemctl(self.service_disable_cmd.format(self.service_name), "Disabling the service.")
         return code == 0
 
     def is_service_active(self):
-        """ Returns False if the service can't be verified active """
-        code, out = self.__invoke_systemctl(self.service_is_active_cmd.format(self.service_name), "Checking if service is active.")
+        code, out = self.invoke_systemctl(self.service_is_active_cmd.format(self.service_name), "Checking if service is active.")
         return False if "inactive" in out else True if code == 0 else False
 
     def is_service_enabled(self):
-        code, out = self.__invoke_systemctl(self.service_is_active_cmd.format(self.service_name), "Checking if service is enabled.")
+        code, out = self.invoke_systemctl(self.service_is_enabled_cmd.format(self.service_name), "Checking if service is enabled.")
         return False if "disabled" in out else True if code == 0 else False
-
-    def systemctl_daemon_reload(self):
-        """ Reloads daemon """
-        code, out = self.__invoke_systemctl(self.systemctl_daemon_reload_cmd, "Reloading daemon.")
-        return code == 0
-
-    def __invoke_systemctl(self, command, action_description=None):
-        """ Invokes systemctl with the specified command and standardized logging """
-        self.composite_logger.log_debug('[Invoking systemctl] Action: ' + str(action_description) + '. Command: ' + command)
-        code, out = self.env_layer.run_command_output(command, False, False)
-        self.composite_logger.log_debug(" - Return code: " + str(code))
-        self.composite_logger.log_debug(" - Output: \n|\t" + "\n|\t".join(out.splitlines()))
-        return code, out
     # endregion
 
     # region - Service Unit Management
@@ -125,13 +102,6 @@ class ServiceManager(object):
         self.env_layer.file_system.write_with_retry(service_unit_path, service_unit_content)
         self.env_layer.run_command_output("sudo chmod a+x " + service_unit_path)
     # endregion
-
-    def systemd_exists(self):
-        return os.path.exists(self.__systemd_path)
-
-    def get_version(self):
-        code, out = self.env_layer.run_command_output(self.systemctl_version)
-        return out
 
 
 class ServiceInfo(object):

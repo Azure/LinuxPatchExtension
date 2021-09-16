@@ -354,6 +354,10 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), None)
         self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), "2019-07-20T12:12:14Z")
 
+        # verify healthStoreId is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.health_store_id), None)
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.health_store_id),"2021-09-15T12:12:14Z")
+
         # verify assessmentMode is read successfully
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.assessment_mode), None)
         self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.assessment_mode), "AutomaticByPlatform")
@@ -361,13 +365,6 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         # verify maximumAssessmentInterval is read successfully
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maximum_assessment_interval), None)
         self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maximum_assessment_interval), "PT3H")
-
-        # verify patchRolloutId is read successfully if maintenanceRunId is not available
-        # todo: remove this test and patch_rollout_id_bak_compat_test.settings file, once patch rollout id is removed
-        ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
-        config_settings = ext_config_settings_handler.read_file("patch_rollout_id_bak_compat_test")
-        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), None)
-        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.maintenance_run_id), "2019-07-22T12:12:14Z")
 
 
 if __name__ == '__main__':

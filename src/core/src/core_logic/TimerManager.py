@@ -17,20 +17,12 @@
 """ TimerManager """
 import os
 from core.src.bootstrap.Constants import Constants
+from core.src.core_logic.SystemctlManager import SystemctlManager
 
 
-class TimerManager(object):
+class TimerManager(SystemctlManager):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, service_info):
-        self.env_layer = env_layer
-        self.execution_config = execution_config
-        self.composite_logger = composite_logger
-        self.telemetry_writer = telemetry_writer
-
-        self.service_name = service_info.service_name
-        self.service_desc = service_info.service_desc
-        self.service_exec_path = service_info.service_exec_path
-
-        self.__systemd_path = Constants.Paths.SYSTEMD_ROOT
+        super(TimerManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, service_info)
         self.__systemd_timer_unit_path = "/etc/systemd/system/{0}.timer"
 
         self.timer_start_cmd = "sudo systemctl start {0}.timer"
@@ -38,13 +30,11 @@ class TimerManager(object):
         self.timer_reload_cmd = "sudo systemctl reload-or-restart {0}.timer"
         self.timer_enable_cmd = "sudo systemctl enable {0}.timer"
         self.timer_disable_cmd = "sudo systemctl disable {0}.timer"
+        self.timer_status_cmd = "sudo systemctl status {0}.timer"
         self.timer_is_enabled_cmd = "sudo systemctl is-enabled {0}.timer"
         self.timer_is_active_cmd = "sudo systemctl is-active {0}.timer"
-        self.systemctl_daemon_reload_cmd = "sudo systemctl daemon-reload"
 
-    def check_timer_health(self):
-        pass
-
+    # region - Time Creation / Removal
     def remove_timer(self):
         timer_path = self.__systemd_timer_unit_path.format(self.service_name)
         if os.path.exists(timer_path):
@@ -55,13 +45,63 @@ class TimerManager(object):
 
     def create_and_set_timer_idem(self):
         """ Idempotent creation and setting of the timer associated with the service the class is instantiated with """
+        self.get_timer_status()
         self.remove_timer()
         interval_unix_timespan = self.__convert_iso8601_interval_to_unix_timespan(self.execution_config.maximum_assessment_interval)
         self.create_timer_unit_file(Constants.AUTO_ASSESSMENT_SERVICE_DESC, interval_unix_timespan)
         self.systemctl_daemon_reload()
         self.enable_timer()
         self.start_timer()
+        self.get_timer_status()
 
+    @staticmethod
+    def __convert_iso8601_interval_to_unix_timespan(interval):
+        """
+            Supports only a subset of the spec as applicable to patch management.
+            No non-default period (Y,M,W,D) is supported. Time is supported (H,M,S).
+            Can throw exceptions - expected to handled as appropriate in calling code.
+            E.g.: Input-->Output -- PT3H-->3h, PT5H7M6S-->5h7m6s
+        """
+        if 'PT' not in interval:
+            raise Exception("Unexpected interval format. [Duration={0}]".format(interval))
+        return interval.replace('PT', '').replace('H', 'h').replace('M', 'm').replace('S', 's')
+    # endregion
+
+    # region - Timer Management
+    def start_timer(self):
+        code, out = self.invoke_systemctl(self.timer_start_cmd.format(self.service_name), "Starting the timer.")
+        return code == 0
+
+    def stop_timer(self):
+        code, out = self.invoke_systemctl(self.timer_stop_cmd.format(self.service_name), "Stopping the timer.")
+        return code == 0
+
+    def reload_timer(self):
+        code, out = self.invoke_systemctl(self.timer_reload_cmd.format(self.service_name), "Reloading the timer.")
+        return code == 0
+
+    def get_timer_status(self):
+        code, out = self.invoke_systemctl(self.timer_status_cmd.format(self.service_name), "Getting the timer status.")
+        return code == 0
+
+    def enable_timer(self):
+        code, out = self.invoke_systemctl(self.timer_enable_cmd.format(self.service_name), "Enabling the timer.")
+        return code == 0
+
+    def disable_timer(self):
+        code, out = self.invoke_systemctl(self.timer_disable_cmd.format(self.service_name), "Disabling the timer.")
+        return code == 0
+
+    def is_timer_active(self):
+        code, out = self.invoke_systemctl(self.timer_is_active_cmd.format(self.service_name), "Checking if timer is active.")
+        return False if "inactive" in out else True if code == 0 else False
+
+    def is_timer_enabled(self):
+        code, out = self.invoke_systemctl(self.timer_is_enabled_cmd.format(self.service_name), "Checking if timer is enabled.")
+        return False if "disabled" in out else True if code == 0 else False
+    # endregion
+
+    # region - Timer Unit Management
     def create_timer_unit_file(self, desc, on_unit_active_sec="3h", on_boot_sec="15m"):
         timer_unit_content_template = "\n[Unit]" + \
                                "\nDescription={0}\n" + \
@@ -75,65 +115,4 @@ class TimerManager(object):
         timer_unit_path = self.__systemd_timer_unit_path.format(self.service_name)
         self.env_layer.file_system.write_with_retry(timer_unit_path, timer_unit_content)
         self.env_layer.run_command_output("sudo chmod a+x " + timer_unit_path)
-
-    @staticmethod
-    def __convert_iso8601_interval_to_unix_timespan(interval):
-        """
-            Supports only a subset of the spec as applicable to patch management.
-            No non-default period (Y,M,W,D) is supported. Time is supported (H,M,S).
-            Can throw exceptions - expected to handled as appropriate in calling code.
-            E.g.: Input-->Output -- PT3H-->3h, PT5H7M6S-->5h7m6s
-        """
-        if 'PT' not in interval:
-            raise Exception("Unexpected interval format. [Duration={0}]".format(interval))
-        return interval.replace('PT','').replace('H','h').replace('M','m').replace('S','s')
-
-    # region - Timer Management
-    def start_timer(self):
-        code, out = self.__invoke_systemctl(self.timer_start_cmd.format(self.service_name), "Starting the timer.")
-        return code == 0
-
-    def stop_timer(self):
-        code, out = self.__invoke_systemctl(self.timer_stop_cmd.format(self.service_name), "Stopping the timer.")
-        return code == 0
-
-    def reload_timer(self):
-        code, out = self.__invoke_systemctl(self.timer_reload_cmd.format(self.service_name),"Reloading the timer.")
-        return code == 0
-
-    def get_timer_status(self):
-        # To do: Soft-check status if configuration is correct
-        # code, out = self.__invoke_systemctl(self.timer_status_cmd.format(self.service_name), "Stopping the timer.")
-        # return code == 0
-        pass
-
-    def enable_timer(self):
-        code, out = self.__invoke_systemctl(self.timer_enable_cmd.format(self.service_name), "Enabling the timer.")
-        return code == 0
-
-    def disable_timer(self):
-        code, out = self.__invoke_systemctl(self.timer_enable_cmd.format(self.service_name), "Disabling the timer.")
-        return code == 0
-
-    def is_timer_active(self):
-        """ Returns False if the timer can't be verified active """
-        code, out = self.__invoke_systemctl(self.timer_is_active_cmd.format(self.service_name), "Checking if timer is active.")
-        return False if "inactive" in out else True if code == 0 else False
-
-    def is_timer_enabled(self):
-        code, out = self.__invoke_systemctl(self.timer_is_active_cmd.format(self.service_name), "Checking if timer is enabled.")
-        return False if "disabled" in out else True if code == 0 else False
-
-    def systemctl_daemon_reload(self):
-        """ Reloads daemon """
-        code, out = self.__invoke_systemctl(self.systemctl_daemon_reload_cmd, "Reloading daemon.")
-        return code == 0
-
-    def __invoke_systemctl(self, command, action_description=None):
-        """ Invokes systemctl with the specified command and standardized logging """
-        self.composite_logger.log_debug('[Invoking systemctl] Action: ' + str(action_description) + '. Command: ' + command)
-        code, out = self.env_layer.run_command_output(command, False, False)
-        self.composite_logger.log_debug(" - Return code: " + str(code))
-        self.composite_logger.log_debug(" - Output: \n|\t" + "\n|\t".join(out.splitlines()))
-        return code, out
     # endregion
