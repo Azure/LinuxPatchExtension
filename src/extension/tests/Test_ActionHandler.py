@@ -221,11 +221,14 @@ class TestActionHandler(unittest.TestCase):
         events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
         
         # events folder is set within HandlerEnvironment but the directory path is invalid, so Telemetry is setup but events folder wasn't created
-        self.action_handler.ext_env_handler.events_folder = os.path.join(tempfile.mkdtemp(), "testfolder")
+        temp_dir = tempfile.mkdtemp()
+        self.action_handler.ext_env_handler.events_folder = os.path.join(temp_dir, "testfolder")
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
-
+        
+        # Remove the directory after the test
+        shutil.rmtree(temp_dir)
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
 
     def test_timestamp_for_all_actions(self):
