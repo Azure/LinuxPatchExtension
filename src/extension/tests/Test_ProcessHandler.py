@@ -172,6 +172,7 @@ class TestProcessHandler(unittest.TestCase):
         subprocess.Popen = self.mock_subprocess_popen_process_not_running_after_launch
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
 
+        # todo mock auto assess run command the way core has, where individual commands and expected output for each
         # mock run command output for Auto Assess shell file permission change
         run_command_output_backup = process_handler.env_layer.run_command_output
         process_handler.env_layer.run_command_output = self.mock_run_command_to_set_auto_assess_shell_file_permission

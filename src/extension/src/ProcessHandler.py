@@ -146,26 +146,27 @@ class ProcessHandler(object):
     def __check_process_state(self, process, seq_no):
         """ Checks if the process is running by polling every second for a certain period and reports an error if the process is not found """
         did_process_start = False
-        retcode = -1
-        output = ""
-        unused_err = ""
+        ret_code = -1
+        output = "<No Output>"
+        unused_err = "<No Error>"
         for retry in range(0, Constants.MAX_PROCESS_STATUS_CHECK_RETRIES):
+            self.logger.log_debug("Checking for successful process start. [AttemptCount={0}]".format(str(retry + 1)))
             time.sleep(retry)
-            retcode = process.poll()
-            if retcode is None:
+            ret_code = process.poll()
+            if ret_code is None:
                 did_process_start = True
                 break
-        # if process is not running, log stdout and stderr
-        # TASK 10881186 for 'I/O operation on closed file' exception. removed process.communicate from loop and checking only when process do not start
-        try:
-            output, unused_err = process.communicate()
-        except Exception as error:
-            self.logger.log("Exception from process.communicate() while trying to communicate to core process. Exeption:{0}".format(repr(error)))
 
+        # if process did not start, log stdout and stderr
         if not did_process_start:
+            try:
+                output, unused_err = process.communicate()  # process.communicate() is used to fetch the output and error logs after a process has terminated
+            except Exception as error:
+                self.logger.log("Exception from process.communicate() while getting output from core process. Exception:{0}".format(repr(error)))
+
             self.logger.log("Process not running for [sequence={0}]".format(seq_no))
-            self.logger.log("Output for the inactive process: [Output={0}]".format(str(output)))
-            self.logger.log("Error for the inactive process: [Error={0}]".format(str(unused_err)))
+            self.logger.log("Output and error for the inactive process: [Output={0}] [Error={1}]".format(str(output), str(unused_err)))
+
         return did_process_start
 
     def identify_running_processes(self, process_ids):
