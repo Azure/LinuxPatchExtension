@@ -27,10 +27,11 @@ from core.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 class Bootstrapper(object):
     def __init__(self, argv, capture_stdout=True):
-        # Environment awareness
+        # Environment and basic execution awareness
         self.current_env = self.get_current_env()
         self.argv = argv
-        self.log_file_path, self.real_record_path, self.events_folder = self.get_path_to_log_files_and_telemetry_dir(argv)
+        self.auto_assessment_only = bool(self.get_value_from_argv(self.argv, Constants.ARG_AUTO_ASSESS_ONLY, "False") == "True")
+        self.log_file_path, self.real_record_path, self.events_folder = self.get_path_to_log_files_and_telemetry_dir(argv, self.auto_assessment_only)
         self.recorder_enabled, self.emulator_enabled = self.get_recorder_emulator_flags(argv)
 
         # Container initialization
@@ -41,9 +42,6 @@ class Bootstrapper(object):
 
         # Environment layer capture
         self.env_layer = self.container.get('env_layer')
-
-        # Check if auto-assessment early
-        self.auto_assessment_only = bool(self.get_value_from_argv(self.argv, Constants.ARG_AUTO_ASSESS_ONLY, "False") == "True")
 
         # Logging initializations
         self.reset_auto_assessment_log_file_if_needed()
@@ -66,12 +64,12 @@ class Bootstrapper(object):
         print("Bootstrap environment: {0}".format(current_env))
         return current_env
 
-    def get_path_to_log_files_and_telemetry_dir(self, argv):
+    def get_path_to_log_files_and_telemetry_dir(self, argv, auto_assessment_only):
         """ Performs the minimum steps required to determine where to start logging """
         sequence_number = self.get_value_from_argv(argv, Constants.ARG_SEQUENCE_NUMBER)
         environment_settings = json.loads(base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_ENVIRONMENT_SETTINGS).replace("b\'", "")))
         log_folder = environment_settings[Constants.EnvSettings.LOG_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
-        exec_demarcator = ".aa" if bool(self.get_value_from_argv(argv, Constants.ARG_AUTO_ASSESS_ONLY, "False") == "True") else ""
+        exec_demarcator = ".aa" if auto_assessment_only else ""
         log_file_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.log")
         real_rec_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.rec")
         events_folder = environment_settings[Constants.EnvSettings.EVENTS_FOLDER]  # can throw exception and that's okay (since we can't recover from this)

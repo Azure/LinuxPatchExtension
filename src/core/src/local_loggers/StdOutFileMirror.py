@@ -26,10 +26,11 @@ class StdOutFileMirror(object):
         self.env_layer = env_layer
         self.terminal = sys.stdout  # preserve for recovery
         self.file_logger = file_logger
+        splash = "\n,---.                        ,---.     |         |        ,-.-.                                        |    \n|---|,---,.   .,---.,---.    |---',---.|--- ,---.|---.    | | |,---.,---.,---.,---.,---.,-.-.,---.,---.|--- \n|   | .-' |   ||    |---'    |    ,---||    |    |   |    | | |,---||   |,---||   ||---'| | ||---'|   ||    \n`   ''---'`---'`    `---'    `    `---^`---'`---'`   '    ` ' '`---^`   '`---^`---|`---'` ' '`---'`   '`---'\n                                                                              `---'                         "
 
         if self.file_logger.log_file_handle is not None:
             sys.stdout = self
-            sys.stdout.write("\n\n" + str('-'*128))   # provoking an immediate failure if anything is wrong
+            sys.stdout.write("\n" + splash + "\n" + str('-'*128))   # provoking an immediate failure if anything is wrong
         else:
             sys.stdout = self.terminal
             sys.stdout.write("WARNING: StdOutFileMirror - Skipping as FileLogger is not initialized")

@@ -90,10 +90,12 @@ class LifecycleManager(object):
 
                 if self.read_only_mode:
                     if core_sequence['completed'].lower() == 'true' or len(self.identify_running_processes(core_sequence['processIds'])) == 0:
+                        # Short-circuit for re-enable for completed non-auto-assess operations that should not run
                         if not self.execution_config.exec_auto_assess_only and core_sequence['number'] == self.execution_config.sequence_number and core_sequence['completed'].lower() == 'true':
                             self.composite_logger.log_debug("Not attempting to take ownership of core sequence since the sequence number as it's already done and this is the main process.")
                             return core_sequence
 
+                        # Auto-assess over non-auto-assess is not a trivial override and is short-circuited to be evaluated in detail later
                         if self.execution_config.exec_auto_assess_only and not core_sequence["autoAssessment"].lower() == 'true':
                             self.composite_logger.log_debug("Auto-assessment cannot supersede the main core process trivially.")
                             return core_sequence
@@ -131,7 +133,7 @@ class LifecycleManager(object):
                          'completed': str(completed),
                          'lastHeartbeat': str(self.env_layer.datetime.timestamp()),
                          'processIds': [os.getpid()] if not completed else [],
-                         'autoAssessment': str(self.execution_config.exec_auto_assess_only)}  # not used, only present for easier debuggability
+                         'autoAssessment': str(self.execution_config.exec_auto_assess_only)}
         core_state_payload = json.dumps({"coreSequence": core_sequence})
 
         if os.path.isdir(self.core_state_file_path):

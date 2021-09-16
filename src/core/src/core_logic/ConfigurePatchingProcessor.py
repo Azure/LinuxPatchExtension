@@ -93,8 +93,7 @@ class ConfigurePatchingProcessor(object):
             elif self.execution_config.assessment_mode == Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM:
                 self.composite_logger.log_debug("Enabling platform-based automatic assessment.")
                 if not self.auto_assess_service_manager.systemd_exists():
-                    pass
-                    #raise Exception("Systemd is not available on this system, and platform-based auto-assessment cannot be configured.")
+                    raise Exception("Systemd is not available on this system, and platform-based auto-assessment cannot be configured.")
                 self.auto_assess_service_manager.create_and_set_service_idem()
                 self.auto_assess_timer_manager.create_and_set_timer_idem()
                 self.current_auto_assessment_state = Constants.AutoAssessmentStates.ENABLED

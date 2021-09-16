@@ -98,7 +98,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         core_sequence_json = self.lifecycle_manager.update_core_sequence()
         self.assertEquals(core_sequence_json, None)
 
-    def test_update_core_sequence_success(self):
+    def test_update_core_sequence_success(self):    # failing test - needs to be corrected with Arc code changes
         old_core_state_file_path = self.lifecycle_manager.core_state_file_path
 
         # file path is dir
@@ -131,7 +131,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         self.assertNotEqual(old_core_sequence_json["completed"], new_core_sequence_json["completed"])
         os.remove(self.lifecycle_manager.core_state_file_path)
 
-    def test_read_arc_core_sequence_fail(self):
+    def test_read_arc_core_sequence_fail(self):     # failing test - needs to be corrected with Arc code changes
         old_core_state_file_path = self.lifecycle_manager.core_state_file_path
         # File not found at location
         self.lifecycle_manager.arc_core_state_file_path = "dummy"
@@ -144,7 +144,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
         self.assertRaises(Exception, self.lifecycle_manager.read_arc_core_sequence)
 
-    def test_read_arc_core_sequence_success(self):
+    def test_read_arc_core_sequence_success(self):  # failing test - needs to be corrected with Arc code changes
         self.lifecycle_manager.arc_core_state_file_path = self.lifecycle_manager.core_state_file_path
         self.lifecycle_manager.update_core_sequence(completed=True)
         # Completed True Case

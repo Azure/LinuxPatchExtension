@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 
 import datetime
+import json
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -154,6 +155,38 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertEqual(3, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_healthstore_writes(self):
+        self.healthstore_writes_helper("HealthStoreId", None, expected_patch_version="HealthStoreId")
+        self.healthstore_writes_helper("HealthStoreId", "MaintenanceRunId", expected_patch_version="HealthStoreId")
+        self.healthstore_writes_helper(None, "MaintenanceRunId", expected_patch_version="MaintenanceRunId")
+        self.healthstore_writes_helper(None, "09/16/2021 08:24:42 AM +00:00", expected_patch_version="2021.09.16")
+        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", None, expected_patch_version="2021.09.16")
+        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", "09/17/2021 08:24:42 AM +00:00", expected_patch_version="2021.09.16")
+        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", "<some-guid>", expected_patch_version="2021.09.16")
+
+    def healthstore_writes_helper(self, health_store_id, maintenance_run_id, expected_patch_version):
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        argument_composer.health_store_id = health_store_id
+        argument_composer.maintenance_run_id = maintenance_run_id
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(
+            runtime.maintenance_window, runtime.package_manager, simulate=True)
+        runtime.patch_installer.mark_installation_completed()
+
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][1]
+
+        self.assertEqual(True, json.loads(substatus_file_data['formattedMessage']['message'])['shouldReportToHealthStore'])
+        self.assertEqual(expected_patch_version, json.loads(substatus_file_data['formattedMessage']['message'])['patchVersion'])
         runtime.stop()
 
 
