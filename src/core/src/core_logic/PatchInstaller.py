@@ -172,6 +172,11 @@ class PatchInstaller(object):
             # point in time status
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(attempted_parent_update_count), str(successful_parent_update_count), str(failed_parent_update_count), str(installed_update_count - successful_parent_update_count),
                                                             "Processing package: " + str(package) + " (" + str(version) + ")")
+            if version == Constants.UA_ESM_REQUIRED:
+                progress_status += "[Skipping - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]"
+                self.composite_logger.log(progress_status)
+                self.status_handler.set_package_install_status(package_manager.get_product_name(package), str(version), Constants.NOT_SELECTED)     # may be changed to Failed in the future
+                continue
             self.composite_logger.log(progress_status)
 
             # include all dependencies (with specified versions) explicitly
@@ -272,19 +277,20 @@ class PatchInstaller(object):
         """ Marks Installation operation as completed by updating the status of PatchInstallationSummary as success and patch metadata to be sent to healthstore.
         This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as completed only after the implicit (2nd) assessment operation """
         self.status_handler.set_current_operation(Constants.INSTALLATION)  # Required for status handler to log errors, that occur during marking installation completed, in installation substatus
-
         self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
-        # update patch metadata in status for auto patching request, to be reported to healthstore
-        if self.execution_config.maintenance_run_id is not None:
-            try:
-                # todo: temp fix to test auto patching, this will be reset to using the maintenanceRunId string as is, once the corresponding changes in RSM are made
-                # patch_version = str(self.execution_config.maintenance_run_id)
-                patch_version = datetime.datetime.strptime(self.execution_config.maintenance_run_id.split(" ")[0], "%m/%d/%Y").strftime('%Y.%m.%d')
 
+        # Update patch metadata in status for auto patching request, to be reported to healthStore
+        # When available, HealthStoreId always takes precedence over the 'overriden' Maintenance Run Id that is being re-purposed for other reasons
+        # In the future, maintenance run id will be completely deprecated for health store reporting.
+        patch_version_raw = self.execution_config.health_store_id if self.execution_config.health_store_id is not None else self.execution_config.maintenance_run_id
+        self.composite_logger.log_debug("Patch version raw value set. [Raw={0}][HealthStoreId={1}][MaintenanceRunId={2}]".format(str(patch_version_raw), str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))
+
+        if patch_version_raw is not None:
+            try:
+                patch_version = datetime.datetime.strptime(patch_version_raw.split(" ")[0], "%m/%d/%Y").strftime('%Y.%m.%d')
             except ValueError as e:
-                error_message = "Maintenance Run Id is in incorrect format. Expected=[DateTimeUTC]. Actual=[{0}]. Error=[{1}]".format(str(self.execution_config.maintenance_run_id), repr(e))
-                self.composite_logger.log_error(error_message)
-                raise Exception(error_message)
+                patch_version = str(patch_version_raw) # CRP is supposed to guarantee that healthStoreId is always in the correct format; (Legacy) Maintenance Run Id may not be; what happens prior to this is just defensive coding
+                self.composite_logger.log_debug("Patch version _may_ be in an incorrect format. [CommonFormat=DateTimeUTC][Actual={0}][Error={1}]".format(str(self.execution_config.maintenance_run_id), repr(e)))
 
             self.status_handler.set_patch_metadata_for_healthstore_substatus_json(
                 patch_version=patch_version if patch_version is not None and patch_version != "" else Constants.PATCH_VERSION_UNKNOWN,

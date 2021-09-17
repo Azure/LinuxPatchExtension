@@ -86,11 +86,14 @@ class ConfigurePatchingProcessor(object):
         """ Sets the preferred auto-assessment mode for the VM """
         try:
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
+            self.composite_logger.log_debug("Systemd information: {0}".format(str(self.auto_assess_service_manager.get_version())))     # proactive support telemetry
 
             if self.execution_config.assessment_mode is None:
                 self.composite_logger.log_debug("No assessment mode config was present. No configuration changes will occur.")
             elif self.execution_config.assessment_mode == Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM:
                 self.composite_logger.log_debug("Enabling platform-based automatic assessment.")
+                if not self.auto_assess_service_manager.systemd_exists():
+                    raise Exception("Systemd is not available on this system, and platform-based auto-assessment cannot be configured.")
                 self.auto_assess_service_manager.create_and_set_service_idem()
                 self.auto_assess_timer_manager.create_and_set_timer_idem()
                 self.current_auto_assessment_state = Constants.AutoAssessmentStates.ENABLED

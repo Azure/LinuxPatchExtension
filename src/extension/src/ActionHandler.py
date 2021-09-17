@@ -83,6 +83,7 @@ class ActionHandler(object):
             self.stdout_file_mirror.stop()
         if self.file_logger is not None:
             self.file_logger.close()
+            self.file_logger = None
 
     def setup_telemetry(self):
         # check if events folder exists, if it does init telemetry, if events folder does not exist, log that telemetry is not supported by agent since events folder does not exist

@@ -66,3 +66,4 @@ class FileLogger(object):
             if message_at_close is not None:
                 self.write(str(message_at_close))
             self.log_file_handle.close()
+            self.log_file_handle = None     # Not having this can cause 'I/O exception on closed file' exceptions

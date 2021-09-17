@@ -71,7 +71,7 @@ class TestFileLogger(unittest.TestCase):
 
     def test_close(self):
         self.file_logger.close()
-        self.assertTrue(self.file_logger.log_file_handle.closed)
+        self.assertTrue(self.file_logger.log_file_handle is None)
 
     def test_delete_older_log_files_success(self):
         files = [

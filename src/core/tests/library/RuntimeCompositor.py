@@ -44,6 +44,7 @@ class RuntimeCompositor(object):
         os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
         self.vm_cloud_type = vm_cloud_type
+        Constants.Paths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
 
         # Overriding time.sleep and urlopen to avoid delays in test execution
         self.backup_time_sleep = time.sleep

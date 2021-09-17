@@ -27,10 +27,11 @@ from core.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 class Bootstrapper(object):
     def __init__(self, argv, capture_stdout=True):
-        # Environment awareness
+        # Environment and basic execution awareness
         self.current_env = self.get_current_env()
         self.argv = argv
-        self.log_file_path, self.real_record_path, self.events_folder = self.get_path_to_log_files_and_telemetry_dir(argv)
+        self.auto_assessment_only = bool(self.get_value_from_argv(self.argv, Constants.ARG_AUTO_ASSESS_ONLY, "False") == "True")
+        self.log_file_path, self.real_record_path, self.events_folder = self.get_path_to_log_files_and_telemetry_dir(argv, self.auto_assessment_only)
         self.recorder_enabled, self.emulator_enabled = self.get_recorder_emulator_flags(argv)
 
         # Container initialization
@@ -63,12 +64,12 @@ class Bootstrapper(object):
         print("Bootstrap environment: {0}".format(current_env))
         return current_env
 
-    def get_path_to_log_files_and_telemetry_dir(self, argv):
+    def get_path_to_log_files_and_telemetry_dir(self, argv, auto_assessment_only):
         """ Performs the minimum steps required to determine where to start logging """
         sequence_number = self.get_value_from_argv(argv, Constants.ARG_SEQUENCE_NUMBER)
         environment_settings = json.loads(base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_ENVIRONMENT_SETTINGS).replace("b\'", "")))
         log_folder = environment_settings[Constants.EnvSettings.LOG_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
-        exec_demarcator = ".aa" if bool(self.get_value_from_argv(argv, Constants.ARG_AUTO_ASSESS_ONLY, False)) else ""
+        exec_demarcator = ".aa" if auto_assessment_only else ""
         log_file_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.log")
         real_rec_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.rec")
         events_folder = environment_settings[Constants.EnvSettings.EVENTS_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
@@ -76,9 +77,11 @@ class Bootstrapper(object):
 
     def reset_auto_assessment_log_file_if_needed(self):
         """ Deletes the auto assessment log file when needed to prevent excessive growth """
-        if bool(self.get_value_from_argv(self.argv, Constants.ARG_AUTO_ASSESS_ONLY, False)) and os.path.exists(self.log_file_path) \
-                and os.path.getsize(self.log_file_path) > Constants.MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES:
-            os.remove(self.log_file_path)
+        try:
+            if self.auto_assessment_only and os.path.exists(self.log_file_path) and os.path.getsize(self.log_file_path) > Constants.MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES:
+                os.remove(self.log_file_path)
+        except Exception as error:
+            print("INFO: Error while checking/removing auto-assessment log file. [Path={0}][ExistsRecheck={1}]".format(self.log_file_path, str(os.path.exists(self.log_file_path))))
 
     def get_recorder_emulator_flags(self, argv):
         """ Determines if the recorder or emulator flags need to be changed from the defaults """
@@ -133,6 +136,7 @@ class Bootstrapper(object):
     def basic_environment_health_check(self):
         self.composite_logger.log("Python version: " + " ".join(sys.version.splitlines()))
         self.composite_logger.log("Linux distribution: " + str(self.env_layer.platform.linux_distribution()) + "\n")
+        self.composite_logger.log("Process id: " + str(os.getpid()))
 
         # Ensure sudo works in the environment
         sudo_check_result = self.check_sudo_status()

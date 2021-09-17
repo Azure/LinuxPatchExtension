@@ -50,6 +50,7 @@ class ArgumentComposer(object):
         self.patches_to_include = []
         self.patches_to_exclude = []
         self.maintenance_run_id = None  # Since this is optional, all possible inputs for this are added in respective tests
+        self.health_store_id = None
         self.patch_mode = None
         self.assessment_mode = None
         self.maximum_assessment_interval = "PT3H"
@@ -78,6 +79,7 @@ class ArgumentComposer(object):
             "patchesToInclude": self.patches_to_include,
             "patchesToExclude": self.patches_to_exclude,
             "maintenanceRunId": self.maintenance_run_id,
+            "healthStoreId": self.health_store_id,
             "patchMode": self.patch_mode,
             "assessmentMode": self.assessment_mode,
             "maximumAssessmentInterval": self.maximum_assessment_interval
@@ -86,7 +88,7 @@ class ArgumentComposer(object):
         return str(self.__ARG_TEMPLATE.format(self.__EXEC, Constants.ARG_SEQUENCE_NUMBER, self.sequence_number,
                                               Constants.ARG_ENVIRONMENT_SETTINGS, self.__get_encoded_json_str(environment_settings),
                                               Constants.ARG_CONFIG_SETTINGS, self.__get_encoded_json_str(config_settings),
-                                              Constants.ARG_AUTO_ASSESS_ONLY, self.exec_auto_assess_only,
+                                              Constants.ARG_AUTO_ASSESS_ONLY, str(self.exec_auto_assess_only),
                                               Constants.ARG_INTERNAL_RECORDER_ENABLED, str(False),
                                               Constants.ARG_INTERNAL_EMULATOR_ENABLED, str(self.emulator_enabled))).split(' ')
 

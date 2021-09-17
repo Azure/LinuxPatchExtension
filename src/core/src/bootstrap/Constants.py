@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.23"
+    EXT_VERSION = "1.6.24"
 
     # Runtime environments
     TEST = 'Test'
@@ -49,9 +49,10 @@ class Constants(object):
 
     # Max values
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
+    MAX_AUTO_ASSESSMENT_WAIT_FOR_MAIN_CORE_EXEC_IN_MINUTES = 3 * 60
 
     class Paths(EnumBackport):
-        SYSTEMD_ROOT = "etc/systemd/system/"
+        SYSTEMD_ROOT = "/etc/systemd/system/"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -69,6 +70,7 @@ class Constants(object):
         PATCHES_TO_INCLUDE = 'patchesToInclude'
         PATCHES_TO_EXCLUDE = 'patchesToExclude'
         MAINTENANCE_RUN_ID = 'maintenanceRunId'
+        HEALTH_STORE_ID = 'healthStoreId'
         PATCH_MODE = 'patchMode'
         ASSESSMENT_MODE = 'assessmentMode'
         MAXIMUM_ASSESSMENT_INTERVAL = 'maximumAssessmentInterval'
@@ -149,6 +151,8 @@ class Constants(object):
     PENDING = 'Pending'
     NOT_SELECTED = 'NotSelected'  # implicitly not installed as it wasn't explicitly included
     AVAILABLE = 'Available'      # assessment only
+
+    UA_ESM_REQUIRED = "UA_ESM_Required"
 
     UNKNOWN_PACKAGE_SIZE = "Unknown"
     PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS = 10

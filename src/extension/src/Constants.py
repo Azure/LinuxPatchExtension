@@ -28,7 +28,7 @@ class Constants(object):
                         yield item
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.23"
+    EXT_VERSION = "1.6.24"
 
     # Runtime environments
     TEST = 'Test'
@@ -153,7 +153,7 @@ class Constants(object):
         exclude_patches = "patchesToExclude"
         internal_settings = "internalSettings"
         maintenance_run_id = "maintenanceRunId"
-        patch_rollout_id = "patchRolloutId"
+        health_store_id = "healthStoreId"
         patch_mode = "patchMode"
         assessment_mode = 'assessmentMode'
         maximum_assessment_interval = 'maximumAssessmentInterval'
