@@ -30,7 +30,7 @@ class StdOutFileMirror(object):
 
         if self.file_logger.log_file_handle is not None:
             sys.stdout = self
-            sys.stdout.write("\n" + splash + "\n" + str('-'*128))   # provoking an immediate failure if anything is wrong
+            sys.stdout.write("\n" +  str('-'*128) + splash + "\n" + str('-'*128))   # provoking an immediate failure if anything is wrong
         else:
             sys.stdout = self.terminal
             sys.stdout.write("WARNING: StdOutFileMirror - Skipping as FileLogger is not initialized")
