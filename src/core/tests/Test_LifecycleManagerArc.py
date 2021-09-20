@@ -107,6 +107,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         dummy_folder = os.path.join(self.runtime.execution_config.config_folder, "CoreExt_lifecycle_manager_test")
         os.mkdir(dummy_folder)
         self.lifecycle_manager.core_state_file_path = dummy_folder
+        self.lifecycle_manager.read_only_mode = False
         self.lifecycle_manager.update_core_sequence()
         self.assertTrue(os.path.exists(self.lifecycle_manager.core_state_file_path) and os.path.isfile(self.lifecycle_manager.core_state_file_path))
         core_sequence_json = self.lifecycle_manager.read_core_sequence()
@@ -135,6 +136,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         old_core_state_file_path = self.lifecycle_manager.core_state_file_path
         # File not found at location
         self.lifecycle_manager.arc_core_state_file_path = "dummy"
+        self.lifecycle_manager.read_only_mode = False
         ext_state_json = self.lifecycle_manager.read_arc_core_sequence()
         self.assertEquals(ext_state_json['completed'], 'True')
 
@@ -146,6 +148,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
 
     def test_read_arc_core_sequence_success(self):  # failing test - needs to be corrected with Arc code changes
         self.lifecycle_manager.arc_core_state_file_path = self.lifecycle_manager.core_state_file_path
+        self.lifecycle_manager.read_only_mode = False
         self.lifecycle_manager.update_core_sequence(completed=True)
         # Completed True Case
         arc_core_state = self.lifecycle_manager.read_arc_core_sequence()
