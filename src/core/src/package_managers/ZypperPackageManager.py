@@ -55,12 +55,12 @@ class ZypperPackageManager(PackageManager):
     def refresh_repo(self):
         self.composite_logger.log("Refreshing local repo...")
         # self.invoke_package_manager(self.repo_clean)  # purges local metadata for rebuild - addresses a possible customer environment error
-        for i in range(0, Constants.MAX_REPO_REFRESH_RETRY_COUNT):
+        for i in range(0, Constants.MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT):
             try:
                 self.invoke_package_manager(self.repo_refresh)
                 return
             except Exception as error:
-                if i < Constants.MAX_REPO_REFRESH_RETRY_COUNT - 1:
+                if i < Constants.MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT - 1:
                     self.composite_logger.log_warning("Exception on package manager refresh repo. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i + 1)
                 else:
