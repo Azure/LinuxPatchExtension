@@ -91,6 +91,7 @@ class RebootManager(object):
         """ Starts a reboot if required. Happens only at the end of the run if required. """
         self.composite_logger.log("\nReboot Management")
         reboot_pending = False if not self.status_handler else self.status_handler.is_reboot_pending
+        reboot_pending = self.package_manager.force_reboot or reboot_pending
 
         # return if never
         if self.reboot_setting == Constants.REBOOT_NEVER:

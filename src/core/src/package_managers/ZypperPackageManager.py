@@ -67,7 +67,10 @@ class ZypperPackageManager(PackageManager):
                     error_msg = "Unable to refresh repo (retries exhausted). [{0}] [RetryCount={1}]".format(repr(error), str(i))
                     self.composite_logger.log_warning(error_msg)
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                    # TODO: add reboot logic here
+
+                    # Reboot if possible and not already done (TODO: find a way to detect if a reboot has been done already)
+                    self.composite_logger.log_warning("Setting force_reboot flag to True.")
+                    self.force_reboot = True
                     raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
     # region Get Available Updates
