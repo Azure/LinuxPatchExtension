@@ -41,68 +41,83 @@ class LifecycleManagerArc(LifecycleManager):
 
     # region - State checkers
     def execution_start_check(self):
-        self.composite_logger.log_debug("Execution start check initiating...")
-        extension_sequence = self.read_extension_sequence()
-        core_sequence = self.read_core_sequence()
-        arc_core_sequence = self.read_arc_core_sequence()
-
-        if arc_core_sequence['completed'] == "False":
-            self.composite_logger.log_warning("Arc extension with sequence number {0} is currently running. Exiting autoassessment".format(str(arc_core_sequence['number'])))
-            self.update_core_sequence(completed=True)   # forced-to-complete scenario | extension wrapper will be watching for this event
-            self.env_layer.exit(0)
+        self.composite_logger.log_debug("\nExecution start check initiating...")
 
         if self.execution_config.exec_auto_assess_only:
-            # newer sequence number has been observed, do not run
-            if int(self.execution_config.sequence_number) < int(extension_sequence['number']) \
-                    or int(self.execution_config.sequence_number) < int(core_sequence['number']):
-                self.composite_logger.log_warning("Auto-assessment not started as newer sequence number detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]".format(str(self.execution_config.sequence_number), str(extension_sequence['number']), str(core_sequence['number'])))                                                                                                                                                                                  
-                self.env_layer.exit(0)
+            timer_start_time = self.env_layer.datetime.datetime_utcnow()
+            while True:
+                extension_sequence = self.read_extension_sequence()
+                core_sequence = self.read_core_sequence()
+                arc_core_sequence = self.read_arc_core_sequence()
 
-            # anomalous extension state encountered, do not run - this needs to be investigated if ever encountered
-            if int(self.execution_config.sequence_number) > int(extension_sequence['number']) \
-                    or int(self.execution_config.sequence_number) > int(core_sequence['number']):                                                             
-                self.composite_logger.log_error("Auto-assessment not started as an extension state anomaly was detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]".format(str(self.execution_config.sequence_number), str(extension_sequence['number']),str(core_sequence['number'])))
-                self.env_layer.exit(0)
+                # Timer evaluation
+                current_time = self.env_layer.datetime.datetime_utcnow()
+                elapsed_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(current_time - timer_start_time)
 
-            # attempted sequence number is same as recorded core sequence - expected
-            if int(self.execution_config.sequence_number) == int(core_sequence['number']):
+                # Check for sequence number mismatches
+                if int(self.execution_config.sequence_number) != int(core_sequence['number']):
+                    if int(self.execution_config.sequence_number) < int(extension_sequence['number']) or int(self.execution_config.sequence_number) < int(core_sequence['number']):
+                        self.composite_logger.log_warning("Auto-assessment NOT STARTED as newer sequence number detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]".format(str(self.execution_config.sequence_number), str(extension_sequence['number']), str(core_sequence['number'])))
+                    elif int(self.execution_config.sequence_number) > int(extension_sequence['number']) or int(self.execution_config.sequence_number) > int(core_sequence['number']):
+                        self.composite_logger.log_error("Auto-assessment NOT STARTED as an extension state anomaly was detected. [Attempted={0}][DetectedExt={1}][DetectedCore={2}]".format(str(self.execution_config.sequence_number), str(extension_sequence['number']), str(core_sequence['number'])))
+                    self.composite_logger.file_logger.close()
+                    self.env_layer.exit(0)
+
+                # DEFINITELY NOT SAFE TO START. ARC Assessment/Patch Operation is running. It is not required to start Auto-Assessment
+                if arc_core_sequence['completed'].lower() == 'false':
+                    self.composite_logger.log_error("Auto-assessment NOT STARTED as arc extension is running. [Attempted={0}][ARCSequenceNo={1}]".format(str(self.execution_config.sequence_number), str(arc_core_sequence['number'])))
+                    self.composite_logger.file_logger.close()
+                    self.env_layer.exit(0)
+
+                # DEFINITELY SAFE TO START. Correct sequence number marked as completed
                 if core_sequence['completed'].lower() == 'true':
-                    self.composite_logger.log_debug("Auto-assessment is safe to start. Existing sequence number marked as completed.")
-                    self.update_core_sequence(completed=False)  # signalling core restart with auto-assessment as its safe to do so
-                else:
-                    self.composite_logger.log_debug("Auto-assessment may not be safe to start yet as core sequence is not marked completed.")
-                    if len(self.identify_running_processes(core_sequence['processIds'])) != 0:
-                        # NOT SAFE TO START
-                        # Possible reasons: full core operation is in progress (okay), some previous auto-assessment is still running (bad scheduling, adhoc run, or process stalled)
-                        self.composite_logger.log_warning("Auto-assessment is NOT safe to start yet. Existing core process(es) running. Exiting. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
+                    self.composite_logger.log("Auto-assessment is SAFE to start. Existing sequence number marked as COMPLETED.\n")
+                    self.read_only_mode = False
+                    break
+
+                # Check for active running processes if not completed
+                if len(self.identify_running_processes(core_sequence['processIds'])) != 0:
+                    if os.getpid() in core_sequence['processIds']:
+                        self.composite_logger.log("Auto-assessment is SAFE to start. Core sequence ownership is already established.\n")
+                        self.read_only_mode = False
+                        break
+
+                    # DEFINITELY _NOT_ SAFE TO START. Possible reasons: full core operation is in progress (okay), some previous auto-assessment is still running (bad scheduling, adhoc run, or process stalled)
+                    if elapsed_time_in_minutes > Constants.MAX_AUTO_ASSESSMENT_WAIT_FOR_MAIN_CORE_EXEC_IN_MINUTES:    # will wait up to the max allowed
+                        self.composite_logger.log_warning("Auto-assessment is NOT safe to start yet.TIMED-OUT waiting to Core to complete. EXITING. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
+                        self.composite_logger.file_logger.close()
                         self.env_layer.exit(0)
                     else:
-                        # MAY BE SAFE TO START
-                        self.composite_logger.log_warning("Auto-assessment is LIKELY safe to start, BUT core sequence anomalies were detected. Evaluating further. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
-                        # wait to see if Core comes back from a restart
-                        timer_start_time = self.env_layer.datetime.datetime_utcnow()
-                        while True:
-                            core_sequence = self.read_core_sequence()
+                        self.composite_logger.file_logger.flush()
+                        self.composite_logger.log_warning("Auto-assessment is NOT safe to start yet. Waiting to retry (up to set timeout). [LastHeartbeat={0}][Operation={1}][ElapsedTimeInMinutes={2}][TotalWaitRequiredInMinutes={3}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action']), str(elapsed_time_in_minutes), str(Constants.REBOOT_BUFFER_IN_MINUTES)))
+                        self.composite_logger.file_logger.flush()
+                        time.sleep(30)
+                        continue
 
-                            # Main Core process suddenly started running (expected after reboot) - don't run
-                            if len(self.identify_running_processes(core_sequence['processIds'])) != 0:
-                                self.composite_logger.log_warning("Auto-assessment is NOT safe to start as core process(es) started running. Exiting. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
-                                self.env_layer.exit(0)
+                # MAYBE SAFE TO START. Safely timeout if wait for any core restart events (from a potential reboot) has exceeded the maximum reboot buffer
+                if elapsed_time_in_minutes > Constants.REBOOT_BUFFER_IN_MINUTES:
+                    self.composite_logger.log_debug("Auto-assessment is now considered SAFE to start as Core timed-out in reporting completion mark. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
+                    self.read_only_mode = False
+                    break
 
-                            # If timed out without the main Core process starting, assume it's safe to proceed
-                            current_time = self.env_layer.datetime.datetime_utcnow()
-                            elapsed_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(current_time - timer_start_time)
-                            if elapsed_time_in_minutes > Constants.REBOOT_BUFFER_IN_MINUTES:
-                                self.composite_logger.log_debug("Auto-assessment is now considered safe to start since Core did not start after a reboot buffer wait period. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
-                                break
+                # Briefly pause execution to re-check all states (including reboot buffer) again
+                self.composite_logger.file_logger.flush()
+                self.composite_logger.log_debug("Auto-assessment is waiting for Core state completion mark (up to set timeout). [LastHeartbeat={0}][Operation={1}][ElapsedTimeInMinutes={2}][TotalWaitRequiredInMinutes={3}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action']), str(elapsed_time_in_minutes), str(Constants.REBOOT_BUFFER_IN_MINUTES)))
+                self.composite_logger.file_logger.flush()
+                time.sleep(30)
 
-                        self.update_core_sequence(completed=False)  # signalling core restart with auto-assessment as its safe to do so
+            # Signalling take-over of core state by auto-assessment after safety checks for any competing process
+            self.update_core_sequence(completed=False)
         else:
             # Logic for all non-Auto-assessment operations
+            extension_sequence = self.read_extension_sequence()
+            core_sequence = self.read_core_sequence()
+
             if int(extension_sequence['number']) == int(self.execution_config.sequence_number):
                 if core_sequence['completed'] is True:
                     # Block attempts to execute what last completed (fully) again
                     self.composite_logger.log_warning("LifecycleManager recorded false enable for completed sequence {0}.".format(str(extension_sequence['number'])))
+                    self.composite_logger.file_logger.close()
                     self.env_layer.exit(0)
                 else:
                     # Incomplete current execution
