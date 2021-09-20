@@ -16,6 +16,7 @@
 
 """ZypperPackageManager for SUSE"""
 import re
+import time
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
@@ -54,7 +55,20 @@ class ZypperPackageManager(PackageManager):
     def refresh_repo(self):
         self.composite_logger.log("Refreshing local repo...")
         # self.invoke_package_manager(self.repo_clean)  # purges local metadata for rebuild - addresses a possible customer environment error
-        self.invoke_package_manager(self.repo_refresh)
+        for i in range(0, Constants.MAX_REPO_REFRESH_RETRY_COUNT):
+            try:
+                self.invoke_package_manager(self.repo_refresh)
+                return
+            except Exception as error:
+                if i < Constants.MAX_REPO_REFRESH_RETRY_COUNT - 1:
+                    self.composite_logger.log_warning("Exception on package manager refresh repo. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    time.sleep(i + 1)
+                else:
+                    error_msg = "Unable to refresh repo (retries exhausted). [{0}] [RetryCount={1}]".format(repr(error), str(i))
+                    self.composite_logger.log_warning(error_msg)
+                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+                    # TODO: add reboot logic here
+                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
     # region Get Available Updates
     def invoke_package_manager(self, command):
@@ -72,8 +86,7 @@ class ZypperPackageManager(PackageManager):
 
             self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            raise Exception(error_msg)
         else:  # verbose diagnostic log
             self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug(" - Return code from package manager: " + str(code))

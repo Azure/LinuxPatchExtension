@@ -160,6 +160,7 @@ class Constants(object):
     MAX_ASSESSMENT_RETRY_COUNT = 5
     MAX_INSTALLATION_RETRY_COUNT = 3
     MAX_IMDS_CONNECTION_RETRY_COUNT = 5
+    MAX_REPO_REFRESH_RETRY_COUNT = 3
 
     class PackageClassification(EnumBackport):
         UNCLASSIFIED = 'Unclassified'
