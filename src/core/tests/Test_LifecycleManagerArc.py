@@ -54,9 +54,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         # file open throws exception
         self.lifecycle_manager.ext_state_file_path = old_ext_state_file_path
         self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
-        ext_state_json = self.lifecycle_manager.read_extension_sequence()
-        self.assertEquals(ext_state_json, None)
-
+        self.assertRaises(Exception, self.lifecycle_manager.read_extension_sequence)
 
     def test_read_extension_sequence_success(self):
         ext_state_json = self.lifecycle_manager.read_extension_sequence()
@@ -66,8 +64,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
     def test_read_core_sequence_fail(self):
         # file open throws exception
         self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
-        core_sequence_json = self.lifecycle_manager.read_core_sequence()
-        self.assertEquals(core_sequence_json, None)
+        self.assertRaises(Exception, self.lifecycle_manager.read_core_sequence)
 
     def test_read_core_sequence_success(self):
         old_core_state_file_path = self.lifecycle_manager.core_state_file_path
