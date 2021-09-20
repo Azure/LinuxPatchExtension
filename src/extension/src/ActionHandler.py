@@ -190,7 +190,7 @@ class ActionHandler(object):
                     shutil.copy(file_to_copy, dst)
                     break
                 except Exception as error:
-                    if i < Constants.MAX_IO_RETRIES:
+                    if i < Constants.MAX_IO_RETRIES - 1:
                         time.sleep(i + 1)
                     else:
                         error_msg = "Failed to copy file after {0} tries. [Source={1}] [Destination={2}] [Exception={3}]".format(Constants.MAX_IO_RETRIES, str(file_to_copy), str(dst), repr(error))
