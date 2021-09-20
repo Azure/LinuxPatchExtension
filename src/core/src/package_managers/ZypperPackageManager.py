@@ -62,7 +62,7 @@ class ZypperPackageManager(PackageManager):
             except Exception as error:
                 if i < Constants.MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT - 1:
                     self.composite_logger.log_warning("Exception on package manager refresh repo. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
-                    time.sleep(i + 1)
+                    time.sleep(pow(2, i) + 1)
                 else:
                     error_msg = "Unable to refresh repo (retries exhausted). [{0}] [RetryCount={1}]".format(repr(error), str(i))
                     self.composite_logger.log_warning(error_msg)
