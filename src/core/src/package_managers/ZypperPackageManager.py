@@ -64,14 +64,22 @@ class ZypperPackageManager(PackageManager):
                     self.composite_logger.log_warning("Exception on package manager refresh repo. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(pow(2, i) + 1)
                 else:
+                    if Constants.ERROR_ADDED_TO_STATUS in repr(error):
+                        error.args = error.args[:1]  # remove Constants.ERROR_ADDED_TO_STATUS flag to add new message to status
+
                     error_msg = "Unable to refresh repo (retries exhausted). [{0}] [RetryCount={1}]".format(repr(error), str(i))
+
+                    # Reboot if not already done
+                    if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
+                        error_msg = "Unable to refresh repo (retries exhausted after reboot). [{0}] [RetryCount={1}]".format(repr(error), str(i))
+                    else:
+                        self.composite_logger.log_warning("Setting force_reboot flag to True.")
+                        self.force_reboot = True
+                        
                     self.composite_logger.log_warning(error_msg)
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
 
-                    # Reboot if possible and not already done (TODO: find a way to detect if a reboot has been done already)
-                    self.composite_logger.log_warning("Setting force_reboot flag to True.")
-                    self.force_reboot = True
-                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+                    raise Exception(error_msg)
 
     # region Get Available Updates
     def invoke_package_manager(self, command):
@@ -89,7 +97,8 @@ class ZypperPackageManager(PackageManager):
 
             self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-            raise Exception(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:  # verbose diagnostic log
             self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug(" - Return code from package manager: " + str(code))

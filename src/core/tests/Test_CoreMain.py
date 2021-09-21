@@ -278,7 +278,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEquals(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 2)
+        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 5)
         self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
@@ -751,6 +751,41 @@ class TestCoreMain(unittest.TestCase):
         message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
 
+        runtime.stop()
+
+    def test_assessment_operation_fail_after_package_manager_reboot(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('ExceptionPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # mock rebooting
+        runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.REQUIRED)
+        runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+        runtime.status_handler.is_reboot_pending = False
+        runtime.package_manager.force_reboot = False
+        runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)
+
+        # run coremain again
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEquals(len(substatus_file_data), 3)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_TRANSITIONING.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
     def __check_telemetry_events(self, runtime):
