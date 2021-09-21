@@ -16,6 +16,7 @@
 
 """ZypperPackageManager for SUSE"""
 import re
+import time
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
@@ -54,7 +55,31 @@ class ZypperPackageManager(PackageManager):
     def refresh_repo(self):
         self.composite_logger.log("Refreshing local repo...")
         # self.invoke_package_manager(self.repo_clean)  # purges local metadata for rebuild - addresses a possible customer environment error
-        self.invoke_package_manager(self.repo_refresh)
+        for i in range(0, Constants.MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT):
+            try:
+                self.invoke_package_manager(self.repo_refresh)
+                return
+            except Exception as error:
+                if i < Constants.MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT - 1:
+                    self.composite_logger.log_warning("Exception on package manager refresh repo. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    time.sleep(pow(2, i) + 1)
+                else:
+                    if Constants.ERROR_ADDED_TO_STATUS in repr(error):
+                        error.args = error.args[:1]  # remove Constants.ERROR_ADDED_TO_STATUS flag to add new message to status
+
+                    error_msg = "Unable to refresh repo (retries exhausted). [{0}] [RetryCount={1}]".format(repr(error), str(i))
+
+                    # Reboot if not already done
+                    if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
+                        error_msg = "Unable to refresh repo (retries exhausted after reboot). [{0}] [RetryCount={1}]".format(repr(error), str(i))
+                    else:
+                        self.composite_logger.log_warning("Setting force_reboot flag to True.")
+                        self.force_reboot = True
+                        
+                    self.composite_logger.log_warning(error_msg)
+                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+
+                    raise Exception(error_msg)
 
     # region Get Available Updates
     def invoke_package_manager(self, command):
