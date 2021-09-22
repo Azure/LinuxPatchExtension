@@ -33,6 +33,7 @@ class PackageManager(object):
         self.single_package_upgrade_cmd = ''
         self.single_package_upgrade_simulation_cmd = 'simulate-install'
         self.package_manager_settings = {}
+        self.force_reboot = False
 
         # Enabling caching for high performance retrieval (only for code explicitly requesting it)
         self.all_updates_cached = []
