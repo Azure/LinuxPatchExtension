@@ -27,7 +27,7 @@ For the extension wrapper, the status structure is simply the following (no subs
     "timestampUTC": "2019-07-20T12:12:14Z",
     "status": {
         "name": "Azure Patch Management",
-        "operation": "Assessment / Deployment / NoOperation",
+        "operation": "Assessment / Installation / NoOperation / ConfigurePatching",
         "status": "transitioning / error / success / warning",
         "code": 0,
         "formattedMessage": {

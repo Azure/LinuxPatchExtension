@@ -462,7 +462,7 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_error("Extension does not have a valid backup of the default system configuration settings for auto OS updates.")
             return False
 
-    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="0"):
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="0", patch_configuration_sub_setting_pattern_to_match=""):
         """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
         try:
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before

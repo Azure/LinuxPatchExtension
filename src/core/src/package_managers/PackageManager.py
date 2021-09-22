@@ -367,7 +367,7 @@ class PackageManager(object):
         pass
 
     @abstractmethod
-    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value):
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value, patch_configuration_sub_setting_pattern_to_match):
         pass
     # endregion
 
