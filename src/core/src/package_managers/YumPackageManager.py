@@ -83,9 +83,9 @@ class YumPackageManager(PackageManager):
         # commands for DNF Automatic updates service
         self.dnf_automatic_configuration_file_path = '/etc/dnf/automatic.conf'
         self.dnf_automatic_install_check_cmd = 'systemctl list-unit-files --type=service | grep dnf-automatic.service'  # list-unit-files returns installed services, ref: https://www.freedesktop.org/software/systemd/man/systemctl.html#Unit%20File%20Commands
-        self.dnf_automatic_install_cmd = 'yum -y install yum-cron'
-        self.dnf_automatic_enable_on_reboot_check_cmd = 'systemctl is-enabled yum-cron'
-        self.dnf_automatic_disable_on_reboot_cmd = 'systemctl disable yum-cron'
+        self.dnf_automatic_install_cmd = 'yum -y install dnf-automatic'
+        self.dnf_automatic_enable_on_reboot_check_cmd = 'systemctl is-enabled dnf-automatic'
+        self.dnf_automatic_disable_on_reboot_cmd = 'systemctl disable dnf-automatic'
         self.dnf_automatic_config_pattern_match_text = ' = (no|yes)'
         self.dnf_automatic_download_updates_identifier_text = 'download_updates'
         self.dnf_automatic_apply_updates_identifier_text = 'apply_updates'
