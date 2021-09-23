@@ -202,7 +202,7 @@ class EnvLayer(object):
                 try:
                     return open(file_path, mode)
                 except Exception as error:
-                    if i < self.retry_count - 1:
+                    if i < self.retry_count:
                         time.sleep(i + 1)
                     else:
                         raise Exception("Unable to open {0} (retries exhausted). Error: {1}.".format(str(file_path), repr(error)))
@@ -236,7 +236,7 @@ class EnvLayer(object):
                     file_handle.write(str(data))
                     break
                 except Exception as error:
-                    if i < self.retry_count - 1:
+                    if i < self.retry_count:
                         time.sleep(i + 1)
                     else:
                         raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_handle.name), repr(error)))
