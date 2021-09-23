@@ -395,11 +395,14 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
         self.__get_current_auto_os_updates_setting_on_machine()
         if int(self.unattended_upgrade_value) == 0:
-            return Constants.AutomaticOSPatchStates.DISABLED
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.DISABLED
         elif int(self.unattended_upgrade_value) == 1:
-            return Constants.AutomaticOSPatchStates.ENABLED
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.ENABLED
         else:
-            return Constants.AutomaticOSPatchStates.UNKNOWN
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
+
+        self.composite_logger.log_debug("Current Auto OS Patch State is [State={0}]".format(str(current_auto_os_patch_state)))
+        return current_auto_os_patch_state
 
     def __get_current_auto_os_updates_setting_on_machine(self):
         """ Gets all the update settings related to auto OS updates currently set on the machine """

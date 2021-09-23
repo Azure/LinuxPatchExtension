@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer

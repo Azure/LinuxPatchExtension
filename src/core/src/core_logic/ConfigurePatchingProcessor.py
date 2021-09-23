@@ -65,7 +65,6 @@ class ConfigurePatchingProcessor(object):
         try:
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
-            self.composite_logger.log_debug("Current Auto OS Patch State is [State={0}]".format(str(self.current_auto_os_patch_state)))
 
             # disable auto OS updates if VM is configured for platform updates only.
             # NOTE: this condition will be false for Assessment operations, since patchMode is not sent in the API request
@@ -73,7 +72,6 @@ class ConfigurePatchingProcessor(object):
                 self.package_manager.disable_auto_os_update()
 
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
-            self.composite_logger.log_debug("Current Auto OS Patch State is [State={0}]".format(str(self.current_auto_os_patch_state)))
 
             self.__report_consolidated_configure_patch_status()
             self.composite_logger.log_debug("Completed processing patch mode configuration.")
