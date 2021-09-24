@@ -13,6 +13,8 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import json
+import os
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -457,6 +459,25 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertTrue(package_manager)
 
         self.assertRaises(Exception, package_manager.invoke_package_manager, package_manager.yum_check)
+
+    def test_disable_auto_os_update_with_two_patch_modes_enabled_success(self):
+        package_manager = self.container.get('package_manager')
+
+        package_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
+        # disable with both update package lists and unattended upgrades enabled on the system
+        os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, os_patch_configuration_settings)
+
+        package_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
+        self.assertTrue(image_default_patch_configuration_backup is not None)
+        self.assertTrue(image_default_patch_configuration_backup['apply_updates'] == "yes")
+        self.assertTrue(image_default_patch_configuration_backup['download_updates'] == "yes")
+        os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(os_patch_configuration_settings is not None)
+        self.assertTrue('apply_updates = no' in os_patch_configuration_settings)
+        self.assertTrue('download_updates = no' in os_patch_configuration_settings)
 
 
 if __name__ == '__main__':

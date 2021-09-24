@@ -112,6 +112,13 @@ class Constants(object):
         DISABLED = "Disabled"
         ENABLED = "Enabled"
 
+    # List of auto OS update services in Yum
+    # todo: Q for reviewer: Should this list be in YumPackageManager, since it is only used there?
+    class YumAutoOSUpdateServices(EnumBackport):
+        YUM_CRON = "yum-cron"
+        DNF_AUTOMATIC = "dnf-automatic"
+        PACKAGEKIT = "packagekit"
+
     # auto assessment states
     class AutoAssessmentStates(EnumBackport):
         UNKNOWN = "Unknown"

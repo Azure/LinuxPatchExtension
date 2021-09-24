@@ -54,20 +54,16 @@ class YumPackageManager(PackageManager):
         self.yum_ps = 'sudo yum ps'
 
         # auto OS updates
-        self.yum_cron = 'yum cron'
-        self.dnf_automatic = 'dnf-automatic'
-        self.packagekit = 'PackageKit'
-        self.auto_os_update_service_list = [self.yum_cron, self.dnf_automatic, self.packagekit]
+        self.current_auto_os_update_service = None
         self.os_patch_configuration_settings_file_path = ''
         self.auto_update_service_enabled = False
         self.auto_update_config_pattern_match_text = ""
         self.download_updates_identifier_text = ""
-        self.download_updates_value = ""
         self.apply_updates_identifier_text = ""
-        self.apply_updates_value = ""
-        self.enable_on_reboot_identifier_text = "enable_on_reboot"
-        self.enable_on_reboot_value = False
+        self.enable_on_reboot_identifier_text = ""
         self.enable_on_reboot_check_cmd = ''
+        self.installation_state_identifier_text = ""
+        self.install_check_cmd = ""
 
         # commands for YUM Cron service
         self.__init_constants_for_yum_cron()
@@ -374,106 +370,143 @@ class YumPackageManager(PackageManager):
     def __init_constants_for_yum_cron(self):
         self.yum_cron_configuration_settings_file_path = '/etc/yum/yum-cron.conf'
         self.yum_cron_install_check_cmd = 'systemctl list-unit-files --type=service | grep yum-cron.service'  # list-unit-files returns installed services, ref: https://www.freedesktop.org/software/systemd/man/systemctl.html#Unit%20File%20Commands
-        self.yum_cron_install_cmd = 'yum -y install yum-cron'
         self.yum_cron_enable_on_reboot_check_cmd = 'systemctl is-enabled yum-cron'
         self.yum_cron_disable_on_reboot_cmd = 'systemctl disable yum-cron'
         self.yum_cron_config_pattern_match_text = ' = (no|yes)'
         self.yum_cron_download_updates_identifier_text = 'download_updates'
         self.yum_cron_apply_updates_identifier_text = 'apply_updates'
         self.yum_cron_enable_on_reboot_identifier_text = "enable_on_reboot"
+        self.yum_cron_installation_state_identifier_text = "installation_state"
 
     def __init_constants_for_dnf_automatic(self):
         self.dnf_automatic_configuration_file_path = '/etc/dnf/automatic.conf'
         self.dnf_automatic_install_check_cmd = 'systemctl list-unit-files --type=service | grep dnf-automatic.service'  # list-unit-files returns installed services, ref: https://www.freedesktop.org/software/systemd/man/systemctl.html#Unit%20File%20Commands
-        self.dnf_automatic_install_cmd = 'yum -y install dnf-automatic'
         self.dnf_automatic_enable_on_reboot_check_cmd = 'systemctl is-enabled dnf-automatic.timer'
         self.dnf_automatic_disable_on_reboot_cmd = 'systemctl disable dnf-automatic.timer'
         self.dnf_automatic_config_pattern_match_text = ' = (no|yes)'
         self.dnf_automatic_download_updates_identifier_text = 'download_updates'
         self.dnf_automatic_apply_updates_identifier_text = 'apply_updates'
         self.dnf_automatic_enable_on_reboot_identifier_text = "enable_on_reboot"
+        self.dnf_automatic_installation_state_identifier_text = "installation_state"
 
     def __init_constants_for_packagekit(self):
         self.packagekit_configuration_file_path = '/etc/PackageKit/PackageKit.conf'
         self.packagekit_install_check_cmd = 'systemctl list-unit-files --type=service | grep packagekit.service'  # list-unit-files returns installed services, ref: https://www.freedesktop.org/software/systemd/man/systemctl.html#Unit%20File%20Commands
-        self.packagekit_install_cmd = 'yum -y install gnome-packagekit PackageKit-yum'
         self.packagekit_enable_on_reboot_check_cmd = 'systemctl is-enabled packagekit'
         self.packagekit_disable_on_reboot_cmd = 'systemctl disable packagekit'
         self.packagekit_config_pattern_match_text = ' = (false|true)'
-        self.packagekit_download_updates_identifier_text = 'GetPreparedUpdates'  # todo: dummy value, get real value
+        self.packagekit_download_updates_identifier_text = 'GetPreparedUpdates'  # todo: dummy value, get real value or add telemetry to gather value
         self.packagekit_apply_updates_identifier_text = 'WritePreparedUpdates'
         self.packagekit_enable_on_reboot_identifier_text = "enable_on_reboot"
+        self.packagekit_installation_state_identifier_text = "installation_state"
 
     def get_current_auto_os_patch_state(self):
         """ Gets the current auto OS update patch state on the machine """
         self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
 
-        # This function can be called for a specific auto update service (when called from disable auto OS updates code flow), or for all auto OS update services (when called from ConfigurePatchingProcessor to fetch status)
-        # apply_updates_identifier_text will be initialized only when this function is called for a specific auto update service. If not initialized, we need to check status from all services
-        # todo: revisit this, we need to check apply_updates for each service and decide on enable or disable based on all statuses
-        if self.apply_updates_identifier_text == "":
-            for os_auto_update_service in self.auto_os_update_service_list:
-                if os_auto_update_service == self.yum_cron:
-                    self.composite_logger.log_debug("Fetching current automatic OS patch state in yum-cron service. This includes checks on current enable state and whether it is set to enable on reboot")
-                    self.__init_auto_update_for_yum_cron()
-                    self.__get_current_auto_os_updates_setting_on_machine()
-                    if self.enable_on_reboot_value or self.apply_updates_value.lower() == 'yes':
-                        break
-                elif os_auto_update_service == self.dnf_automatic:
-                    self.composite_logger.log_debug("Fetching current automatic OS patch state in dnf-automatic service. This includes checks on current state and whether it is set to enable on reboot")
-                    self.__init_auto_update_for_dnf_automatic()
-                    self.__get_current_auto_os_updates_setting_on_machine()
-                    if self.enable_on_reboot_value or self.apply_updates_value.lower() == 'yes':
-                        break
-                elif os_auto_update_service == self.packagekit:
-                    self.composite_logger.log_debug("Fetching current automatic OS patch state in packagekit service. This includes checks on current state and whether it is set to enable on reboot")
-                    self.__init_auto_update_for_packagekit()
-                    self.__get_current_auto_os_updates_setting_on_machine()
-                    if self.enable_on_reboot_value or self.apply_updates_value.lower() == 'true':
-                        break
-        else:
-            self.__get_current_auto_os_updates_setting_on_machine()  # Since auto update service is already identified, this will fetch config for that service
+        current_auto_os_patch_state_for_yum_cron = self.__get_current_auto_os_patch_state_for_yum_cron()
+        current_auto_os_patch_state_for_dnf_automatic = self.__get_current_auto_os_patch_state_for_dnf_automatic()
+        current_auto_os_patch_state_for_packagekit = self.__get_current_auto_os_patch_state_for_packagekit()
 
-        if (self.apply_updates_value.lower() == 'no' or self.apply_updates_value.lower() == 'false') and not self.enable_on_reboot_value:
-            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.DISABLED
-        elif self.apply_updates_value.lower() == 'yes' or self.apply_updates_value.lower() == 'true' or self.enable_on_reboot_value:
+        self.composite_logger.log("OS patch state per auto OS update service: [yum-cron={0}] [dnf-automatic={1}] [packagekit={2}]"
+                                  .format(str(current_auto_os_patch_state_for_yum_cron), str(current_auto_os_patch_state_for_dnf_automatic), str(current_auto_os_patch_state_for_packagekit)))
+
+        if current_auto_os_patch_state_for_yum_cron == Constants.AutomaticOSPatchStates.ENABLED \
+                or current_auto_os_patch_state_for_dnf_automatic == Constants.AutomaticOSPatchStates.ENABLED \
+                or current_auto_os_patch_state_for_packagekit == Constants.AutomaticOSPatchStates.ENABLED:
             current_auto_os_patch_state = Constants.AutomaticOSPatchStates.ENABLED
+        elif current_auto_os_patch_state_for_yum_cron == Constants.AutomaticOSPatchStates.DISABLED \
+                and current_auto_os_patch_state_for_dnf_automatic == Constants.AutomaticOSPatchStates.DISABLED \
+                and current_auto_os_patch_state_for_packagekit == Constants.AutomaticOSPatchStates.DISABLED:
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.DISABLED
         else:
             current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
 
-        self.composite_logger.log_debug("Overall Auto OS Patch State based on current enable status and enable on reboot status [OverallAutoOSPatchState={0}] [CurrentAutoOSPatchEnabled={1}] [AutoOSPatchSetToEnableOnReboot={2}]"
-                                        .format(str(current_auto_os_patch_state), str(self.apply_updates_value), self.enable_on_reboot_value))
+        self.composite_logger.log_debug("Overall Auto OS Patch State based on all auto OS update service states [OverallAutoOSPatchState={0}]".format(str(current_auto_os_patch_state)))
         return current_auto_os_patch_state
+
+    def __get_current_auto_os_patch_state_for_yum_cron(self):
+        """ Gets current auto OS update patch state for yum-cron """
+        self.composite_logger.log_debug("Fetching current automatic OS patch state in yum-cron service. This includes checks on whether the service is installed, current auto patch enable state and whether it is set to enable on reboot")
+        self.__init_auto_update_for_yum_cron()
+        is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
+
+        if apply_updates_value.lower() == 'yes' or enable_on_reboot_value:
+            return Constants.AutomaticOSPatchStates.ENABLED
+        # OS patch state is considered to be disabled: a) if it was successfully disabled or b) if the service is not installed
+        elif not is_service_installed or (apply_updates_value.lower() == 'no' and not enable_on_reboot_value):
+            return Constants.AutomaticOSPatchStates.DISABLED
+        else:
+            return Constants.AutomaticOSPatchStates.UNKNOWN
+
+    def __get_current_auto_os_patch_state_for_dnf_automatic(self):
+        """ Gets current auto OS update patch state for dnf-automatic """
+        self.composite_logger.log_debug("Fetching current automatic OS patch state in dnf-automatic service. This includes checks on whether the service is installed, current auto patch enable state and whether it is set to enable on reboot")
+        self.__init_auto_update_for_dnf_automatic()
+        is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
+
+        if apply_updates_value.lower() == 'yes' or enable_on_reboot_value:
+            return Constants.AutomaticOSPatchStates.ENABLED
+        # OS patch state is considered to be disabled: a) if it was successfully disabled or b) if the service is not installed
+        elif not is_service_installed or (apply_updates_value.lower() == 'no' and not enable_on_reboot_value):
+            return Constants.AutomaticOSPatchStates.DISABLED
+        else:
+            return Constants.AutomaticOSPatchStates.UNKNOWN
+
+    def __get_current_auto_os_patch_state_for_packagekit(self):
+        """ Gets current auto OS update patch state for packagekit """
+        self.composite_logger.log_debug("Fetching current automatic OS patch state in packagekit service. This includes checks on whether the service is installed, current auto patch enable state and whether it is set to enable on reboot")
+        self.__init_auto_update_for_packagekit()
+        is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
+
+        if apply_updates_value.lower() == 'true' or enable_on_reboot_value:
+            return Constants.AutomaticOSPatchStates.ENABLED
+        # OS patch state is considered to be disabled: a) if it was successfully disabled or b) if the service is not installed
+        elif not is_service_installed or (apply_updates_value.lower() == 'false' and not enable_on_reboot_value):
+            return Constants.AutomaticOSPatchStates.DISABLED
+        else:
+            return Constants.AutomaticOSPatchStates.UNKNOWN
 
     def __init_auto_update_for_yum_cron(self):
         """ Initializes all generic auto OS update variables with the config values for yum cron service """
         self.os_patch_configuration_settings_file_path = self.yum_cron_configuration_settings_file_path
         self.download_updates_identifier_text = self.yum_cron_download_updates_identifier_text
         self.apply_updates_identifier_text = self.yum_cron_apply_updates_identifier_text
+        self.enable_on_reboot_identifier_text = self.yum_cron_enable_on_reboot_identifier_text
+        self.installation_state_identifier_text = self.yum_cron_installation_state_identifier_text
         self.auto_update_config_pattern_match_text = self.yum_cron_config_pattern_match_text
         self.enable_on_reboot_check_cmd = self.yum_cron_enable_on_reboot_check_cmd
+        self.install_check_cmd = self.yum_cron_install_check_cmd
+        self.current_auto_os_update_service = Constants.YumAutoOSUpdateServices.YUM_CRON
 
     def __init_auto_update_for_dnf_automatic(self):
         """ Initializes all generic auto OS update variables with the config values for dnf automatic service """
         self.os_patch_configuration_settings_file_path = self.dnf_automatic_configuration_file_path
         self.download_updates_identifier_text = self.dnf_automatic_download_updates_identifier_text
         self.apply_updates_identifier_text = self.dnf_automatic_apply_updates_identifier_text
+        self.enable_on_reboot_identifier_text = self.dnf_automatic_enable_on_reboot_identifier_text
+        self.installation_state_identifier_text = self.dnf_automatic_installation_state_identifier_text
         self.auto_update_config_pattern_match_text = self.dnf_automatic_config_pattern_match_text
         self.enable_on_reboot_check_cmd = self.dnf_automatic_enable_on_reboot_check_cmd
+        self.install_check_cmd = self.dnf_automatic_install_check_cmd
+        self.current_auto_os_update_service = Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC
 
     def __init_auto_update_for_packagekit(self):
         """ Initializes all generic auto OS update variables with the config values for packagekit service """
         self.os_patch_configuration_settings_file_path = self.packagekit_configuration_file_path
         self.download_updates_identifier_text = self.packagekit_download_updates_identifier_text
         self.apply_updates_identifier_text = self.packagekit_apply_updates_identifier_text
+        self.enable_on_reboot_identifier_text = self.packagekit_enable_on_reboot_identifier_text
+        self.installation_state_identifier_text = self.packagekit_installation_state_identifier_text
         self.auto_update_config_pattern_match_text = self.packagekit_config_pattern_match_text
         self.enable_on_reboot_check_cmd = self.packagekit_enable_on_reboot_check_cmd
+        self.install_check_cmd = self.packagekit_install_check_cmd
+        self.current_auto_os_update_service = Constants.YumAutoOSUpdateServices.PACKAGEKIT
 
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enable_on_reboot and logs the default settings the machine comes with """
         try:
-            self.composite_logger.log_debug("Disabling auto OS updates in all identified services...")
-                # todo: Better way to implement this? Keeping functions separate since not all services have the same steps to disable and identifying the service specific commands is easier this way
+            self.composite_logger.log("Disabling auto OS updates in all identified services...")
             self.disable_auto_os_update_for_yum_cron()
             self.disable_auto_os_update_for_dnf_automatic()
             self.disable_auto_os_update_for_packagekit()
@@ -485,17 +518,8 @@ class YumPackageManager(PackageManager):
 
     def disable_auto_os_update_for_yum_cron(self):
         """ Disables auto OS updates, using yum cron service, and logs the default settings the machine comes with """
-        self.composite_logger.log("Disabling auto OS updates using yum cron")
-        auto_update_service_installed = True
+        self.composite_logger.log("Disabling auto OS updates using yum-cron")
         self.__init_auto_update_for_yum_cron()
-
-        if not self.is_auto_update_service_installed(self.yum_cron_install_check_cmd):
-            self.composite_logger.log_debug("Installing yum-cron...")
-            auto_update_service_installed = self.install_auto_update_service(self.yum_cron_install_cmd)
-
-        if not auto_update_service_installed:
-            self.composite_logger.log("Could not install yum-cron on the machine.")
-            return
 
         self.backup_image_default_patch_configuration_if_not_exists()
         self.composite_logger.log_debug("Preemptively disabling auto OS updates using yum-cron")
@@ -507,17 +531,8 @@ class YumPackageManager(PackageManager):
 
     def disable_auto_os_update_for_dnf_automatic(self):
         """ Disables auto OS updates, using dnf-automatic service, and logs the default settings the machine comes with """
-        self.composite_logger.log("Disabling auto OS updates using dnf automatic")
-        auto_update_service_installed = True
+        self.composite_logger.log("Disabling auto OS updates using dnf-automatic")
         self.__init_auto_update_for_dnf_automatic()
-
-        if not self.is_auto_update_service_installed(self.dnf_automatic_install_check_cmd):
-            self.composite_logger.log_debug("Installing dnf-automatic...")
-            auto_update_service_installed = self.install_auto_update_service(self.dnf_automatic_install_cmd)
-
-        if not auto_update_service_installed:
-            self.composite_logger.log("Could not install dnf-automatic on the machine.")
-            return
 
         self.backup_image_default_patch_configuration_if_not_exists()
         self.composite_logger.log_debug("Preemptively disabling auto OS updates using dnf-automatic")
@@ -530,16 +545,7 @@ class YumPackageManager(PackageManager):
     def disable_auto_os_update_for_packagekit(self):
         """ Disables auto OS updates, using packagekit service, and logs the default settings the machine comes with """
         self.composite_logger.log("Disabling auto OS updates using packagekit")
-        auto_update_service_installed = True
         self.__init_auto_update_for_packagekit()
-
-        if not self.is_auto_update_service_installed(self.packagekit_install_check_cmd):
-            self.composite_logger.log_debug("Installing packagekit...")
-            auto_update_service_installed = self.install_auto_update_service(self.packagekit_install_cmd)
-
-        if not auto_update_service_installed:
-            self.composite_logger.log("Could not install packagekit on the machine.")
-            return
 
         self.backup_image_default_patch_configuration_if_not_exists()
         self.composite_logger.log_debug("Preemptively disabling auto OS updates using packagekit")
@@ -564,19 +570,62 @@ class YumPackageManager(PackageManager):
     def backup_image_default_patch_configuration_if_not_exists(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
+        """ JSON format for backup file:
+                    {
+                        "yum-cron": {
+                            "apply_updates": "yes/no/empty string",
+                            "download_updates": "yes/no/empty string",
+                            "enable_on_reboot": true/false,
+                            "install_state": true/false
+                        },
+                        "dnf-automatic": {
+                            "apply_updates": "yes/no/empty string",
+                            "download_updates": "yes/no/empty string",
+                            "enable_on_reboot": true/false,
+                            "install_state": true/false
+                        },
+                        "packagekit": {
+                            "WritePreparedUpdates": "true/false/empty string",
+                            "GetPreparedUpdates": "true/false/empty string", //NOTE: This property name is pending validation as noted in another comment where the name is initialized
+                            "enable_on_reboot": true/false,
+                            "install_state": true/false
+                        }
+                    } """
         try:
-            if not self.image_default_patch_configuration_backup_exists():
-                self.__get_current_auto_os_updates_setting_on_machine()
+            self.composite_logger.log_debug("Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
+            image_default_patch_configuration_backup = {}
 
-                backup_image_default_patch_configuration_json = {
-                    self.download_updates_identifier_text: self.download_updates_value,
-                    self.apply_updates_identifier_text: self.apply_updates_value,
-                    self.enable_on_reboot_identifier_text: self.enable_on_reboot_value
+            # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
+            if self.image_default_patch_configuration_backup_exists():
+                try:
+                    image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
+                except Exception as error:
+                    self.composite_logger.log_error("Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
+
+            # verify if existing backup is valid if not, write to backup
+            is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
+            if is_backup_valid:
+                self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]"
+                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
+            else:
+                self.composite_logger.log_debug("Since the backup is invalid, will add a new backup with the current auto OS update settings")
+                self.composite_logger.log_debug("Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
+                is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
+
+                backup_image_default_patch_configuration_json_to_add = {
+                    self.current_auto_os_update_service: {
+                        self.download_updates_identifier_text: download_updates_value,
+                        self.apply_updates_identifier_text: apply_updates_value,
+                        self.enable_on_reboot_identifier_text: enable_on_reboot_value,
+                        self.installation_state_identifier_text: is_service_installed
+                    }
                 }
 
+                image_default_patch_configuration_backup.update(backup_image_default_patch_configuration_json_to_add)
+
                 self.composite_logger.log_debug("Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
-                                                .format(str(backup_image_default_patch_configuration_json), self.image_default_patch_configuration_backup_path))
-                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)), mode='w+')
+                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
+                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
         except Exception as error:
             error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
             self.composite_logger.log_error(error_message)
@@ -584,17 +633,68 @@ class YumPackageManager(PackageManager):
             raise
 
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
-        if self.download_updates_identifier_text in image_default_patch_configuration_backup and self.apply_updates_identifier_text in image_default_patch_configuration_backup and self.enable_on_reboot_identifier_text in image_default_patch_configuration_backup:
-            self.composite_logger.log_debug("Extension already has a valid backup of the default system configuration settings for auto OS updates.")
+        """ Verifies if default auto update configurations, for a service under consideration, are saved in backup """
+        switcher = {
+            Constants.YumAutoOSUpdateServices.YUM_CRON: self.is_backup_valid_for_yum_cron,
+            Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC: self.is_backup_valid_for_dnf_automatic,
+            Constants.YumAutoOSUpdateServices.PACKAGEKIT: self.is_backup_valid_for_packagekit
+        }
+        try:
+            return switcher[self.current_auto_os_update_service](image_default_patch_configuration_backup)
+        except KeyError as e:
+            raise e
+
+    def is_backup_valid_for_yum_cron(self, image_default_patch_configuration_backup):
+        if Constants.YumAutoOSUpdateServices.YUM_CRON in image_default_patch_configuration_backup \
+                and self.yum_cron_download_updates_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON] \
+                and self.yum_cron_apply_updates_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON] \
+                and self.yum_cron_enable_on_reboot_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON] \
+                and self.yum_cron_installation_state_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON]:
+            self.composite_logger.log_debug("Extension has a valid backup for default yum-cron configuration settings")
             return True
         else:
-            self.composite_logger.log_error("Extension does not have a valid backup of the default system configuration settings for auto OS updates.")
+            self.composite_logger.log_debug("Extension does not have a valid backup for default yum-cron configuration settings")
+            return False
+
+    def is_backup_valid_for_dnf_automatic(self, image_default_patch_configuration_backup):
+        if Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC in image_default_patch_configuration_backup \
+                and self.dnf_automatic_download_updates_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC] \
+                and self.dnf_automatic_apply_updates_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC] \
+                and self.dnf_automatic_enable_on_reboot_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC] \
+                and self.dnf_automatic_installation_state_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC]:
+            self.composite_logger.log_debug("Extension has a valid backup for default dnf-automatic configuration settings")
+            return True
+        else:
+            self.composite_logger.log_debug("Extension does not have a valid backup for default dnf-automatic configuration settings")
+            return False
+
+    def is_backup_valid_for_packagekit(self, image_default_patch_configuration_backup):
+        if Constants.YumAutoOSUpdateServices.PACKAGEKIT in image_default_patch_configuration_backup \
+                and self.packagekit_download_updates_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT] \
+                and self.packagekit_apply_updates_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT] \
+                and self.packagekit_enable_on_reboot_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT] \
+                and self.packagekit_installation_state_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT]:
+            self.composite_logger.log_debug("Extension has a valid backup for default packagekit configuration settings")
+            return True
+        else:
+            self.composite_logger.log_debug("Extension does not have a valid backup for default packagekit configuration settings")
             return False
 
     def __get_current_auto_os_updates_setting_on_machine(self):
         """ Gets all the update settings related to auto OS updates currently set on the machine """
         try:
-            self.enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
+            download_updates_value = ""
+            apply_updates_value = ""
+            is_service_installed = False
+            enable_on_reboot_value = False
+
+            # get install state
+            if not self.is_auto_update_service_installed(self.install_check_cmd):
+                self.composite_logger.log_debug("Auto OS service is not installed on the machine")
+                return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
+
+            is_service_installed = True
+            enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
 
             self.composite_logger.log_debug("Checking if auto updates are currently enabled...")
             image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path, raise_if_not_found=False)
@@ -603,22 +703,23 @@ class YumPackageManager(PackageManager):
                 for setting in settings:
                     match = re.search(self.download_updates_identifier_text + self.auto_update_config_pattern_match_text, str(setting))
                     if match is not None:
-                        self.download_updates_value = match.group(1)
+                        download_updates_value = match.group(1)
 
                     match = re.search(self.apply_updates_identifier_text + self.auto_update_config_pattern_match_text, str(setting))
                     if match is not None:
-                        self.apply_updates_value = match.group(1)
+                        apply_updates_value = match.group(1)
 
-            if self.download_updates_value == "":
+            if download_updates_value == "":
                 self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.download_updates_identifier_text)))
+            else:
+                self.composite_logger.log_verbose("Current value set for [{0}={1}]".format(str(self.download_updates_identifier_text), str(download_updates_value)))
 
-            if self.apply_updates_value == "":
+            if apply_updates_value == "":
                 self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.apply_updates_identifier_text)))
+            else:
+                self.composite_logger.log_verbose("Current value set for [{0}={1}]".format(str(self.apply_updates_identifier_text), str(apply_updates_value)))
 
-            elif self.apply_updates_value == "yes":
-                self.composite_logger.log_debug("Auto updates are currently enabled")
-            elif self.apply_updates_value == "no":
-                self.composite_logger.log_debug("Auto updates are NOT currently enabled")
+            return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
 
         except Exception as error:
             raise Exception("Error occurred in fetching default auto OS updates from the machine. [Exception={0}]".format(repr(error)))
@@ -627,7 +728,7 @@ class YumPackageManager(PackageManager):
         """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
         try:
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
-            self.composite_logger.log("Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
+            self.composite_logger.log_debug("Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
             os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
             patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + ' = ' + value
             patch_configuration_sub_setting_found_in_file = False
@@ -679,22 +780,6 @@ class YumPackageManager(PackageManager):
         else:
             self.composite_logger.log_debug("Auto OS update is NOT installed on the machine")
             return False
-
-    def install_auto_update_service(self, command):
-        self.composite_logger.log_debug("Installing auto updates using command: " + str(command))
-        code, out = self.env_layer.run_command_output(command, False, False)
-        if code != 0:
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            return False
-        else:
-            self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_debug("==========================================================================\n\n")
-            self.composite_logger.log_debug("\nAuto update service installed.")
-            return True
 
     # endregion
 

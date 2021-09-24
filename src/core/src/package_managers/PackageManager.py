@@ -348,20 +348,7 @@ class PackageManager(object):
             self.composite_logger.log_debug("Default system configuration settings for auto OS updates aren't recorded in the extension")
             return False
 
-        # verify if the existing backup is valid
-        try:
-            image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
-            if self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup):
-                self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. "
-                                                "[Default Auto OS update settings={0}] [File path={1}]"
-                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
-                return True
-            else:
-                self.composite_logger.log_error("Since the backup is invalid, will add a new backup with the current auto OS update settings")
-                return False
-        except Exception as error:
-            self.composite_logger.log_error("Unable to read backup for default auto OS update settings. [Exception={0}]".format(repr(error)))
-            return False
+        return True
 
     @abstractmethod
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):

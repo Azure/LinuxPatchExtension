@@ -73,7 +73,12 @@ class ConfigurePatchingProcessor(object):
 
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
 
-            self.__report_consolidated_configure_patch_status()
+            if self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.UNKNOWN:
+                # NOTE: only sending details in error objects for customer visibility on why patch state is unknown, overall configurepatching status will remain successful
+                self.__report_consolidated_configure_patch_status(error="Extension attempted but could not disable some of the auto OS update service. Please check if the auto OS services are configured correctly")
+            else:
+                self.__report_consolidated_configure_patch_status()
+
             self.composite_logger.log_debug("Completed processing patch mode configuration.")
         except Exception as error:
             self.composite_logger.log_error("Error while processing patch mode configuration. [Error={0}]".format(repr(error)))
