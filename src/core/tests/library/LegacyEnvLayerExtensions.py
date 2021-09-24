@@ -401,6 +401,15 @@ class LegacyEnvLayerExtensions():
                                  "util-linux-2.23.2-52.el7.x86_64\n" + \
                                  "803 agetty               0:00   848 kB   Sleeping: *17:00\n" + \
                                  "       804 agetty               0:00   868 kB   Sleeping: *17:00\n"
+                    elif cmd.find("systemctl list-unit-files --type=service") > -1:
+                        code = 0
+                        output = 'Auto update service installed'
+                    elif cmd.find("systemctl is-enabled ") > -1:
+                        code = 0
+                        output = 'enabled'
+                    elif cmd.find("systemctl disable ") > -1:
+                        code = 0
+                        output = 'Auto update service disabled'
                 elif self.legacy_package_manager_name is Constants.APT:
                     if cmd.find("dist-upgrade") > -1:
                         code = 0
@@ -503,6 +512,9 @@ class LegacyEnvLayerExtensions():
                     if cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p') > -1:
                         output = 'test'
                         code = 1
+                elif cmd.find("systemctl") > -1:
+                    code = 1
+                    output = ''
             elif self.legacy_test_type == 'UnalignedPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0

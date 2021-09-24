@@ -285,10 +285,10 @@ class EnvLayer(object):
                         time.sleep(i + 1)
                     else:
                         error_message = "Unable to open file (retries exhausted). [File={0}][Error={1}][RaiseIfNotFound={2}].".format(str(real_path), repr(error), str(raise_if_not_found))
-                        print(error_message)
                         if raise_if_not_found:
                             raise Exception(error_message)
                         else:
+                            print(error_message)
                             return None
 
         def __obtain_file_handle(self, file_path_or_handle, mode='a+', raise_if_not_found=True):
@@ -319,10 +319,10 @@ class EnvLayer(object):
                             time.sleep(i + 1)
                         else:
                             error_message = "Unable to read file (retries exhausted). [File={0}][Error={1}][RaiseIfNotFound={2}].".format(str(file_path_or_handle), repr(error), str(raise_if_not_found))
-                            print(error_message)
                             if raise_if_not_found:
                                 raise Exception(error_message)
                             else:
+                                print(error_message)
                                 return None
             else:
                 code, output = self.__read_record(operation)

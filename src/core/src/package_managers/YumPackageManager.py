@@ -539,6 +539,10 @@ class YumPackageManager(PackageManager):
         self.__init_auto_update_for_yum_cron()
 
         self.backup_image_default_patch_configuration_if_not_exists()
+        if not self.is_auto_update_service_installed(self.yum_cron_install_check_cmd):
+            self.composite_logger.log_debug("Cannot disable as yum-cron is not installed on the machine")
+            return
+
         self.composite_logger.log_debug("Preemptively disabling auto OS updates using yum-cron")
         self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "no", self.yum_cron_config_pattern_match_text)
         self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "no", self.yum_cron_config_pattern_match_text)
@@ -552,6 +556,11 @@ class YumPackageManager(PackageManager):
         self.__init_auto_update_for_dnf_automatic()
 
         self.backup_image_default_patch_configuration_if_not_exists()
+
+        if not self.is_auto_update_service_installed(self.dnf_automatic_install_check_cmd):
+            self.composite_logger.log_debug("Cannot disable as dnf-automatic is not installed on the machine")
+            return
+
         self.composite_logger.log_debug("Preemptively disabling auto OS updates using dnf-automatic")
         self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "no", self.dnf_automatic_config_pattern_match_text)
         self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "no", self.dnf_automatic_config_pattern_match_text)
@@ -565,6 +574,11 @@ class YumPackageManager(PackageManager):
         self.__init_auto_update_for_packagekit()
 
         self.backup_image_default_patch_configuration_if_not_exists()
+
+        if not self.is_auto_update_service_installed(self.packagekit_install_check_cmd):
+            self.composite_logger.log_debug("Cannot disable as packagekit is not installed on the machine")
+            return
+
         self.composite_logger.log_debug("Preemptively disabling auto OS updates using packagekit")
         #todo: uncomment after finding the correct value
         # self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "false", self.dnf_automatic_config_pattern_match_text)
