@@ -64,6 +64,9 @@ class YumPackageManager(PackageManager):
         self.enable_on_reboot_check_cmd = ''
         self.installation_state_identifier_text = ""
         self.install_check_cmd = ""
+        self.apply_updates_enabled = "Enabled"
+        self.apply_updates_disabled = "Disabled"
+        self.apply_updates_unknown = "Unknown"
 
         # commands for YUM Cron service
         self.__init_constants_for_yum_cron()
@@ -431,10 +434,12 @@ class YumPackageManager(PackageManager):
         self.__init_auto_update_for_yum_cron()
         is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
 
-        if apply_updates_value.lower() == 'yes' or enable_on_reboot_value:
+        apply_updates = self.__get_extension_standard_value_for_apply_updates(apply_updates_value)
+
+        if apply_updates == self.apply_updates_enabled or enable_on_reboot_value:
             return Constants.AutomaticOSPatchStates.ENABLED
         # OS patch state is considered to be disabled: a) if it was successfully disabled or b) if the service is not installed
-        elif not is_service_installed or (apply_updates_value.lower() == 'no' and not enable_on_reboot_value):
+        elif not is_service_installed or (apply_updates == self.apply_updates_disabled and not enable_on_reboot_value):
             return Constants.AutomaticOSPatchStates.DISABLED
         else:
             return Constants.AutomaticOSPatchStates.UNKNOWN
@@ -445,10 +450,12 @@ class YumPackageManager(PackageManager):
         self.__init_auto_update_for_dnf_automatic()
         is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
 
-        if apply_updates_value.lower() == 'yes' or enable_on_reboot_value:
+        apply_updates = self.__get_extension_standard_value_for_apply_updates(apply_updates_value)
+
+        if apply_updates == self.apply_updates_enabled or enable_on_reboot_value:
             return Constants.AutomaticOSPatchStates.ENABLED
         # OS patch state is considered to be disabled: a) if it was successfully disabled or b) if the service is not installed
-        elif not is_service_installed or (apply_updates_value.lower() == 'no' and not enable_on_reboot_value):
+        elif not is_service_installed or (apply_updates == self.apply_updates_disabled and not enable_on_reboot_value):
             return Constants.AutomaticOSPatchStates.DISABLED
         else:
             return Constants.AutomaticOSPatchStates.UNKNOWN
@@ -459,13 +466,23 @@ class YumPackageManager(PackageManager):
         self.__init_auto_update_for_packagekit()
         is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
 
-        if apply_updates_value.lower() == 'true' or enable_on_reboot_value:
+        apply_updates = self.__get_extension_standard_value_for_apply_updates(apply_updates_value)
+
+        if apply_updates == self.apply_updates_enabled or enable_on_reboot_value:
             return Constants.AutomaticOSPatchStates.ENABLED
         # OS patch state is considered to be disabled: a) if it was successfully disabled or b) if the service is not installed
-        elif not is_service_installed or (apply_updates_value.lower() == 'false' and not enable_on_reboot_value):
+        elif not is_service_installed or (apply_updates == self.apply_updates_disabled and not enable_on_reboot_value):
             return Constants.AutomaticOSPatchStates.DISABLED
         else:
             return Constants.AutomaticOSPatchStates.UNKNOWN
+
+    def __get_extension_standard_value_for_apply_updates(self, apply_updates_value):
+        if apply_updates_value.lower() == 'yes' or apply_updates_value.lower() == 'true':
+            return self.apply_updates_enabled
+        elif apply_updates_value.lower() == 'no' or apply_updates_value.lower() == 'false':
+            return self.apply_updates_disabled
+        else:
+            return self.apply_updates_unknown
 
     def __init_auto_update_for_yum_cron(self):
         """ Initializes all generic auto OS update variables with the config values for yum cron service """
@@ -722,7 +739,7 @@ class YumPackageManager(PackageManager):
             return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
 
         except Exception as error:
-            raise Exception("Error occurred in fetching default auto OS updates from the machine. [Exception={0}]".format(repr(error)))
+            raise Exception("Error occurred in fetching current auto OS update settings from the machine. [Exception={0}]".format(repr(error)))
 
     def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="no", config_pattern_match_text=""):
         """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """

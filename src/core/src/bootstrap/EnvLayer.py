@@ -284,8 +284,7 @@ class EnvLayer(object):
                     if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                         time.sleep(i + 1)
                     else:
-                        #todo: do not print this error trace when raise_if_not_found is False. Also do not retry if raise_if_not_found is False
-                        error_message = "Unable to open {0} (retries exhausted). Error: {1}.".format(str(real_path), repr(error))
+                        error_message = "Unable to open file (retries exhausted). [File={0}][Error={1}][RaiseIfNotFound={2}].".format(str(real_path), repr(error), str(raise_if_not_found))
                         print(error_message)
                         if raise_if_not_found:
                             raise Exception(error_message)
@@ -319,7 +318,7 @@ class EnvLayer(object):
                         if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                             time.sleep(i + 1)
                         else:
-                            error_message = "Unable to read from {0} (retries exhausted). Error: {1}.".format(str(file_path_or_handle), repr(error))
+                            error_message = "Unable to read file (retries exhausted). [File={0}][Error={1}][RaiseIfNotFound={2}].".format(str(file_path_or_handle), repr(error), str(raise_if_not_found))
                             print(error_message)
                             if raise_if_not_found:
                                 raise Exception(error_message)
