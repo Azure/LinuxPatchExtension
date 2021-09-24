@@ -62,7 +62,7 @@ class PatchAssessor(object):
                 self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
                 break
             except Exception as error:
-                if i < Constants.MAX_ASSESSMENT_RETRY_COUNT - 1:
+                if i < Constants.MAX_ASSESSMENT_RETRY_COUNT:
                     error_msg = 'Retryable error retrieving available patches: ' + repr(error)
                     self.composite_logger.log_warning(error_msg)
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)

@@ -28,7 +28,7 @@ class Constants(object):
                         yield item
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.25"
+    EXT_VERSION = "1.6.26"
 
     # Runtime environments
     TEST = 'Test'
@@ -85,7 +85,7 @@ class Constants(object):
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # Re-try limit for file operations
-    MAX_IO_RETRIES = 10
+    MAX_IO_RETRIES = 5
 
     # Re-try limit for verifying core process has started successfully
     MAX_PROCESS_STATUS_CHECK_RETRIES = 5

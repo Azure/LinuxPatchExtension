@@ -281,7 +281,7 @@ class EnvLayer(object):
                 try:
                     return open(real_path, mode)
                 except Exception as error:
-                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                         time.sleep(i + 1)
                     else:
                         #todo: do not print this error trace when raise_if_not_found is False. Also do not retry if raise_if_not_found is False
@@ -316,7 +316,7 @@ class EnvLayer(object):
                         self.__write_record(operation, code=0, output=value, delay=0)
                         return value
                     except Exception as error:
-                        if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                        if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                             time.sleep(i + 1)
                         else:
                             error_message = "Unable to read from {0} (retries exhausted). Error: {1}.".format(str(file_path_or_handle), repr(error))
@@ -338,7 +338,7 @@ class EnvLayer(object):
                     file_handle.write(str(data))
                     break
                 except Exception as error:
-                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                         time.sleep(i + 1)
                     else:
                         raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_handle.name), repr(error)))
@@ -357,7 +357,7 @@ class EnvLayer(object):
                     shutil.move(tempname, file_path)
                     break
                 except Exception as error:
-                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                         time.sleep(i + 1)
                     else:
                         raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_path), repr(error)))

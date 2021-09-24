@@ -56,7 +56,7 @@ class LifecycleManager(object):
                 with self.env_layer.file_system.open(self.ext_state_file_path, mode="r") as file_handle:
                     return json.load(file_handle)['extensionSequence']
             except Exception as error:
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                     self.composite_logger.log_warning("Exception on extension sequence read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i+1)
                 else:
@@ -115,7 +115,7 @@ class LifecycleManager(object):
 
                 return core_sequence
             except Exception as error:
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                     self.composite_logger.log_warning("Exception on core sequence read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i + 1)
                 else:
@@ -145,7 +145,7 @@ class LifecycleManager(object):
                 with self.env_layer.file_system.open(self.core_state_file_path, 'w+') as file_handle:
                     file_handle.write(core_state_payload)
             except Exception as error:
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                     self.composite_logger.log_warning("Exception on core sequence update. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i + 1)
                 else:

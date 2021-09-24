@@ -501,7 +501,7 @@ class StatusHandler(object):
                 with self.env_layer.file_system.open(self.status_file_path, 'r') as file_handle:
                     status_file_data_raw = json.load(file_handle)[0]    # structure is array of 1
             except Exception as error:
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                     time.sleep(i + 1)
                 else:
                     self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
