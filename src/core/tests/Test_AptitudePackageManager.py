@@ -32,7 +32,7 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_read_with_retry_raise_exception(self):
         raise Exception
 
-    def mock_write_with_retry_raise_exception(self):
+    def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
 
     def test_package_manager_no_updates(self):
@@ -179,24 +179,19 @@ class TestAptitudePackageManager(unittest.TestCase):
             'APT::Periodic::Unattended-Upgrade': "1"
         }
         self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
+        image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertTrue(package_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup))
 
-        # invalid or no patch mode backup
+        # invalid mode backup
         image_default_patch_configuration_backup = '[]'
         self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
-        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
+        image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
+        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertFalse(package_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup))
 
     def test_image_default_patch_mode_backup_does_not_exist(self):
         package_manager = self.container.get('package_manager')
-        read_with_retry_backup = self.runtime.env_layer.file_system.read_with_retry
-        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
-
-        # ensure valid log file exists
-        os_patch_mode_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        package_manager.os_patch_mode_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
-        self.runtime.write_to_file(package_manager.os_patch_mode_settings_file_path, os_patch_mode_settings)
-        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
-        self.runtime.env_layer.file_system.read_with_retry = read_with_retry_backup
 
         # file does not exist
         package_manager.image_default_patch_mode_backup_path = "tests"
@@ -252,6 +247,25 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Update-Package-Lists'] == "1")
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Unattended-Upgrade'] == "1")
 
+    def test_backup_image_default_patch_mode_overwrite_backup_if_original_backup_was_invalid(self):
+        package_manager = self.container.get('package_manager')
+        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+
+        # backup file exists but the content is invalid, function should overwrite the file with valid content
+        os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+
+        existing_image_default_backup_configuration = '[]'
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, existing_image_default_backup_configuration)
+        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertFalse(package_manager.is_image_default_patch_configuration_backup_valid(existing_image_default_backup_configuration))
+
+        package_manager.backup_image_default_patch_configuration_if_not_exists()
+        image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
+        self.assertTrue(image_default_patch_configuration_backup is not None)
+        self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Update-Package-Lists'] == "1")
+        self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Unattended-Upgrade'] == "1")
+
     def test_backup_image_default_patch_mode_with_default_patch_mode_not_set(self):
         package_manager = self.container.get('package_manager')
         package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
@@ -266,10 +280,10 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def test_backup_image_default_patch_mode_raises_exception(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_mode_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
         # default system patch mode is set, write to log
         os_patch_mode_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_mode_settings_file_path, os_patch_mode_settings)
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_mode_settings)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.backup_image_default_patch_configuration_if_not_exists)
 

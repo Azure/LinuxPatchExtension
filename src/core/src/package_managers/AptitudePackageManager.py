@@ -395,11 +395,14 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
         self.__get_current_auto_os_updates_setting_on_machine()
         if int(self.unattended_upgrade_value) == 0:
-            return Constants.AutomaticOSPatchStates.DISABLED
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.DISABLED
         elif int(self.unattended_upgrade_value) == 1:
-            return Constants.AutomaticOSPatchStates.ENABLED
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.ENABLED
         else:
-            return Constants.AutomaticOSPatchStates.UNKNOWN
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
+
+        self.composite_logger.log_debug("Current Auto OS Patch State is [State={0}]".format(str(current_auto_os_patch_state)))
+        return current_auto_os_patch_state
 
     def __get_current_auto_os_updates_setting_on_machine(self):
         """ Gets all the update settings related to auto OS updates currently set on the machine """
@@ -437,7 +440,22 @@ class AptitudePackageManager(PackageManager):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
         try:
-            if not self.image_default_patch_configuration_backup_exists():
+            image_default_patch_configuration_backup = {}
+
+            # read existing backup since it also contains backup from other update services. We need to preserve any existing data with backup file
+            if self.image_default_patch_configuration_backup_exists():
+                try:
+                    image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
+                except Exception as error:
+                    self.composite_logger.log_error("Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
+
+            # verify if existing backup is valid if not, write to backup
+            is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
+            if is_backup_valid:
+                self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]"
+                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
+            else:
+                self.composite_logger.log_debug("Since the backup is invalid, will add a new backup with the current auto OS update settings")
                 self.__get_current_auto_os_updates_setting_on_machine()
 
                 backup_image_default_patch_configuration_json = {
@@ -462,7 +480,7 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_error("Extension does not have a valid backup of the default system configuration settings for auto OS updates.")
             return False
 
-    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="0"):
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="0", patch_configuration_sub_setting_pattern_to_match=""):
         """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
         try:
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before

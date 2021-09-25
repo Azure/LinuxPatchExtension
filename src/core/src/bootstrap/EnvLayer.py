@@ -274,7 +274,7 @@ class EnvLayer(object):
             else:
                 return requested_path
 
-        def open(self, file_path, mode):
+        def open(self, file_path, mode, raise_if_not_found=True):
             """ Provides a file handle to the file_path requested using implicit redirection where required """
             real_path = self.resolve_path(file_path)
             for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
@@ -284,24 +284,29 @@ class EnvLayer(object):
                     if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                         time.sleep(i + 1)
                     else:
-                        raise Exception("Unable to open {0} (retries exhausted). Error: {1}.".format(str(real_path), repr(error)))
+                        error_message = "Unable to open file (retries exhausted). [File={0}][Error={1}][RaiseIfNotFound={2}].".format(str(real_path), repr(error), str(raise_if_not_found))
+                        if raise_if_not_found:
+                            raise Exception(error_message)
+                        else:
+                            print(error_message)
+                            return None
 
-        def __obtain_file_handle(self, file_path_or_handle, mode='a+'):
+        def __obtain_file_handle(self, file_path_or_handle, mode='a+', raise_if_not_found=True):
             """ Pass-through for handle. For path, resolution and handle open with retry. """
             is_path = False
             if isinstance(file_path_or_handle, str) or not(hasattr(file_path_or_handle, 'read') and hasattr(file_path_or_handle, 'write')):
                 is_path = True
-                file_path_or_handle = self.open(file_path_or_handle, mode)
+                file_path_or_handle = self.open(file_path_or_handle, mode, raise_if_not_found)
             file_handle = file_path_or_handle
             return file_handle, is_path
 
-        def read_with_retry(self, file_path_or_handle):
+        def read_with_retry(self, file_path_or_handle, raise_if_not_found=True):
             """ Reads all content from a given file path in a single operation """
             operation = "FILE_READ"
 
             # only fully emulate non_exclusive_files from the real recording; exclusive files can be redirected and handled in emulator scenarios
             if not self.__emulator_enabled or (isinstance(file_path_or_handle, str) and os.path.basename(file_path_or_handle) not in self.__non_exclusive_files):
-                file_handle, was_path = self.__obtain_file_handle(file_path_or_handle, 'r')
+                file_handle, was_path = self.__obtain_file_handle(file_path_or_handle, 'r', raise_if_not_found)
                 for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
                     try:
                         value = file_handle.read()
@@ -313,7 +318,12 @@ class EnvLayer(object):
                         if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
                             time.sleep(i + 1)
                         else:
-                            raise Exception("Unable to read from {0} (retries exhausted). Error: {1}.".format(str(file_path_or_handle), repr(error)))
+                            error_message = "Unable to read file (retries exhausted). [File={0}][Error={1}][RaiseIfNotFound={2}].".format(str(file_path_or_handle), repr(error), str(raise_if_not_found))
+                            if raise_if_not_found:
+                                raise Exception(error_message)
+                            else:
+                                print(error_message)
+                                return None
             else:
                 code, output = self.__read_record(operation)
                 return output

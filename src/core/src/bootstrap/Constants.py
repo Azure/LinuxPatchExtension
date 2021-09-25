@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.26"
+    EXT_VERSION = "1.6.27"
 
     # Runtime environments
     TEST = 'Test'
@@ -111,6 +111,13 @@ class Constants(object):
         UNKNOWN = "Unknown"
         DISABLED = "Disabled"
         ENABLED = "Enabled"
+
+    # List of auto OS update services in Yum
+    # todo: move to yumpackagemanager
+    class YumAutoOSUpdateServices(EnumBackport):
+        YUM_CRON = "yum-cron"
+        DNF_AUTOMATIC = "dnf-automatic"
+        PACKAGEKIT = "packagekit"
 
     # auto assessment states
     class AutoAssessmentStates(EnumBackport):

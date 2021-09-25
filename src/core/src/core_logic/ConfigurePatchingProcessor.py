@@ -65,17 +65,20 @@ class ConfigurePatchingProcessor(object):
         try:
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
-            self.composite_logger.log_debug("Current Auto OS Patch State is [State={0}]".format(str(self.current_auto_os_patch_state)))
 
             # disable auto OS updates if VM is configured for platform updates only.
             # NOTE: this condition will be false for Assessment operations, since patchMode is not sent in the API request
-            if self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.ENABLED and self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM:
+            if self.current_auto_os_patch_state != Constants.AutomaticOSPatchStates.DISABLED and self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM:
                 self.package_manager.disable_auto_os_update()
 
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
-            self.composite_logger.log_debug("Current Auto OS Patch State is [State={0}]".format(str(self.current_auto_os_patch_state)))
 
-            self.__report_consolidated_configure_patch_status()
+            if self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.UNKNOWN:
+                # NOTE: only sending details in error objects for customer visibility on why patch state is unknown, overall configurepatching status will remain successful
+                self.__report_consolidated_configure_patch_status(error="Extension attempted but could not disable some of the auto OS update service. Please check if the auto OS services are configured correctly")
+            else:
+                self.__report_consolidated_configure_patch_status()
+
             self.composite_logger.log_debug("Completed processing patch mode configuration.")
         except Exception as error:
             self.composite_logger.log_error("Error while processing patch mode configuration. [Error={0}]".format(repr(error)))
