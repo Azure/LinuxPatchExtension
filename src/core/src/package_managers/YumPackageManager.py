@@ -581,8 +581,8 @@ class YumPackageManager(PackageManager):
 
         self.composite_logger.log_debug("Preemptively disabling auto OS updates using packagekit")
         #todo: uncomment after finding the correct value
-        # self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "false", self.dnf_automatic_config_pattern_match_text)
-        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "false", self.dnf_automatic_config_pattern_match_text)
+        # self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "false", self.packagekit_config_pattern_match_text)
+        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "false", self.packagekit_config_pattern_match_text)
         self.disable_auto_update_on_reboot(self.dnf_automatic_disable_on_reboot_cmd)
 
         self.composite_logger.log("Successfully disabled auto OS updates using dnf-automatic")
