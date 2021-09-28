@@ -99,7 +99,7 @@ class EnvLayer(object):
                 regex = re.compile('{0}=.+'.format(var_name))
                 search = regex.search(environment_vars)
                 if search is None:
-                    return None
+                    return
 
                 group = search.group()
                 environment_vars = environment_vars.replace(group, '').replace("\n\n", "\n")
