@@ -52,7 +52,6 @@ class ZypperPackageManager(PackageManager):
         # Miscellaneous
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.ZYPPER)
         self.zypper_get_process_tree_cmd = 'ps --forest -o pid,cmd -g $(ps -o sid= -p {})'
-        self.env_layer.ensure_env_var_is_set('ZYPP_LOCK_TIMEOUT', 5)
         self.package_manager_max_retries = 5
         self.error_codes_to_retry = [self.zypper_exitcode_zypp_locked]
 
@@ -91,7 +90,11 @@ class ZypperPackageManager(PackageManager):
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
 
         for i in range(0, self.package_manager_max_retries):
+            zypp_lock_timeout = None
             try:
+                zypp_lock_timeout = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
+                self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', 5)
+
                 code, out = self.env_layer.run_command_output(command, False, False)
                 if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:  # more known return codes should be added as appropriate
                     self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
@@ -132,6 +135,9 @@ class ZypperPackageManager(PackageManager):
                     self.composite_logger.log_warning("Unable to invoke package manager (retries exhausted) [{0}] [RetryCount={1}]".format(repr(error), str(i)))
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
                     raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            finally:
+                # Restore original env var, if it existed
+                self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', zypp_lock_timeout)
 
     def get_process_tree_from_pid_in_output(self, message):
         """ Fetches pid from the error message by searching for the text 'pid' and returns the process tree with all details.
