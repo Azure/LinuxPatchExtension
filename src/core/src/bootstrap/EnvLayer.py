@@ -87,6 +87,10 @@ class EnvLayer(object):
         try:
             formatted_env_var = "{0}={1}".format(var_name, var_value)
             environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
+            if environment_vars is None:
+                print("Error occurred while setting environment variable: File not found. [Variable={0}] [Value={1}] [Path={2}]".format(str(var_name), str(var_value), self.etc_environment_file_path))
+                return
+
             settings = environment_vars.strip().split('\n')
 
             if not var_name in settings:
