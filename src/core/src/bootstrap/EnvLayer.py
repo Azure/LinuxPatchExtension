@@ -55,6 +55,9 @@ class EnvLayer(object):
         self.file_system = self.FileSystem(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record,
                                            emulator_root_path=os.path.dirname(self.__real_record_path))
 
+        # Constant paths
+        self.etc_environment_file_path = "/etc/environment"
+
     def get_package_manager(self):
         """ Detects package manager type """
         ret = None
@@ -79,6 +82,29 @@ class EnvLayer(object):
 
         return ret
 
+    def ensure_env_var_is_set(self, var_name, var_value):
+        """ Checks if an environment variable is set with var_name and var_value in /etc/environment. If not, the environment variable is set to var_value. """
+        try:
+            formatted_env_var = "{0}={1}".format(var_name, var_value)
+            environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
+            settings = environment_vars.strip().split('\n')
+
+            if not var_name in settings:
+                self.file_system.write_with_retry(self.etc_environment_file_path, "\n" + formatted_env_var)
+            else:
+                # ensure the setting is the proper value
+                for env_var in settings:
+                    if var_name not in str(env_var):
+                        continue
+
+                    environment_vars.replace(str(env_var), formatted_env_var)
+
+                self.file_system.write_with_retry(self.etc_environment_file_path, environment_vars, 'w')
+
+        except Exception as error:
+            print("Error occurred while setting environment variable [Variable={0}] [Value={1}] [Exception={2}]".format(str(var_name), str(var_value), repr(error)))
+            raise
+        
     def run_command_output(self, cmd, no_output=False, chk_err=False):
         operation = "RUN_CMD_OUT"
         if not self.__emulator_enabled:
