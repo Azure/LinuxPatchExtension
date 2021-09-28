@@ -51,6 +51,7 @@ class ZypperPackageManager(PackageManager):
         # Miscellaneous
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.ZYPPER)
         self.zypper_get_process_tree_cmd = 'ps --forest -o pid,cmd -g $(ps -o sid= -p {})'
+        self.env_layer.ensure_env_var_is_set('ZYPP_LOCK_TIMEOUT', 5)
 
     def refresh_repo(self):
         self.composite_logger.log("Refreshing local repo...")

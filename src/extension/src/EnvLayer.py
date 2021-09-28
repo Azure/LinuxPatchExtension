@@ -34,6 +34,7 @@ class EnvLayer(object):
         # components for tty config
         self.etc_sudoers_file_path = "/etc/sudoers"
         self.etc_sudoers_linux_patch_extension_file_path = "/etc/sudoers.d/linuxpatchextension"
+        self.etc_environment_file_path = "/etc/environment"
         self.require_tty_setting = "requiretty"
 
     def run_command_output(self, cmd, no_output=False, chk_err=False):
@@ -128,6 +129,29 @@ class EnvLayer(object):
             return sys.version_info.major
         else:
             return sys.version_info[0]  # python 2.6 doesn't have attributes like 'major' within sys.version_info
+
+    def ensure_env_var_is_set(self, var_name, var_value):
+        """ Checks if an environment variable is set with var_name and var_value in /etc/environment. If not, the environment variable is set to var_value. """
+        try:
+            formatted_env_var = "{0}={1}".format(var_name, var_value)
+            environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
+            settings = environment_vars.strip().split('\n')
+
+            if not var_name in settings:
+                self.file_system.write_with_retry(self.etc_environment_file_path, "\n" + formatted_env_var)
+            else:
+                # ensure the setting is the proper value
+                for env_var in settings:
+                    if var_name not in str(env_var):
+                        continue
+
+                    environment_vars.replace(str(env_var), formatted_env_var)
+
+                self.file_system.write_with_retry(self.etc_environment_file_path, environment_vars, 'w')
+
+        except Exception as error:
+            print("Error occurred while setting environment variable [Variable={0}] [Value={1}] [Exception={2}]".format(str(var_name), str(var_value), repr(error)))
+            raise
 
     def is_tty_required(self):
         """ Checks if tty is set to required within the VM and will be applicable to the current user (either via a generic config or a user specific one) """
