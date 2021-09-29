@@ -75,7 +75,7 @@ class ConfigurePatchingProcessor(object):
 
             if self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM and self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.UNKNOWN:
                 # NOTE: only sending details in error objects for customer visibility on why patch state is unknown, overall configurepatching status will remain successful
-                self.__report_consolidated_configure_patch_status(error="Extension attempted but could not disable some of the auto OS update service. Please check if the auto OS services are configured correctly")
+                self.__report_consolidated_configure_patch_status(error="Extension attempted but could not disable one or more automatic OS update services. Please check if the auto OS services are configured correctly")
             else:
                 self.__report_consolidated_configure_patch_status()
 
