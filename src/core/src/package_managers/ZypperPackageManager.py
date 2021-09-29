@@ -93,6 +93,7 @@ class ZypperPackageManager(PackageManager):
             zypp_lock_timeout = None
             try:
                 zypp_lock_timeout = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
+                self.composite_logger.log_debug("Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(zypp_lock_timeout)))
                 self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', 5)
 
                 code, out = self.env_layer.run_command_output(command, False, False)
