@@ -277,7 +277,6 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertEqual(data.find("ZYPP_LOCK_TIMEOUT"), -1)
 
     def mock_write_with_retry_assert_is_5(self, file_path_or_handle, data, mode='a+'):
-        print(data)
         self.assertNotEqual(data.find("ZYPP_LOCK_TIMEOUT=5"), -1)
 
     def test_env_var_set_get(self):
