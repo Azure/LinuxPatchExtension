@@ -73,9 +73,9 @@ class ConfigurePatchingProcessor(object):
 
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
 
-            if self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.UNKNOWN:
+            if self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM and self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.UNKNOWN:
                 # NOTE: only sending details in error objects for customer visibility on why patch state is unknown, overall configurepatching status will remain successful
-                self.__report_consolidated_configure_patch_status(error="Extension attempted but could not disable some of the auto OS update service. Please check if the auto OS services are configured correctly")
+                self.__report_consolidated_configure_patch_status(error="Extension attempted but could not disable one or more automatic OS update services. Please check if the auto OS services are configured correctly")
             else:
                 self.__report_consolidated_configure_patch_status()
 
@@ -128,8 +128,6 @@ class ConfigurePatchingProcessor(object):
             error_msg = 'Error: ' + repr(error)
             self.composite_logger.log_error(error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
-                error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         # write consolidated status
         self.status_handler.set_configure_patching_substatus_json(status=status,
