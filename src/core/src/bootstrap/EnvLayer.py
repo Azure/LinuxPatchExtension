@@ -91,9 +91,11 @@ class EnvLayer(object):
                 print("Error occurred while setting environment variable: File not found. [Variable={0}] [Value={1}] [Path={2}]".format(str(var_name), str(var_value), self.etc_environment_file_path))
                 return
 
+            environment_vars_lines = environment_vars.strip().split("\n")
+
             if var_value is None:
                 # remove environment variable
-                if not var_name in environment_vars:
+                if var_name not in environment_vars:
                     return
 
                 regex = re.compile('{0}=.+'.format(var_name))
@@ -107,15 +109,16 @@ class EnvLayer(object):
                 return
 
             formatted_env_var = "{0}={1}".format(var_name, str(var_value))
-            if not var_name in environment_vars:
+            if var_name not in environment_vars:
                 self.file_system.write_with_retry(self.etc_environment_file_path, "\n" + formatted_env_var)
             else:
                 # Update the value of the existing setting
-                for env_var in environment_vars:
+                for env_var in environment_vars_lines:
                     if var_name not in str(env_var):
                         continue
 
-                    environment_vars.replace(str(env_var), formatted_env_var)
+                    environment_vars = environment_vars.replace(str(env_var), formatted_env_var)
+                    break
 
                 self.file_system.write_with_retry(self.etc_environment_file_path, environment_vars, 'w')
 
@@ -133,7 +136,7 @@ class EnvLayer(object):
 
             settings = environment_vars.strip().split('\n')
 
-            if not var_name in settings:
+            if var_name not in environment_vars:
                 return None
             else:
                 # get specific environment variable value
@@ -142,8 +145,8 @@ class EnvLayer(object):
                         continue
 
                     env_var_split = env_var.split("=")
-                    if len(env_var_split) == 2:
-                        return env_var_split[1]
+                    if len(env_var_split) == 2 and env_var_split[0].strip() == var_name:
+                        return env_var_split[1].strip()
 
             return None
 

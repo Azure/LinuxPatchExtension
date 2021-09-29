@@ -243,5 +243,101 @@ class TestZypperPackageManager(unittest.TestCase):
         # Test to make sure nothing was returned from an empty string from the command output
         self.assertIsNone(package_manager.get_process_tree_from_pid_in_output(package_manager_output))
 
+    def mock_read_with_retry_has_zypper_lock_var_5(self, file_path_or_handle, raise_if_not_found=True):
+        return "ZYPP_LOCK_TIMEOUT=5"
+
+    def mock_read_with_retry_has_zypper_lock_var_10(self, file_path_or_handle, raise_if_not_found=True):
+        return "ZYPP_LOCK_TIMEOUT=10"
+
+    def mock_read_with_retry_has_zypper_lock_var_10_multiline(self, file_path_or_handle, raise_if_not_found=True):
+        return "TEST=5\nTEST2=12\nZYPP_LOCK_TIMEOUT=10\nTEST3=93832\n\n"
+
+    def mock_read_with_retry_not_has_zypper_lock_multiline(self, file_path_or_handle, raise_if_not_found=True):
+        return "TEST=5\nTEST2=12\nTEST3=93832"
+
+    def mock_read_with_retry_has_zypper_lock_var_10_wrong_format(self, file_path_or_handle, raise_if_not_found=True):
+        return "ZYPP_LOCK_TIMEOUT==10"
+
+    def mock_read_with_retry_not_has_zypper_lock_var(self, file_path_or_handle, raise_if_not_found=True):
+        return "ENVVAR=50"
+
+    def mock_read_with_retry_raises_exception(self, file_path_or_handle, raise_if_not_found=True):
+        raise Exception
+
+    def mock_read_with_retry_returns_none(self, file_path_or_handle, raise_if_not_found=True):
+        return None
+
+    def mock_write_with_retry_valid(self, file_path_or_handle, data, mode='a+'):
+        return
+
+    def mock_write_with_retry_raises_exception(self, file_path_or_handle, data, mode='a+'):
+        raise Exception
+
+    def mock_write_with_retry_assert_not_exists(self, file_path_or_handle, data, mode='a+'):
+        self.assertEqual(data.find("ZYPP_LOCK_TIMEOUT"), -1)
+
+    def mock_write_with_retry_assert_is_5(self, file_path_or_handle, data, mode='a+'):
+        print(data)
+        self.assertNotEqual(data.find("ZYPP_LOCK_TIMEOUT=5"), -1)
+
+    def test_env_var_set_get(self):
+        zypp_lock_timeout_var_name = "ZYPP_LOCK_TIMEOUT"
+
+        # normal case without preexisting var
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_not_has_zypper_lock_var
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
+
+        self.assertIsNone(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name))
+        self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_5
+        self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, None)
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_not_has_zypper_lock_var
+        self.assertIsNone(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name))
+
+        # now with preexisting var
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_5
+        self.assertEqual(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name), "5")
+        self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 10)
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_10
+        self.assertEqual(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name), "10")
+        self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_5
+        self.assertEqual(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name), "5")
+
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_10_multiline
+        self.assertEqual(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name), "10")
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_not_has_zypper_lock_multiline
+        self.assertEqual(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name), None)
+
+        # test write contents
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_not_has_zypper_lock_multiline
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_assert_is_5
+        self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_10_multiline
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_assert_not_exists
+        self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, None)
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_10_multiline
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_assert_is_5
+        self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
+
+        # test exceptions
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raises_exception
+        self.assertRaises(Exception, lambda: self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5))
+        self.assertRaises(Exception, lambda: self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name))
+
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_not_has_zypper_lock_var
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raises_exception
+        self.assertRaises(Exception, lambda: self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5))
+
+        # test return nones
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_returns_none
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
+        self.assertIsNone(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name))
+        self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
+
+        self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_10_wrong_format
+        self.assertIsNone(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name))
+        self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
+
 if __name__ == '__main__':
     unittest.main()
