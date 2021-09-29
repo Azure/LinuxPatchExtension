@@ -321,12 +321,12 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # test exceptions
         self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raises_exception
-        self.assertRaises(Exception, lambda: self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5))
-        self.assertRaises(Exception, lambda: self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name))
+        self.assertRaises(Exception, lambda: self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5, raise_if_not_success=True))
+        self.assertRaises(Exception, lambda: self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name, raise_if_not_success=True))
 
         self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_not_has_zypper_lock_var
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raises_exception
-        self.assertRaises(Exception, lambda: self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5))
+        self.assertRaises(Exception, lambda: self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5, raise_if_not_success=True))
 
         # test return nones
         self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_returns_none

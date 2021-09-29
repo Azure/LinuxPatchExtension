@@ -90,10 +90,10 @@ class ZypperPackageManager(PackageManager):
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
 
         for i in range(0, self.package_manager_max_retries):
-            zypp_lock_timeout = None
+            zypp_lock_timeout_backup = None
             try:
-                zypp_lock_timeout = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
-                self.composite_logger.log_debug("Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(zypp_lock_timeout)))
+                zypp_lock_timeout_backup = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
+                self.composite_logger.log_debug("Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(zypp_lock_timeout_backup)))
                 self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', 5)
 
                 code, out = self.env_layer.run_command_output(command, False, False)
@@ -138,7 +138,7 @@ class ZypperPackageManager(PackageManager):
                     raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             finally:
                 # Restore original env var, if it existed
-                self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', zypp_lock_timeout)
+                self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', zypp_lock_timeout_backup)
 
     def get_process_tree_from_pid_in_output(self, message):
         """ Fetches pid from the error message by searching for the text 'pid' and returns the process tree with all details.

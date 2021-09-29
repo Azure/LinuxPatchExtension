@@ -83,7 +83,7 @@ class EnvLayer(object):
 
         return ret
 
-    def set_env_var(self, var_name, var_value=None):
+    def set_env_var(self, var_name, var_value=None, raise_if_not_success=False):
         """ Sets an environment variable with var_name and var_value in /etc/environment. If it already exists, it is overwriten. """
         try:
             environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
@@ -124,9 +124,10 @@ class EnvLayer(object):
 
         except Exception as error:
             print("Error occurred while setting environment variable [Variable={0}] [Value={1}] [Exception={2}]".format(str(var_name), str(var_value), repr(error)))
-            raise
+            if raise_if_not_success:
+                raise
 
-    def get_env_var(self, var_name):
+    def get_env_var(self, var_name, raise_if_not_success=False):
         """ Returns the value of an environment variable with var_name in /etc/environment. Returns None if it does not exist. """
         try:
             environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
@@ -152,7 +153,8 @@ class EnvLayer(object):
 
         except Exception as error:
             print("Error occurred while getting environment variable [Variable={0}] [Exception={1}]".format(str(var_name), repr(error)))
-            raise
+            if raise_if_not_success:
+                raise
 
     def run_command_output(self, cmd, no_output=False, chk_err=False):
         operation = "RUN_CMD_OUT"
