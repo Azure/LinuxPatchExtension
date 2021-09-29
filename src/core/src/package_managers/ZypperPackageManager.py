@@ -44,6 +44,7 @@ class ZypperPackageManager(PackageManager):
         # Package manager exit code(s)
         self.zypper_exitcode_ok = 0
         self.zypper_exitcode_zypper_updated = 103
+        self.zypper_exitcode_zypp_locked = 7
 
         # Support to check for processes requiring restart
         self.zypper_ps = "sudo zypper ps -s"
@@ -51,64 +52,77 @@ class ZypperPackageManager(PackageManager):
         # Miscellaneous
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.ZYPPER)
         self.zypper_get_process_tree_cmd = 'ps --forest -o pid,cmd -g $(ps -o sid= -p {})'
+        self.package_manager_max_retries = 5
+        self.error_codes_to_retry = [self.zypper_exitcode_zypp_locked]
 
     def refresh_repo(self):
         self.composite_logger.log("Refreshing local repo...")
         # self.invoke_package_manager(self.repo_clean)  # purges local metadata for rebuild - addresses a possible customer environment error
-        for i in range(0, Constants.MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT):
-            try:
-                self.invoke_package_manager(self.repo_refresh)
-                return
-            except Exception as error:
-                if i < Constants.MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT - 1:
-                    self.composite_logger.log_warning("Exception on package manager refresh repo. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
-                    time.sleep(pow(2, i) + 1)
-                else:
-                    if Constants.ERROR_ADDED_TO_STATUS in repr(error):
-                        error.args = error.args[:1]  # remove Constants.ERROR_ADDED_TO_STATUS flag to add new message to status
-
-                    error_msg = "Unable to refresh repo (retries exhausted). [{0}] [RetryCount={1}]".format(repr(error), str(i))
-
-                    # Reboot if not already done
-                    if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
-                        error_msg = "Unable to refresh repo (retries exhausted after reboot). [{0}] [RetryCount={1}]".format(repr(error), str(i))
-                    else:
-                        self.composite_logger.log_warning("Setting force_reboot flag to True.")
-                        self.force_reboot = True
-                        
-                    self.composite_logger.log_warning(error_msg)
-                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-
-                    raise Exception(error_msg)
+        try:
+            self.invoke_package_manager(self.repo_refresh)
+        except Exception as error:
+            # Reboot if not already done
+            if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
+                self.composite_logger.log_warning("Unable to refresh repo (retries exhausted after reboot).")
+            else:
+                self.composite_logger.log_warning("Setting force_reboot flag to True.")
+                self.force_reboot = True
+                
+            raise
 
     # region Get Available Updates
     def invoke_package_manager(self, command):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
-        code, out = self.env_layer.run_command_output(command, False, False)
-        if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:  # more known return codes should be added as appropriate
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
 
-            process_tree = self.get_process_tree_from_pid_in_output(out)
-            if process_tree is not None:
-                self.composite_logger.log_warning(" - Process tree for the pid in output: \n{}".format(str(process_tree)))
+        for i in range(0, self.package_manager_max_retries):
+            zypp_lock_timeout_backup = None
+            code = None
+            try:
+                zypp_lock_timeout_backup = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
+                self.composite_logger.log_debug("Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(zypp_lock_timeout_backup)))
+                self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', 5)
 
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-        else:  # verbose diagnostic log
-            self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_debug("==========================================================================\n\n")
+                code, out = self.env_layer.run_command_output(command, False, False)
+                if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:  # more known return codes should be added as appropriate
+                    self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
+                    self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
+                    self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
 
-        if code == self.zypper_exitcode_zypper_updated:
-            self.composite_logger.log_debug(" - Package manager update detected. Patch installation run will be repeated.")
-            self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
-        return out
+                    process_tree = self.get_process_tree_from_pid_in_output(out)
+                    if process_tree is not None:
+                        self.composite_logger.log_warning(" - Process tree for the pid in output: \n{}".format(str(process_tree)))
+
+                    self.telemetry_writer.write_execution_error(command, code, out)
+                    error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+
+                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+                else:  # verbose diagnostic log
+                    self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
+                    self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
+                    self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+                    self.composite_logger.log_debug("==========================================================================\n\n")
+
+                if code == self.zypper_exitcode_zypper_updated:
+                    self.composite_logger.log_debug(" - Package manager update detected. Patch installation run will be repeated.")
+                    self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
+                return out
+            except Exception as error:
+                error_msg = repr(error)
+                if code not in self.error_codes_to_retry:
+                    raise
+
+                if i < self.package_manager_max_retries - 1:
+                    self.composite_logger.log_warning("Exception on package manager invoke. [Exception={0}] [RetryCount={1}]".format(error_msg, str(i)))
+                    time.sleep(i + 1)
+                else:
+                    self.composite_logger.log_warning("Unable to invoke package manager (retries exhausted) [{0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            finally:
+                # Restore original env var, if it existed
+                self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', zypp_lock_timeout_backup)
 
     def get_process_tree_from_pid_in_output(self, message):
         """ Fetches pid from the error message by searching for the text 'pid' and returns the process tree with all details.
