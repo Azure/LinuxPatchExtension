@@ -95,9 +95,6 @@ class EnvLayer(object):
 
             if var_value is None:
                 # remove environment variable
-                if var_name not in environment_vars:
-                    return
-
                 regex = re.compile('{0}=.+'.format(var_name))
                 search = regex.search(environment_vars)
                 if search is None:
