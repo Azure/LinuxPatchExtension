@@ -60,7 +60,6 @@ class ZypperPackageManager(PackageManager):
         # self.invoke_package_manager(self.repo_clean)  # purges local metadata for rebuild - addresses a possible customer environment error
         try:
             self.invoke_package_manager(self.repo_refresh)
-            return
         except Exception as error:
             # Reboot if not already done
             if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
