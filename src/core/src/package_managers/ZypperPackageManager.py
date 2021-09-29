@@ -62,22 +62,14 @@ class ZypperPackageManager(PackageManager):
             self.invoke_package_manager(self.repo_refresh)
             return
         except Exception as error:
-            if Constants.ERROR_ADDED_TO_STATUS in repr(error):
-                error.args = error.args[:1]  # remove Constants.ERROR_ADDED_TO_STATUS flag to add new message to status
-
-            error_msg = "Unable to refresh repo (retries exhausted). [{0}]".format(repr(error))
-
             # Reboot if not already done
             if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
-                error_msg = "Unable to refresh repo (retries exhausted after reboot). [{0}]".format(repr(error))
+                self.composite_logger.log_warning("Unable to refresh repo (retries exhausted after reboot).")
             else:
                 self.composite_logger.log_warning("Setting force_reboot flag to True.")
                 self.force_reboot = True
                 
-            self.composite_logger.log_warning(error_msg)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-
-            raise Exception(error_msg)
+            raise
 
     # region Get Available Updates
     def invoke_package_manager(self, command):
@@ -86,6 +78,7 @@ class ZypperPackageManager(PackageManager):
 
         for i in range(0, self.package_manager_max_retries):
             zypp_lock_timeout_backup = None
+            code = None
             try:
                 zypp_lock_timeout_backup = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
                 self.composite_logger.log_debug("Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(zypp_lock_timeout_backup)))
@@ -104,11 +97,8 @@ class ZypperPackageManager(PackageManager):
                     self.telemetry_writer.write_execution_error(command, code, out)
                     error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
 
-                    if code in self.error_codes_to_retry:
-                        raise Exception(error_msg)
-                    else:
-                        self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                        raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
                 else:  # verbose diagnostic log
                     self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
                     self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
@@ -121,7 +111,7 @@ class ZypperPackageManager(PackageManager):
                 return out
             except Exception as error:
                 error_msg = repr(error)
-                if Constants.ERROR_ADDED_TO_STATUS in error_msg:
+                if code not in self.error_codes_to_retry:
                     raise
 
                 if i < self.package_manager_max_retries - 1:

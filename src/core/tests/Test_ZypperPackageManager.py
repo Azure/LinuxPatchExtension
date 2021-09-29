@@ -335,7 +335,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
 
         self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_10_wrong_format
-        self.assertIsNone(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name))
+        self.assertEqual(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name), "=10")
         self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
 
 if __name__ == '__main__':

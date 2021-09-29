@@ -132,21 +132,14 @@ class EnvLayer(object):
                 print("Error occurred while getting environment variable: File not found. [Variable={0}] [Path={1}]".format(str(var_name), self.etc_environment_file_path))
                 return None
 
-            settings = environment_vars.strip().split('\n')
-
-            if var_name not in environment_vars:
+            # get specific environment variable value
+            regex = re.compile('{0}=.+'.format(var_name))
+            search = regex.search(environment_vars)
+            if search is None:
                 return None
-            else:
-                # get specific environment variable value
-                for env_var in settings:
-                    if var_name not in str(env_var):
-                        continue
 
-                    env_var_split = env_var.split("=")
-                    if len(env_var_split) == 2 and env_var_split[0].strip() == var_name:
-                        return env_var_split[1].strip()
-
-            return None
+            group = search.group()
+            return group[group.index("=")+1:]
 
         except Exception as error:
             print("Error occurred while getting environment variable [Variable={0}] [Exception={1}]".format(str(var_name), repr(error)))
