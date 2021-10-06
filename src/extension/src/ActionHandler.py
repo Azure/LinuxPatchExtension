@@ -66,6 +66,29 @@ class ActionHandler(object):
         self.setup_file_logger(action)
         self.setup_telemetry()
         self.logger.log(log_message)
+        self.write_basic_status()
+
+    def write_basic_status(self):
+        """ Writes a basic status file if one for the same sequence number does not exist """
+
+        # read seq no, if not found, log error and exit
+        seq_no = self.ext_config_settings_handler.get_seq_no()
+        if seq_no is None:
+            self.logger.log_error("Sequence number for current operation not found")
+            exit(Constants.ExitCode.MissingConfig)
+
+        # check if a status file for this sequence exists, if yes, do nothing
+        status_json = self.ext_output_status_handler.read_file(seq_no)
+        if status_json is None:
+            config_settings = self.ext_config_settings_handler.read_file(seq_no)
+
+            # set activity_id in telemetry
+            if self.telemetry_writer is not None:
+                self.telemetry_writer.set_operation_id(config_settings.__getattribute__(Constants.ConfigPublicSettingsFields.activity_id))
+
+            operation = config_settings.__getattribute__(Constants.ConfigPublicSettingsFields.operation)
+            # create status file with basic status
+            self.ext_output_status_handler.write_status_file(operation, seq_no)
 
     def setup_file_logger(self, action):
         if self.file_logger is not None or self.stdout_file_mirror is not None:
