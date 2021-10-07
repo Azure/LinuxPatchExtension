@@ -52,15 +52,15 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler = ActionHandler(self.runtime.logger, self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.utility, runtime_context_handler, self.runtime.json_file_handler, self.runtime.env_health_manager,
                                             self.ext_env_handler, self.ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, datetime.datetime.utcnow())
 
-        self.backup_get_seq_no = self.ext_config_settings_handler.get_seq_no
-        self.ext_config_settings_handler.get_seq_no = self.mock_getenv
+        self.backup_get_seq_no_from_env_var = self.ext_config_settings_handler.get_seq_no_from_env_var
+        self.ext_config_settings_handler.get_seq_no_from_env_var = self.mock_get_seq_no_from_env_var
 
         self.backup_mock_os_path_realpath = os.path.realpath
         os.path.realpath = self.mock_os_path_realpath
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        self.ext_config_settings_handler.get_seq_no = self.backup_get_seq_no
+        self.ext_config_settings_handler.get_seq_no_from_env_var = self.backup_get_seq_no_from_env_var
         os.path.realpath = self.backup_mock_os_path_realpath
         # delete tempdir
         shutil.rmtree(self.temp_dir)
@@ -99,7 +99,7 @@ class TestActionHandler(unittest.TestCase):
     def mock_get_all_versions_exception(self, extension_pardir):
         raise Exception
 
-    def mock_getenv(self, is_enable_request=False):
+    def mock_get_seq_no_from_env_var(self, is_enable_request=False):
         return 1234
 
     def mock_os_path_realpath(self, file):
