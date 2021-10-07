@@ -66,7 +66,8 @@ class ActionHandler(object):
         self.setup_file_logger(action)
         self.setup_telemetry()
         self.logger.log(log_message)
-        self.write_basic_status()
+        if action == Constants.ENABLE:
+            self.write_basic_status()
 
     def write_basic_status(self):
         """ Writes a basic status file if one for the same sequence number does not exist """

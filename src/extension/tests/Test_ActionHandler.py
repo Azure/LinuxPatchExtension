@@ -288,32 +288,32 @@ class TestActionHandler(unittest.TestCase):
                 self.assertEquals(events[0]["OperationId"], self.action_handler.operation_id_substitute_for_all_actions_in_telemetry)
 
     def test_write_basic_status_uninstall(self):
-        """ Check if a basic status file is written during uninstall handler command setup """
+        """ Check that a basic status file is NOT written during uninstall handler command setup """
         self.action_handler.uninstall()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
     def test_write_basic_status_install(self):
-        """ Check if a basic status file is written during install handler command setup """
+        """ Check that a basic status file is NOT written during install handler command setup """
         self.action_handler.install()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
     def test_write_basic_status_update(self):
-        """ Check if a basic status file is written during update handler command setup """
+        """ Check that a basic status file is NOT written during update handler command setup """
         self.action_handler.update()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
     def test_write_basic_status_disable(self):
-        """ Check if a basic status file is written during disable handler command setup """
+        """ Check that a basic status file is NOT written during disable handler command setup """
         self.action_handler.disable()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
     def test_write_basic_status_reset(self):
-        """ Check if a basic status file is written during reset handler command setup """
+        """ Check that a basic status file is NOT written during reset handler command setup """
         self.action_handler.reset()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
     def test_write_basic_status_enable(self):
-        """ Check if a basic status file is written during enable handler command setup """
+        """ Check that a basic status file is written during enable handler command setup """
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
