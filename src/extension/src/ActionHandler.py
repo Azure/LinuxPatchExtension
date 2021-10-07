@@ -75,7 +75,7 @@ class ActionHandler(object):
             # read seq no, if not found, log error and return, as this code opportunistically tries to write status file as early as possible
             seq_no = self.ext_config_settings_handler.get_seq_no_from_env_var()
             if seq_no is None:
-                self.logger.log_error("As the sequence number for current operation was not found, handler could not an initial/basic status file")
+                self.logger.log_error("Since sequence number for current operation was not found, handler could not write an initial/basic status file")
                 return
 
             # check if a status file for this sequence exists, if yes, do nothing
