@@ -13,9 +13,11 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import json
+import os
 import unittest
 from core.src.bootstrap.Constants import Constants
+from core.src.package_managers.ZypperPackageManager import ZypperAutoOSUpdateServices
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
@@ -27,6 +29,42 @@ class TestZypperPackageManager(unittest.TestCase):
 
     def tearDown(self):
         self.runtime.stop()
+
+    def mock_read_with_retry_has_zypper_lock_var_5(self, file_path_or_handle, raise_if_not_found=True):
+        return "ZYPP_LOCK_TIMEOUT=5"
+
+    def mock_read_with_retry_has_zypper_lock_var_10(self, file_path_or_handle, raise_if_not_found=True):
+        return "ZYPP_LOCK_TIMEOUT=10"
+
+    def mock_read_with_retry_has_zypper_lock_var_10_multiline(self, file_path_or_handle, raise_if_not_found=True):
+        return "TEST=5\nTEST2=12\nZYPP_LOCK_TIMEOUT=10\nTEST3=93832\n\n"
+
+    def mock_read_with_retry_not_has_zypper_lock_multiline(self, file_path_or_handle, raise_if_not_found=True):
+        return "TEST=5\nTEST2=12\nTEST3=93832"
+
+    def mock_read_with_retry_has_zypper_lock_var_10_wrong_format(self, file_path_or_handle, raise_if_not_found=True):
+        return "ZYPP_LOCK_TIMEOUT==10"
+
+    def mock_read_with_retry_not_has_zypper_lock_var(self, file_path_or_handle, raise_if_not_found=True):
+        return "ENVVAR=50"
+
+    def mock_read_with_retry_raises_exception(self, file_path_or_handle, raise_if_not_found=True):
+        raise Exception
+
+    def mock_read_with_retry_returns_none(self, file_path_or_handle, raise_if_not_found=True):
+        return None
+
+    def mock_write_with_retry_valid(self, file_path_or_handle, data, mode='a+'):
+        return
+
+    def mock_write_with_retry_raises_exception(self, file_path_or_handle, data, mode='a+'):
+        raise Exception
+
+    def mock_write_with_retry_assert_not_exists(self, file_path_or_handle, data, mode='a+'):
+        self.assertEqual(data.find("ZYPP_LOCK_TIMEOUT"), -1)
+
+    def mock_write_with_retry_assert_is_5(self, file_path_or_handle, data, mode='a+'):
+        self.assertNotEqual(data.find("ZYPP_LOCK_TIMEOUT=5"), -1)
 
     def test_package_manager_no_updates(self):
         """Unit test for zypper package manager with no updates"""
@@ -243,42 +281,6 @@ class TestZypperPackageManager(unittest.TestCase):
         # Test to make sure nothing was returned from an empty string from the command output
         self.assertIsNone(package_manager.get_process_tree_from_pid_in_output(package_manager_output))
 
-    def mock_read_with_retry_has_zypper_lock_var_5(self, file_path_or_handle, raise_if_not_found=True):
-        return "ZYPP_LOCK_TIMEOUT=5"
-
-    def mock_read_with_retry_has_zypper_lock_var_10(self, file_path_or_handle, raise_if_not_found=True):
-        return "ZYPP_LOCK_TIMEOUT=10"
-
-    def mock_read_with_retry_has_zypper_lock_var_10_multiline(self, file_path_or_handle, raise_if_not_found=True):
-        return "TEST=5\nTEST2=12\nZYPP_LOCK_TIMEOUT=10\nTEST3=93832\n\n"
-
-    def mock_read_with_retry_not_has_zypper_lock_multiline(self, file_path_or_handle, raise_if_not_found=True):
-        return "TEST=5\nTEST2=12\nTEST3=93832"
-
-    def mock_read_with_retry_has_zypper_lock_var_10_wrong_format(self, file_path_or_handle, raise_if_not_found=True):
-        return "ZYPP_LOCK_TIMEOUT==10"
-
-    def mock_read_with_retry_not_has_zypper_lock_var(self, file_path_or_handle, raise_if_not_found=True):
-        return "ENVVAR=50"
-
-    def mock_read_with_retry_raises_exception(self, file_path_or_handle, raise_if_not_found=True):
-        raise Exception
-
-    def mock_read_with_retry_returns_none(self, file_path_or_handle, raise_if_not_found=True):
-        return None
-
-    def mock_write_with_retry_valid(self, file_path_or_handle, data, mode='a+'):
-        return
-
-    def mock_write_with_retry_raises_exception(self, file_path_or_handle, data, mode='a+'):
-        raise Exception
-
-    def mock_write_with_retry_assert_not_exists(self, file_path_or_handle, data, mode='a+'):
-        self.assertEqual(data.find("ZYPP_LOCK_TIMEOUT"), -1)
-
-    def mock_write_with_retry_assert_is_5(self, file_path_or_handle, data, mode='a+'):
-        self.assertNotEqual(data.find("ZYPP_LOCK_TIMEOUT=5"), -1)
-
     def test_env_var_set_get(self):
         zypp_lock_timeout_var_name = "ZYPP_LOCK_TIMEOUT"
 
@@ -338,5 +340,62 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertEqual(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name), "=10")
         self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
 
+    def test_disable_auto_os_updates_with_uninstalled_services(self):
+        # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        package_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
+        self.assertTrue(image_default_patch_configuration_backup is not None)
+
+        # validating backup for yast2-online-update-configuration
+        self.assertTrue(ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
+        self.assertEquals(image_default_patch_configuration_backup[ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.yast2_online_update_configuration_apply_updates_identifier_text], "")
+        self.assertEquals(image_default_patch_configuration_backup[ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.yast2_online_update_configuration_installation_state_identifier_text], False)
+
+    def test_disable_auto_os_updates_with_installed_services(self):
+        # all services are installed and contain valid configurations. expected o/p All services will be disabled and backup file should reflect default settings for all
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
+        yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="true"'
+        self.runtime.write_to_file(package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path, yast2_online_update_configuration_os_patch_configuration_settings)
+
+        package_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
+        self.assertTrue(image_default_patch_configuration_backup is not None)
+
+        # validating backup for yast2-online-update-configuration
+        self.assertTrue(ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
+        self.assertEquals(image_default_patch_configuration_backup[ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.yast2_online_update_configuration_apply_updates_identifier_text], "true")
+        self.assertEquals(image_default_patch_configuration_backup[ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.yast2_online_update_configuration_installation_state_identifier_text], True)
+
+    def test_update_image_default_patch_mode(self):
+        package_manager = self.container.get('package_manager')
+        package_manager.os_patch_configuration_settings_file_path = package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
+
+        # disable apply_updates when enabled by default
+        yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="true"'
+        self.runtime.write_to_file(package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path, yast2_online_update_configuration_os_patch_configuration_settings)
+
+        package_manager.update_os_patch_configuration_sub_setting(package_manager.yast2_online_update_configuration_apply_updates_identifier_text, "false", package_manager.yast2_online_update_configuration_apply_updates_identifier_text)
+        yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path)
+        self.assertTrue(yast2_online_update_configuration_os_patch_configuration_settings_file_path_read is not None)
+        self.assertTrue('AOU_ENABLE_CRONJOB="false"' in yast2_online_update_configuration_os_patch_configuration_settings_file_path_read)
+
+        # disable apply_updates when default patch mode settings file is empty
+        yast2_online_update_configuration_os_patch_configuration_settings = ''
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, yast2_online_update_configuration_os_patch_configuration_settings)
+        package_manager.update_os_patch_configuration_sub_setting(package_manager.yast2_online_update_configuration_apply_updates_identifier_text, "false", package_manager.yast2_online_update_configuration_apply_updates_identifier_text)
+        yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(yast2_online_update_configuration_os_patch_configuration_settings_file_path_read is not None)
+        self.assertTrue('AOU_ENABLE_CRONJOB="false"' in yast2_online_update_configuration_os_patch_configuration_settings_file_path_read)
+
+
 if __name__ == '__main__':
     unittest.main()
+
+
