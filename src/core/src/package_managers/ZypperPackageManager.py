@@ -23,12 +23,17 @@ from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
 
-class ZypperAutoOSUpdateServices(Constants.EnumBackport):
-    YAST2_ONLINE_UPDATE_CONFIGURATION = "yast2-online-update-configuration"
-
-
 class ZypperPackageManager(PackageManager):
     """Implementation of SUSE package management operations"""
+
+    class ZypperAutoOSUpdateServices(Constants.EnumBackport):
+        YAST2_ONLINE_UPDATE_CONFIGURATION = "yast2-online-update-configuration"
+
+    class YastOnlineUpdateConfigurationConstants(Constants.EnumBackport):
+        OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = '/etc/sysconfig/automatic_online_update'
+        APPLY_UPDATES_IDENTIFIER_TEXT = 'AOU_ENABLE_CRONJOB'
+        AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT = '="(true|false)"'
+        INSTALLATION_STATE_IDENTIFIER_TEXT = "installation_state"
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         super(ZypperPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
@@ -68,8 +73,8 @@ class ZypperPackageManager(PackageManager):
         self.apply_updates_identifier_text = ""
         self.installation_state_identifier_text = ""
 
-        # commands for YaST2 online update configuration
-        self.__init_constants_for_yast2_online_update_configuration()
+        # # commands for YaST2 online update configuration
+        # self.__init_constants_for_yast2_online_update_configuration()
 
     def refresh_repo(self):
         self.composite_logger.log("Refreshing local repo...")
@@ -467,11 +472,11 @@ class ZypperPackageManager(PackageManager):
     # endregion
 
     # region auto OS updates
-    def __init_constants_for_yast2_online_update_configuration(self):
-        self.yast2_online_update_configuration_os_patch_configuration_settings_file_path = '/etc/sysconfig/automatic_online_update'
-        self.yast2_online_update_configuration_apply_updates_identifier_text = 'AOU_ENABLE_CRONJOB'
-        self.yast2_online_update_configuration_auto_update_config_pattern_match_text = '="(true|false)"'
-        self.yast2_online_update_configuration_installation_state_identifier_text = "installation_state"
+    # def __init_constants_for_yast2_online_update_configuration(self):
+    #     self.yast2_online_update_configuration_os_patch_configuration_settings_file_path = '/etc/sysconfig/automatic_online_update'
+    #     self.yast2_online_update_configuration_apply_updates_identifier_text = 'AOU_ENABLE_CRONJOB'
+    #     self.yast2_online_update_configuration_auto_update_config_pattern_match_text = '="(true|false)"'
+    #     self.yast2_online_update_configuration_installation_state_identifier_text = "installation_state"
 
     def get_current_auto_os_patch_state(self):
         """ Gets the current auto OS update patch state on the machine """
@@ -509,11 +514,11 @@ class ZypperPackageManager(PackageManager):
 
     def __init_auto_update_for_yast_online_update_configuration(self):
         """ Initializes all generic auto OS update variables with the config values for yum cron service """
-        self.os_patch_configuration_settings_file_path = self.yast2_online_update_configuration_os_patch_configuration_settings_file_path
-        self.apply_updates_identifier_text = self.yast2_online_update_configuration_apply_updates_identifier_text
-        self.auto_update_config_pattern_match_text = self.yast2_online_update_configuration_auto_update_config_pattern_match_text
-        self.installation_state_identifier_text = self.yast2_online_update_configuration_installation_state_identifier_text
-        self.current_auto_os_update_service = ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION
+        self.os_patch_configuration_settings_file_path = self.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH
+        self.apply_updates_identifier_text = self.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT
+        self.auto_update_config_pattern_match_text = self.YastOnlineUpdateConfigurationConstants.AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT
+        self.installation_state_identifier_text = self.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT
+        self.current_auto_os_update_service = self.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION
 
     def __get_current_auto_os_updates_setting_on_machine(self):
         """ Gets all the update settings related to auto OS updates currently set on the machine """
@@ -628,8 +633,8 @@ class ZypperPackageManager(PackageManager):
         return self.is_backup_valid_for_yast_online_update_configuration(image_default_patch_configuration_backup)
 
     def is_backup_valid_for_yast_online_update_configuration(self, image_default_patch_configuration_backup):
-        if ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup \
-                and self.apply_updates_identifier_text in image_default_patch_configuration_backup[ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION]:
+        if self.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup \
+                and self.apply_updates_identifier_text in image_default_patch_configuration_backup[self.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION]:
             self.composite_logger.log_debug("Extension has a valid backup for default yum-cron configuration settings")
             return True
         else:

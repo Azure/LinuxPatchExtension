@@ -17,7 +17,6 @@ import json
 import os
 import unittest
 from core.src.bootstrap.Constants import Constants
-from core.src.package_managers.ZypperPackageManager import ZypperAutoOSUpdateServices
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
@@ -350,18 +349,18 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertTrue(image_default_patch_configuration_backup is not None)
 
         # validating backup for yast2-online-update-configuration
-        self.assertTrue(ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.yast2_online_update_configuration_apply_updates_identifier_text], "")
-        self.assertEquals(image_default_patch_configuration_backup[ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.yast2_online_update_configuration_installation_state_identifier_text], False)
+        self.assertTrue(package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
+        self.assertEquals(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "")
+        self.assertEquals(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], False)
 
     def test_disable_auto_os_updates_with_installed_services(self):
         # all services are installed and contain valid configurations. expected o/p All services will be disabled and backup file should reflect default settings for all
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
 
-        package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
+        package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
         yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="true"'
-        self.runtime.write_to_file(package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path, yast2_online_update_configuration_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
 
         package_manager.disable_auto_os_update()
         self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
@@ -369,27 +368,27 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertTrue(image_default_patch_configuration_backup is not None)
 
         # validating backup for yast2-online-update-configuration
-        self.assertTrue(ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.yast2_online_update_configuration_apply_updates_identifier_text], "true")
-        self.assertEquals(image_default_patch_configuration_backup[ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.yast2_online_update_configuration_installation_state_identifier_text], True)
+        self.assertTrue(package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
+        self.assertEquals(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "true")
+        self.assertEquals(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], True)
 
     def test_update_image_default_patch_mode(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
+        package_manager.os_patch_configuration_settings_file_path = package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
 
         # disable apply_updates when enabled by default
         yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="true"'
-        self.runtime.write_to_file(package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path, yast2_online_update_configuration_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
 
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.yast2_online_update_configuration_apply_updates_identifier_text, "false", package_manager.yast2_online_update_configuration_apply_updates_identifier_text)
-        yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.yast2_online_update_configuration_os_patch_configuration_settings_file_path)
+        package_manager.update_os_patch_configuration_sub_setting(package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT, "false", package_manager.YastOnlineUpdateConfigurationConstants.AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT)
+        yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH)
         self.assertTrue(yast2_online_update_configuration_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('AOU_ENABLE_CRONJOB="false"' in yast2_online_update_configuration_os_patch_configuration_settings_file_path_read)
 
         # disable apply_updates when default patch mode settings file is empty
         yast2_online_update_configuration_os_patch_configuration_settings = ''
         self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, yast2_online_update_configuration_os_patch_configuration_settings)
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.yast2_online_update_configuration_apply_updates_identifier_text, "false", package_manager.yast2_online_update_configuration_apply_updates_identifier_text)
+        package_manager.update_os_patch_configuration_sub_setting(package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT, "false", package_manager.YastOnlineUpdateConfigurationConstants.AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT)
         yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(yast2_online_update_configuration_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('AOU_ENABLE_CRONJOB="false"' in yast2_online_update_configuration_os_patch_configuration_settings_file_path_read)
