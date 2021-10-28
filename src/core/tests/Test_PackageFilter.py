@@ -92,6 +92,20 @@ class TestPackageFilter(unittest.TestCase):
         self.assertEqual(runtime.package_filter.is_msft_other_classification_only(), False)
         runtime.stop()
 
+    def test_included_classifications_short_term_accomodations(self):
+        # this test should be removed once the accommodations in execution config are removed
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = ['Security','Other']
+        argument_composer.patches_to_include = []
+        argument_composer.patches_to_exclude = []
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+
+        self.assertEqual(runtime.package_filter.is_invalid_classification_combination(), False)  # this will fail after accommodations are removed.
+        self.assertEqual(runtime.package_filter.is_msft_all_classification_included(), True)    # this will fail after accommodations are removed.
+        self.assertEqual(runtime.package_filter.is_msft_critsec_classification_only(), False)
+        self.assertEqual(runtime.package_filter.is_msft_other_classification_only(), False)
+        runtime.stop()
+
     def test_invalid_classifications(self):
         argument_composer = ArgumentComposer()
         argument_composer.classifications_to_include = ['Security', "Other"]
@@ -99,7 +113,7 @@ class TestPackageFilter(unittest.TestCase):
         argument_composer.patches_to_exclude = []
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
 
-        self.assertEqual(runtime.package_filter.is_invalid_classification_combination(), True)
+        self.assertEqual(runtime.package_filter.is_invalid_classification_combination(), False)
         runtime.stop()
 
     def test_with_none_for_classifications(self):
