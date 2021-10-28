@@ -64,6 +64,11 @@ class ExecutionConfig(object):
         self.assessment_mode = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.ASSESSMENT_MODE)
         self.maximum_assessment_interval = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAXIMUM_ASSESSMENT_INTERVAL)
 
+        # Accommodation for bugs in higher-level components where 'Security' is being selected without selecting 'Critical' - should be rolled back no later than Jan 2022
+        if self.included_classifications_list is not None and ('Security' in self.included_classifications_list and 'Critical' not in self.included_classifications_list):
+            self.composite_logger.log_debug("The included_classifications_list was corrected to include 'Critical' when 'Security' was specified.")
+            self.included_classifications_list = ['Critical'] + self.included_classifications_list
+
         # Derived Settings
         self.composite_logger.log_debug(" - Establishing data publishing paths...")
         self.log_file_path = os.path.join(self.log_folder, str(self.sequence_number) + ".core.log")
