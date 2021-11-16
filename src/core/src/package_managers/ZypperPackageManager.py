@@ -362,7 +362,7 @@ class ZypperPackageManager(PackageManager):
         package_versions = []
 
         self.composite_logger.log_debug("\nGetting all available versions of package '" + package_name + "' [Installed=" + str(include_installed) + ", Available=" + str(include_available) + "]...")
-        cmd = self.single_package_check_versions.replace('<PACKAGE-NAME>', package_name)
+        cmd = self.single_package_check_versions.replace('<PACKAGE-NAME>', package_name) 
         output = self.invoke_package_manager(cmd)
         lines = output.strip().split('\n')
 
