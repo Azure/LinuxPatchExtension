@@ -220,6 +220,10 @@ class ExtOutputStatusHandler(object):
     @staticmethod
     def __add_error(add_to, detail):
         """ Add formatted error object to given errors list """
+        for error_detail in add_to:
+            if detail["message"] == error_detail["message"]:
+                return
+
         if len(add_to) >= Constants.STATUS_ERROR_LIMIT:
             errors_to_remove = len(add_to) - Constants.STATUS_ERROR_LIMIT + 1
             for x in range(0, errors_to_remove):
