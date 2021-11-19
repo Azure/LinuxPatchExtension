@@ -205,8 +205,8 @@ class ExtOutputStatusHandler(object):
         }
 
         if self.__current_operation == Constants.NOOPERATION:
-            self.__add_error(self.__nooperation_errors, error_detail)
-            self.__nooperation_total_error_count += 1
+            if self.__add_error(self.__nooperation_errors, error_detail):
+                self.__nooperation_total_error_count += 1
         else:
             return
 
@@ -222,13 +222,14 @@ class ExtOutputStatusHandler(object):
         """ Add formatted error object to given errors list """
         for error_detail in add_to:
             if detail["message"] == error_detail["message"]:
-                return
+                return False
 
         if len(add_to) >= Constants.STATUS_ERROR_LIMIT:
             errors_to_remove = len(add_to) - Constants.STATUS_ERROR_LIMIT + 1
             for x in range(0, errors_to_remove):
                 add_to.pop()
         add_to.insert(0, detail)
+        return True
 
     def __set_errors_json(self, error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """

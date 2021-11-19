@@ -123,10 +123,35 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
         self.assertNotEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"], None)
         self.assertEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["code"], 1)
-        self.assertTrue(len(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"]), 5)
+        self.assertEqual(len(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"]), 5)
+
         self.logger.file_logger.close()
         shutil.rmtree(dir_path)
 
+    def test_add__duplicate_error_to_status(self):
+        file_name = "test"
+        dir_path = tempfile.mkdtemp()
+        ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
+        ext_output_status_handler.set_current_operation(Constants.NOOPERATION)
+        self.logger.file_logger = FileLogger(dir_path, "test.log")
+        ext_output_status_handler.read_file(file_name)
+        # Unexpected input
+        self.assertTrue(ext_output_status_handler.add_error_to_status(None) is None)
+
+        ext_output_status_handler.add_error_to_status("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_output_status_handler.add_error_to_status("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_output_status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_output_status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_output_status_handler.add_error_to_status("exception3", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_output_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, activity_id="", start_time="", seq_no=file_name, status=self.status.Success.lower())
+        updated_status_json = ext_output_status_handler.read_file(file_name)
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
+        self.assertNotEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"], None)
+        self.assertEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["code"], 1)
+        self.assertEqual(len(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"]), 3)
+
+        self.logger.file_logger.close()
+        shutil.rmtree(dir_path)
 
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestExtOutputStatusHandler)
