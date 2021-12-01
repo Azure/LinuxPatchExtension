@@ -43,7 +43,8 @@ class TelemetryWriter(object):
             self.__is_agent_compatible = True
         else:
             self.write_event('VM has incompatible agent. Events folder path: {} (Exists: {})'
-                .format(str(events_folder_path), str(os.path.exists(events_folder_path))), Constants.TelemetryEventLevel.Informational)
+                .format(str(events_folder_path), str(os.path.exists(events_folder_path)) if events_folder_path is not None else 'False'),
+                Constants.TelemetryEventLevel.Informational)
 
         self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
         self.write_machine_config_info()
