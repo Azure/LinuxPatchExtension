@@ -690,11 +690,14 @@ class StatusHandler(object):
 
     @staticmethod
     def __try_add_error(error_list, detail):
-        """ Add formatted error object to given errors list """
+        """ Add formatted error object to given errors list.
+            Returns True if a new error was added, False if an error was only updated or not added. """
         for error_detail in error_list:
             if error_detail["message"] in detail["message"]:
-                # Update existing error detail with any additional details the new error has, if any
-                error_detail["message"] = detail["message"]
+                # New error has more details than the existing error of same type
+                # Remove existing error and add new one with more details to front of list
+                error_list.remove(error_detail)
+                error_list.insert(0, detail)
                 return False
             elif detail["message"] in error_detail["message"]:
                 # All details contained from new message in an existing message already
