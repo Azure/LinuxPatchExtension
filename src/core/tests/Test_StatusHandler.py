@@ -217,6 +217,8 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.add_error_to_status("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         self.runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         self.runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        self.runtime.status_handler.add_error_to_status("exception2: extra details", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        self.runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         self.runtime.status_handler.add_error_to_status("exception6", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
 
         substatus_file_data = []

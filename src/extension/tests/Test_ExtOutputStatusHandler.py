@@ -143,6 +143,8 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         ext_output_status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_output_status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_output_status_handler.add_error_to_status("exception3", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_output_status_handler.add_error_to_status("exception2: extra details", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        ext_output_status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_output_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, activity_id="", start_time="", seq_no=file_name, status=self.status.Success.lower())
         updated_status_json = ext_output_status_handler.read_file(file_name)
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
