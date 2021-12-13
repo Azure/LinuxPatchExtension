@@ -56,6 +56,7 @@ class ZypperPackageManager(PackageManager):
         self.zypper_exitcode_ok = 0
         self.zypper_exitcode_zypper_updated = 103
         self.zypper_exitcode_zypp_locked = 7
+        self.zypper_exitcode_zypp_lib_exit_err = 4
 
         # Support to check for processes requiring restart
         self.zypper_ps = "sudo zypper ps -s"
@@ -64,7 +65,7 @@ class ZypperPackageManager(PackageManager):
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.ZYPPER)
         self.zypper_get_process_tree_cmd = 'ps --forest -o pid,cmd -g $(ps -o sid= -p {})'
         self.package_manager_max_retries = 5
-        self.error_codes_to_retry = [self.zypper_exitcode_zypp_locked]
+        self.error_codes_to_retry = [self.zypper_exitcode_zypp_locked, self.zypper_exitcode_zypp_lib_exit_err]
 
         # auto OS updates
         self.current_auto_os_update_service = None
@@ -136,7 +137,7 @@ class ZypperPackageManager(PackageManager):
 
                 if i < self.package_manager_max_retries - 1:
                     self.composite_logger.log_warning("Exception on package manager invoke. [Exception={0}] [RetryCount={1}]".format(error_msg, str(i)))
-                    time.sleep(i + 1)
+                    time.sleep(pow(2, i + 2))
                 else:
                     self.composite_logger.log_warning("Unable to invoke package manager (retries exhausted) [{0}] [RetryCount={1}]".format(repr(error), str(i)))
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
