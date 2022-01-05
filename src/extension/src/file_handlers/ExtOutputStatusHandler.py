@@ -205,8 +205,8 @@ class ExtOutputStatusHandler(object):
         }
 
         if self.__current_operation == Constants.NOOPERATION:
-            self.__add_error(self.__nooperation_errors, error_detail)
-            self.__nooperation_total_error_count += 1
+            if self.__try_add_error(self.__nooperation_errors, error_detail):
+                self.__nooperation_total_error_count += 1
         else:
             return
 
@@ -218,13 +218,26 @@ class ExtOutputStatusHandler(object):
         return formatted_message[:message_size_limit-3] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
     @staticmethod
-    def __add_error(add_to, detail):
-        """ Add formatted error object to given errors list """
-        if len(add_to) >= Constants.STATUS_ERROR_LIMIT:
-            errors_to_remove = len(add_to) - Constants.STATUS_ERROR_LIMIT + 1
+    def __try_add_error(error_list, detail):
+        """ Add formatted error object to given errors list.
+            Returns True if a new error was added, False if an error was only updated or not added. """
+        for error_detail in error_list:
+            if error_detail["message"] in detail["message"]:
+                # New error has more details than the existing error of same type
+                # Remove existing error and add new one with more details to front of list
+                error_list.remove(error_detail)
+                error_list.insert(0, detail)
+                return False
+            elif detail["message"] in error_detail["message"]:
+                # All details contained from new message in an existing message already
+                return False
+
+        if len(error_list) >= Constants.STATUS_ERROR_LIMIT:
+            errors_to_remove = len(error_list) - Constants.STATUS_ERROR_LIMIT + 1
             for x in range(0, errors_to_remove):
-                add_to.pop()
-        add_to.insert(0, detail)
+                error_list.pop()
+        error_list.insert(0, detail)
+        return True
 
     def __set_errors_json(self, error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """

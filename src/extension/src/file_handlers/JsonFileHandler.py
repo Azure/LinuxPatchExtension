@@ -68,7 +68,7 @@ class JsonFileHandler(object):
         if os.path.exists(dir_path):
             file_path = os.path.join(dir_path, file_name)
             error_message = ""
-            self.logger.log("Writing file. [File={0}]".format(file_name))
+            self.logger.log("Writing JSON file. [File={0}] [Content={1}]".format(file_name, str(content)))
             for retry in range(0, self.retry_count):
                 try:
                     time.sleep(retry)

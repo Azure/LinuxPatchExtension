@@ -19,6 +19,7 @@ import base64
 import datetime
 import json
 import os
+import re
 import platform
 import shutil
 import subprocess
@@ -55,6 +56,9 @@ class EnvLayer(object):
         self.file_system = self.FileSystem(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record,
                                            emulator_root_path=os.path.dirname(self.__real_record_path))
 
+        # Constant paths
+        self.etc_environment_file_path = "/etc/environment"
+
     def get_package_manager(self):
         """ Detects package manager type """
         ret = None
@@ -78,6 +82,69 @@ class EnvLayer(object):
             ret = Constants.APT
 
         return ret
+
+    def set_env_var(self, var_name, var_value=None, raise_if_not_success=False):
+        """ Sets an environment variable with var_name and var_value in /etc/environment. If it already exists, it is overwriten. """
+        try:
+            environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
+            if environment_vars is None:
+                print("Error occurred while setting environment variable: File not found. [Variable={0}] [Value={1}] [Path={2}]".format(str(var_name), str(var_value), self.etc_environment_file_path))
+                return
+
+            environment_vars_lines = environment_vars.strip().split("\n")
+
+            if var_value is None:
+                # remove environment variable
+                regex = re.compile('{0}=.+'.format(var_name))
+                search = regex.search(environment_vars)
+                if search is None:
+                    return
+
+                group = search.group()
+                environment_vars = environment_vars.replace(group, '').replace("\n\n", "\n")
+                self.file_system.write_with_retry(self.etc_environment_file_path, environment_vars, "w")
+                return
+
+            formatted_env_var = "{0}={1}".format(var_name, str(var_value))
+            if var_name not in environment_vars:
+                self.file_system.write_with_retry(self.etc_environment_file_path, "\n" + formatted_env_var)
+            else:
+                # Update the value of the existing setting
+                for env_var in environment_vars_lines:
+                    if var_name not in str(env_var):
+                        continue
+
+                    environment_vars = environment_vars.replace(str(env_var), formatted_env_var)
+                    break
+
+                self.file_system.write_with_retry(self.etc_environment_file_path, environment_vars, 'w')
+
+        except Exception as error:
+            print("Error occurred while setting environment variable [Variable={0}] [Value={1}] [Exception={2}]".format(str(var_name), str(var_value), repr(error)))
+            if raise_if_not_success:
+                raise
+
+    def get_env_var(self, var_name, raise_if_not_success=False):
+        """ Returns the value of an environment variable with var_name in /etc/environment. Returns None if it does not exist. """
+        try:
+            environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
+            if environment_vars is None:
+                print("Error occurred while getting environment variable: File not found. [Variable={0}] [Path={1}]".format(str(var_name), self.etc_environment_file_path))
+                return None
+
+            # get specific environment variable value
+            regex = re.compile('{0}=.+'.format(var_name))
+            search = regex.search(environment_vars)
+            if search is None:
+                return None
+
+            group = search.group()
+            return group[group.index("=")+1:]
+
+        except Exception as error:
+            print("Error occurred while getting environment variable [Variable={0}] [Exception={1}]".format(str(var_name), repr(error)))
+            if raise_if_not_success:
+                raise
 
     def run_command_output(self, cmd, no_output=False, chk_err=False):
         operation = "RUN_CMD_OUT"

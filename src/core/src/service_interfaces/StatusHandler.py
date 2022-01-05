@@ -646,28 +646,28 @@ class StatusHandler(object):
         current_operation = self.__current_operation if current_operation_override_for_error == Constants.DEFAULT_UNSPECIFIED_VALUE else current_operation_override_for_error
 
         if current_operation == Constants.ASSESSMENT:
-            self.__add_error(self.__assessment_errors, error_detail)
-            self.__assessment_total_error_count += 1
-            # retain previously set status and code for assessment substatus
-            if self.__assessment_substatus_json is not None:
-                self.set_assessment_substatus_json(status=self.__assessment_substatus_json["status"], code=self.__assessment_substatus_json["code"])
-            else:
-                self.set_assessment_substatus_json()
+            if self.__try_add_error(self.__assessment_errors, error_detail):
+                self.__assessment_total_error_count += 1
+                # retain previously set status and code for assessment substatus
+                if self.__assessment_substatus_json is not None:
+                    self.set_assessment_substatus_json(status=self.__assessment_substatus_json["status"], code=self.__assessment_substatus_json["code"])
+                else:
+                    self.set_assessment_substatus_json()
         elif current_operation == Constants.INSTALLATION:
-            self.__add_error(self.__installation_errors, error_detail)
-            self.__installation_total_error_count += 1
-            # retain previously set status and code for installation substatus
-            if self.__installation_substatus_json is not None:
-                self.set_installation_substatus_json(status=self.__installation_substatus_json["status"], code=self.__installation_substatus_json["code"])
-            else:
-                self.set_installation_substatus_json()
+            if self.__try_add_error(self.__installation_errors, error_detail):
+                self.__installation_total_error_count += 1
+                # retain previously set status and code for installation substatus
+                if self.__installation_substatus_json is not None:
+                    self.set_installation_substatus_json(status=self.__installation_substatus_json["status"], code=self.__installation_substatus_json["code"])
+                else:
+                    self.set_installation_substatus_json()
         elif current_operation == Constants.CONFIGURE_PATCHING or current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
             if current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
-                self.__add_error(self.__configure_patching_auto_assessment_errors, error_detail)
-                self.__configure_patching_auto_assessment_error_count += 1
+                if self.__try_add_error(self.__configure_patching_auto_assessment_errors, error_detail):
+                    self.__configure_patching_auto_assessment_error_count += 1
             else:
-                self.__add_error(self.__configure_patching_errors, error_detail)
-                self.__configure_patching_top_level_error_count += 1
+                if self.__try_add_error(self.__configure_patching_errors, error_detail):
+                    self.__configure_patching_top_level_error_count += 1
 
             # retain previously set status, code, patchMode and M for configure patching substatus
             if self.__configure_patching_substatus_json is not None:
@@ -689,13 +689,26 @@ class StatusHandler(object):
         return formatted_message[:message_size_limit-3] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
     @staticmethod
-    def __add_error(add_to, detail):
-        """ Add formatted error object to given errors list """
-        if len(add_to) >= Constants.STATUS_ERROR_LIMIT:
-            errors_to_remove = len(add_to) - Constants.STATUS_ERROR_LIMIT + 1
+    def __try_add_error(error_list, detail):
+        """ Add formatted error object to given errors list.
+            Returns True if a new error was added, False if an error was only updated or not added. """
+        for error_detail in error_list:
+            if error_detail["message"] in detail["message"]:
+                # New error has more details than the existing error of same type
+                # Remove existing error and add new one with more details to front of list
+                error_list.remove(error_detail)
+                error_list.insert(0, detail)
+                return False
+            elif detail["message"] in error_detail["message"]:
+                # All details contained from new message in an existing message already
+                return False
+
+        if len(error_list) >= Constants.STATUS_ERROR_LIMIT:
+            errors_to_remove = len(error_list) - Constants.STATUS_ERROR_LIMIT + 1
             for x in range(0, errors_to_remove):
-                add_to.pop()
-        add_to.insert(0, detail)
+                error_list.pop()
+        error_list.insert(0, detail)
+        return True
 
     def __set_errors_json(self, error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """

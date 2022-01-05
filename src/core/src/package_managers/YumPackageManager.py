@@ -583,9 +583,9 @@ class YumPackageManager(PackageManager):
         #todo: uncomment after finding the correct value
         # self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "false", self.packagekit_config_pattern_match_text)
         self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "false", self.packagekit_config_pattern_match_text)
-        self.disable_auto_update_on_reboot(self.dnf_automatic_disable_on_reboot_cmd)
+        self.disable_auto_update_on_reboot(self.packagekit_disable_on_reboot_cmd)
 
-        self.composite_logger.log("Successfully disabled auto OS updates using dnf-automatic")
+        self.composite_logger.log("Successfully disabled auto OS updates using packagekit")
 
     def is_service_set_to_enable_on_reboot(self, command):
         """ Checking if auto update is enable_on_reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot """
@@ -593,9 +593,9 @@ class YumPackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(command, False, False)
         self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
         if len(out.strip()) > 0 and code == 0 and 'enabled' in out:
-            self.composite_logger.log_debug("Auto OS update will enable on reboot")
+            self.composite_logger.log_debug("Auto OS update service will enable on reboot")
             return True
-        self.composite_logger.log_debug("Auto OS update will NOT enable on reboot")
+        self.composite_logger.log_debug("Auto OS update service will NOT enable on reboot")
         return False
 
     def backup_image_default_patch_configuration_if_not_exists(self):
@@ -721,7 +721,6 @@ class YumPackageManager(PackageManager):
 
             # get install state
             if not self.is_auto_update_service_installed(self.install_check_cmd):
-                self.composite_logger.log_debug("Auto OS service is not installed on the machine")
                 return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
 
             is_service_installed = True
@@ -806,10 +805,10 @@ class YumPackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(install_check_cmd, False, False)
         self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
         if len(out.strip()) > 0 and code == 0:
-            self.composite_logger.log_debug("Auto OS update is installed on the machine")
+            self.composite_logger.log_debug("Auto OS update service is installed on the machine")
             return True
         else:
-            self.composite_logger.log_debug("Auto OS update is NOT installed on the machine")
+            self.composite_logger.log_debug("Auto OS update service is NOT installed on the machine")
             return False
 
     # endregion

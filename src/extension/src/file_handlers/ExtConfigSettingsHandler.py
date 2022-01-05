@@ -37,7 +37,7 @@ class ExtConfigSettingsHandler(object):
         """ Fetches sequence number, initially from the env variable. If nothing is set in env variable then fetches from config folder based on timestamp, since GA updates the settings file before calling a command """
         try:
             # get seq no from env var
-            seq_no = self.__get_seq_no_from_env_var()
+            seq_no = self.get_seq_no_from_env_var()
 
             if seq_no is None:
                 if is_enable_request:
@@ -59,7 +59,7 @@ class ExtConfigSettingsHandler(object):
             self.logger.log_error("Error occurred while fetching sequence number. [Exception={0}]".format(repr(error)))
             raise
 
-    def __get_seq_no_from_env_var(self):
+    def get_seq_no_from_env_var(self):
         """ Queries the environment variable to get seq_no and verifies if the corresponding <seq_no>.settings file exists """
         self.logger.log("Fetching and validating sequence number from the environment variable")
         seq_no = os.getenv(Constants.SEQ_NO_ENVIRONMENT_VAR)

@@ -13,12 +13,14 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import datetime
 import glob
 import json
 import os
 import shutil
 import tempfile
 import unittest
+
 from extension.src.ActionHandler import ActionHandler
 from extension.src.Constants import Constants
 from extension.src.ProcessHandler import ProcessHandler
@@ -35,19 +37,59 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestActionHandler(unittest.TestCase):
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
+        self.temp_dir = tempfile.mkdtemp()
+
         self.runtime = RuntimeComposer()
         runtime_context_handler = RuntimeContextHandler(self.runtime.logger)
-        ext_env_handler = ExtEnvHandler(self.runtime.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
-        ext_config_settings_handler = ExtConfigSettingsHandler(self.runtime.logger, self.runtime.json_file_handler, ext_env_handler.config_folder)
-        core_state_handler = CoreStateHandler(ext_env_handler.config_folder, self.runtime.json_file_handler)
-        ext_state_handler = ExtStateHandler(ext_env_handler.config_folder, self.runtime.utility, self.runtime.json_file_handler)
-        ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, ext_env_handler.status_folder)
+        self.ext_env_handler = ExtEnvHandler(self.runtime.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+        self.setup_files_and_folders(self.temp_dir)
+
+        self.ext_config_settings_handler = ExtConfigSettingsHandler(self.runtime.logger, self.runtime.json_file_handler, self.ext_env_handler.config_folder)
+        core_state_handler = CoreStateHandler(self.ext_env_handler.config_folder, self.runtime.json_file_handler)
+        ext_state_handler = ExtStateHandler(self.ext_env_handler.config_folder, self.runtime.utility, self.runtime.json_file_handler)
+        ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, self.ext_env_handler.status_folder)
         process_handler = ProcessHandler(self.runtime.logger, self.runtime.env_layer, ext_output_status_handler)
         self.action_handler = ActionHandler(self.runtime.logger, self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.utility, runtime_context_handler, self.runtime.json_file_handler, self.runtime.env_health_manager,
-                                            ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, "2020-09-02T13:40:54.8862542Z")
+                                            self.ext_env_handler, self.ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, datetime.datetime.utcnow())
+
+        self.backup_get_seq_no_from_env_var = self.ext_config_settings_handler.get_seq_no_from_env_var
+        self.ext_config_settings_handler.get_seq_no_from_env_var = self.mock_get_seq_no_from_env_var
+
+        self.backup_mock_os_path_realpath = os.path.realpath
+        os.path.realpath = self.mock_os_path_realpath
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        self.ext_config_settings_handler.get_seq_no_from_env_var = self.backup_get_seq_no_from_env_var
+        os.path.realpath = self.backup_mock_os_path_realpath
+        # delete tempdir
+        shutil.rmtree(self.temp_dir)
+
+    def setup_files_and_folders(self, temp_dir):
+        config_folder = self.ext_env_handler.config_folder
+        status_folder = self.ext_env_handler.status_folder
+        log_folder = self.ext_env_handler.log_folder
+        events_folder = self.ext_env_handler.events_folder
+
+        # creating the required folder (e.g: config folder, log folder, status folder) under the temp directory
+        config_folder_complete_path = os.path.join(temp_dir, config_folder)
+        status_folder_complete_path = os.path.join(temp_dir, status_folder)
+        log_folder_complete_path = os.path.join(temp_dir, log_folder)
+        events_folder_complete_path = os.path.join(temp_dir, log_folder, events_folder)
+
+        os.mkdir(config_folder_complete_path)
+        os.mkdir(status_folder_complete_path)
+        os.mkdir(log_folder_complete_path)
+        os.mkdir(events_folder_complete_path)
+
+        # copying a sample version of the <seqno>.settings file from the helpers folder to the temp directory
+        shutil.copy(os.path.join("helpers", "1234.settings"), config_folder_complete_path)
+        config_file_path = os.path.join(config_folder_complete_path, '1234.settings')
+
+        self.ext_env_handler.config_folder = config_folder_complete_path
+        self.ext_env_handler.status_folder = status_folder_complete_path
+        self.ext_env_handler.log_folder = log_folder_complete_path
+        self.ext_env_handler.events_folder = events_folder_complete_path
 
     def mock_get_all_versions(self, extension_pardir):
         return [extension_pardir + '/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.3',
@@ -56,6 +98,12 @@ class TestActionHandler(unittest.TestCase):
 
     def mock_get_all_versions_exception(self, extension_pardir):
         raise Exception
+
+    def mock_get_seq_no_from_env_var(self, is_enable_request=False):
+        return 1234
+
+    def mock_os_path_realpath(self, file):
+        return self.ext_env_handler.config_folder
 
     @staticmethod
     def create_latest_extension_dir(version, test_dir):
@@ -204,7 +252,7 @@ class TestActionHandler(unittest.TestCase):
         shutil.rmtree(test_dir)
 
     def test_telemetry_not_available(self):
-        # handler actions will continue to execute after logging telemetry not suported message
+        # events folder path not set in handler environment, extension will log a telemetry not available message and continue execution
         events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
 
         # events folder not set, usually when Linux Agent does not support telemetry
@@ -214,27 +262,22 @@ class TestActionHandler(unittest.TestCase):
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
 
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+
     def test_telemetry_available_but_events_folder_not_exists(self):
-        # handler actions will continue to execute after logging telemetry not suported message
+        # handler actions will continue to execute after logging telemetry not supported message
         events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
-        
-        # events folder is set within HandlerEnvironment but the directory path is invalid, so Telemetry is setup but events folder wasn't created
-        temp_dir = tempfile.mkdtemp()
-        self.action_handler.ext_env_handler.events_folder = os.path.join(temp_dir, "testfolder")
+        shutil.rmtree(events_folder_path_backup)
+
+        # events folder is set within HandlerEnvironment but the directory path is invalid, so Telemetry is setup but events folder wasn't created by agent. In this case, we create the events folder
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
-        
-        # Remove the directory after the test
-        shutil.rmtree(temp_dir)
+
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
 
     def test_timestamp_for_all_actions(self):
         """ All handler actions, specially all non-enable actions should have the same timestamp in OperationId within telemetry event """
-        # Create a temporary directory
-        test_dir = tempfile.mkdtemp()
-        self.action_handler.ext_env_handler.events_folder = self.action_handler.ext_env_handler.config_folder = self.action_handler.ext_env_handler.log_folder = self.action_handler.ext_env_handler.status_folder = test_dir
-
         self.action_handler.uninstall()
         self.action_handler.reset()
 
@@ -244,6 +287,34 @@ class TestActionHandler(unittest.TestCase):
                 events = json.load(f)
                 self.assertEquals(events[0]["OperationId"], self.action_handler.operation_id_substitute_for_all_actions_in_telemetry)
 
-        # Remove the directory after the test
-        shutil.rmtree(test_dir)
+    def test_write_basic_status_uninstall(self):
+        """ Check that a basic status file is NOT written during uninstall handler command setup """
+        self.action_handler.uninstall()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+    def test_write_basic_status_install(self):
+        """ Check that a basic status file is NOT written during install handler command setup """
+        self.action_handler.install()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+    def test_write_basic_status_update(self):
+        """ Check that a basic status file is NOT written during update handler command setup """
+        self.action_handler.update()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+    def test_write_basic_status_disable(self):
+        """ Check that a basic status file is NOT written during disable handler command setup """
+        self.action_handler.disable()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+    def test_write_basic_status_reset(self):
+        """ Check that a basic status file is NOT written during reset handler command setup """
+        self.action_handler.reset()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+    def test_write_basic_status_enable(self):
+        """ Check that a basic status file is written during enable handler command setup """
+        with self.assertRaises(SystemExit) as sys_exit:
+            self.action_handler.enable()
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
