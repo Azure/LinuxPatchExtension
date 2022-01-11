@@ -108,11 +108,6 @@ class ZypperPackageManager(PackageManager):
             if process_tree is not None:
                 self.composite_logger.log_warning(" - Process tree for the pid in output: \n{}".format(str(process_tree)))
 
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:  # verbose diagnostic log
             self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
@@ -127,17 +122,25 @@ class ZypperPackageManager(PackageManager):
     def invoke_package_manager_with_retries(self, command):
         """Calls self.invoke_package_manager and retries if it has an exception"""
         self.composite_logger.log_debug('\nInvoking package manager with retries using: ' + command)
-        for i in range(0, self.package_manager_max_retries):
+        out = None
+        for i in range(1, self.package_manager_max_retries + 1):
             code = None
             try:
                 self.set_lock_timeout_and_save_original()
                 out, code = self.invoke_package_manager(command)
+
+                if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:
+                    error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+                    self.telemetry_writer.write_execution_error(command, code, out)
+                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+
+                return out
             except Exception as error:
-                error_msg = repr(error)
                 if code not in self.error_codes_to_retry:
                     raise
 
-                if i < self.package_manager_max_retries - 1:
+                if i < self.package_manager_max_retries:
                     self.composite_logger.log_warning("Exception on package manager invoke. [Exception={0}] [RetryCount={1}]".format(error_msg, str(i)))
                     time.sleep(pow(2, i + 2))
                 else:
@@ -147,7 +150,7 @@ class ZypperPackageManager(PackageManager):
             finally:
                 # Restore original env var, if it existed
                 self.restore_original_lock_timeout()
-                return out
+        return out
 
     def set_lock_timeout_and_save_original(self):
         """Saves the env var ZYPP_LOCK_TIMEOUT and sets it to 5"""

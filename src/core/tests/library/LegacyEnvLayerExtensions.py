@@ -226,6 +226,53 @@ class LegacyEnvLayerExtensions():
                                  "7984  |               \_ /usr/bin/python3 /usr/bin/azuremetadata --api latest --subscriptionId --billingTag --attestedData --signature\n" + \
                                  "7986  \_ python3 package_test.py\n" + \
                                  "8298      \_ sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run grub2-i386-pc\n"
+                    elif cmd.find('sudo zypper refresh') > -1:
+                        code = 0
+                        output = "Retrieving repository 'SLE-Module-Basesystem15-SP3-Pool' metadata ................................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Basesystem15-SP3-Pool' cache .....................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Basesystem15-SP3-Updates' metadata .............................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Basesystem15-SP3-Updates' cache ..................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Containers15-SP3-Pool' metadata ................................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Containers15-SP3-Pool' cache .....................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Containers15-SP3-Updates' metadata .............................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Containers15-SP3-Updates' cache ..................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Desktop-Applications15-SP3-Pool' metadata ......................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Desktop-Applications15-SP3-Pool' cache ...........................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Desktop-Applications15-SP3-Updates' metadata ...................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Desktop-Applications15-SP3-Updates' cache ........................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-DevTools15-SP3-Pool' metadata ..................................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-DevTools15-SP3-Pool' cache .......................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-DevTools15-SP3-Updates' metadata ...............................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-DevTools15-SP3-Updates' cache ....................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Legacy15-SP3-Pool' metadata ....................................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Legacy15-SP3-Pool' cache .........................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Legacy15-SP3-Updates' metadata .................................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Legacy15-SP3-Updates' cache ......................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Public-Cloud15-SP3-Pool' metadata ..............................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Public-Cloud15-SP3-Pool' cache ...................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Public-Cloud15-SP3-Updates' metadata ...........................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Public-Cloud15-SP3-Updates' cache ................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Python2-15-SP3-Pool' metadata ..................................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Python2-15-SP3-Pool' cache .......................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Python2-15-SP3-Updates' metadata ...............................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Python2-15-SP3-Updates' cache ....................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-CAP-Tools15-SP3-Pool' metadata .................................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-CAP-Tools15-SP3-Pool' cache ......................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-CAP-Tools15-SP3-Updates' metadata ..............................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-CAP-Tools15-SP3-Updates' cache ...................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Product-SLES15-SP3-Pool' metadata .....................................................................[done]\n" + \
+                                 "Building repository 'SLE-Product-SLES15-SP3-Pool' cache ..........................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Product-SLES15-SP3-Updates' metadata ..................................................................[done]\n" + \
+                                 "Building repository 'SLE-Product-SLES15-SP3-Updates' cache .......................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Server-Applications15-SP3-Pool' metadata .......................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Server-Applications15-SP3-Pool' cache ............................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Server-Applications15-SP3-Updates' metadata ....................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Server-Applications15-SP3-Updates' cache .........................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Web-Scripting15-SP3-Pool' metadata .............................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Web-Scripting15-SP3-Pool' cache ..................................................................[done]\n" + \
+                                 "Retrieving repository 'SLE-Module-Web-Scripting15-SP3-Updates' metadata ..........................................................[done]\n" + \
+                                 "Building repository 'SLE-Module-Web-Scripting15-SP3-Updates' cache ...............................................................[done]\n" + \
+                                 "All repositories have been refreshed."
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("--security check-update") > -1:
                         code = 100
@@ -512,6 +559,9 @@ class LegacyEnvLayerExtensions():
                     if cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p') > -1:
                         output = 'test'
                         code = 1
+                    elif cmd.find('sudo zypper refresh') > -1:
+                        code = 7
+                        output = 'System management is locked by the application with pid 7914 (/usr/bin/zypper).'
                 elif cmd.find("systemctl") > -1:
                     code = 1
                     output = ''
@@ -546,6 +596,14 @@ class LegacyEnvLayerExtensions():
                     if cmd.find('ps --forest -o pid,cmd -g $(ps -o sid= -p') > -1:
                         output = ''
                         code = 0
+                    elif cmd.find('sudo zypper refresh') > -1:
+                        code = 4
+                        output = 'System management is locked by the application with pid 7914 (/usr/bin/zypper).'
+            elif self.legacy_test_type == 'NonexistentErrorCodePath':
+                if self.legacy_package_manager_name is Constants.ZYPPER:
+                    if cmd.find('sudo zypper refresh') > -1:
+                        code = 999999
+                        output = 'Unexpected return code (100) from package manager on command: LANG=en_US.UTF8 sudo apt-get -s dist-upgrade'
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''

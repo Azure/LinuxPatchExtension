@@ -393,6 +393,92 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertTrue(yast2_online_update_configuration_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('AOU_ENABLE_CRONJOB="false"' in yast2_online_update_configuration_os_patch_configuration_settings_file_path_read)
 
+    def is_string_in_status_file(self, str_to_find):
+        with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            file_contents = json.loads(file_handle.read())
+            return str_to_find in str(file_contents)
+
+    def test_package_manager_with_retries(self):
+        package_manager = self.container.get('package_manager')
+        # Setting operation to assessment to add all errors under assessment substatus
+        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+
+        # Wrap count in a mutable container to modify in mock_invoke_package_manager to keep track of retries
+        counter = [0]
+        backup_mocked_method = package_manager.invoke_package_manager
+
+        def mock_invoke_package_manager(cmd):
+            counter[0] += 1
+            if counter[0] == package_manager.package_manager_max_retries - 1:
+                # Right before it runs out of retries, allow it to succeed
+                self.runtime.set_legacy_test_type('HappyPath')
+            return backup_mocked_method(cmd)
+
+        package_manager.invoke_package_manager = mock_invoke_package_manager
+
+        # Case 1: SadPath to HappyPath (retry a few times and then success)
+
+        # SadPath uses return code 7
+        self.runtime.set_legacy_test_type('SadPath')
+
+        # Invoke with retries should NOT raise an exception here
+        try:
+            package_manager.invoke_package_manager_with_retries('sudo zypper refresh')
+        except Exception as error:
+            self.fail(repr(error))
+
+        # Should reach max retries - 1 and then succeed, per the code above
+        self.assertEqual(counter[0], package_manager.package_manager_max_retries - 1)
+        self.assertFalse(self.is_string_in_status_file('Unexpected return code (4) from package manager on command: sudo zypper refresh'))
+
+        # Case 2: UnalignedPath to HappyPath (retry a few times and then success)
+        counter = [0]
+
+        # UnalignedPath uses return code 4
+        self.runtime.set_legacy_test_type('UnalignedPath')
+
+        # Invoke with retries should raise an exception here
+        try:
+            package_manager.invoke_package_manager_with_retries('sudo zypper refresh')
+        except Exception as error:
+            self.fail(repr(error))
+
+        # Should reach max retries - 1 and then succeed, per the code above
+        self.assertEqual(counter[0], package_manager.package_manager_max_retries - 1)
+        self.assertTrue(self.is_string_in_status_file('Unexpected return code (7) from package manager on command: sudo zypper refresh'))
+
+        # Case 3: NonexistentErrorCodePath to HappyPath (should not retry since error code is not supported)
+        counter = [0]
+
+        # UnalignedPath uses return code 7
+        self.runtime.set_legacy_test_type('NonexistentErrorCodePath')
+
+        # Invoke with retries should raise an exception here
+        try:
+            package_manager.invoke_package_manager_with_retries('sudo zypper refresh')
+            self.fail('Package manager should fail without retrying')
+        except Exception as error:
+            self.assertEqual(counter[0], 1)  # invoke should only be called once
+            self.assertTrue(self.is_string_in_status_file('Unexpected return code (999999) from package manager on command: sudo zypper refresh'))
+            self.assertTrue('Unexpected return code (999999) from package manager on command: sudo zypper refresh' in repr(error))
+
+        # Case 4: SadPath (retry and ultimately fail)
+        # Set counter to max retries already so it does not hit the condition to enable HappyPath
+        counter = [package_manager.package_manager_max_retries]
+
+        # SadPath uses return code 7
+        self.runtime.set_legacy_test_type('SadPath')
+
+        # Invoke with retries should raise an exception here
+        try:
+            package_manager.invoke_package_manager_with_retries('sudo zypper refresh')
+        except Exception as error:
+            # Should reach max retries * 2 and fail (since it started at max retries)
+            self.assertEqual(counter[0], package_manager.package_manager_max_retries * 2)
+            self.assertTrue(self.is_string_in_status_file('Unexpected return code (7) from package manager on command: sudo zypper refresh'))
+            self.assertTrue('Unexpected return code (7) from package manager on command: sudo zypper refresh' in repr(error))
+
+        package_manager.invoke_package_manager = backup_mocked_method
 
 if __name__ == '__main__':
     unittest.main()
