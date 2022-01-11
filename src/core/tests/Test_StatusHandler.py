@@ -275,6 +275,33 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
         self.assertEqual(substatus_file_data["status"].lower(), Constants.STATUS_SUCCESS.lower())
 
+    def get_status_handler_substatus_maintenance_run_id(self):
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+            return json.loads(substatus_file_data[0]['formattedMessage']['message'])['maintenanceRunId']
+
+    def test_status_file_maintenance_run_id(self):
+        # Testing None/empty values for maintenance run id
+        self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
+        self.assertTrue(status_handler is not None)
+
+        # Expect datetime string
+        expected_maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+        self.runtime.execution_config.maintenance_run_id = expected_maintenance_run_id
+        self.runtime.status_handler.set_installation_substatus_json()
+        self.assertEqual(expected_maintenance_run_id, self.get_status_handler_substatus_maintenance_run_id())
+
+        # Expect empty string
+        expected_maintenance_run_id = ''
+        self.runtime.execution_config.maintenance_run_id = expected_maintenance_run_id  # Give empty string, expect empty string
+        self.runtime.status_handler.set_installation_substatus_json()
+        self.assertEqual(expected_maintenance_run_id, self.get_status_handler_substatus_maintenance_run_id())
+
+        self.runtime.execution_config.maintenance_run_id = None  # Give None, expect empty string
+        self.runtime.status_handler.set_installation_substatus_json()
+        self.assertEqual(expected_maintenance_run_id, self.get_status_handler_substatus_maintenance_run_id())
+
 
 if __name__ == '__main__':
     unittest.main()
