@@ -351,7 +351,7 @@ class StatusHandler(object):
             "patches": installation_packages_json,
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
-            "maintenanceRunId": str(self.execution_config.maintenance_run_id),
+            "maintenanceRunId": str(self.execution_config.maintenance_run_id) if self.execution_config.maintenance_run_id is not None else '',
             "errors": self.__set_errors_json(self.__installation_total_error_count, self.__installation_errors)
         }
 
