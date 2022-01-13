@@ -403,7 +403,7 @@ class TestZypperPackageManager(unittest.TestCase):
         # Setting operation to assessment to add all errors under assessment substatus
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
-        # Wrap count in a mutable container to modify in mock_invoke_package_manager to keep track of retries
+        # Wrap count in a mutable container to modify in mocked method to keep track of retries
         counter = [0]
         backup_mocked_method = package_manager.env_layer.run_command_output
 
