@@ -163,6 +163,7 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_debug("Attempted to restore original lock timeout when none was saved")
 
         self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', self.zypp_lock_timeout_backup)
+        self.zypp_lock_timeout_backup = None
 
     def get_process_tree_from_pid_in_output(self, message):
         """ Fetches pid from the error message by searching for the text 'pid' and returns the process tree with all details.
