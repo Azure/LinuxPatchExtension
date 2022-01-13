@@ -230,48 +230,6 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = "Retrieving repository 'SLE-Module-Basesystem15-SP3-Pool' metadata ................................................................[done]\n" + \
                                  "Building repository 'SLE-Module-Basesystem15-SP3-Pool' cache .....................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Basesystem15-SP3-Updates' metadata .............................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Basesystem15-SP3-Updates' cache ..................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Containers15-SP3-Pool' metadata ................................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Containers15-SP3-Pool' cache .....................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Containers15-SP3-Updates' metadata .............................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Containers15-SP3-Updates' cache ..................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Desktop-Applications15-SP3-Pool' metadata ......................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Desktop-Applications15-SP3-Pool' cache ...........................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Desktop-Applications15-SP3-Updates' metadata ...................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Desktop-Applications15-SP3-Updates' cache ........................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-DevTools15-SP3-Pool' metadata ..................................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-DevTools15-SP3-Pool' cache .......................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-DevTools15-SP3-Updates' metadata ...............................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-DevTools15-SP3-Updates' cache ....................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Legacy15-SP3-Pool' metadata ....................................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Legacy15-SP3-Pool' cache .........................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Legacy15-SP3-Updates' metadata .................................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Legacy15-SP3-Updates' cache ......................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Public-Cloud15-SP3-Pool' metadata ..............................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Public-Cloud15-SP3-Pool' cache ...................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Public-Cloud15-SP3-Updates' metadata ...........................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Public-Cloud15-SP3-Updates' cache ................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Python2-15-SP3-Pool' metadata ..................................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Python2-15-SP3-Pool' cache .......................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Python2-15-SP3-Updates' metadata ...............................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Python2-15-SP3-Updates' cache ....................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-CAP-Tools15-SP3-Pool' metadata .................................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-CAP-Tools15-SP3-Pool' cache ......................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-CAP-Tools15-SP3-Updates' metadata ..............................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-CAP-Tools15-SP3-Updates' cache ...................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Product-SLES15-SP3-Pool' metadata .....................................................................[done]\n" + \
-                                 "Building repository 'SLE-Product-SLES15-SP3-Pool' cache ..........................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Product-SLES15-SP3-Updates' metadata ..................................................................[done]\n" + \
-                                 "Building repository 'SLE-Product-SLES15-SP3-Updates' cache .......................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Server-Applications15-SP3-Pool' metadata .......................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Server-Applications15-SP3-Pool' cache ............................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Server-Applications15-SP3-Updates' metadata ....................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Server-Applications15-SP3-Updates' cache .........................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Web-Scripting15-SP3-Pool' metadata .............................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Web-Scripting15-SP3-Pool' cache ..................................................................[done]\n" + \
-                                 "Retrieving repository 'SLE-Module-Web-Scripting15-SP3-Updates' metadata ..........................................................[done]\n" + \
-                                 "Building repository 'SLE-Module-Web-Scripting15-SP3-Updates' cache ...............................................................[done]\n" + \
                                  "All repositories have been refreshed."
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("--security check-update") > -1:
