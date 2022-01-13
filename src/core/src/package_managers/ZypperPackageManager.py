@@ -108,11 +108,11 @@ class ZypperPackageManager(PackageManager):
                 error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
 
-                # Not a retryable error code, so raise an exception
+                # Not a retriable error code, so raise an exception
                 if code not in self.error_codes_to_retry:
                     raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
-                # Retryable error code, so check number of retries and wait then retry if applicable; otherwise, raise error after max retries
+                # Retriable error code, so check number of retries and wait then retry if applicable; otherwise, raise error after max retries
                 if i < self.package_manager_max_retries:
                     self.composite_logger.log_warning("Exception on package manager invoke. [Exception={0}] [RetryCount={1}]".format(error_msg, str(i)))
                     time.sleep(pow(2, i + 2))
