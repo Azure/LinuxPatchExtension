@@ -405,16 +405,18 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Wrap count in a mutable container to modify in mock_invoke_package_manager to keep track of retries
         counter = [0]
-        backup_mocked_method = package_manager.invoke_package_manager
+        backup_mocked_method = package_manager.env_layer.run_command_output
 
-        def mock_invoke_package_manager(cmd):
-            counter[0] += 1
-            if counter[0] == package_manager.package_manager_max_retries - 1:
-                # Right before it runs out of retries, allow it to succeed
-                self.runtime.set_legacy_test_type('HappyPath')
-            return backup_mocked_method(cmd)
+        def mock_run_command_output(cmd, no_output=False, chk_err=False):
+            # Only check for refresh cmd - otherwise, it may pick up other commands like ps tree
+            if cmd == 'sudo zypper refresh':
+                counter[0] += 1
+                if counter[0] == package_manager.package_manager_max_retries - 1:
+                    # Right before it runs out of retries, allow it to succeed
+                    self.runtime.set_legacy_test_type('HappyPath')
+            return backup_mocked_method(cmd, no_output, chk_err)
 
-        package_manager.invoke_package_manager = mock_invoke_package_manager
+        package_manager.env_layer.run_command_output = mock_run_command_output
 
         # Case 1: SadPath to HappyPath (retry a few times and then success)
 
@@ -423,7 +425,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Invoke with retries should NOT raise an exception here
         try:
-            package_manager.invoke_package_manager_with_retries('sudo zypper refresh')
+            package_manager.invoke_package_manager('sudo zypper refresh')
         except Exception as error:
             self.fail(repr(error))
 
@@ -439,7 +441,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Invoke with retries should raise an exception here
         try:
-            package_manager.invoke_package_manager_with_retries('sudo zypper refresh')
+            package_manager.invoke_package_manager('sudo zypper refresh')
         except Exception as error:
             self.fail(repr(error))
 
@@ -455,7 +457,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Invoke with retries should raise an exception here
         try:
-            package_manager.invoke_package_manager_with_retries('sudo zypper refresh')
+            package_manager.invoke_package_manager('sudo zypper refresh')
             self.fail('Package manager should fail without retrying')
         except Exception as error:
             self.assertEqual(counter[0], 1)  # invoke should only be called once
@@ -471,14 +473,15 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Invoke with retries should raise an exception here
         try:
-            package_manager.invoke_package_manager_with_retries('sudo zypper refresh')
+            package_manager.invoke_package_manager('sudo zypper refresh')
         except Exception as error:
             # Should reach max retries * 2 and fail (since it started at max retries)
             self.assertEqual(counter[0], package_manager.package_manager_max_retries * 2)
             self.assertTrue(self.is_string_in_status_file('Unexpected return code (7) from package manager on command: sudo zypper refresh'))
             self.assertTrue('Unexpected return code (7) from package manager on command: sudo zypper refresh' in repr(error))
 
-        package_manager.invoke_package_manager = backup_mocked_method
+        package_manager.env_layer.run_command_output = backup_mocked_method
+
 
 if __name__ == '__main__':
     unittest.main()

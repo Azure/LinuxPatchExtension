@@ -82,7 +82,7 @@ class ZypperPackageManager(PackageManager):
         self.composite_logger.log("Refreshing local repo...")
         # self.invoke_package_manager(self.repo_clean)  # purges local metadata for rebuild - addresses a possible customer environment error
         try:
-            self.invoke_package_manager_with_retries(self.repo_refresh)
+            self.invoke_package_manager(self.repo_refresh)
         except Exception as error:
             # Reboot if not already done
             if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
@@ -98,61 +98,60 @@ class ZypperPackageManager(PackageManager):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
 
-        code, out = self.env_layer.run_command_output(command, False, False)
-        if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:  # more known return codes should be added as appropriate
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-
-            process_tree = self.get_process_tree_from_pid_in_output(out)
-            if process_tree is not None:
-                self.composite_logger.log_warning(" - Process tree for the pid in output: \n{}".format(str(process_tree)))
-
-        else:  # verbose diagnostic log
-            self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_debug("==========================================================================\n\n")
-
-        if code == self.zypper_exitcode_zypper_updated:
-            self.composite_logger.log_debug(" - Package manager update detected. Patch installation run will be repeated.")
-            self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
-        return out, code
-
-    def invoke_package_manager_with_retries(self, command):
-        """Calls self.invoke_package_manager and retries if it has an exception"""
-        self.composite_logger.log_debug('\nInvoking package manager with retries using: ' + command)
-        out = None
         for i in range(1, self.package_manager_max_retries + 1):
-            code = None
-            try:
-                self.set_lock_timeout_and_save_original()
-                out, code = self.invoke_package_manager(command)
+            self.set_lock_timeout_and_backup_original()
+            code, out = self.env_layer.run_command_output(command, False, False)
+            self.restore_original_lock_timeout()
 
-                if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:
-                    error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                    self.telemetry_writer.write_execution_error(command, code, out)
+            if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:  # more known return codes should be added as appropriate
+                self.log_errors_on_invoke(command, out, code)
+
+                self.telemetry_writer.write_execution_error(command, code, out)
+                error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+
+                # Not a retryable error code, so raise an exception
+                if code not in self.error_codes_to_retry:
                     raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
-                return out
-            except Exception as error:
-                if code not in self.error_codes_to_retry:
-                    raise
-
+                # Retryable error code, so check number of retries and wait then retry if applicable; otherwise, raise error after max retries
                 if i < self.package_manager_max_retries:
                     self.composite_logger.log_warning("Exception on package manager invoke. [Exception={0}] [RetryCount={1}]".format(error_msg, str(i)))
                     time.sleep(pow(2, i + 2))
+                    continue
                 else:
-                    self.composite_logger.log_warning("Unable to invoke package manager (retries exhausted) [{0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    error_msg = "Unable to invoke package manager (retries exhausted) [{0}] [RetryCount={1}]".format(error_msg, str(i))
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
                     raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-            finally:
-                # Restore original env var, if it existed
-                self.restore_original_lock_timeout()
-        return out
+            else:  # verbose diagnostic log
+                self.log_success_on_invoke(code, out)
 
-    def set_lock_timeout_and_save_original(self):
+            if code == self.zypper_exitcode_zypper_updated:
+                self.composite_logger.log_debug(" - Package manager update detected. Patch installation run will be repeated.")
+                self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
+            return out
+
+    def log_errors_on_invoke(self, command, out, code):
+        """Logs verbose error messages if there is an error on invoke_package_manager"""
+        self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
+        self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
+        self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.log_process_tree_if_exists(out)
+
+    def log_success_on_invoke(self, code, out):
+        """Logs verbose success messages on invoke_package_manager"""
+        self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
+        self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
+        self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_debug("==========================================================================\n\n")
+
+    def log_process_tree_if_exists(self, out):
+        """Logs the process tree based on locking PID in output, if there is a process tree to be found"""
+        process_tree = self.get_process_tree_from_pid_in_output(out)
+        if process_tree is not None:
+            self.composite_logger.log_warning(" - Process tree for the pid in output: \n{}".format(str(process_tree)))
+
+    def set_lock_timeout_and_backup_original(self):
         """Saves the env var ZYPP_LOCK_TIMEOUT and sets it to 5"""
         self.zypp_lock_timeout_backup = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
         self.composite_logger.log_debug("Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(self.zypp_lock_timeout_backup)))
@@ -222,7 +221,7 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_debug(" - Returning cached package data.")
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
-        out = self.invoke_package_manager_with_retries(self.zypper_check)
+        out = self.invoke_package_manager(self.zypper_check)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
         self.composite_logger.log_debug("Discovered " + str(len(self.all_updates_cached)) + " package entries.")
         return self.all_updates_cached, self.all_update_versions_cached
@@ -234,7 +233,7 @@ class ZypperPackageManager(PackageManager):
         security_package_versions = []
 
         # Get all security packages
-        out = self.invoke_package_manager_with_retries(self.zypper_install_security_patches_simulate)
+        out = self.invoke_package_manager(self.zypper_install_security_patches_simulate)
         packages_from_patch_data = self.extract_packages_from_patch_data(out)
 
         # Correlate and enrich with versions from all package data
@@ -256,7 +255,7 @@ class ZypperPackageManager(PackageManager):
         other_package_versions = []
 
         # Get all security packages
-        out = self.invoke_package_manager_with_retries(self.zypper_install_security_patches_simulate)
+        out = self.invoke_package_manager(self.zypper_install_security_patches_simulate)
         packages_from_patch_data = self.extract_packages_from_patch_data(out)
 
         # SPECIAL CONDITION IF ZYPPER UPDATE IS DETECTED - UNAVOIDABLE SECURITY UPDATE(S) WILL BE INSTALLED AND THE RUN REPEATED FOR 'OTHER".
@@ -383,7 +382,7 @@ class ZypperPackageManager(PackageManager):
 
         self.composite_logger.log_debug("\nGetting all available versions of package '" + package_name + "' [Installed=" + str(include_installed) + ", Available=" + str(include_available) + "]...")
         cmd = self.single_package_check_versions.replace('<PACKAGE-NAME>', package_name)
-        output = self.invoke_package_manager_with_retries(cmd)
+        output = self.invoke_package_manager(cmd)
         lines = output.strip().split('\n')
 
         packages_list_flag = False
@@ -451,7 +450,7 @@ class ZypperPackageManager(PackageManager):
         self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND:: " + str(self.single_package_upgrade_simulation_cmd + package_name))
         dependent_updates = []
 
-        output = self.invoke_package_manager_with_retries(self.single_package_upgrade_simulation_cmd + package_name)
+        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_name)
         lines = output.strip().split('\n')
 
         for line in lines:
@@ -693,7 +692,7 @@ class ZypperPackageManager(PackageManager):
 
     def do_processes_require_restart(self):
         """Signals whether processes require a restart due to updates"""
-        output = self.invoke_package_manager_with_retries(self.zypper_ps)
+        output = self.invoke_package_manager(self.zypper_ps)
         lines = output.strip().split('\n')
 
         process_list_flag = False
