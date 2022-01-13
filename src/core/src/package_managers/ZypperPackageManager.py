@@ -105,8 +105,6 @@ class ZypperPackageManager(PackageManager):
 
             if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:  # more known return codes should be added as appropriate
                 self.log_errors_on_invoke(command, out, code)
-
-                self.telemetry_writer.write_execution_error(command, code, out)
                 error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
 
@@ -137,6 +135,7 @@ class ZypperPackageManager(PackageManager):
         self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
         self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
         self.log_process_tree_if_exists(out)
+        self.telemetry_writer.write_execution_error(command, code, out)
 
     def log_success_on_invoke(self, code, out):
         """Logs verbose success messages on invoke_package_manager"""
