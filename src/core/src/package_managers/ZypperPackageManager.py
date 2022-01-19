@@ -56,6 +56,7 @@ class ZypperPackageManager(PackageManager):
         self.zypper_exitcode_ok = 0
         self.zypper_exitcode_zypper_updated = 103
         self.zypper_exitcode_zypp_locked = 7
+        self.zypper_exitcode_zypp_lib_exit_err = 4
 
         # Support to check for processes requiring restart
         self.zypper_ps = "sudo zypper ps -s"
@@ -64,7 +65,8 @@ class ZypperPackageManager(PackageManager):
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.ZYPPER)
         self.zypper_get_process_tree_cmd = 'ps --forest -o pid,cmd -g $(ps -o sid= -p {})'
         self.package_manager_max_retries = 5
-        self.error_codes_to_retry = [self.zypper_exitcode_zypp_locked]
+        self.error_codes_to_retry = [self.zypper_exitcode_zypp_locked, self.zypper_exitcode_zypp_lib_exit_err]
+        self.zypp_lock_timeout_backup = None
 
         # auto OS updates
         self.current_auto_os_update_service = None
@@ -96,54 +98,71 @@ class ZypperPackageManager(PackageManager):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
 
-        for i in range(0, self.package_manager_max_retries):
-            zypp_lock_timeout_backup = None
-            code = None
-            try:
-                zypp_lock_timeout_backup = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
-                self.composite_logger.log_debug("Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(zypp_lock_timeout_backup)))
-                self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', 5)
+        for i in range(1, self.package_manager_max_retries + 1):
+            self.set_lock_timeout_and_backup_original()
+            code, out = self.env_layer.run_command_output(command, False, False)
+            self.restore_original_lock_timeout()
 
-                code, out = self.env_layer.run_command_output(command, False, False)
-                if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:  # more known return codes should be added as appropriate
-                    self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-                    self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-                    self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+            if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:  # more known return codes should be added as appropriate
+                self.log_errors_on_invoke(command, out, code)
+                error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
 
-                    process_tree = self.get_process_tree_from_pid_in_output(out)
-                    if process_tree is not None:
-                        self.composite_logger.log_warning(" - Process tree for the pid in output: \n{}".format(str(process_tree)))
-
-                    self.telemetry_writer.write_execution_error(command, code, out)
-                    error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-
-                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-                else:  # verbose diagnostic log
-                    self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
-                    self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-                    self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-                    self.composite_logger.log_debug("==========================================================================\n\n")
-
-                if code == self.zypper_exitcode_zypper_updated:
-                    self.composite_logger.log_debug(" - Package manager update detected. Patch installation run will be repeated.")
-                    self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
-                return out
-            except Exception as error:
-                error_msg = repr(error)
+                # Not a retriable error code, so raise an exception
                 if code not in self.error_codes_to_retry:
-                    raise
+                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
-                if i < self.package_manager_max_retries - 1:
+                # Retriable error code, so check number of retries and wait then retry if applicable; otherwise, raise error after max retries
+                if i < self.package_manager_max_retries:
                     self.composite_logger.log_warning("Exception on package manager invoke. [Exception={0}] [RetryCount={1}]".format(error_msg, str(i)))
-                    time.sleep(i + 1)
+                    time.sleep(pow(2, i + 2))
+                    continue
                 else:
-                    self.composite_logger.log_warning("Unable to invoke package manager (retries exhausted) [{0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    error_msg = "Unable to invoke package manager (retries exhausted) [{0}] [RetryCount={1}]".format(error_msg, str(i))
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
                     raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-            finally:
-                # Restore original env var, if it existed
-                self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', zypp_lock_timeout_backup)
+            else:  # verbose diagnostic log
+                self.log_success_on_invoke(code, out)
+
+            if code == self.zypper_exitcode_zypper_updated:
+                self.composite_logger.log_debug(" - Package manager update detected. Patch installation run will be repeated.")
+                self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
+            return out
+
+    def log_errors_on_invoke(self, command, out, code):
+        """Logs verbose error messages if there is an error on invoke_package_manager"""
+        self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
+        self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
+        self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.log_process_tree_if_exists(out)
+        self.telemetry_writer.write_execution_error(command, code, out)
+
+    def log_success_on_invoke(self, code, out):
+        """Logs verbose success messages on invoke_package_manager"""
+        self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
+        self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
+        self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_debug("==========================================================================\n\n")
+
+    def log_process_tree_if_exists(self, out):
+        """Logs the process tree based on locking PID in output, if there is a process tree to be found"""
+        process_tree = self.get_process_tree_from_pid_in_output(out)
+        if process_tree is not None:
+            self.composite_logger.log_warning(" - Process tree for the pid in output: \n{}".format(str(process_tree)))
+
+    def set_lock_timeout_and_backup_original(self):
+        """Saves the env var ZYPP_LOCK_TIMEOUT and sets it to 5"""
+        self.zypp_lock_timeout_backup = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
+        self.composite_logger.log_debug("Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(self.zypp_lock_timeout_backup)))
+        self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', 5)
+
+    def restore_original_lock_timeout(self):
+        """Restores the original value of the env var ZYPP_LOCK_TIMEOUT, if any was saved"""
+        if self.zypp_lock_timeout_backup is None:
+            self.composite_logger.log_debug("Attempted to restore original lock timeout when none was saved")
+
+        self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', self.zypp_lock_timeout_backup)
+        self.zypp_lock_timeout_backup = None
 
     def get_process_tree_from_pid_in_output(self, message):
         """ Fetches pid from the error message by searching for the text 'pid' and returns the process tree with all details.
