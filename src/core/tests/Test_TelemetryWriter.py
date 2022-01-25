@@ -215,6 +215,17 @@ class TestTelemetryWriter(unittest.TestCase):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         os.listdir = backup_os_listdir
 
+    def test_agent_version_info(self):
+        # Case 1: HappyPath - WALinuxAgent is installed and version information is returned
+        self.runtime.set_legacy_test_type('HappyPath')
+        self.assertEqual(self.runtime.telemetry_writer.get_agent_version(), '2.2.49.2')
+        self.assertEqual(self.runtime.telemetry_writer.get_goal_state_agent_version(), '2.6.0.2')
+
+        # Case 2: SadPath - WALinuxAgent is not installed
+        self.runtime.set_legacy_test_type('SadPath')
+        self.assertTrue(self.runtime.telemetry_writer.get_agent_version() is None)
+        self.assertTrue(self.runtime.telemetry_writer.get_goal_state_agent_version() is None)
+
 
 if __name__ == '__main__':
     unittest.main()

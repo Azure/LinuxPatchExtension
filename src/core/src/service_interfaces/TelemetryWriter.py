@@ -117,6 +117,59 @@ class TelemetryWriter(object):
             return "Unknown"
     # end region
 
+    def get_agent_version(self):
+        """ Returns WALinuxAgent version, if installed. If not installed, returns None.
+            Returns a version string similar to: '2.2.49.2' """
+        cmd = "sudo waagent --version"
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        if code == 0:
+            ''' Command success, so the agent is installed and should return version info:
+                WALinuxAgent-2.2.49.2 running on sles 15.3
+                Python: 3.6.13
+                Goal state agent: 2.6.0.2 '''
+            return self.__agent_version_string_search(r'WALinuxAgent-\S+ running', out)
+
+        return None
+
+    def get_goal_state_agent_version(self):
+        """ Returns WALinuxAgent goal state agent version, if installed. If not installed, returns None.
+            Returns a version string similar to: '2.2.49.2' """
+        cmd = "sudo waagent --version"
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        if code == 0:
+            ''' Command success, so the agent is installed and should return version info:
+                WALinuxAgent-2.2.49.2 running on sles 15.3
+                Python: 3.6.13
+                Goal state agent: 2.6.0.2 '''
+            return self.__agent_version_string_search(r'Goal state agent: \S+', out)
+
+        return None
+
+    @staticmethod
+    def __agent_version_string_search(pattern, string):
+        """ Takes the output from waagent --version and extracts a specific agent version from it, if it exists. """
+        # Find substring containing the version
+        regex = re.compile(pattern)
+        version_str_search = regex.search(string)
+        if version_str_search is None:
+            return None
+
+        # Extract the version string
+        regex = re.compile(r'(\d+[.]*)+')
+        version_search = regex.search(version_str_search.group())
+        if version_search is None:
+            return None
+
+        return version_search.group()
+
+    def log_agent_information(self):
+        """ Logs WALinuxAgent version information. """
+        agent_version = self.get_agent_version()
+        if agent_version is None:
+            self.composite_logger.log('WALinuxAgent is not installed.', Constants.TelemetryEventLevel.Informational)
+        else:
+            self.composite_logger.log('WALinuxAgent version: {}\nGoal state agent version: {}'.format(agent_version, self.get_goal_state_agent_version()), Constants.TelemetryEventLevel.Informational)
+
     def __new_event_json(self, event_level, message, task_name):
         return {
             "Version": Constants.EXT_VERSION,
