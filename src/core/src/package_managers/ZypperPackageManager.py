@@ -139,10 +139,10 @@ class ZypperPackageManager(PackageManager):
 
     def log_success_on_invoke(self, code, out):
         """Logs verbose success messages on invoke_package_manager"""
-        self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
-        self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-        self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-        self.composite_logger.log_debug("==========================================================================\n\n")
+        self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
+        self.composite_logger.log_verbose(" - Return code from package manager: " + str(code))
+        self.composite_logger.log_verbose(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_verbose("==========================================================================\n\n")
 
     def log_process_tree_if_exists(self, out):
         """Logs the process tree based on locking PID in output, if there is a process tree to be found"""

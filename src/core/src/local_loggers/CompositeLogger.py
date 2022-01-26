@@ -74,8 +74,7 @@ class CompositeLogger(object):
     def log_verbose(self, message):
         """log verbose"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
-        if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
-            self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Verbose)
+        # Only log verbose events to file, not to telemetry
         if self.file_logger is not None:
             self.file_logger.write("\n\t" + self.VERBOSE + " " + "\n\t".join(message.strip().splitlines()).strip())
 

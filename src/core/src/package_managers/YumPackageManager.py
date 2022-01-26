@@ -117,10 +117,10 @@ class YumPackageManager(PackageManager):
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more return codes should be added as appropriate
         else:  # verbose diagnostic log
-            self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_debug("==========================================================================\n\n")
+            self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
+            self.composite_logger.log_verbose(" - Return code from package manager: " + str(code))
+            self.composite_logger.log_verbose(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+            self.composite_logger.log_verbose("==========================================================================\n\n")
         return out
 
     # region Classification-based (incl. All) update check
