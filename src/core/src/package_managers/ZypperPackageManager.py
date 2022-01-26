@@ -54,9 +54,11 @@ class ZypperPackageManager(PackageManager):
 
         # Package manager exit code(s)
         self.zypper_exitcode_ok = 0
+        self.zypper_exitcode_reboot_required = 102
         self.zypper_exitcode_zypper_updated = 103
         self.zypper_exitcode_zypp_locked = 7
         self.zypper_exitcode_zypp_lib_exit_err = 4
+        self.zypper_success_exit_codes = [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated, self.zypper_exitcode_reboot_required]
 
         # Support to check for processes requiring restart
         self.zypper_ps = "sudo zypper ps -s"
@@ -103,7 +105,7 @@ class ZypperPackageManager(PackageManager):
             code, out = self.env_layer.run_command_output(command, False, False)
             self.restore_original_lock_timeout()
 
-            if code not in [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated]:  # more known return codes should be added as appropriate
+            if code not in self.zypper_success_exit_codes:  # more known return codes should be added as appropriate
                 self.log_errors_on_invoke(command, out, code)
                 error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
@@ -127,6 +129,9 @@ class ZypperPackageManager(PackageManager):
             if code == self.zypper_exitcode_zypper_updated:
                 self.composite_logger.log_debug(" - Package manager update detected. Patch installation run will be repeated.")
                 self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
+            elif code == self.zypper_exitcode_reboot_required:
+                self.composite_logger.log_warning("Machine requires reboot after patch installation. Setting force_reboot flag to True.")
+                self.force_reboot = True
             return out
 
     def log_errors_on_invoke(self, command, out, code):
