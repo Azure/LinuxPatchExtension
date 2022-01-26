@@ -44,6 +44,7 @@ class TelemetryWriter(object):
 
         self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
         self.write_machine_config_info()
+        self.log_agent_information()
 
     def write_config_info(self, config_info, config_type='unknown'):
         # Configuration info
