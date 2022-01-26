@@ -32,6 +32,7 @@ class TelemetryWriter(object):
         self.logger = logger
         self.events_folder_path = None
         self.__operation_id = ""
+        self.__agent_is_compatible = self.__get_agent_supports_telemetry_from_env_var()
 
     def __new_event_json(self, event_level, message, task_name):
         return {
@@ -63,10 +64,25 @@ class TelemetryWriter(object):
             self.logger.log_telemetry_module_error("Error occurred while formatting message for a telemetry event. [Error={0}]".format(repr(e)))
             raise
 
+    @staticmethod
+    def __get_agent_supports_telemetry_from_env_var():
+        """ Returns True if the env var AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES has a key of
+            ExtensionTelemetryPipeline in the list. Value of the env var looks like this:
+            '[{  "Key": "ExtensionTelemetryPipeline", "Value": "1.0"}]' """
+        features_keyvalue_list_str = os.getenv(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR)
+        if features_keyvalue_list_str is None:
+            return False
+
+        features_keyvalue_list = json.loads(features_keyvalue_list_str)
+        return any(kv_pair for kv_pair in features_keyvalue_list if kv_pair['Key'] == Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY)
+
+    def __events_folder_exists(self):
+        return self.events_folder_path is not None and os.path.exists(self.events_folder_path)
+
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
         try:
-            if self.events_folder_path is None or not os.path.exists(self.events_folder_path) or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+            if not self.__events_folder_exists() or not self.__agent_is_compatible or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
 
             self.__delete_older_events()
@@ -153,6 +169,48 @@ class TelemetryWriter(object):
                     raise
         return total_dir_size
 
+    def get_agent_version(self):
+        """ Returns WALinuxAgent version, if installed. If not installed, returns None.
+            Returns a version string similar to: '2.2.49.2' """
+        cmd = "sudo waagent --version"
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        if code == 0:
+            ''' Command success, so the agent is installed and should return version info:
+                WALinuxAgent-2.2.49.2 running on sles 15.3
+                Python: 3.6.13
+                Goal state agent: 2.6.0.2 '''
+            return self.__agent_version_string_search(r'WALinuxAgent-\S+ running', out)
+
+        return None
+
+    def get_goal_state_agent_version(self):
+        """ Returns WALinuxAgent goal state agent version, if installed. If not installed, returns None.
+            Returns a version string similar to: '2.2.49.2' """
+        cmd = "sudo waagent --version"
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        if code == 0:
+            ''' Command success, so the agent is installed and should return version info:
+                WALinuxAgent-2.2.49.2 running on sles 15.3
+                Python: 3.6.13
+                Goal state agent: 2.6.0.2 '''
+            return self.__agent_version_string_search(r'Goal state agent: \S+', out)
+
+        return None
+
+    @staticmethod
+    def __agent_version_string_search(pattern, string):
+        """ Takes the output from waagent --version and extracts a specific agent version from it, if it exists. """
+        # Find substring containing the version
+        regex = re.compile(pattern)
+        version_str_search = regex.search(string)
+        if version_str_search is None:
+            return None
+
+        # Extract the version string
+        regex = re.compile(r'(\d+[.]*)+')
+        version_search = regex.search(version_str_search.group())
+        if version_search is None:
+            return None
     @staticmethod
     def __get_event_file_path(folder_path):
         """ Returns the filename, generated from current timestamp in seconds, to be used to write an event. Eg: 1614111606855.json"""
@@ -175,4 +233,8 @@ class TelemetryWriter(object):
             else:
                 self.logger.log_telemetry_module_error("Error occurred while fetching contents from existing event file. [File={0}] [Error={1}].".format(repr(file_path), repr(error)))
                 raise
+
+    def is_agent_compatible(self):
+        """ Verifies if telemetry is available using an environment variable. """
+        return self.__is_agent_compatible
 

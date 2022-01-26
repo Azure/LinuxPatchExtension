@@ -252,17 +252,20 @@ class TestActionHandler(unittest.TestCase):
         shutil.rmtree(test_dir)
 
     def test_telemetry_not_available(self):
-        # events folder path not set in handler environment, extension will log a telemetry not available message and continue execution
-        events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
+        # agent env var is not set so telemetry is not supported
+        backup_os_getenv = os.getenv
 
-        # events folder not set, usually when Linux Agent does not support telemetry
-        self.action_handler.ext_env_handler.events_folder = None
+        def mock_os_getenv(nane, value=None):
+            return None
+
+        os.getenv = mock_os_getenv
+
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
 
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
 
-        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        os.getenv = backup_os_getenv
 
     def test_telemetry_available_but_events_folder_not_exists(self):
         # handler actions will continue to execute after logging telemetry not supported message

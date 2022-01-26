@@ -38,7 +38,7 @@ class TelemetryWriter(object):
         self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
         self.event_count = 1
 
-        if events_folder_path is not None and os.path.exists(events_folder_path):
+        if self.__get_agent_supports_telemetry_from_env_var() and self.__get_events_folder_path_exists(events_folder_path):
             self.events_folder_path = events_folder_path
             self.__is_agent_compatible = True
 
@@ -116,6 +116,23 @@ class TelemetryWriter(object):
         else:
             return "Unknown"
     # end region
+
+    @staticmethod
+    def __get_events_folder_path_exists(events_folder_path):
+        """ Returns True if the events folder path passed in is not None and exists on disk """
+        return events_folder_path is not None and os.path.exists(events_folder_path)
+
+    @staticmethod
+    def __get_agent_supports_telemetry_from_env_var():
+        """ Returns True if the env var AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES has a key of
+            ExtensionTelemetryPipeline in the list. Value of the env var looks like this:
+            '[{  "Key": "ExtensionTelemetryPipeline", "Value": "1.0"}]' """
+        features_keyvalue_list_str = os.getenv(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR)
+        if features_keyvalue_list_str is None:
+            return False
+
+        features_keyvalue_list = json.loads(features_keyvalue_list_str)
+        return any(kv_pair for kv_pair in features_keyvalue_list if kv_pair['Key'] == Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY)
 
     def get_agent_version(self):
         """ Returns WALinuxAgent version, if installed. If not installed, returns None.

@@ -116,6 +116,8 @@ class ActionHandler(object):
         events_folder = self.ext_env_handler.events_folder
         if events_folder is None:
             err_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
+            if self.telemetry_writer.is_agent_compatible():
+                err_msg += " [AgentVer: {} GoalStateVer: {}]".format(self.telemetry_writer.get_agent_version(), self.telemetry_writer.get_goal_state_agent_version())
             self.logger.log_error(err_msg)
         else:
             if not os.path.exists(events_folder):

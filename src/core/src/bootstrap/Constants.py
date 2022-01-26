@@ -246,6 +246,8 @@ class Constants(object):
     TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS = 15  # buffer for telemetry event counter text added at the end of every message sent to telemetry
     TELEMETRY_MAX_EVENT_COUNT_THROTTLE = 60
     TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 60
+    AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR = 'AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES'
+    TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY = 'ExtensionTelemetryPipeline'
 
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):
