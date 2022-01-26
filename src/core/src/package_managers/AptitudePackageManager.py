@@ -91,8 +91,8 @@ class AptitudePackageManager(PackageManager):
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_verbose(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_verbose(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
+            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.composite_logger.log_verbose("==========================================================================\n\n")
         return out
 
@@ -110,8 +110,8 @@ class AptitudePackageManager(PackageManager):
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_verbose(" - Return code from apt-cache: " + str(code))
-            self.composite_logger.log_verbose(" - Output from apt-cache: \n|\t" + "\n|\t".join(out.splitlines()))
+            self.composite_logger.log_debug(" - Return code from apt-cache: " + str(code))
+            self.composite_logger.log_debug(" - Output from apt-cache: \n|\t" + "\n|\t".join(out.splitlines()))
             self.composite_logger.log_verbose("==========================================================================\n\n")
         return out
 
