@@ -236,5 +236,5 @@ class TelemetryWriter(object):
 
     def is_agent_compatible(self):
         """ Verifies if telemetry is available using an environment variable. """
-        return self.__is_agent_compatible
+        return self.__agent_is_compatible
 

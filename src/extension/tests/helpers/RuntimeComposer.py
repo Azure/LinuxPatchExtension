@@ -12,6 +12,8 @@ from extension.src.local_loggers.Logger import Logger
 
 class RuntimeComposer(object):
     def __init__(self):
+        self.backup_os_getenv = os.getenv
+        os.getenv = self.getenv_telemetry_enabled
         self.logger = Logger()
         self.telemetry_writer = TelemetryWriter(self.logger)
         self.utility = Utility(self.logger)
@@ -21,8 +23,6 @@ class RuntimeComposer(object):
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
         self.env_health_manager.check_sudo_status = self.mock_check_sudo_status
-        self.backup_os_getenv = os.getenv
-        os.getenv = self.getenv_telemetry_enabled
 
     def mock_sleep(self, seconds):
         pass
