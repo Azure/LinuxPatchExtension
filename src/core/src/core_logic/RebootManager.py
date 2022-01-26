@@ -94,7 +94,7 @@ class RebootManager(object):
         reboot_pending = self.package_manager.force_reboot or reboot_pending
 
         if self.package_manager.force_reboot:
-            self.composite_logger.log("Reboot is occurring to mitigate an issue with the package manager.")
+            self.composite_logger.log("A reboot is pending as the package manager required it.")
 
         # return if never
         if self.reboot_setting == Constants.REBOOT_NEVER:
