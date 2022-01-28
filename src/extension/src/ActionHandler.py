@@ -117,6 +117,9 @@ class ActionHandler(object):
         events_folder = self.ext_env_handler.events_folder
         if events_folder is not None and self.telemetry_writer.is_agent_compatible():
             # Guest agent fully supports telemetry
+            ''' NOTE: unlike core, this code will run even if events_folder does not exist, 
+                since telemetry_writer.is_agent_compatible() only checks the env var. 
+                This ensures that the events_folder exists once core runs. '''
             if not os.path.exists(events_folder):
                 os.mkdir(events_folder)
                 self.logger.log("Events folder path found in HandlerEnvironment but does not exist on disk. Creating now. [Path={0}]".format(str(events_folder)))
