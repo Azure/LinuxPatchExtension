@@ -134,7 +134,7 @@ class ActionHandler(object):
             err_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
             if self.telemetry_writer.is_agent_compatible():
                 # Agent is compatible but events folder was not given, so log additional agent version info
-                err_msg += " [AgentVer: {} GoalStateVer: {}]".format(self.telemetry_writer.get_agent_version(), self.telemetry_writer.get_goal_state_agent_version())
+                err_msg += " [AgentVer: {0} GoalStateVer: {1}]".format(self.telemetry_writer.get_agent_version(), self.telemetry_writer.get_goal_state_agent_version())
             self.logger.log_error(err_msg)
 
     def install(self):
