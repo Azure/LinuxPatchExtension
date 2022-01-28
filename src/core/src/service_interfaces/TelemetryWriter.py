@@ -123,17 +123,21 @@ class TelemetryWriter(object):
         """ Returns True if the events folder path passed in is not None and exists on disk """
         return events_folder_path is not None and os.path.exists(events_folder_path)
 
-    @staticmethod
-    def __get_agent_supports_telemetry_from_env_var():
+    def __get_agent_supports_telemetry_from_env_var(self):
         """ Returns True if the env var AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES has a key of
             ExtensionTelemetryPipeline in the list. Value of the env var looks like this:
             '[{  "Key": "ExtensionTelemetryPipeline", "Value": "1.0"}]' """
         features_keyvalue_list_str = os.getenv(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR)
         if features_keyvalue_list_str is None:
+            self.composite_logger.log_error('Failed to get guest agent supported features from env var. [Var=\'{}\']'.format(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR))
             return False
 
         features_keyvalue_list = json.loads(features_keyvalue_list_str)
-        return any(kv_pair for kv_pair in features_keyvalue_list if kv_pair['Key'] == Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY)
+        telemetry_supported_key_exists = any(kv_pair for kv_pair in features_keyvalue_list if kv_pair['Key'] == Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY)
+        if telemetry_supported_key_exists is False:
+            self.composite_logger.log_error('Guest agent does not support telemetry. [Error=\'Key not found: {}\']'.format(Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY))
+
+        return telemetry_supported_key_exists
 
     def get_agent_version(self):
         """ Returns WALinuxAgent version, if installed. If not installed, returns None.
