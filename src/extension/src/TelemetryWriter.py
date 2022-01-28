@@ -179,8 +179,10 @@ class TelemetryWriter(object):
                 WALinuxAgent-2.2.49.2 running on sles 15.3
                 Python: 3.6.13
                 Goal state agent: 2.6.0.2 '''
-            return self.__agent_version_string_search(r'WALinuxAgent-\S+ running', out)
+            return self.__extract_agent_version_from_string(r'WALinuxAgent-\S+ running', out)
 
+        # Command failed, so log error and debugging information
+        self.logger.log_telemetry_module_error('Failed to execute command to get guest agent version. [Code={}] [Out=\'{}\']'.format(str(code), str(out)))
         return None
 
     def get_goal_state_agent_version(self):
@@ -193,24 +195,30 @@ class TelemetryWriter(object):
                 WALinuxAgent-2.2.49.2 running on sles 15.3
                 Python: 3.6.13
                 Goal state agent: 2.6.0.2 '''
-            return self.__agent_version_string_search(r'Goal state agent: \S+', out)
+            return self.__extract_agent_version_from_string(r'Goal state agent: \S+', out)
 
+        # Command failed, so log error and debugging information
+        self.logger.log_telemetry_module_error('Failed to execute command to get guest agent goal state version. [Cmd=\'{}\'] [Code={}] [Out=\'{}\']'.format(cmd, str(code), str(out)))
         return None
 
-    @staticmethod
-    def __agent_version_string_search(pattern, string):
+    def __extract_agent_version_from_string(self, pattern, string):
         """ Takes the output from waagent --version and extracts a specific agent version from it, if it exists. """
         # Find substring containing the version
         regex = re.compile(pattern)
         version_str_search = regex.search(string)
         if version_str_search is None:
+            self.logger.log_telemetry_module_error('Failed to extract agent version substring from agent version command output. [Input=\'{}\'] [Pattern=\'{}\']'.format(string, pattern))
             return None
 
         # Extract the version string
         regex = re.compile(r'(\d+[.]*)+')
         version_search = regex.search(version_str_search.group())
         if version_search is None:
+            self.logger.log_telemetry_module_error('Failed to extract agent version from agent version command output. [Input=\'{}\'] [Pattern=\'{}\']'.format(string, pattern))
             return None
+
+        return version_search.group()
+
     @staticmethod
     def __get_event_file_path(folder_path):
         """ Returns the filename, generated from current timestamp in seconds, to be used to write an event. Eg: 1614111606855.json"""
