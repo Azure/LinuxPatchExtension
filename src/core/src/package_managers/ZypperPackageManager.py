@@ -40,6 +40,7 @@ class ZypperPackageManager(PackageManager):
         # Repo refresh
         self.repo_clean = 'sudo zypper clean -a'
         self.repo_refresh = 'sudo zypper refresh'
+        self.repo_refresh_services = 'sudo zypper refresh --services'
 
         # Support to get updates and their dependencies
         self.zypper_check = 'sudo LANG=en_US.UTF8 zypper list-updates'
@@ -54,10 +55,12 @@ class ZypperPackageManager(PackageManager):
 
         # Package manager exit code(s)
         self.zypper_exitcode_ok = 0
+        self.zypper_exitcode_zypp_lib_exit_err = 4
+        self.zypper_exitcode_no_repos = 6
+        self.zypper_exitcode_zypp_locked = 7
         self.zypper_exitcode_reboot_required = 102
         self.zypper_exitcode_zypper_updated = 103
-        self.zypper_exitcode_zypp_locked = 7
-        self.zypper_exitcode_zypp_lib_exit_err = 4
+        self.zypper_exitcode_repos_skipped = 106
         self.zypper_success_exit_codes = [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated, self.zypper_exitcode_reboot_required]
 
         # Support to check for processes requiring restart
@@ -67,7 +70,7 @@ class ZypperPackageManager(PackageManager):
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.ZYPPER)
         self.zypper_get_process_tree_cmd = 'ps --forest -o pid,cmd -g $(ps -o sid= -p {})'
         self.package_manager_max_retries = 5
-        self.error_codes_to_retry = [self.zypper_exitcode_zypp_locked, self.zypper_exitcode_zypp_lib_exit_err]
+        self.error_codes_to_retry = [self.zypper_exitcode_zypp_locked, self.zypper_exitcode_zypp_lib_exit_err, self.zypper_exitcode_repos_skipped]
         self.zypp_lock_timeout_backup = None
 
         # auto OS updates
@@ -95,6 +98,21 @@ class ZypperPackageManager(PackageManager):
                 
             raise
 
+    def __refresh_repo_services(self):
+        ''' Similar to refresh_repo, but refreshes services in case no repos are defined. '''
+        self.composite_logger.log("Refreshing local repo services...")
+        try:
+            self.invoke_package_manager(self.repo_refresh_services)
+        except Exception as error:
+            # Reboot if not already done
+            if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
+                self.composite_logger.log_warning("Unable to refresh repo services (retries exhausted after reboot).")
+            else:
+                self.composite_logger.log_warning("Setting force_reboot flag to True after refreshing repo services.")
+                self.force_reboot = True
+                
+            raise
+
     # region Get Available Updates
     def invoke_package_manager(self, command):
         """Get missing updates using the command input"""
@@ -106,6 +124,12 @@ class ZypperPackageManager(PackageManager):
             self.restore_original_lock_timeout()
 
             if code not in self.zypper_success_exit_codes:  # more known return codes should be added as appropriate
+                # Refresh repo services if no repos are defined
+                if code == self.zypper_exitcode_no_repos and command != self.repo_refresh_services:
+                    self.composite_logger.log_warning("Warning: no repos defined on command: {0}".format(str(command)))
+                    self.__refresh_repo_services()
+                    continue
+
                 self.log_errors_on_invoke(command, out, code)
                 error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
