@@ -99,7 +99,7 @@ class ZypperPackageManager(PackageManager):
             raise
 
     def __refresh_repo_services(self):
-        ''' Similar to refresh_repo, but refreshes services in case no repos are defined. '''
+        """ Similar to refresh_repo, but refreshes services in case no repos are defined. """
         self.composite_logger.log("Refreshing local repo services...")
         try:
             self.invoke_package_manager(self.repo_refresh_services)
