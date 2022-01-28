@@ -65,6 +65,11 @@ class LegacyEnvLayerExtensions():
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz\n" + \
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz\n" + \
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz"
+                elif cmd.find("waagent --version") > -1:
+                    code = 0
+                    output = "WALinuxAgent-2.2.49.2 running on sles 15.3\n" + \
+                             "Python: 3.6.13\n" + \
+                             "Goal state agent: 2.6.0.2"
                 elif self.legacy_package_manager_name is Constants.ZYPPER:
                     if cmd.find("list-updates") > -1:
                         code = 0
@@ -501,6 +506,9 @@ class LegacyEnvLayerExtensions():
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz\n" + \
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz\n" + \
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz"
+                elif cmd.find("waagent --version") > -1:
+                    code = 1
+                    output = "sudo: waagent: command not found"
                 elif self.legacy_package_manager_name is Constants.APT:
                     output = ''
                 elif self.legacy_package_manager_name is Constants.YUM:

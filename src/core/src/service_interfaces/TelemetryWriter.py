@@ -38,12 +38,13 @@ class TelemetryWriter(object):
         self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
         self.event_count = 1
 
-        if events_folder_path is not None and os.path.exists(events_folder_path):
+        if self.__get_agent_supports_telemetry_from_env_var() and self.__get_events_folder_path_exists(events_folder_path):
             self.events_folder_path = events_folder_path
             self.__is_agent_compatible = True
 
         self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
         self.write_machine_config_info()
+        self.__log_agent_information()
 
     def write_config_info(self, config_info, config_type='unknown'):
         # Configuration info
@@ -116,6 +117,85 @@ class TelemetryWriter(object):
         else:
             return "Unknown"
     # end region
+
+    @staticmethod
+    def __get_events_folder_path_exists(events_folder_path):
+        """ Returns True if the events folder path passed in is not None and exists on disk """
+        return events_folder_path is not None and os.path.exists(events_folder_path)
+
+    def __get_agent_supports_telemetry_from_env_var(self):
+        """ Returns True if the env var AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES has a key of
+            ExtensionTelemetryPipeline in the list. Value of the env var looks like this:
+            '[{  "Key": "ExtensionTelemetryPipeline", "Value": "1.0"}]' """
+        features_keyvalue_list_str = os.getenv(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR)
+        if features_keyvalue_list_str is None:
+            self.composite_logger.log_error('Failed to get guest agent supported features from env var. [Var={0}]'.format(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR))
+            return False
+
+        features_keyvalue_list = json.loads(features_keyvalue_list_str)
+        telemetry_supported_key_exists = any(kv_pair for kv_pair in features_keyvalue_list if kv_pair['Key'] == Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY)
+        if telemetry_supported_key_exists is False:
+            self.composite_logger.log_error('Guest agent does not support telemetry. [Error=Key not found: {0}]'.format(Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY))
+
+        return telemetry_supported_key_exists
+
+    def get_agent_version(self):
+        """ Returns WALinuxAgent version, if installed. If not installed, returns None.
+            Returns a version string similar to: '2.2.49.2' """
+        cmd = "sudo waagent --version"
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        if code == 0:
+            ''' Command success, so the agent is installed and should return version info:
+                WALinuxAgent-2.2.49.2 running on sles 15.3
+                Python: 3.6.13
+                Goal state agent: 2.6.0.2 '''
+            return self.__extract_agent_version_from_string(r'WALinuxAgent-\S+ running', out)
+
+        # Command failed, so log error and debugging information
+        self.composite_logger.log_error('Failed to execute command to get guest agent version. [Code={0}] [Out={1}]'.format(str(code), str(out)))
+        return None
+
+    def get_goal_state_agent_version(self):
+        """ Returns WALinuxAgent goal state agent version, if installed. If not installed, returns None.
+            Returns a version string similar to: '2.2.49.2' """
+        cmd = "sudo waagent --version"
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        if code == 0:
+            ''' Command success, so the agent is installed and should return version info:
+                WALinuxAgent-2.2.49.2 running on sles 15.3
+                Python: 3.6.13
+                Goal state agent: 2.6.0.2 '''
+            return self.__extract_agent_version_from_string(r'Goal state agent: \S+', out)
+
+        # Command failed, so log error and debugging information
+        self.composite_logger.log_error('Failed to execute command to get guest agent goal state version. [Cmd={0}] [Code={1}] [Out={2}]'.format(cmd, str(code), str(out)))
+        return None
+
+    def __extract_agent_version_from_string(self, pattern, string):
+        """ Takes the output from waagent --version and extracts a specific agent version from it, if it exists. """
+        # Find substring containing the version
+        regex = re.compile(pattern)
+        version_str_search = regex.search(string)
+        if version_str_search is None:
+            self.composite_logger.log_error('Failed to extract agent version substring from agent version command output. [Input={0}] [Pattern={1}]'.format(string, pattern))
+            return None
+
+        # Extract the version string
+        regex = re.compile(r'(\d+[.]*)+')
+        version_search = regex.search(version_str_search.group())
+        if version_search is None:
+            self.composite_logger.log_error('Failed to extract agent version from agent version command output. [Input={0}] [Pattern={1}]'.format(string, pattern))
+            return None
+
+        return version_search.group()
+
+    def __log_agent_information(self):
+        """ Logs WALinuxAgent version information. """
+        agent_version = self.get_agent_version()
+        if agent_version is None:
+            self.composite_logger.log_error('Failed to get WALinuxAgent version: WALinuxAgent is not installed or command failed.')
+        else:
+            self.composite_logger.log('WALinuxAgent version: {0}\nGoal state agent version: {1}'.format(agent_version, self.get_goal_state_agent_version()), Constants.TelemetryEventLevel.Informational)
 
     def __new_event_json(self, event_level, message, task_name):
         return {

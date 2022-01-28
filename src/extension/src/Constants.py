@@ -71,6 +71,9 @@ class Constants(object):
     TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine following instructions here: http://aka.ms/UpdateLinuxAgent"
     TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was met."
 
+    AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR = 'AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES'
+    TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY = 'ExtensionTelemetryPipeline'
+
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):
         Critical = "Critical"

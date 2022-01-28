@@ -1,6 +1,7 @@
 import os
 import time
 
+from extension.src.Constants import Constants
 from extension.src.EnvLayer import EnvLayer
 from extension.src.EnvHealthManager import EnvHealthManager
 from extension.src.TelemetryWriter import TelemetryWriter
@@ -11,6 +12,8 @@ from extension.src.local_loggers.Logger import Logger
 
 class RuntimeComposer(object):
     def __init__(self):
+        self.backup_os_getenv = os.getenv
+        os.getenv = self.getenv_telemetry_enabled
         self.logger = Logger()
         self.telemetry_writer = TelemetryWriter(self.logger)
         self.utility = Utility(self.logger)
@@ -35,3 +38,11 @@ class RuntimeComposer(object):
             if content is not None:
                 f.write(content)
 
+    def getenv_telemetry_enabled(self, key, value=None):
+        """ Overrides get_env_var method to enable telemetry by default for all tests """
+        value = self.backup_os_getenv(key, value)
+        if key == Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR:
+            # Default to supported telemetry so test cases pass. This can be overridden on a per-test basis for testing
+            return '[{"Key": "ExtensionTelemetryPipeline", "Value": "1.0"}]'
+        else:
+            return value

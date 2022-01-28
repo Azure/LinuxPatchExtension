@@ -25,6 +25,7 @@ from extension.src.ActionHandler import ActionHandler
 from extension.src.Constants import Constants
 from extension.src.ProcessHandler import ProcessHandler
 from extension.src.RuntimeContextHandler import RuntimeContextHandler
+from extension.src.TelemetryWriter import TelemetryWriter
 from extension.src.file_handlers.CoreStateHandler import CoreStateHandler
 from extension.src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
 from extension.src.file_handlers.ExtEnvHandler import ExtEnvHandler
@@ -252,17 +253,31 @@ class TestActionHandler(unittest.TestCase):
         shutil.rmtree(test_dir)
 
     def test_telemetry_not_available(self):
-        # events folder path not set in handler environment, extension will log a telemetry not available message and continue execution
-        events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
+        # agent env var is not set so telemetry is not supported
+        backup_os_getenv = os.getenv
+        backup_telemetry_writer = self.runtime.telemetry_writer
 
-        # events folder not set, usually when Linux Agent does not support telemetry
-        self.action_handler.ext_env_handler.events_folder = None
+        def mock_os_getenv(name, value=None):
+            return None
+
+        # Re-init TelemetryWriter since the env var for compatibility is only checked on init
+        os.getenv = mock_os_getenv
+        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger)
+        self.action_handler.telemetry_writer = self.runtime.telemetry_writer
+
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
+
+        file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
+        self.assertTrue(file_read is not None)
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in file_read.read())
+        file_read.close()
 
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
 
-        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        os.getenv = backup_os_getenv
+        self.runtime.telemetry_writer = backup_telemetry_writer
+        self.action_handler.telemetry_writer = backup_telemetry_writer
 
     def test_telemetry_available_but_events_folder_not_exists(self):
         # handler actions will continue to execute after logging telemetry not supported message
@@ -273,6 +288,11 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
+
+        file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
+        self.assertTrue(file_read is not None)
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG not in file_read.read())
+        file_read.close()
 
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
 
