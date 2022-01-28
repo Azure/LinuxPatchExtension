@@ -62,6 +62,7 @@ class ZypperPackageManager(PackageManager):
         self.zypper_exitcode_zypper_updated = 103
         self.zypper_exitcode_repos_skipped = 106
         self.zypper_success_exit_codes = [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated, self.zypper_exitcode_reboot_required]
+        self.zypper_retriable_exit_codes = [self.zypper_exitcode_zypp_locked, self.zypper_exitcode_zypp_lib_exit_err, self.zypper_exitcode_repos_skipped]
 
         # Support to check for processes requiring restart
         self.zypper_ps = "sudo zypper ps -s"
@@ -70,7 +71,6 @@ class ZypperPackageManager(PackageManager):
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.ZYPPER)
         self.zypper_get_process_tree_cmd = 'ps --forest -o pid,cmd -g $(ps -o sid= -p {})'
         self.package_manager_max_retries = 5
-        self.error_codes_to_retry = [self.zypper_exitcode_zypp_locked, self.zypper_exitcode_zypp_lib_exit_err, self.zypper_exitcode_repos_skipped]
         self.zypp_lock_timeout_backup = None
 
         # auto OS updates
@@ -135,7 +135,7 @@ class ZypperPackageManager(PackageManager):
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
 
                 # Not a retriable error code, so raise an exception
-                if code not in self.error_codes_to_retry:
+                if code not in self.zypper_retriable_exit_codes:
                     raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
                 # Retriable error code, so check number of retries and wait then retry if applicable; otherwise, raise error after max retries
