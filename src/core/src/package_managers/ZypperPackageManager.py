@@ -92,11 +92,10 @@ class ZypperPackageManager(PackageManager):
             # Reboot if not already done
             if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
                 self.composite_logger.log_warning("Unable to refresh repo (retries exhausted after reboot).")
+                raise
             else:
                 self.composite_logger.log_warning("Setting force_reboot flag to True.")
                 self.force_reboot = True
-                
-            raise
 
     def __refresh_repo_services(self):
         """ Similar to refresh_repo, but refreshes services in case no repos are defined. """
