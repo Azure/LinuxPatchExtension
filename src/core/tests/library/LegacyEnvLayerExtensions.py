@@ -231,6 +231,10 @@ class LegacyEnvLayerExtensions():
                                  "7984  |               \_ /usr/bin/python3 /usr/bin/azuremetadata --api latest --subscriptionId --billingTag --attestedData --signature\n" + \
                                  "7986  \_ python3 package_test.py\n" + \
                                  "8298      \_ sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run grub2-i386-pc\n"
+                    elif cmd.find('sudo zypper refresh --services') > -1:
+                        code = 0
+                        output = "Refreshing service \'Web_and_Scripting_Module_x86_64\'." + \
+                                 "All services have been refreshed."
                     elif cmd.find('sudo zypper refresh') > -1:
                         code = 0
                         output = "Retrieving repository 'SLE-Module-Basesystem15-SP3-Pool' metadata ................................................................[done]\n" + \
@@ -570,6 +574,11 @@ class LegacyEnvLayerExtensions():
                     if cmd.find('sudo zypper refresh') > -1:
                         code = 999999
                         output = 'Unexpected return code (100) from package manager on command: LANG=en_US.UTF8 sudo apt-get -s dist-upgrade'
+            elif self.legacy_test_type == 'AnotherSadPath':
+                if self.legacy_package_manager_name is Constants.ZYPPER:
+                    if cmd.find('sudo zypper refresh') > -1:
+                        code = 6
+                        output = 'Warning: There are no enabled repositories defined. | Use \'zypper addrepo\' or \'zypper modifyrepo\' commands to add or enable repositories.'
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''

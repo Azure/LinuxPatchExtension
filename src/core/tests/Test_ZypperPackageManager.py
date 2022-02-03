@@ -482,6 +482,66 @@ class TestZypperPackageManager(unittest.TestCase):
 
         package_manager.env_layer.run_command_output = backup_mocked_method
 
+    def test_package_manager_no_repos(self):
+        package_manager = self.container.get('package_manager')
+        # Setting operation to assessment to add all errors under assessment substatus
+        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+        cmd_to_run = 'sudo zypper refresh'
+
+        # Wrap count in a mutable container to modify in mocked method to keep track of retries
+        counter = [0]
+        backup_mocked_method = package_manager.env_layer.run_command_output
+
+        def mock_run_command_output(cmd, no_output=False, chk_err=False):
+            # Only check for refresh services cmd
+            if cmd == 'sudo zypper refresh --services':
+                # After refreshing, allow it to succeed
+                self.runtime.set_legacy_test_type('HappyPath')
+            elif cmd == 'sudo zypper refresh':
+                counter[0] += 1
+            return backup_mocked_method(cmd, no_output, chk_err)
+
+        package_manager.env_layer.run_command_output = mock_run_command_output
+
+        # Case 1: AnotherSadPath to HappyPath (no repos defined -> repos defined)
+
+        # AnotherSadPath uses return code 6
+        self.runtime.set_legacy_test_type('AnotherSadPath')
+
+        # Invoke should not raise an exception here
+        try:
+            package_manager.invoke_package_manager(cmd_to_run)
+        except Exception as error:
+            self.fail(repr(error))
+
+        # Should try twice: once fail, fix repos, then try again and succeed
+        self.assertEqual(counter[0], 2)
+        self.assertFalse(self.is_string_in_status_file('Unexpected return code (6) from package manager on command'))
+
+        # Case 2: AnotherSadPath (no repos defined -> still no repos defined)
+        counter = [0]
+
+        # AnotherSadPath uses return code 6
+        self.runtime.set_legacy_test_type('AnotherSadPath')
+
+        def mock_run_command_output(cmd, no_output=False, chk_err=False):
+            # Only count the number of command invocations and do not change to HappyPath
+            if cmd == 'sudo zypper refresh':
+                counter[0] += 1
+            return backup_mocked_method(cmd, no_output, chk_err)
+
+        package_manager.env_layer.run_command_output = mock_run_command_output
+
+        # Invoke should raise an exception here
+        try:
+            package_manager.invoke_package_manager(cmd_to_run)
+        except Exception as error:
+            # Should only try once since this is not a retriable error code
+            self.assertEqual(counter[0], 1)
+            self.assertTrue(self.is_string_in_status_file('Unexpected return code (6) from package manager on command: sudo zypper refresh'))
+            self.assertTrue('Unexpected return code (6) from package manager on command: sudo zypper refresh' in repr(error))
+
+        package_manager.env_layer.run_command_output = backup_mocked_method
 
 if __name__ == '__main__':
     unittest.main()
