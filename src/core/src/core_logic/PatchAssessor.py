@@ -84,7 +84,7 @@ class PatchAssessor(object):
             self.composite_logger.log("Skipping agent compatibility check for Arc cloud type when operation is not manual")
             return
         if not self.telemetry_writer.is_agent_compatible():
-            error_msg = "{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, self.telemetry_writer.get_telemetry_information())
+            error_msg = "{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, self.telemetry_writer.get_telemetry_diagnostics())
             self.composite_logger.log_error(error_msg)
             raise Exception(error_msg)
 

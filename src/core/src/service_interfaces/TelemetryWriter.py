@@ -193,7 +193,7 @@ class TelemetryWriter(object):
 
         return version_search.group()
 
-    def get_telemetry_information(self):
+    def get_telemetry_diagnostics(self):
         """ Returns information about the guest agent telemetry for debugging purposes.
             Information message abbreviations:
                 AV: Agent Version (Guest Agent)
@@ -207,13 +207,13 @@ class TelemetryWriter(object):
         agent_goalstate_version = self.get_goal_state_agent_version()
         events_folder_exists = self.__get_events_folder_path_exists(self.events_folder_path)
         telemetry_env_var_supported = self.__get_agent_supports_telemetry_from_env_var()
-        return "AV: {0} AGSV: {1} EFE: {2} EV: {3} EVC: {4}".format(
-            str(agent_version) if agent_version is not None else "-1",
-            str(agent_goalstate_version) if agent_goalstate_version is not None else "-1",
-            "1" if events_folder_exists is True else "0",
-            "1" if telemetry_env_var_supported is True else "0",
-            str(self.agent_env_var_code)
-        )
+        return "AV:{0}, AGSV:{1}, EFE:{2}, EV:{3}, EVC:{4}".format(
+                str(agent_version) if agent_version is not None else "-1",
+                str(agent_goalstate_version) if agent_goalstate_version is not None else "-1",
+                "1" if events_folder_exists is True else "0",
+                "1" if telemetry_env_var_supported is True else "0",
+                str(self.agent_env_var_code)
+            )
 
     def __log_agent_information(self):
         """ Logs WALinuxAgent version information. """
