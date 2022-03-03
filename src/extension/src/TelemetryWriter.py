@@ -28,8 +28,9 @@ from extension.src.Constants import Constants
 class TelemetryWriter(object):
     """Class for writing telemetry data to events"""
 
-    def __init__(self, logger):
+    def __init__(self, logger, env_layer):
         self.logger = logger
+        self.env_layer = env_layer
         self.events_folder_path = None
         self.__operation_id = ""
         self.__agent_is_compatible = self.__get_agent_supports_telemetry_from_env_var()
