@@ -131,23 +131,23 @@ class ActionHandler(object):
             self.__log_telemetry_info(telemetry_supported=False)
 
     def __log_telemetry_info(self, telemetry_supported):
-        """ Logs detailed information about telemetry and raises an exception if telemetry is not supported. """
+        """ Logs detailed information about telemetry and logs an error if telemetry is not supported. """
         events_folder = self.ext_env_handler.events_folder
         events_folder_str = str(events_folder) if events_folder is not None else ""
         events_folder_exists = os.path.exists(events_folder) if events_folder is not None else False
         env_var_supports_telemetry = self.telemetry_writer.is_agent_compatible()
-        telemetry_info = "Events folder: \'{0}\' - Events folder exists: {1} - Env var: {2}".format(
+        telemetry_info = "[EventsFolder=\'{0}\'][EventsFolderExists={1}][EnvVar={2}]".format(
             events_folder_str, str(events_folder_exists), env_var_supports_telemetry)
 
         if env_var_supports_telemetry is True:
-            telemetry_info += " AgentVer: {0} GoalStateVer: {1}".format(self.telemetry_writer.get_agent_version(), self.telemetry_writer.get_goal_state_agent_version())
+            telemetry_info += "[AgentVer={0}][GoalStateVer={1}]".format(self.telemetry_writer.get_agent_version(), self.telemetry_writer.get_goal_state_agent_version())
         else:
-            telemetry_info += " AgentVer: Unknown GoalStateVer: Unknown"
+            telemetry_info += "[AgentVer=Unknown][GoalStateVer=Unknown]"
 
         if telemetry_supported is True:
-            self.logger.log("{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, telemetry_info))
+            self.logger.log("{0} {1}".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, telemetry_info))
         else:
-            error_msg = "{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, telemetry_info)
+            error_msg = "{0} {1}".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, telemetry_info)
             self.logger.log_error(error_msg)
 
     def install(self):
