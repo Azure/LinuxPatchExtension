@@ -133,7 +133,7 @@ class ActionHandler(object):
     def __log_telemetry_info(self, telemetry_supported):
         """ Logs detailed information about telemetry and raises an exception if telemetry is not supported. """
         events_folder = self.ext_env_handler.events_folder
-        events_folder_str = str(events_folder) if events_folder is None else ""
+        events_folder_str = str(events_folder) if events_folder is not None else ""
         events_folder_exists = os.path.exists(events_folder) if events_folder is not None else False
         env_var_supports_telemetry = self.telemetry_writer.is_agent_compatible()
         telemetry_info = "Events folder: \'{0}\' - Events folder exists: {1} - Env var: {2}".format(
