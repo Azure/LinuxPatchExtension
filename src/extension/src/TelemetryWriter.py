@@ -28,8 +28,9 @@ from extension.src.Constants import Constants
 class TelemetryWriter(object):
     """Class for writing telemetry data to events"""
 
-    def __init__(self, logger):
+    def __init__(self, logger, env_layer):
         self.logger = logger
+        self.env_layer = env_layer
         self.events_folder_path = None
         self.__operation_id = ""
         self.__agent_is_compatible = self.__get_agent_supports_telemetry_from_env_var()
@@ -82,7 +83,7 @@ class TelemetryWriter(object):
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
         try:
-            if not self.__events_folder_exists() or not self.__agent_is_compatible or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+            if not self.__events_folder_exists() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
 
             self.__delete_older_events()

@@ -15,11 +15,11 @@ class RuntimeComposer(object):
         self.backup_os_getenv = os.getenv
         os.getenv = self.getenv_telemetry_enabled
         self.logger = Logger()
-        self.telemetry_writer = TelemetryWriter(self.logger)
         self.utility = Utility(self.logger)
         self.json_file_handler = JsonFileHandler(self.logger)
         self.env_layer = EnvLayer()
         self.env_health_manager = EnvHealthManager(self.env_layer)
+        self.telemetry_writer = TelemetryWriter(self.logger, self.env_layer)
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
         self.env_health_manager.check_sudo_status = self.mock_check_sudo_status

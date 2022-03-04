@@ -37,8 +37,9 @@ from extension.src.Constants import Constants
 def main(argv):
     stdout_file_mirror = None
     file_logger = None
+    env_layer = EnvLayer()
     logger = Logger()
-    telemetry_writer = TelemetryWriter(logger)
+    telemetry_writer = TelemetryWriter(logger, env_layer)
     logger.telemetry_writer = telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
     try:
         # initializing action handler
@@ -48,7 +49,6 @@ def main(argv):
         runtime_context_handler = RuntimeContextHandler(logger)
         json_file_handler = JsonFileHandler(logger)
         ext_env_handler = ExtEnvHandler(json_file_handler)
-        env_layer = EnvLayer()
         env_health_manager = EnvHealthManager(env_layer)
         if ext_env_handler.handler_environment_json is not None and ext_env_handler.config_folder is not None:
             config_folder = ext_env_handler.config_folder
