@@ -28,7 +28,7 @@ class Constants(object):
                         yield item
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.33"
+    EXT_VERSION = "1.6.34"
 
     # Runtime environments
     TEST = 'Test'
