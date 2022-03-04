@@ -121,7 +121,8 @@ class ActionHandler(object):
 
             if not os.path.exists(events_folder):
                 os.mkdir(events_folder)
-                self.logger.log("Events folder path found in HandlerEnvironment but does not exist on disk. Creating now. [Path={0}]".format(str(events_folder)))
+                self.logger.log("Events folder path found in HandlerEnvironment but does not exist on disk. Creating now. [Path={0}][AgentVersion={1}]".format(
+                    str(events_folder), str(self.telemetry_writer.get_agent_version())))
 
             self.telemetry_writer.events_folder_path = events_folder
             # As this is a common function used by all handler actions, setting operation_id such that it will be the same timestamp for all handler actions, which can be used for identifying all events for an operation.
