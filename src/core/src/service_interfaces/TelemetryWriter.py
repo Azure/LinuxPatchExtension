@@ -37,8 +37,9 @@ class TelemetryWriter(object):
         self.__telemetry_event_counter = 1  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
         self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
         self.event_count = 1
+        self.agent_env_var_code = 0  # code to give details on what went wrong when getting env var
 
-        if self.__get_agent_supports_telemetry_from_env_var() and self.__get_events_folder_path_exists(events_folder_path):
+        if self.__get_events_folder_path_exists(events_folder_path):
             self.events_folder_path = events_folder_path
             self.__is_agent_compatible = True
 
@@ -127,15 +128,18 @@ class TelemetryWriter(object):
         """ Returns True if the env var AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES has a key of
             ExtensionTelemetryPipeline in the list. Value of the env var looks like this:
             '[{  "Key": "ExtensionTelemetryPipeline", "Value": "1.0"}]' """
+        self.agent_env_var_code = 0
         features_keyvalue_list_str = os.getenv(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR)
         if features_keyvalue_list_str is None:
             self.composite_logger.log_error('Failed to get guest agent supported features from env var. [Var={0}]'.format(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR))
+            self.agent_env_var_code = 1
             return False
 
         features_keyvalue_list = json.loads(features_keyvalue_list_str)
         telemetry_supported_key_exists = any(kv_pair for kv_pair in features_keyvalue_list if kv_pair['Key'] == Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY)
         if telemetry_supported_key_exists is False:
             self.composite_logger.log_error('Guest agent does not support telemetry. [Error=Key not found: {0}]'.format(Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY))
+            self.agent_env_var_code = 2
 
         return telemetry_supported_key_exists
 
@@ -188,6 +192,28 @@ class TelemetryWriter(object):
             return None
 
         return version_search.group()
+
+    def get_telemetry_diagnostics(self):
+        """ Returns information about the guest agent telemetry for debugging purposes.
+            Information message abbreviations:
+                AV: Agent Version (Guest Agent)
+                AGSV: Agent Goal State Version (Guest Agent)
+                EFE: Events Folder Exists (on disk)
+                EV: Env Var exists
+                EVC: Env Var Code (more detailed information on what went wrong when getting the env var)
+                    See __get_agent_supports_telemetry_from_env_var for more information
+        """
+        agent_version = self.get_agent_version()
+        agent_goalstate_version = self.get_goal_state_agent_version()
+        events_folder_exists = self.__get_events_folder_path_exists(self.events_folder_path)
+        telemetry_env_var_supported = self.__get_agent_supports_telemetry_from_env_var()
+        return "AV:{0}, AGSV:{1}, EFE:{2}, EV:{3}, EVC:{4}".format(
+                str(agent_version) if agent_version is not None else "-1",
+                str(agent_goalstate_version) if agent_goalstate_version is not None else "-1",
+                "1" if events_folder_exists is True else "0",
+                "1" if telemetry_env_var_supported is True else "0",
+                str(self.agent_env_var_code)
+            )
 
     def __log_agent_information(self):
         """ Logs WALinuxAgent version information. """

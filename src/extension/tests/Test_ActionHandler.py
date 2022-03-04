@@ -252,7 +252,7 @@ class TestActionHandler(unittest.TestCase):
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
-    def test_telemetry_not_available(self):
+    def test_telemetry_available_env_var_not_exists(self):
         # agent env var is not set so telemetry is not supported
         backup_os_getenv = os.getenv
         backup_telemetry_writer = self.runtime.telemetry_writer
@@ -262,14 +262,14 @@ class TestActionHandler(unittest.TestCase):
 
         # Re-init TelemetryWriter since the env var for compatibility is only checked on init
         os.getenv = mock_os_getenv
-        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger)
+        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer)
         self.action_handler.telemetry_writer = self.runtime.telemetry_writer
 
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
 
         file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
         self.assertTrue(file_read is not None)
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in file_read.read())
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG in file_read.read())
         file_read.close()
 
         with self.assertRaises(SystemExit) as sys_exit:

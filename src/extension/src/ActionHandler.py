@@ -112,30 +112,44 @@ class ActionHandler(object):
             self.file_logger = None
 
     def setup_telemetry(self):
-        """ Init telemetry if agent is compatible (env var check) AND events_folder is specified.
+        """ Init telemetry if agent is compatible (events_folder is specified).
             Otherwise, error since guest agent does not support telemetry. """
         events_folder = self.ext_env_handler.events_folder
-        if events_folder is not None and self.telemetry_writer.is_agent_compatible():
+        if events_folder is not None:
             # Guest agent fully supports telemetry
-            ''' NOTE: unlike core, this code will run even if events_folder does not exist, 
-                since telemetry_writer.is_agent_compatible() only checks the env var. 
-                This ensures that the events_folder exists once core runs. '''
+            self.__log_telemetry_info(telemetry_supported=True)
+
             if not os.path.exists(events_folder):
                 os.mkdir(events_folder)
-                self.logger.log("Events folder path found in HandlerEnvironment but does not exist on disk. Creating now. [Path={0}]".format(str(events_folder)))
-            
-            self.logger.log(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG)
+                self.logger.log("Events folder path found in HandlerEnvironment but does not exist on disk. Creating now. [Path={0}][AgentVersion={1}]".format(
+                    str(events_folder), str(self.telemetry_writer.get_agent_version())))
+
             self.telemetry_writer.events_folder_path = events_folder
             # As this is a common function used by all handler actions, setting operation_id such that it will be the same timestamp for all handler actions, which can be used for identifying all events for an operation.
             # NOTE: Enable handler action will set operation_id to activity_id from config settings. And the same will be used in Core.
             self.telemetry_writer.set_operation_id(self.operation_id_substitute_for_all_actions_in_telemetry)
         else:
-            # Guest agent does not support telemetry (incompatible OR events_folder not specified)
-            err_msg = Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG
-            if self.telemetry_writer.is_agent_compatible():
-                # Agent is compatible but events folder was not given, so log additional agent version info
-                err_msg += " [AgentVer: {0} GoalStateVer: {1}]".format(self.telemetry_writer.get_agent_version(), self.telemetry_writer.get_goal_state_agent_version())
-            self.logger.log_error(err_msg)
+            self.__log_telemetry_info(telemetry_supported=False)
+
+    def __log_telemetry_info(self, telemetry_supported):
+        """ Logs detailed information about telemetry and logs an error if telemetry is not supported. """
+        events_folder = self.ext_env_handler.events_folder
+        events_folder_str = str(events_folder) if events_folder is not None else ""
+        events_folder_exists = os.path.exists(events_folder) if events_folder is not None else False
+        env_var_supports_telemetry = self.telemetry_writer.is_agent_compatible()
+        telemetry_info = "[EventsFolder=\'{0}\'][EventsFolderExists={1}][EnvVar={2}]".format(
+            events_folder_str, str(events_folder_exists), env_var_supports_telemetry)
+
+        if env_var_supports_telemetry is True:
+            telemetry_info += "[AgentVer={0}][GoalStateVer={1}]".format(self.telemetry_writer.get_agent_version(), self.telemetry_writer.get_goal_state_agent_version())
+        else:
+            telemetry_info += "[AgentVer=Unknown][GoalStateVer=Unknown]"
+
+        if telemetry_supported is True:
+            self.logger.log("{0} {1}".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, telemetry_info))
+        else:
+            error_msg = "{0} {1}".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, telemetry_info)
+            self.logger.log_error(error_msg)
 
     def install(self):
         try:
