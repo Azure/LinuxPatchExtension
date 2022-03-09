@@ -79,6 +79,9 @@ class StatusHandler(object):
 
         self.__current_operation = None
 
+        # If an error message is any of these strings, it ignores the length limit (STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS)
+        self.__ignore_error_message_restriction_compliance_strings = [Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG]
+
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
         if (execution_config.maintenance_run_id is not None or execution_config.health_store_id is not None) and execution_config.operation.lower() == Constants.INSTALLATION.lower():
             if self.__installation_reboot_status != Constants.RebootStatus.STARTED:
@@ -681,12 +684,14 @@ class StatusHandler(object):
         else:
             return
 
-    @staticmethod
-    def __ensure_error_message_restriction_compliance(full_message):
+    def __ensure_error_message_restriction_compliance(self, full_message):
         """ Removes line breaks, tabs and restricts message to a character limit """
         message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
         formatted_message = re.sub(r"\s+", " ", str(full_message))
-        return formatted_message[:message_size_limit-3] + '...' if len(formatted_message) > message_size_limit else formatted_message
+        if full_message not in self.__ignore_error_message_restriction_compliance_strings:
+            return formatted_message[:message_size_limit - 3] + '...' if len(formatted_message) > message_size_limit else formatted_message
+        else:
+            return formatted_message
 
     @staticmethod
     def __try_add_error(error_list, detail):

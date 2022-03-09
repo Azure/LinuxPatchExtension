@@ -139,6 +139,7 @@ class TelemetryWriter(object):
         telemetry_supported_key_exists = any(kv_pair for kv_pair in features_keyvalue_list if kv_pair['Key'] == Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY)
         if telemetry_supported_key_exists is False:
             self.composite_logger.log_error('Guest agent does not support telemetry. [Error=Key not found: {0}]'.format(Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY))
+            self.composite_logger.log_warning('Env var value: \n{0}'.format(json.dumps(features_keyvalue_list, indent=4, sort_keys=True)))
             self.agent_env_var_code = 2
 
         return telemetry_supported_key_exists

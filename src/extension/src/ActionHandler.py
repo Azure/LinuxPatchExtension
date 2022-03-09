@@ -132,22 +132,18 @@ class ActionHandler(object):
 
             self.__log_telemetry_info(telemetry_supported=True, events_folder_previously_existed=events_folder_previously_existed)
         else:
+            # This line only logs to file since events_folder_path is not set in telemetry_writer
             self.__log_telemetry_info(telemetry_supported=False)
 
     def __log_telemetry_info(self, telemetry_supported, events_folder_previously_existed=False):
         """ Logs detailed information about telemetry and logs an error if telemetry is not supported. """
         events_folder = self.ext_env_handler.events_folder
         events_folder_str = str(events_folder) if events_folder is not None else ""
-        events_folder_exists = os.path.exists(events_folder) if events_folder is not None else False
-        if events_folder_previously_existed is False:
-            # Events folder was created by us but did not exist previously (was not created by agent)
-            events_folder_exists = False
+        agent_env_var_code = self.telemetry_writer.agent_env_var_code
+        telemetry_info = "[EventsFolder={0}][EventsFolderExistedPreviously={1}][EnvVarCode={2}]".format(
+            events_folder_str, str(events_folder_previously_existed), str(agent_env_var_code))
 
-        env_var_supports_telemetry = self.telemetry_writer.is_agent_compatible()
-        telemetry_info = "[EventsFolder=\'{0}\'][EventsFolderExists={1}][EnvVar={2}]".format(
-            events_folder_str, str(events_folder_exists), env_var_supports_telemetry)
-
-        if env_var_supports_telemetry is True:
+        if agent_env_var_code == 0:
             telemetry_info += "[AgentVer={0}][GoalStateVer={1}]".format(self.telemetry_writer.get_agent_version(), self.telemetry_writer.get_goal_state_agent_version())
         else:
             telemetry_info += "[AgentVer=Unknown][GoalStateVer=Unknown]"
