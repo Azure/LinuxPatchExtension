@@ -32,7 +32,7 @@ class TelemetryWriter(object):
         self.logger = logger
         self.env_layer = env_layer
         self.events_folder_path = None
-        self.agent_env_var_code = 0
+        self.agent_env_var_code = Constants.AgentEnvVarStatusCode.AGENT_ENABLED
         self.__operation_id = ""
         self.__agent_is_compatible = self.__get_agent_supports_telemetry_from_env_var()
 
@@ -72,15 +72,16 @@ class TelemetryWriter(object):
             '[{  "Key": "ExtensionTelemetryPipeline", "Value": "1.0"}]' """
         features_keyvalue_list_str = os.getenv(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR)
         if features_keyvalue_list_str is None:
-            self.agent_env_var_code = 1
+            self.logger.log_debug('Failed to get guest agent supported features from env var. [Var={0}]'.format(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR))
+            self.agent_env_var_code = Constants.AgentEnvVarStatusCode.FAILED_TO_GET_AGENT_SUPPORTED_FEATURES
             return False
 
         features_keyvalue_list = json.loads(features_keyvalue_list_str)
         telemetry_supported_key_exists = any(kv_pair for kv_pair in features_keyvalue_list if kv_pair['Key'] == Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY)
         if telemetry_supported_key_exists is False:
-            self.logger.log_error('Guest agent does not support telemetry. [Error=Key not found: {0}]'.format(Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY))
-            self.logger.log_warning('Env var value: \n{0}'.format(json.dumps(features_keyvalue_list, indent=4, sort_keys=True)))
-            self.agent_env_var_code = 2
+            self.logger.log_debug('Guest agent does not support telemetry. [Error=Key not found: {0}]\nEnv var value: \n{0}'.format(
+                Constants.TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY, json.dumps(features_keyvalue_list, indent=4, sort_keys=True)))
+            self.agent_env_var_code = Constants.AgentEnvVarStatusCode.FAILED_TO_GET_TELEMETRY_KEY
 
         return telemetry_supported_key_exists
 
