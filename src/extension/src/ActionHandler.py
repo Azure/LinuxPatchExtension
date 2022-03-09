@@ -143,7 +143,7 @@ class ActionHandler(object):
         telemetry_info = "[EventsFolder={0}][EventsFolderExistedPreviously={1}][EnvVarCode={2}]".format(
             events_folder_str, str(events_folder_previously_existed), str(agent_env_var_code))
 
-        if agent_env_var_code == 0:
+        if agent_env_var_code == Constants.AgentEnvVarStatusCode.AGENT_ENABLED:
             telemetry_info += "[AgentVer={0}][GoalStateVer={1}]".format(self.telemetry_writer.get_agent_version(), self.telemetry_writer.get_goal_state_agent_version())
         else:
             telemetry_info += "[AgentVer=Unknown][GoalStateVer=Unknown]"
