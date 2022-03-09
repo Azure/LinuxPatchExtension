@@ -271,7 +271,8 @@ class Constants(object):
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
 
+    # These are numbers instead of strings like extension because they are customer facing in the error message diagnostics
     class AgentEnvVarStatusCode(EnumBackport):
-        AGENT_ENABLED = "AGENT_ENABLED"
-        FAILED_TO_GET_AGENT_SUPPORTED_FEATURES = "FAILED_TO_GET_AGENT_SUPPORTED_FEATURES"
-        FAILED_TO_GET_TELEMETRY_KEY = "FAILED_TO_GET_TELEMETRY_KEY"
+        AGENT_ENABLED = 0
+        FAILED_TO_GET_AGENT_SUPPORTED_FEATURES = 1
+        FAILED_TO_GET_TELEMETRY_KEY = 2

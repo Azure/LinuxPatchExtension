@@ -58,9 +58,6 @@ class ExtOutputStatusHandler(object):
 
         self.__current_operation = None
 
-        # If an error message is any of these strings, it ignores the length limit (STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS)
-        self.__ignore_error_message_restriction_compliance_strings = [Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG]
-
         # Load the currently persisted status file into memory
         #ToDo: move it to some other location, since seq no is not available at load
         # self.read_file()
@@ -213,14 +210,12 @@ class ExtOutputStatusHandler(object):
         else:
             return
 
-    def __ensure_error_message_restriction_compliance(self, full_message):
+    @staticmethod
+    def __ensure_error_message_restriction_compliance(full_message):
         """ Removes line breaks, tabs and restricts message to a character limit """
         message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
         formatted_message = re.sub(r"\s+", " ", str(full_message))
-        if full_message not in self.__ignore_error_message_restriction_compliance_strings:
-            return formatted_message[:message_size_limit - 3] + '...' if len(formatted_message) > message_size_limit else formatted_message
-        else:
-            return formatted_message
+        return formatted_message[:message_size_limit - 3] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
     @staticmethod
     def __try_add_error(error_list, detail):

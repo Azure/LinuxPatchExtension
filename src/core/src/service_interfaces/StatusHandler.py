@@ -688,7 +688,8 @@ class StatusHandler(object):
         """ Removes line breaks, tabs and restricts message to a character limit """
         message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
         formatted_message = re.sub(r"\s+", " ", str(full_message))
-        if full_message not in self.__ignore_error_message_restriction_compliance_strings:
+        ignore_message_restriction = any(ignore_string in formatted_message for ignore_string in self.__ignore_error_message_restriction_compliance_strings)
+        if ignore_message_restriction is False:
             return formatted_message[:message_size_limit - 3] + '...' if len(formatted_message) > message_size_limit else formatted_message
         else:
             return formatted_message

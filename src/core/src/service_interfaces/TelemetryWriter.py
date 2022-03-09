@@ -196,19 +196,19 @@ class TelemetryWriter(object):
 
     def get_telemetry_diagnostics(self):
         """ Returns information about the guest agent telemetry for debugging purposes.
-            Information message abbreviations:
-                AV: Agent Version (Guest Agent)
-                AGSV: Agent Goal State Version (Guest Agent)
-                EFE: Events Folder Exists (on disk)
-                EV: Env Var exists
-                EVC: Env Var Code (more detailed information on what went wrong when getting the env var)
+            Information message indices:
+                0: Agent Version (Guest Agent)
+                1: Agent Goal State Version (Guest Agent)
+                2: Events Folder Exists (on disk)
+                3: Env Var exists
+                4: Env Var Code (more detailed information on what went wrong when getting the env var)
                     See __get_agent_supports_telemetry_from_env_var for more information
         """
         agent_version = self.get_agent_version()
         agent_goalstate_version = self.get_goal_state_agent_version()
         events_folder_exists = self.__get_events_folder_path_exists(self.events_folder_path)
         telemetry_env_var_supported = self.__get_agent_supports_telemetry_from_env_var()
-        return "AV:{0}, AGSV:{1}, EFE:{2}, EV:{3}, EVC:{4}".format(
+        return "Diagnostic-code: {0}/{1}/{2}/{3}/{4}".format(
                 str(agent_version) if agent_version is not None else "-1",
                 str(agent_goalstate_version) if agent_goalstate_version is not None else "-1",
                 "1" if events_folder_exists is True else "0",
