@@ -348,7 +348,7 @@ class EnvLayer(object):
                 try:
                     return open(real_path, mode)
                 except Exception as error:
-                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
+                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
                         time.sleep(i + 1)
                     else:
                         error_message = "Unable to open file (retries exhausted). [File={0}][Error={1}][RaiseIfNotFound={2}].".format(str(real_path), repr(error), str(raise_if_not_found))
@@ -382,7 +382,7 @@ class EnvLayer(object):
                         self.__write_record(operation, code=0, output=value, delay=0)
                         return value
                     except Exception as error:
-                        if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
+                        if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
                             time.sleep(i + 1)
                         else:
                             error_message = "Unable to read file (retries exhausted). [File={0}][Error={1}][RaiseIfNotFound={2}].".format(str(file_path_or_handle), repr(error), str(raise_if_not_found))
@@ -404,7 +404,7 @@ class EnvLayer(object):
                     file_handle.write(str(data))
                     break
                 except Exception as error:
-                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
+                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
                         time.sleep(i + 1)
                     else:
                         raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_handle.name), repr(error)))
@@ -423,7 +423,7 @@ class EnvLayer(object):
                     shutil.move(tempname, file_path)
                     break
                 except Exception as error:
-                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT:
+                    if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
                         time.sleep(i + 1)
                     else:
                         raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_path), repr(error)))
