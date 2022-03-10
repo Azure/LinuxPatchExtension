@@ -88,5 +88,5 @@ class PatchAssessor(object):
             self.composite_logger.log_error(error_msg)
             raise Exception(error_msg)
 
-        self.composite_logger.log(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG)
+        self.composite_logger.log("{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, self.telemetry_writer.get_telemetry_diagnostics()))
 

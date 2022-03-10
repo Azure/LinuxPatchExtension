@@ -269,7 +269,38 @@ class TestActionHandler(unittest.TestCase):
 
         file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
         self.assertTrue(file_read is not None)
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG in file_read.read())
+        file_contents = file_read.read()
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG in file_contents)
+        self.assertTrue(Constants.AgentEnvVarStatusCode.FAILED_TO_GET_AGENT_SUPPORTED_FEATURES in file_contents)
+        file_read.close()
+
+        with self.assertRaises(SystemExit) as sys_exit:
+            self.action_handler.enable()
+
+        os.getenv = backup_os_getenv
+        self.runtime.telemetry_writer = backup_telemetry_writer
+        self.action_handler.telemetry_writer = backup_telemetry_writer
+
+    def test_telemetry_available_env_var_key_not_exists(self):
+        # agent env var is not set so telemetry is not supported
+        backup_os_getenv = os.getenv
+        backup_telemetry_writer = self.runtime.telemetry_writer
+
+        def mock_os_getenv(name, value=None):
+            return '[]'
+
+        # Re-init TelemetryWriter since the env var for compatibility is only checked on init
+        os.getenv = mock_os_getenv
+        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer)
+        self.action_handler.telemetry_writer = self.runtime.telemetry_writer
+
+        self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
+
+        file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
+        self.assertTrue(file_read is not None)
+        file_contents = file_read.read()
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG in file_contents)
+        self.assertTrue(Constants.AgentEnvVarStatusCode.FAILED_TO_GET_TELEMETRY_KEY in file_contents)
         file_read.close()
 
         with self.assertRaises(SystemExit) as sys_exit:

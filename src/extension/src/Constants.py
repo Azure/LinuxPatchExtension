@@ -214,3 +214,8 @@ class Constants(object):
         InvalidConfigSettingPropertyValue = 3564
         CreateLoggerFailure = 3565
         CreateStatusWriterFailure = 3566
+
+    class AgentEnvVarStatusCode(EnumBackport):
+        AGENT_ENABLED = "AGENT_ENABLED"
+        FAILED_TO_GET_AGENT_SUPPORTED_FEATURES = "FAILED_TO_GET_AGENT_SUPPORTED_FEATURES"
+        FAILED_TO_GET_TELEMETRY_KEY = "FAILED_TO_GET_TELEMETRY_KEY"
