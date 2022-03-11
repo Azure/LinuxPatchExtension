@@ -1,5 +1,5 @@
 
-# Azure Linux VM Patch Extension 
+# Azure Linux VM Patch Extension
 
 [![codecov](https://codecov.io/gh/Azure/LinuxPatchExtension/branch/master/graph/badge.svg?token=MfTo6TyOVZ)](https://codecov.io/gh/Azure/LinuxPatchExtension)
 
