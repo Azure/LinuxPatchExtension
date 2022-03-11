@@ -1,2 +1,14 @@
 github_checks:
     annotations: false
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  status:
+    project:
+      default: # This can be anything, but it needs to exist as the name
+        # basic settings
+        target: 80%
+        threshold: 0%
+    patch:
+    changes:
