@@ -2,7 +2,7 @@ name: Workflow for Codecov
 on: [push, pull_request]
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -14,7 +14,7 @@ jobs:
         run: pip install coverage
       - name: Run tests and collect coverage
         run: |
-          coverage run -m unittest discover -s LinuxPatchExtension/src
+          coverage run -m unittest discover -s src
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
