@@ -1,0 +1,20 @@
+name: Workflow for Codecov
+on: [pull_request]
+jobs:
+  run:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: pip install coverage
+      - name: Run tests and collect coverage
+        run: |
+          coverage run -m unittest discover -s src
+          coverage xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2

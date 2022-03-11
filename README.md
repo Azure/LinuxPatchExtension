@@ -1,6 +1,8 @@
 
 # Azure Linux VM Patch Extension
 
+[![codecov](https://codecov.io/gh/Azure/LinuxPatchExtension/branch/master/graph/badge.svg?token=MfTo6TyOVZ)](https://codecov.io/gh/Azure/LinuxPatchExtension)
+
 Azure Linux VM Patch Extension allows users to securely update their Linux IaaS 
 VMs with latest patches. It provides a two-fold solution of assessment and patching 
 wherein, assessment identifies the patches available on the VM and patching enables 
