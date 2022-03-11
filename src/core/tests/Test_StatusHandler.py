@@ -248,6 +248,24 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.OPERATION_FAILED)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][1]["code"], Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
 
+    def test_add_error_fail(self):
+        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+
+        import tempfile
+        tempfile_backup = tempfile.NamedTemporaryFile
+        tempfile.NamedTemporaryFile = None
+
+        # Error within retries for writing temporary file
+        error_raised = False
+        try:
+            self.runtime.status_handler.add_error_to_status("test")
+        except Exception as error:
+            error_raised = True
+            self.assertTrue("retries exhausted" in str(error))
+
+        self.assertTrue(error_raised)
+        tempfile.NamedTemporaryFile = tempfile_backup
+
     def test_status_file_initial_load(self):
         # for non autopatching request, with Reboot started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
@@ -273,6 +291,19 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["shouldReportToHealthStore"], False)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
         self.assertEqual(substatus_file_data["status"].lower(), Constants.STATUS_SUCCESS.lower())
+
+        # fail to load status file
+        self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+        backup_file_system_open = self.runtime.env_layer.file_system.open
+        self.runtime.env_layer.file_system.open = None
+        status_handler_failed = False
+        try:
+            status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
+        except Exception as error:
+            status_handler_failed = True
+
+        self.assertTrue(status_handler_failed)
+        self.runtime.env_layer.file_system.open = backup_file_system_open
 
     def test_set_patch_metadata_for_healthstore_substatus_json(self):
         # setting healthstore properties

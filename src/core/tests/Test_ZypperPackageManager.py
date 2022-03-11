@@ -16,6 +16,8 @@
 import json
 import os
 import unittest
+import tempfile
+import shutil
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -283,6 +285,20 @@ class TestZypperPackageManager(unittest.TestCase):
     def test_env_var_set_get(self):
         zypp_lock_timeout_var_name = "ZYPP_LOCK_TIMEOUT"
 
+        self.temp_dir = tempfile.mkdtemp()
+        self.temp_env_file = self.temp_dir + "/" + "mockEnv"
+        open(self.temp_env_file, 'w+').close() # create temp file
+        self.runtime.env_layer.etc_environment_file_path = self.temp_env_file
+        write_with_retry_backup = self.runtime.env_layer.file_system.write_with_retry
+
+        def write_with_retry_fail(file_path_or_handle, data, mode='a+'):
+            self.runtime.env_layer.file_system.open = lambda file_path, mode, raise_if_not_found: None
+            write_with_retry_backup(file_path_or_handle, data, mode='a+')
+
+        self.runtime.env_layer.file_system.write_with_retry = write_with_retry_fail
+        self.assertRaises(Exception, self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, "5"))
+        self.runtime.env_layer.file_system.write_with_retry = write_with_retry_backup
+
         # normal case without preexisting var
         self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_not_has_zypper_lock_var
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
@@ -338,6 +354,8 @@ class TestZypperPackageManager(unittest.TestCase):
         self.runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_has_zypper_lock_var_10_wrong_format
         self.assertEqual(self.runtime.env_layer.get_env_var(zypp_lock_timeout_var_name), "=10")
         self.runtime.env_layer.set_env_var(zypp_lock_timeout_var_name, 5)
+
+        shutil.rmtree(self.temp_dir)
 
     def test_disable_auto_os_updates_with_uninstalled_services(self):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
