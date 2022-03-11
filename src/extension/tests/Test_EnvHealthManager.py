@@ -202,6 +202,26 @@ class TestEnvManager(unittest.TestCase):
         # wrap up
         self.__wrap_up_ensure_tty_not_required_test(backup_etc_sudoers_file_path, backup_etc_sudoers_linux_patch_extension_file_path)
 
+    def test_read_with_retry_fail(self):
+        open = None
+        has_error = False
+        try:
+            self.env_layer.file_system.read_with_retry(self.env_layer.etc_sudoers_linux_patch_extension_file_path)
+        except Exception as error:
+            has_error = True
+
+        self.assertTrue(has_error)
+
+    def test_write_with_retry_fail(self):
+        self.env_layer.file_system.open = lambda file_path, mode: None
+        has_error = False
+        try:
+            self.env_layer.file_system.write_with_retry(self.env_layer.etc_sudoers_linux_patch_extension_file_path, "test")
+        except Exception as error:
+            has_error = True
+            
+        self.assertTrue(has_error)
+
     def __ensure_tty_not_required_test_setup(self):
         mock_sudoers_file_path = os.path.join(self.temp_dir, "etc-sudoers")
         backup_etc_sudoers_file_path = self.env_layer.etc_sudoers_file_path
