@@ -13,4 +13,3 @@ coverage:
         if_ci_failed: error
         if_not_found: failure
     patch: true
-    changes: true
