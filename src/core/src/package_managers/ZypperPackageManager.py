@@ -58,6 +58,7 @@ class ZypperPackageManager(PackageManager):
         self.zypper_exitcode_zypp_lib_exit_err = 4
         self.zypper_exitcode_no_repos = 6
         self.zypper_exitcode_zypp_locked = 7
+        self.zypper_exitcode_zypp_exit_err_commit = 8
         self.zypper_exitcode_reboot_required = 102
         self.zypper_exitcode_zypper_updated = 103
         self.zypper_exitcode_repos_skipped = 106
@@ -128,6 +129,15 @@ class ZypperPackageManager(PackageManager):
                     self.__refresh_repo_services()
                     continue
 
+                if code == self.zypper_exitcode_zypp_exit_err_commit:
+                    # Run command again with --replacefiles to fix file conflicts
+                    self.composite_logger.log_warning("Warning: package conflict detected on command: {0}".format(str(command)))
+                    modified_command = self.modify_upgrade_or_patch_cmd_to_replacefiles(command)
+                    if modified_command is not None:
+                        command = modified_command
+                        self.composite_logger.log_debug("Retrying with modified command to replace files: {0}".format(str(command)))
+                        continue
+
                 self.log_errors_on_invoke(command, out, code)
                 error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
@@ -155,6 +165,17 @@ class ZypperPackageManager(PackageManager):
                 self.composite_logger.log_warning("Machine requires reboot after patch installation. Setting force_reboot flag to True.")
                 self.force_reboot = True
             return out
+
+    def modify_upgrade_or_patch_cmd_to_replacefiles(self, cmd):
+        """ Modifies a command to invoke_package_manager for update or patch to include a --replacefiles flag. 
+            If it is a dry run or already has the flag, it returns None. Otherwise, returns the new command. """
+        if "--dry-run" in cmd or "--replacefiles" in cmd:
+            return None
+
+        if self.single_package_upgrade_cmd in cmd:
+            return cmd.replace(self.single_package_upgrade_cmd, self.single_package_upgrade_cmd + '--replacefiles ')
+        elif self.zypper_install_security_patches in cmd:
+            return cmd.replace(self.zypper_install_security_patches, self.zypper_install_security_patches + ' --replacefiles')
 
     def log_errors_on_invoke(self, command, out, code):
         """Logs verbose error messages if there is an error on invoke_package_manager"""
