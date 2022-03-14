@@ -212,7 +212,7 @@ class StatusHandler(object):
 
     def set_installation_reboot_status(self, new_reboot_status):
         """ Valid reboot statuses: NotNeeded, Required, Started, Failed, Completed """
-        if new_reboot_status not in [Constants.RebootStatus.NOT_NEEDED, Constants.RebootStatus.REQUIRED, Constants.RebootStatus.STARTED, Constants.RebootStatus.FAILED, Constants.RebootStatus.COMPLETED]:
+        if new_reboot_status not in [Constants.RebootStatus.NOT_NEEDED, Constants.RebootStatus.REQUIRED, Constants.RebootStatus.STARTED, Constants.RebootStatus.FAILED, Constants.RebootStatus.COMPLETED, Constants.RebootStatus.COMPLETED_WITH_WARNINGS]:
             raise "Invalid reboot status specified. [Status={0}]".format(str(new_reboot_status))
 
         # State transition validation
@@ -220,6 +220,7 @@ class StatusHandler(object):
                 or (new_reboot_status == Constants.RebootStatus.REQUIRED and self.__installation_reboot_status not in [Constants.RebootStatus.NOT_NEEDED, Constants.RebootStatus.REQUIRED, Constants.RebootStatus.COMPLETED])\
                 or (new_reboot_status == Constants.RebootStatus.STARTED and self.__installation_reboot_status not in [Constants.RebootStatus.NOT_NEEDED, Constants.RebootStatus.REQUIRED, Constants.RebootStatus.STARTED])\
                 or (new_reboot_status == Constants.RebootStatus.FAILED and self.__installation_reboot_status not in [Constants.RebootStatus.STARTED, Constants.RebootStatus.FAILED])\
+                or (new_reboot_status == Constants.RebootStatus.COMPLETED_WITH_WARNINGS and self.__installation_reboot_status not in [Constants.RebootStatus.REQUIRED])\
                 or (new_reboot_status == Constants.RebootStatus.COMPLETED and self.__installation_reboot_status not in [Constants.RebootStatus.STARTED, Constants.RebootStatus.COMPLETED]):
             self.composite_logger.log_error("Invalid reboot status transition attempted. [CurrentRebootStatus={0}] [NewRebootStatus={1}]".format(self.__installation_reboot_status, str(new_reboot_status)))
             return

@@ -100,6 +100,7 @@ class RebootManager(object):
         if self.reboot_setting == Constants.REBOOT_NEVER:
             if reboot_pending:
                 self.composite_logger.log_warning(' - There is a reboot pending, but reboot is blocked, as per patch installation configuration. (' + str(Constants.REBOOT_NEVER) + ')')
+                self.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED_WITH_WARNINGS)
             else:
                 self.composite_logger.log_warning(' - There is no reboot pending, and reboot is blocked regardless, as per patch installation configuration (' + str(Constants.REBOOT_NEVER) + ').')
             return False

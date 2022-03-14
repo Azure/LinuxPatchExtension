@@ -197,6 +197,7 @@ class Constants(object):
         REQUIRED = "Required"
         STARTED = "Started"
         COMPLETED = "Completed"
+        COMPLETED_WITH_WARNINGS = "CompletedWithWarnings"
         FAILED = "Failed"
     
     # Enum for VM Cloud Type
