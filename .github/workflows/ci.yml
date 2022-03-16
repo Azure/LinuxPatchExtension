@@ -22,6 +22,9 @@ jobs:
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
+        with:
+          flags: python39
+          name: python-39
   codecov-python-27:
     runs-on: windows-latest
     steps:
@@ -39,3 +42,6 @@ jobs:
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
+        with:
+          flags: python27
+          name: python-27
