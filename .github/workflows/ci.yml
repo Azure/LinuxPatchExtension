@@ -25,6 +25,7 @@ jobs:
         with:
           flags: python39
           name: python-39
+          fail_ci_if_error: true
   codecov-python-27:
     runs-on: windows-latest
     steps:
@@ -45,3 +46,4 @@ jobs:
         with:
           flags: python27
           name: python-27
+          fail_ci_if_error: true
