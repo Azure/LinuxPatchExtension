@@ -107,6 +107,7 @@ find_python PYTHON
 
 
 if [ -z "$PYTHON" ]; then
+   # Error codes: https://github.com/Azure/azure-marketplace/wiki/Extension-Build-Notes-Best-Practices#error-codes-and-messages-output-to-stderr
    echo "Python is required, but no Python interpreter was found on the box" >&2
    exit 52
 else
