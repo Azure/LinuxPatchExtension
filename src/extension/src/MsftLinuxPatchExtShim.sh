@@ -36,14 +36,12 @@ function find_python(){
     local python_exec_command=$1
 
     # Check if there is python defined.
-    if command -v python >/dev/null 2>&1 ; then
-        eval ${python_exec_command}="python"
-    else
-        # Python was not found. Searching for Python3 now.
-        if command -v python3 >/dev/null 2>&1 ; then
-            eval ${python_exec_command}="python3"
+    for p in python python2 python3 /usr/libexec/platform-python; do
+        if command -v "${p}" ; then
+            eval ${python_exec_command}="${p}"
+            return
         fi
-    fi
+    done
 }
 
 # Transform long options to short ones for getopts support (getopts doesn't support long args)
@@ -109,8 +107,8 @@ find_python PYTHON
 
 
 if [ -z "$PYTHON" ]; then
-   echo "No Python interpreter found on the box" >&2
-   exit 51 # Not Supported
+   echo "Python is required, but no Python interpreter was found on the box" >&2
+   exit 52
 else
    echo "${PYTHON} --version"
 fi
