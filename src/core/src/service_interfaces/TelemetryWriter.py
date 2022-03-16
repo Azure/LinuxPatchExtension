@@ -132,7 +132,7 @@ class TelemetryWriter(object):
         features_keyvalue_list_str = os.getenv(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR)
         if features_keyvalue_list_str is None:
             self.composite_logger.log_debug('Failed to get guest agent supported features from env var. [Var={0}]'.format(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR))
-            self.composite_logger.log_debug('All environment variables: \n{0}'.format(os.environ()))
+            self.composite_logger.log_debug('All environment variables: \n{0}'.format(os.environ))
             self.agent_env_var_code = Constants.AgentEnvVarStatusCode.FAILED_TO_GET_AGENT_SUPPORTED_FEATURES
             return False
 
