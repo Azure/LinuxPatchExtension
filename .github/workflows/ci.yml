@@ -6,7 +6,7 @@ on:
     branches: [master]
 jobs:
   codecov-python-39:
-    runs-on: windows-2019
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -27,7 +27,7 @@ jobs:
           name: python-39
           fail_ci_if_error: true
   codecov-python-27:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
