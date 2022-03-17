@@ -561,6 +561,50 @@ class TestZypperPackageManager(unittest.TestCase):
 
         package_manager.env_layer.run_command_output = backup_mocked_method
 
+    def test_package_manager_exit_err_commit(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+
+        # Test command modifications with --replacefiles
+        cmd_to_run = 'sudo zypper --non-interactive update samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1'
+        replacefiles_cmd_to_run = 'sudo zypper --non-interactive update --replacefiles samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1'
+        self.assertEqual(replacefiles_cmd_to_run, package_manager.modify_upgrade_or_patch_command_to_replacefiles(cmd_to_run))
+        cmd_to_run += " --dry-run"
+        self.assertEqual(None, package_manager.modify_upgrade_or_patch_command_to_replacefiles(cmd_to_run))
+        self.assertEqual(None, package_manager.modify_upgrade_or_patch_command_to_replacefiles(replacefiles_cmd_to_run))
+        cmd_to_run = 'sudo zypper --non-interactive patch --category security'
+        replacefiles_cmd_to_run = 'sudo zypper --non-interactive patch --category security --replacefiles'
+        self.assertEqual(replacefiles_cmd_to_run, package_manager.modify_upgrade_or_patch_command_to_replacefiles(cmd_to_run))
+
+        # Wrap count in a mutable container to modify in mocked method to keep track of calls
+        counter = [0]
+        replacefiles_counter = [0]
+        backup_mocked_method = package_manager.env_layer.run_command_output
+
+        def mock_run_command_output(cmd, no_output=False, chk_err=False):
+            # Only check for refresh services cmd
+            if cmd == 'sudo zypper --non-interactive update --replacefiles samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1':
+                # After refreshing, allow it to succeed
+                replacefiles_counter[0] += 1
+                self.runtime.set_legacy_test_type('HappyPath')
+            elif cmd == 'sudo zypper --non-interactive update samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1':
+                counter[0] += 1
+            return backup_mocked_method(cmd, no_output, chk_err)
+
+        package_manager.env_layer.run_command_output = mock_run_command_output
+
+        # AnotherSadPath uses return code 8
+        self.runtime.set_legacy_test_type('AnotherSadPath')
+
+        cmd_to_run = 'sudo zypper --non-interactive update samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1'
+        package_manager.invoke_package_manager(cmd_to_run)
+        self.assertEqual(counter[0], 1)
+        self.assertEqual(replacefiles_counter[0], 1)
+        self.assertFalse(self.is_string_in_status_file('Unexpected return code (8) from package manager on command'))
+
+        package_manager.env_layer.run_command_output = backup_mocked_method
+
+
 if __name__ == '__main__':
     unittest.main()
 
