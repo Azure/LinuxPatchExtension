@@ -578,12 +578,14 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Wrap count in a mutable container to modify in mocked method to keep track of calls
         counter = [0]
+        replacefiles_counter = [0]
         backup_mocked_method = package_manager.env_layer.run_command_output
 
         def mock_run_command_output(cmd, no_output=False, chk_err=False):
             # Only check for refresh services cmd
             if cmd == 'sudo zypper --non-interactive update --replacefiles samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1':
                 # After refreshing, allow it to succeed
+                replacefiles_counter[0] += 1
                 self.runtime.set_legacy_test_type('HappyPath')
             elif cmd == 'sudo zypper --non-interactive update samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1':
                 counter[0] += 1
@@ -597,6 +599,7 @@ class TestZypperPackageManager(unittest.TestCase):
         cmd_to_run = 'sudo zypper --non-interactive update samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1'
         package_manager.invoke_package_manager(cmd_to_run)
         self.assertEqual(counter[0], 1)
+        self.assertEqual(replacefiles_counter[0], 1)
         self.assertFalse(self.is_string_in_status_file('Unexpected return code (8) from package manager on command'))
 
         package_manager.env_layer.run_command_output = backup_mocked_method

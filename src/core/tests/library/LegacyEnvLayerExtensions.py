@@ -603,7 +603,7 @@ class LegacyEnvLayerExtensions():
                     if cmd.find('sudo zypper refresh') > -1:
                         code = 6
                         output = 'Warning: There are no enabled repositories defined. | Use \'zypper addrepo\' or \'zypper modifyrepo\' commands to add or enable repositories.'
-                    elif cmd.find('sudo zypper --non-interactive update') > -1:
+                    elif cmd.find('sudo zypper --non-interactive update samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1') > -1:
                         code = 8
                         output = ''
             elif self.legacy_test_type == 'ExceptionPath':
