@@ -240,6 +240,30 @@ class LegacyEnvLayerExtensions():
                         output = "Retrieving repository 'SLE-Module-Basesystem15-SP3-Pool' metadata ................................................................[done]\n" + \
                                  "Building repository 'SLE-Module-Basesystem15-SP3-Pool' cache .....................................................................[done]\n" + \
                                  "All repositories have been refreshed."
+                    elif cmd.find('sudo zypper --non-interactive update --replacefiles'):
+                        code = 0
+                        output = "Refreshing service 'Advanced_Systems_Management_Module_x86_64'.\n" + \
+                                 "Loading repository data...\n" + \
+                                 "Reading installed packages...\n" + \
+                                 "Resolving package dependencies...\n" + \
+                                 "The following 5 items are locked and will not be changed by any action:\n" + \
+                                 " Installed:\n" + \
+                                 "  auoms azsec-clamav azsec-monitor azure-security qualys-command-line-agent\n" + \
+                                 "The following 3 packages are going to be upgraded:\n" + \
+                                 "  samba-client-libs samba-libs samba-libs-python3\n" + \
+                                 "3 packages to upgrade.\n" + \
+                                 "Overall download size: 6.0 MiB. Already cached: 0 B. No additional space will be used or freed after the operation.\n" + \
+                                 "Continue? [y/n/...? shows all options] (y): y\n" + \
+                                 "Retrieving package samba-client-libs-4.15.4+git.331.61fc89677dd-3.60.1.x86_64                (1/3),   5.2 MiB ( 21.0 MiB unpacked)\n" + \
+                                 "Retrieving: samba-client-libs-4.15.4+git.331.61fc89677dd-3.60.1.x86_64.rpm .................................................[done]\n" + \
+                                 "Retrieving package samba-libs-python3-4.15.4+git.331.61fc89677dd-3.60.1.x86_64               (2/3), 367.5 KiB (290.3 KiB unpacked)\n" + \
+                                 "Retrieving: samba-libs-python3-4.15.4+git.331.61fc89677dd-3.60.1.x86_64.rpm ................................................[done]\n" + \
+                                 "Retrieving package samba-libs-4.15.4+git.331.61fc89677dd-3.60.1.x86_64                       (3/3), 441.7 KiB (544.9 KiB unpacked)\n" + \
+                                 "Retrieving: samba-libs-4.15.4+git.331.61fc89677dd-3.60.1.x86_64.rpm ........................................................[done]\n" + \
+                                 "Checking for file conflicts: ...............................................................................................[done]\n" + \
+                                 "(1/3) Installing: samba-client-libs-4.15.4+git.331.61fc89677dd-3.60.1.x86_64 ...............................................[done]\n" + \
+                                 "(2/3) Installing: samba-libs-python3-4.15.4+git.331.61fc89677dd-3.60.1.x86_64 ..............................................[done]\n" + \
+                                 "(3/3) Installing: samba-libs-4.15.4+git.331.61fc89677dd-3.60.1.x86_64 ......................................................[done]"
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("--security check-update") > -1:
                         code = 100
@@ -579,6 +603,9 @@ class LegacyEnvLayerExtensions():
                     if cmd.find('sudo zypper refresh') > -1:
                         code = 6
                         output = 'Warning: There are no enabled repositories defined. | Use \'zypper addrepo\' or \'zypper modifyrepo\' commands to add or enable repositories.'
+                    elif cmd.find('sudo zypper --non-interactive update samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1') > -1:
+                        code = 8
+                        output = ''
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
