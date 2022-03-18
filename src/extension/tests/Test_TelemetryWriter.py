@@ -44,7 +44,7 @@ class TestTelemetryWriter(unittest.TestCase):
         with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertEquals(events[0]["TaskName"], "Test Task")
+            self.assertEqual(events[0]["TaskName"], "Test Task")
             f.close()
 
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
@@ -52,14 +52,14 @@ class TestTelemetryWriter(unittest.TestCase):
             with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[1]), 'r+') as f:
                 events = json.load(f)
                 self.assertTrue(events is not None)
-                self.assertEquals(events[0]["TaskName"], "Test Task2")
+                self.assertEqual(events[0]["TaskName"], "Test Task2")
                 f.close()
         else:
             with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
                 events = json.load(f)
                 self.assertTrue(events is not None)
-                self.assertEquals(len(events), 2)
-                self.assertEquals(events[1]["TaskName"], "Test Task2")
+                self.assertEqual(len(events), 2)
+                self.assertEqual(events[1]["TaskName"], "Test Task2")
                 f.close()
 
     def test_write_multiple_events_in_same_file(self):
@@ -70,9 +70,9 @@ class TestTelemetryWriter(unittest.TestCase):
         with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertEquals(len(events), 2)
-            self.assertEquals(events[0]["TaskName"], "Test Task")
-            self.assertEquals(events[1]["TaskName"], "Test Task2")
+            self.assertEqual(len(events), 2)
+            self.assertEqual(events[0]["TaskName"], "Test Task")
+            self.assertEqual(events[1]["TaskName"], "Test Task2")
             f.close()
         time.time = time_backup
 
@@ -83,10 +83,10 @@ class TestTelemetryWriter(unittest.TestCase):
         with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertEquals(events[0]["TaskName"], "Test Task")
+            self.assertEqual(events[0]["TaskName"], "Test Task")
             self.assertTrue(len(events[0]["Message"]) < len(message.encode('utf-8')))
             chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS
-            self.assertEquals(events[0]["Message"], "a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped))
+            self.assertEqual(events[0]["Message"], "a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped))
             f.close()
 
     def test_write_event_size_limit(self):
@@ -106,7 +106,7 @@ class TestTelemetryWriter(unittest.TestCase):
     #
     #     self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task2")
     #     events = os.listdir(self.telemetry_writer.events_folder_path)
-    #     self.assertEquals(len(events), 2)
+    #     self.assertEqual(len(events), 2)
     #     os.path.exists = os_path_exists_backup
     #     self.telemetry_writer.get_file_size = telemetry_get_event_file_size_backup
 
@@ -124,7 +124,7 @@ class TestTelemetryWriter(unittest.TestCase):
 
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4")
         new_events = os.listdir(self.telemetry_writer.events_folder_path)
-        self.assertEquals(len(new_events), 1)
+        self.assertEqual(len(new_events), 1)
         self.assertTrue(old_events[0] not in new_events)
         Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = telemetry_dir_size_backup
         Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = telemetry_event_size_backup

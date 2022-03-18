@@ -130,15 +130,15 @@ class TestProcessHandler(unittest.TestCase):
 
         # testing for 'python' command
         EnvLayer.run_command_output = self.mock_run_command_output_for_python
-        self.assertEquals(process_handler.get_python_cmd(), "python")
+        self.assertEqual(process_handler.get_python_cmd(), "python")
 
         # testing for 'python3' command
         EnvLayer.run_command_output = self.mock_run_command_output_for_python3
-        self.assertEquals(process_handler.get_python_cmd(), "python3")
+        self.assertEqual(process_handler.get_python_cmd(), "python3")
 
         # testing when python is not found on machine
         EnvLayer.run_command_output = self.mock_run_command_output_for_python_not_found
-        self.assertEquals(process_handler.get_python_cmd(), Constants.PYTHON_NOT_FOUND)
+        self.assertEqual(process_handler.get_python_cmd(), Constants.PYTHON_NOT_FOUND)
 
         # resetting mocks
         EnvLayer.run_command_output = run_command_output_backup

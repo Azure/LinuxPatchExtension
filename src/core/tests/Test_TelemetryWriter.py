@@ -53,7 +53,7 @@ class TestTelemetryWriter(unittest.TestCase):
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertEquals(events[-1]["TaskName"], "Test Task")
+            self.assertEqual(events[-1]["TaskName"], "Test Task")
             text_found = re.search('TC=([0-9]+)', events[-1]['Message'])
             telemetry_event_counter_in_first_test_event = text_found.group(1) if text_found else None
             f.close()
@@ -64,7 +64,7 @@ class TestTelemetryWriter(unittest.TestCase):
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertEquals(events[-1]["TaskName"], "Test Task2")
+            self.assertEqual(events[-1]["TaskName"], "Test Task2")
             text_found = re.search('TC=([0-9]+)', events[-1]['Message'])
             telemetry_event_counter_in_second_test_event = text_found.group(1) if text_found else None
             f.close()
@@ -82,8 +82,8 @@ class TestTelemetryWriter(unittest.TestCase):
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertEquals(events[-2]["TaskName"], "Test Task")
-            self.assertEquals(events[-1]["TaskName"], "Test Task2")
+            self.assertEqual(events[-2]["TaskName"], "Test Task")
+            self.assertEqual(events[-1]["TaskName"], "Test Task2")
             f.close()
         time.time = time_backup
 
@@ -95,7 +95,7 @@ class TestTelemetryWriter(unittest.TestCase):
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertEquals(events[-1]["TaskName"], "Test Task")
+            self.assertEqual(events[-1]["TaskName"], "Test Task")
             self.assertTrue(len(events[-1]["Message"]) < len(message.encode('utf-8')))
             chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
             self.assertTrue("a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])
@@ -110,7 +110,7 @@ class TestTelemetryWriter(unittest.TestCase):
     #     task_name = "b" * 5000
     #     self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, task_name)
     #     new_events = os.listdir(self.runtime.telemetry_writer.events_folder_path)
-    #     self.assertEquals(old_events, new_events)
+    #     self.assertEqual(old_events, new_events)
     #     latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
     #     with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
     #         events = json.load(f)
@@ -150,7 +150,7 @@ class TestTelemetryWriter(unittest.TestCase):
     #
     #     self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4")
     #     new_event_files = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)]
-    #     self.assertEquals(len(new_event_files), 1)
+    #     self.assertEqual(len(new_event_files), 1)
     #     self.assertTrue(old_event_files[0] not in new_event_files and old_event_files[1] not in new_event_files and old_event_files[2] not in new_event_files)
     #     Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = telemetry_dir_size_backup
     #     Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = telemetry_event_size_backup

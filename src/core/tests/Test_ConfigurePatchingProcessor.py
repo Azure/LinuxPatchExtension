@@ -66,7 +66,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         # check status file for configure patching patch state
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
-        self.assertEquals(len(substatus_file_data), 1)
+        self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
@@ -110,7 +110,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -141,7 +141,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 1)
+        self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         if runtime.vm_cloud_type == Constants.VMCloudType.AZURE:
             self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
@@ -167,7 +167,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 1)
+        self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         runtime.stop()
@@ -201,7 +201,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
 
         # check status file for configure patching patch state
-        self.assertEquals(len(substatus_file_data), 1)
+        self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
@@ -244,7 +244,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         # check status file for configure patching patch state
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
-        self.assertEquals(len(substatus_file_data), 1)
+        self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])

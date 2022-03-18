@@ -180,7 +180,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for successfully installing a package
-        self.assertEquals(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
 
     def test_install_package_failure(self):
         """Unit test for install package failure"""
@@ -192,7 +192,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEquals(package_manager.install_update_and_dependencies('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
 
     def test_install_package_obsoleted(self):
         """Unit test for install package failure"""
@@ -204,7 +204,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEquals(package_manager.install_update_and_dependencies('rdma.noarch', '7.3_4.7_rc2-6.el7_3', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies('rdma.noarch', '7.3_4.7_rc2-6.el7_3', simulate=True), Constants.INSTALLED)
 
     def test_install_package_replaced(self):
         """Unit test for install package failure"""
@@ -216,7 +216,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEquals(package_manager.install_update_and_dependencies('python-rhsm.x86_64', '1.19.10-1.el7_4', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies('python-rhsm.x86_64', '1.19.10-1.el7_4', simulate=True), Constants.INSTALLED)
 
     def test_get_product_name(self):
         """Unit test for retrieving product Name"""
@@ -474,24 +474,24 @@ class TestYumPackageManager(unittest.TestCase):
 
         # validating backup for yum-cron
         self.assertTrue(Constants.YumAutoOSUpdateServices.YUM_CRON in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_download_updates_identifier_text], "")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_apply_updates_identifier_text], "")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_enable_on_reboot_identifier_text], False)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_installation_state_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_download_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_apply_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_enable_on_reboot_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_installation_state_identifier_text], False)
 
         # validating backup for dnf-automatic
         self.assertTrue(Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_download_updates_identifier_text], "")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_apply_updates_identifier_text], "")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_enable_on_reboot_identifier_text], False)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_installation_state_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_download_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_apply_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_enable_on_reboot_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_installation_state_identifier_text], False)
 
         # validating backup for packagekit
         self.assertTrue(Constants.YumAutoOSUpdateServices.PACKAGEKIT in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_download_updates_identifier_text], "")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_apply_updates_identifier_text], "")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_enable_on_reboot_identifier_text], False)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_installation_state_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_download_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_apply_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_enable_on_reboot_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_installation_state_identifier_text], False)
 
     def test_disable_auto_os_updates_with_installed_services(self):
         # all services are installed and contain valid configurations. expected o/p All services will be disabled and backup file should reflect default settings for all
@@ -517,24 +517,24 @@ class TestYumPackageManager(unittest.TestCase):
 
         # validating backup for yum-cron
         self.assertTrue(Constants.YumAutoOSUpdateServices.YUM_CRON in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_download_updates_identifier_text], "yes")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_apply_updates_identifier_text], "yes")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_enable_on_reboot_identifier_text], True)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_installation_state_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_download_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_apply_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_enable_on_reboot_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_installation_state_identifier_text], True)
 
         # validating backup for dnf-automatic
         self.assertTrue(Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_download_updates_identifier_text], "yes")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_apply_updates_identifier_text], "yes")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_enable_on_reboot_identifier_text], True)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_installation_state_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_download_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_apply_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_enable_on_reboot_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_installation_state_identifier_text], True)
 
         # validating backup for packagekit
         self.assertTrue(Constants.YumAutoOSUpdateServices.PACKAGEKIT in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_download_updates_identifier_text], "true")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_apply_updates_identifier_text], "true")
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_enable_on_reboot_identifier_text], True)
-        self.assertEquals(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_installation_state_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_download_updates_identifier_text], "true")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_apply_updates_identifier_text], "true")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_enable_on_reboot_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_installation_state_identifier_text], True)
 
     def test_disable_auto_os_update_failure(self):
         # disable with non existing log file

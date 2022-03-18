@@ -59,7 +59,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 3)
+        self.assertEqual(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -82,7 +82,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -109,7 +109,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 3)
+        self.assertEqual(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -133,7 +133,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -164,7 +164,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -200,7 +200,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -228,7 +228,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -255,7 +255,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 2)
+        self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
@@ -275,7 +275,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 2)
+        self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 2)
@@ -293,7 +293,7 @@ class TestCoreMain(unittest.TestCase):
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 2)
+        self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
@@ -314,7 +314,7 @@ class TestCoreMain(unittest.TestCase):
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
@@ -342,7 +342,7 @@ class TestCoreMain(unittest.TestCase):
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 2)
+        self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
@@ -363,7 +363,7 @@ class TestCoreMain(unittest.TestCase):
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
@@ -402,7 +402,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -450,7 +450,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -501,7 +501,7 @@ class TestCoreMain(unittest.TestCase):
             status_file_data = json.load(file_handle)[0]["status"]
         self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
-        self.assertEquals(len(substatus_file_data), 1)
+        self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check status file for configure patching auto updates state
@@ -528,7 +528,7 @@ class TestCoreMain(unittest.TestCase):
         # verifying the original operation name is preserved
         self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
-        self.assertEquals(len(substatus_file_data), 2)
+        self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check started by set to 'Platform'
@@ -561,7 +561,7 @@ class TestCoreMain(unittest.TestCase):
             status_file_data = json.load(file_handle)[0]["status"]
         self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
-        self.assertEquals(len(substatus_file_data), 1)
+        self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check status file for configure patching auto updates state
@@ -590,7 +590,7 @@ class TestCoreMain(unittest.TestCase):
         # verifying the original operation name is preserved
         self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
-        self.assertEquals(len(substatus_file_data), 2)
+        self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check started by set to 'Platform'
@@ -621,7 +621,7 @@ class TestCoreMain(unittest.TestCase):
             status_file_data = json.load(file_handle)[0]["status"]
         self.assertTrue(status_file_data["operation"] == Constants.ASSESSMENT)
         substatus_file_data = status_file_data["substatus"]
-        self.assertEquals(len(substatus_file_data), 2)
+        self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check started by set to 'User'
@@ -655,7 +655,7 @@ class TestCoreMain(unittest.TestCase):
         # verifying the original operation name is preserved
         self.assertTrue(status_file_data["operation"] == Constants.ASSESSMENT)
         substatus_file_data = status_file_data["substatus"]
-        self.assertEquals(len(substatus_file_data), 2)
+        self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check started by set to 'Platform'
@@ -690,7 +690,7 @@ class TestCoreMain(unittest.TestCase):
             status_file_data = json.load(file_handle)[0]["status"]
         self.assertTrue(status_file_data["operation"] == Constants.INSTALLATION)
         substatus_file_data = status_file_data["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check started by set to 'User'
@@ -729,7 +729,7 @@ class TestCoreMain(unittest.TestCase):
         # verifying the original operation name is preserved
         self.assertTrue(status_file_data["operation"] == Constants.INSTALLATION)
         substatus_file_data = status_file_data["substatus"]
-        self.assertEquals(len(substatus_file_data), 4)
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # check started by set to 'Platform'
@@ -739,7 +739,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         # validate lastModifiedTime in InstallationSummary is preserved from the user initiated installation operation
         last_modified_time_from_installation_substatus_after_platform_initiated_assessment = json.loads(substatus_file_data[1]["formattedMessage"]["message"])["lastModifiedTime"]
-        self.assertEquals(last_modified_time_from_installation_substatus_after_user_initiated_installation, last_modified_time_from_installation_substatus_after_platform_initiated_assessment)
+        self.assertEqual(last_modified_time_from_installation_substatus_after_user_initiated_installation, last_modified_time_from_installation_substatus_after_platform_initiated_assessment)
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
@@ -779,7 +779,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 3)
+        self.assertEqual(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
@@ -815,7 +815,7 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEquals(len(substatus_file_data), 3)
+        self.assertEqual(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)

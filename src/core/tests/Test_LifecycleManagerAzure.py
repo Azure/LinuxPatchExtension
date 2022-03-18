@@ -52,7 +52,7 @@ class TestLifecycleManagerAzure(unittest.TestCase):
         self.lifecycle_manager.ext_state_file_path = old_ext_state_file_path
         self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
         ext_state_json = self.assertRaises(Exception, self.lifecycle_manager.read_extension_sequence)
-        self.assertEquals(ext_state_json, None)
+        self.assertEqual(ext_state_json, None)
 
     def test_read_extension_sequence_success(self):
         ext_state_json = self.lifecycle_manager.read_extension_sequence()
@@ -64,7 +64,7 @@ class TestLifecycleManagerAzure(unittest.TestCase):
         backup_open = self.runtime.env_layer.file_system.open
         self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
         core_sequence_json = self.assertRaises(Exception, self.lifecycle_manager.read_core_sequence)
-        self.assertEquals(core_sequence_json, None)
+        self.assertEqual(core_sequence_json, None)
         # Unable to write to core state file (retries exhausted)
 
         # json throws exception, but in a different area to test retries exhausted
@@ -73,7 +73,7 @@ class TestLifecycleManagerAzure(unittest.TestCase):
         json.load = None
         self.runtime.env_layer.file_system.open = backup_open
         core_sequence_json = self.assertRaises(Exception, self.lifecycle_manager.read_core_sequence)
-        self.assertEquals(core_sequence_json, None)
+        self.assertEqual(core_sequence_json, None)
         json.load = backup_json_load
         # Unable to read core state file (retries exhausted).
 
@@ -104,7 +104,7 @@ class TestLifecycleManagerAzure(unittest.TestCase):
         # file open throws exception
         self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
         core_sequence_json = self.lifecycle_manager.update_core_sequence()
-        self.assertEquals(core_sequence_json, None)
+        self.assertEqual(core_sequence_json, None)
 
     def test_update_core_sequence_success(self):
         old_core_state_file_path = self.lifecycle_manager.core_state_file_path
