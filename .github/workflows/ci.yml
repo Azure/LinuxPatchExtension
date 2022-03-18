@@ -30,7 +30,7 @@ jobs:
         id: getoutput
         run: echo "::set-output name=contents::$(cat err.txt)"
       - name: Fail if tests failed
-        if: contains( ${{ steps.getoutput.outputs.contents }}, "FAILED (failures=" )
+        if: contains( ${{ steps.getoutput.outputs.contents }}, 'FAILED (failures=' )
         run: exit 1
   codecov-python-27:
     runs-on: windows-latest
