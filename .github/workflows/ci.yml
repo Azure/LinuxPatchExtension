@@ -19,8 +19,10 @@ jobs:
       - name: Run tests and collect coverage
         run: |
           cd ./src/extension/tests
+          echo '===============\n\nRUNNING EXTENSION TESTS...\n\n===============\n\n' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           cd ../../core/tests
+          echo '===============\n\nRUNNING CORE TESTS...\n\n===============\n\n' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           coverage xml
       - name: Upload coverage to Codecov
@@ -51,8 +53,10 @@ jobs:
       - name: Run tests and collect coverage
         run: |
           cd ./src/extension/tests
+          echo '===============\n\nRUNNING EXTENSION TESTS...\n\n===============\n\n' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           cd ../../core/tests
+          echo '===============\n\nRUNNING CORE TESTS...\n\n===============\n\n' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           coverage xml
       - name: Upload coverage to Codecov
