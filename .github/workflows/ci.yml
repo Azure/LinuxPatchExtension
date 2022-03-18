@@ -19,9 +19,9 @@ jobs:
       - name: Run tests and collect coverage
         run: |
           cd src/extension/tests
-          coverage run -m unittest discover -s ../ -t ../ 2>> ../../err.txt
-          cd ../../src/core/tests
-          coverage run -m unittest discover -s ../ -t ../ 2>> ../../err.txt
+          coverage run -m unittest discover -s ../../ -t ../../ 2>> ../../err.txt
+          cd ../../core/tests
+          coverage run -m unittest discover -s ../../ -t ../../ 2>> ../../err.txt
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
@@ -51,9 +51,9 @@ jobs:
       - name: Run tests and collect coverage
         run: |
           cd src/extension/tests
-          coverage run -m unittest discover -s ../ -t ../ 2>> ../../err.txt
-          cd ../../src/core/tests
-          coverage run -m unittest discover -s ../ -t ../ 2>> ../../err.txt
+          coverage run -m unittest discover -s ../../ -t ../../ 2>> ../../err.txt
+          cd ../../core/tests
+          coverage run -m unittest discover -s ../../ -t ../../ 2>> ../../err.txt
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
