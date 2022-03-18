@@ -18,7 +18,7 @@ jobs:
         run: pip install coverage
       - name: Run tests and collect coverage
         run: |
-          coverage run -m unittest discover -s src > output.txt 2> err.txt
+          coverage run -m unittest discover -s src 2> err.txt
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
@@ -45,7 +45,7 @@ jobs:
         run: pip install coverage
       - name: Run tests and collect coverage
         run: |
-          coverage run -m unittest discover -s src > output.txt 2> err.txt
+          coverage run -m unittest discover -s src 2> err.txt
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
@@ -56,6 +56,6 @@ jobs:
       - name: Read test output
         id: getoutput
         run: echo "::set-output name=contents::$(cat err.txt)"
-      - name: Check if all tests passed
+      - name: Check if all tests passed. If failed, check the "Run tests and collect coverage" step above for details.
         if: contains( ${{ steps.getoutput.outputs.contents }}, 'FAILED (failures=' )
         run: exit 1
