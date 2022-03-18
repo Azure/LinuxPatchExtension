@@ -29,9 +29,11 @@ jobs:
       - name: Read test output
         id: getoutput
         run: echo "::set-output name=contents::$(cat err.txt)"
-      - name: Check if all tests passed. If failed, check the "Run tests and collect coverage" step above for details.
+      - name: Check if all tests passed
         if: contains( ${{ steps.getoutput.outputs.contents }}, 'FAILED (failures=' )
-        run: exit 1
+        run: |
+          echo ${{ steps.getoutput.outputs.contents }}
+          exit 1
   codecov-python-27:
     runs-on: windows-latest
     steps:
@@ -56,6 +58,8 @@ jobs:
       - name: Read test output
         id: getoutput
         run: echo "::set-output name=contents::$(cat err.txt)"
-      - name: Check if all tests passed. If failed, check the "Run tests and collect coverage" step above for details.
+      - name: Check if all tests passed
         if: contains( ${{ steps.getoutput.outputs.contents }}, 'FAILED (failures=' )
-        run: exit 1
+        run: |
+          echo ${{ steps.getoutput.outputs.contents }}
+          exit 1
