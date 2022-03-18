@@ -26,7 +26,6 @@ jobs:
           echo '===============START CORE TESTS...===============' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err.txt
-          cd ../../../
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
@@ -63,7 +62,6 @@ jobs:
           echo '===============START CORE TESTS...===============' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err.txt
-          cd ../../../
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
