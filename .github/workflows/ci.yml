@@ -32,7 +32,7 @@ jobs:
       - name: Check if all tests passed
         if: contains( ${{ steps.getoutput.outputs.contents }}, 'FAILED (failures=' )
         run: |
-          echo ${{ steps.getoutput.outputs.contents }}
+          echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
   codecov-python-27:
     runs-on: windows-latest
@@ -61,5 +61,5 @@ jobs:
       - name: Check if all tests passed
         if: contains( ${{ steps.getoutput.outputs.contents }}, 'FAILED (failures=' )
         run: |
-          echo ${{ steps.getoutput.outputs.contents }}
+          echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
