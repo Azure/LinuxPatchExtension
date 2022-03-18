@@ -31,7 +31,7 @@ jobs:
         run: echo "::set-output name=contents::$(cat err.txt)"
       - name: Check if all tests passed
         if: contains( ${{ steps.getoutput.outputs.contents }}, 'FAILED (failures=' )
-        run: exit 0
+        run: exit 1
   codecov-python-27:
     runs-on: windows-latest
     steps:
