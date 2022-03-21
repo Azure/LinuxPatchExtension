@@ -36,7 +36,7 @@ class JsonFileHandler(object):
                 time.sleep(retry)
                 with open(file_path, 'r') as file_handle:
                     file_contents = file_handle.read()
-                    #  Close file handle here
+                    file_handle.close()
                     return json.loads(file_contents)
             except ValueError as e:
                 error_msg = "Incorrect file format. [File={0}] [Location={1}] [Exception={2}]".format(file_name, str(file_path), repr(e))
@@ -75,6 +75,7 @@ class JsonFileHandler(object):
                     time.sleep(retry)
                     with open(file_path, 'w') as json_file:
                         json.dump(content, json_file, default=self.json_default_converter)
+                        json_file.close()
                         return
                 except Exception as error:
                     error_message = "Trial {0}: Could not write to file. [File={1}] [Location={2}] [Exception={3}]".format(retry+1, file_name, str(file_path), error)
