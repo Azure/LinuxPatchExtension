@@ -87,7 +87,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for successfully installing a package
-        self.assertEquals(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)  # needs to be fixed
+        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)  # needs to be fixed
 
     def test_is_installed_check_with_dpkg(self):
         self.runtime.set_legacy_test_type('SuccessInstallPath')
@@ -96,8 +96,8 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for successfully installing a package
-        self.assertEquals(package_manager.is_package_version_installed('mysql-server', '5.7.25-0ubuntu0.16.04.2'), True)
-        self.assertEquals(package_manager.is_package_version_installed('mysql-client', '5.7.25-0ubuntu0.16.04.2'), False)
+        self.assertEqual(package_manager.is_package_version_installed('mysql-server', '5.7.25-0ubuntu0.16.04.2'), True)
+        self.assertEqual(package_manager.is_package_version_installed('mysql-client', '5.7.25-0ubuntu0.16.04.2'), False)
 
     def test_install_package_failure(self):
         self.runtime.set_legacy_test_type('FailInstallPath')
@@ -106,7 +106,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for unsuccessfully installing a package
-        self.assertEquals(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
         self.assertRaises(Exception, lambda: package_manager.invoke_package_manager('sudo apt-get -y --only-upgrade true install force-dpkg-failure'))
 
     def test_install_package_only_upgrades(self):
@@ -116,7 +116,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for unsuccessfully installing a package
-        self.assertEquals(package_manager.install_update_and_dependencies('iucode-tool', '1.5.1-1ubuntu0.1', simulate=True), Constants.PENDING)
+        self.assertEqual(package_manager.install_update_and_dependencies('iucode-tool', '1.5.1-1ubuntu0.1', simulate=True), Constants.PENDING)
 
     def test_disable_auto_os_update_with_two_patch_modes_enabled_success(self):
         package_manager = self.container.get('package_manager')

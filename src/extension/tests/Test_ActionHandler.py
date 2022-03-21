@@ -336,7 +336,7 @@ class TestActionHandler(unittest.TestCase):
         for event_file in event_files:
             with open(os.path.join(self.action_handler.telemetry_writer.events_folder_path, event_file), 'r+') as f:
                 events = json.load(f)
-                self.assertEquals(events[0]["OperationId"], self.action_handler.operation_id_substitute_for_all_actions_in_telemetry)
+                self.assertEqual(events[0]["OperationId"], self.action_handler.operation_id_substitute_for_all_actions_in_telemetry)
 
     def test_write_basic_status_uninstall(self):
         """ Check that a basic status file is NOT written during uninstall handler command setup """

@@ -211,7 +211,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for successfully installing a package
-        self.assertEquals(package_manager.install_update_and_dependencies('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
 
     def test_install_package_failure(self):
         self.runtime.set_legacy_test_type('FailInstallPath')
@@ -220,7 +220,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for unsuccessfully installing a package
-        self.assertEquals(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
 
     def test_get_process_tree_from_package_manager_output_success(self):
         self.runtime.set_legacy_test_type('HappyPath')
@@ -368,8 +368,8 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # validating backup for yast2-online-update-configuration
         self.assertTrue(package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "")
-        self.assertEquals(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], False)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], False)
 
     def test_disable_auto_os_updates_with_installed_services(self):
         # all services are installed and contain valid configurations. expected o/p All services will be disabled and backup file should reflect default settings for all
@@ -387,8 +387,8 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # validating backup for yast2-online-update-configuration
         self.assertTrue(package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
-        self.assertEquals(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "true")
-        self.assertEquals(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], True)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "true")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], True)
 
     def test_update_image_default_patch_mode(self):
         package_manager = self.container.get('package_manager')

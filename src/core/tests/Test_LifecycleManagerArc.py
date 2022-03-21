@@ -55,7 +55,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         self.lifecycle_manager.ext_state_file_path = old_ext_state_file_path
         self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
         ext_state_json = self.assertRaises(Exception, self.lifecycle_manager.read_extension_sequence)
-        self.assertEquals(ext_state_json, None)
+        self.assertEqual(ext_state_json, None)
 
     def test_read_extension_sequence_success(self):
         ext_state_json = self.lifecycle_manager.read_extension_sequence()
@@ -66,7 +66,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         # file open throws exception
         self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
         core_sequence_json = self.assertRaises(Exception, self.lifecycle_manager.read_core_sequence)
-        self.assertEquals(core_sequence_json, None)
+        self.assertEqual(core_sequence_json, None)
 
     def test_read_core_sequence_success(self):
         old_core_state_file_path = self.lifecycle_manager.core_state_file_path
@@ -95,7 +95,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         # file open throws exception
         self.runtime.env_layer.file_system.open = self.mock_file_open_throw_exception
         core_sequence_json = self.lifecycle_manager.update_core_sequence()
-        self.assertEquals(core_sequence_json, None)
+        self.assertEqual(core_sequence_json, None)
 
     def test_update_core_sequence_success(self):    # failing test - needs to be corrected with Arc code changes
         old_core_state_file_path = self.lifecycle_manager.core_state_file_path
@@ -137,7 +137,7 @@ class TestLifecycleManagerArc(unittest.TestCase):
         self.lifecycle_manager.arc_core_state_file_path = "dummy"
         self.lifecycle_manager.read_only_mode = False
         ext_state_json = self.lifecycle_manager.read_arc_core_sequence()
-        self.assertEquals(ext_state_json['completed'], 'True')
+        self.assertEqual(ext_state_json['completed'], 'True')
 
         self.lifecycle_manager.arc_core_state_file_path = old_core_state_file_path
         self.lifecycle_manager.update_core_sequence(completed=True)
@@ -151,12 +151,12 @@ class TestLifecycleManagerArc(unittest.TestCase):
         self.lifecycle_manager.update_core_sequence(completed=True)
         # Completed True Case
         arc_core_state = self.lifecycle_manager.read_arc_core_sequence()
-        self.assertEquals(arc_core_state['completed'], 'True')
+        self.assertEqual(arc_core_state['completed'], 'True')
 
         # Completed False Case
         self.lifecycle_manager.update_core_sequence(completed=False)
         arc_core_state = self.lifecycle_manager.read_arc_core_sequence()
-        self.assertEquals(arc_core_state['completed'], 'False')
+        self.assertEqual(arc_core_state['completed'], 'False')
         os.remove(self.lifecycle_manager.core_state_file_path)
 
     def mock_file_open_throw_exception(self, file_path, mode):
