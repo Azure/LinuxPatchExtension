@@ -36,6 +36,7 @@ class JsonFileHandler(object):
                 time.sleep(retry)
                 with open(file_path, 'r') as file_handle:
                     file_contents = file_handle.read()
+                    #  Close file handle here
                     return json.loads(file_contents)
             except ValueError as e:
                 error_msg = "Incorrect file format. [File={0}] [Location={1}] [Exception={2}]".format(file_name, str(file_path), repr(e))
