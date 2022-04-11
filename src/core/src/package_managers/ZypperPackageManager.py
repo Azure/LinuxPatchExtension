@@ -159,11 +159,11 @@ class ZypperPackageManager(PackageManager):
                 self.log_success_on_invoke(code, out)
 
             if code == self.zypper_exitcode_zypper_updated or code == self.zypper_exitcode_reboot_required:
-                self.__handle_repeat_or_reboot_exit_codes(command, code)
-                
+                self.__handle_zypper_updated_or_reboot_exit_codes(command, code)
+
             return out
 
-    def __handle_repeat_or_reboot_exit_codes(self, command, code):
+    def __handle_zypper_updated_or_reboot_exit_codes(self, command, code):
         """ Handles exit code 102 or 103 when returned from invoking package manager.
             Does not repeat installation or reboot if it is a dry run. """
         if "--dry-run" in command:
