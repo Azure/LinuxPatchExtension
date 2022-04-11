@@ -604,6 +604,37 @@ class TestZypperPackageManager(unittest.TestCase):
 
         package_manager.env_layer.run_command_output = backup_mocked_method
 
+    def test_package_manager_exit_reboot_required(self):
+        # AnotherSadPath returns code 102 for this command
+        package_manager = self.container.get('package_manager')
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.runtime.set_legacy_test_type('AnotherSadPath')
+
+        cmd = "sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security --dry-run"
+        package_manager.invoke_package_manager(cmd)
+        self.assertFalse(package_manager.force_reboot)
+
+        # AnotherSadPath returns code 102 on this command, but should actually set reboot flag
+        cmd = "sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security"
+        package_manager.invoke_package_manager(cmd)
+        self.assertTrue(package_manager.force_reboot)
+
+    def test_package_manager_exit_repeat_operation(self):
+        # SadPath returns code 103 for this command
+        package_manager = self.container.get('package_manager')
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.runtime.set_legacy_test_type('SadPath')
+
+        # Should not set reboot flag (as it is a dry run)
+        cmd = "sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security --dry-run"
+        package_manager.invoke_package_manager(cmd)
+        self.assertFalse(package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False))
+
+        # Should set reboot flag
+        cmd = "sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security"
+        package_manager.invoke_package_manager(cmd)
+        self.assertTrue(package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False))
+
 
 if __name__ == '__main__':
     unittest.main()
