@@ -556,6 +556,9 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('sudo zypper refresh') > -1:
                         code = 7
                         output = 'System management is locked by the application with pid 7914 (/usr/bin/zypper).'
+                    elif cmd.find('sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security') > -1:
+                        code = 103
+                        output = ''
                 elif cmd.find("systemctl") > -1:
                     code = 1
                     output = ''
@@ -605,6 +608,9 @@ class LegacyEnvLayerExtensions():
                         output = 'Warning: There are no enabled repositories defined. | Use \'zypper addrepo\' or \'zypper modifyrepo\' commands to add or enable repositories.'
                     elif cmd.find('sudo zypper --non-interactive update samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1') > -1:
                         code = 8
+                        output = ''
+                    elif cmd.find('sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security') > -1:
+                        code = 102
                         output = ''
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
