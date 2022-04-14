@@ -17,7 +17,6 @@
 import json
 import unittest
 
-from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
