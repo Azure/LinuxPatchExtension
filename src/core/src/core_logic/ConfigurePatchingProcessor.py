@@ -54,6 +54,7 @@ class ConfigurePatchingProcessor(object):
             overall_status = Constants.STATUS_SUCCESS if self.configure_patching_successful else Constants.STATUS_ERROR
             self.__report_consolidated_configure_patch_status(overall_status)
         except Exception as error:
+            self.current_auto_assessment_state = Constants.AutoAssessmentStates.ERROR
             self.__report_consolidated_configure_patch_status(status=Constants.STATUS_ERROR, error=error)
             self.configure_patching_successful &= False
 
@@ -128,6 +129,7 @@ class ConfigurePatchingProcessor(object):
             error_msg = 'Error: ' + repr(error)
             self.composite_logger.log_error(error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR, current_operation_override_for_error=Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
 
         # write consolidated status
         self.status_handler.set_configure_patching_substatus_json(status=status,
@@ -140,7 +142,6 @@ class ConfigurePatchingProcessor(object):
             return
         if not self.telemetry_writer.is_agent_compatible():
             error_msg = "{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, self.telemetry_writer.get_telemetry_diagnostics())
-            self.composite_logger.log_error(error_msg)
             raise Exception(error_msg)
 
         self.composite_logger.log("{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, self.telemetry_writer.get_telemetry_diagnostics()))
