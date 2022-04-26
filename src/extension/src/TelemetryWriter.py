@@ -35,6 +35,8 @@ class TelemetryWriter(object):
         self.agent_env_var_code = Constants.AgentEnvVarStatusCode.AGENT_ENABLED
         self.__operation_id = ""
         self.__agent_is_compatible = self.__get_agent_supports_telemetry_from_env_var()
+        self.__task_name_watermark = "." + str(datetime.datetime.utcnow().hour) + "." + str(datetime.datetime.utcnow().minute) + "." + str(datetime.datetime.utcnow().second) + "." + str(os.getpid())
+        self.__task_name = Constants.TELEMETRY_TASK_NAME + self.__task_name_watermark
 
     def __new_event_json(self, event_level, message, task_name):
         return {
@@ -96,6 +98,7 @@ class TelemetryWriter(object):
 
             self.__delete_older_events()
 
+            task_name = self.__task_name if task_name == Constants.TELEMETRY_TASK_NAME else task_name
             event = self.__new_event_json(event_level, message, task_name)
             if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARS:
                 self.logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))

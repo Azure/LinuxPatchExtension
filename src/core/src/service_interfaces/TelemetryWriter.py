@@ -33,6 +33,8 @@ class TelemetryWriter(object):
         self.composite_logger = composite_logger
         self.__is_agent_compatible = False
         self.__operation_id = str(datetime.datetime.utcnow())
+        self.__task_name_watermark = "." + str(datetime.datetime.utcnow().hour) + "." + str(datetime.datetime.utcnow().minute) + "." + str(datetime.datetime.utcnow().second) + "." + str(os.getpid())
+        self.__task_name = Constants.TelemetryTaskName.STARTUP + self.__task_name_watermark
         self.events_folder_path = None
         self.__telemetry_event_counter = 1  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
         self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
@@ -259,7 +261,7 @@ class TelemetryWriter(object):
             self.composite_logger.log_telemetry_module_error("Error occurred while formatting message for a telemetry event. [Error={0}]".format(repr(e)))
             raise
 
-    def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME, is_event_file_throttling_needed=True):
+    def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TelemetryTaskName.UNKNOWN, is_event_file_throttling_needed=True):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached
         NOTE: is_event_file_throttling_needed is used to determine if event file throttling is required and as such should always be True.
         The only scenario where this is False is when throttling is taking place and we write to telemetry about it. i.e. only from within __throttle_telemetry_writes_if_required()"""
@@ -419,6 +421,10 @@ class TelemetryWriter(object):
 
     def set_operation_id(self, operation_id):
         self.__operation_id = operation_id
+
+    def set_task_name(self, task_name):
+        # sets a disambiguating task name and watermark (timestamp and process id)
+        self.__task_name = task_name + self.__task_name_watermark
 
     def is_agent_compatible(self):
         """ Verifies if telemetry is available. Stops execution if not available. """

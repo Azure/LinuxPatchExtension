@@ -17,7 +17,7 @@
 """ A patch assessment """
 import time
 from core.src.bootstrap.Constants import Constants
-
+import os
 
 class PatchAssessor(object):
     """ Wrapper class of a single patch assessment """
@@ -30,6 +30,8 @@ class PatchAssessor(object):
         self.status_handler = status_handler
         self.lifecycle_manager = lifecycle_manager
         self.package_manager = package_manager
+
+        self.assessment_state_file_path = os.path.join(self.execution_config.config_folder, Constants.ASSESSMENT_STATE_FILE)
 
     def start_assessment(self):
         """ Start a patch assessment """
@@ -89,4 +91,96 @@ class PatchAssessor(object):
             raise Exception(error_msg)
 
         self.composite_logger.log("{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, self.telemetry_writer.get_telemetry_diagnostics()))
+
+    # region - Auto-assessment extensions
+    def read_core_sequence(self):
+        """ Reads the core sequence file, but additionally establishes if this class is allowed to write to it when the freshest data is evaluated. """
+        self.composite_logger.log_debug("Reading core sequence...")
+        if not os.path.exists(self.assessment_state_file_path) or not os.path.isfile(self.assessment_state_file_path):
+            # Neutralizes directories
+            if os.path.isdir(self.assessment_state_file_path):
+                self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+                shutil.rmtree(self.assessment_state_file_path)
+            # Writes a vanilla core sequence file
+            self.read_only_mode = False
+            self.update_core_sequence()
+
+        # Read (with retries for only IO Errors)
+        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
+            try:
+                with self.env_layer.file_system.open(self.assessment_state_file_path, mode="r") as file_handle:
+                    core_sequence = json.load(file_handle)['coreSequence']
+
+                # The following code will only execute in the event of a bug
+                if not self.read_only_mode and os.getpid() not in core_sequence['processIds']:
+                    self.composite_logger.log_error("SERIOUS ERROR -- Core sequence was taken over in violation of sequence contract.")
+                    self.read_only_mode = True  # This should never happen, but we're switching back into read-only mode.
+                    if self.execution_config.exec_auto_assess_only:  # Yield execution precedence out of caution, if it's low pri auto-assessment
+                        return core_sequence
+
+                if self.read_only_mode:
+                    if core_sequence['completed'].lower() == 'true' or len(self.identify_running_processes(core_sequence['processIds'])) == 0:
+                        # Short-circuit for re-enable for completed non-auto-assess operations that should not run
+                        if not self.execution_config.exec_auto_assess_only and core_sequence['number'] == self.execution_config.sequence_number and core_sequence['completed'].lower() == 'true':
+                            self.composite_logger.log_debug("Not attempting to take ownership of core sequence since the sequence number as it's already done and this is the main process.")
+                            return core_sequence
+
+                        # Auto-assess over non-auto-assess is not a trivial override and is short-circuited to be evaluated in detail later
+                        if self.execution_config.exec_auto_assess_only and not core_sequence["autoAssessment"].lower() == 'true':
+                            self.composite_logger.log_debug("Auto-assessment cannot supersede the main core process trivially.")
+                            return core_sequence
+
+                        self.composite_logger.log_debug("Attempting to take ownership of core sequence.")
+                        self.read_only_mode = False
+                        self.update_core_sequence()
+                        self.read_only_mode = True
+
+                        # help re-evaluate if assertion succeeded
+                        with self.env_layer.file_system.open(self.assessment_state_file_path, mode="r") as file_handle:
+                            core_sequence = json.load(file_handle)['coreSequence']
+
+                    if os.getpid() in core_sequence['processIds']:
+                        self.composite_logger.log_debug("Successfully took ownership of core sequence.")
+                        self.read_only_mode = False
+
+                return core_sequence
+            except Exception as error:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    self.composite_logger.log_warning("Exception on core sequence read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    time.sleep(i + 1)
+                else:
+                    self.composite_logger.log_error("Unable to read core state file (retries exhausted). [Exception={0}]".format(repr(error)))
+                    raise
+
+    def update_core_sequence(self, completed=False):
+        if self.read_only_mode:
+            self.composite_logger.log_debug("Core sequence will not be updated to avoid contention... [DesiredCompletedValue={0}]".format(str(completed)))
+            return
+
+        self.composite_logger.log_debug("Updating core sequence... [Completed={0}]".format(str(completed)))
+        core_sequence = {'number': self.execution_config.sequence_number,
+                         'action': self.execution_config.operation,
+                         'completed': str(completed),
+                         'lastHeartbeat': str(self.env_layer.datetime.timestamp()),
+                         'processIds': [os.getpid()] if not completed else [],
+                         'autoAssessment': str(self.execution_config.exec_auto_assess_only)}
+        core_state_payload = json.dumps({"coreSequence": core_sequence})
+
+        if os.path.isdir(self.assessment_state_file_path):
+            self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+            shutil.rmtree(self.assessment_state_file_path)
+
+        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
+            try:
+                with self.env_layer.file_system.open(self.assessment_state_file_path, 'w+') as file_handle:
+                    file_handle.write(core_state_payload)
+            except Exception as error:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    self.composite_logger.log_warning("Exception on core sequence update. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    time.sleep(i + 1)
+                else:
+                    self.composite_logger.log_error("Unable to write to core state file (retries exhausted). [Exception={0}]".format(repr(error)))
+                    raise
+
+        self.composite_logger.log_debug("Completed updating core sequence.")
 

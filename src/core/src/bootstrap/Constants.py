@@ -126,9 +126,13 @@ class Constants(object):
         DISABLED = "Disabled"
         ENABLED = "Enabled"
 
+    # To separately preserve assessment + auto-assessment state information
+    ASSESSMENT_STATE_FILE = "AssessmentState.json"
+    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"
+    MIN_AUTO_ASSESSMENT_INTERVAL = "PT6H"   # do not perform auto-assessment if the last assessment happened less than this time interval ago
+
     # wait time after status updates
     WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS = 20
-    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"
 
     # Status file states
     STATUS_TRANSITIONING = "Transitioning"
@@ -227,10 +231,10 @@ class Constants(object):
         ERROR = 1
 
     class PatchOperationErrorCodes(EnumBackport):
-        # todo: finalize these error codes
-        PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
-        OPERATION_FAILED = "OPERATION_FAILED"
         DEFAULT_ERROR = "ERROR"  # default error code
+        OPERATION_FAILED = "OPERATION_FAILED"
+        PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
+        NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
@@ -258,7 +262,12 @@ class Constants(object):
         Informational = "Informational"
         LogAlways = "LogAlways"
 
-    TELEMETRY_TASK_NAME = "ExtensionCoreLog"
+    # Telemetry Task Names for disambiguation
+    class TelemetryTaskName(EnumBackport):
+        UNKNOWN = "Core.Unknown"                     # function parameter default
+        STARTUP = "Core.Startup"                     # initial value until execution mode is determined
+        EXEC = "Core.Exec"                           # mainline execution triggered from handler
+        AUTO_ASSESSMENT = "Core.AutoAssessment"      # auto-assessment triggered from scheduler
 
     TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
     TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"
