@@ -88,6 +88,7 @@ class PatchAssessor(object):
         if not self.telemetry_writer.is_agent_compatible():
             error_msg = "{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, self.telemetry_writer.get_telemetry_diagnostics())
             self.composite_logger.log_error(error_msg)
+            self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
             raise Exception(error_msg)
 
         self.composite_logger.log("{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, self.telemetry_writer.get_telemetry_diagnostics()))

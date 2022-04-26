@@ -147,6 +147,8 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
             self.assertTrue(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
             self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+            self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["autoAssessmentStatus"]["errors"]["details"][0]["message"])
+            self.assertTrue(Constants.STATUS_ERROR in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["autoAssessmentStatus"]["autoAssessmentState"])
         else:
             self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         runtime.stop()

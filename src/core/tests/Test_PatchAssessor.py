@@ -16,6 +16,8 @@
 
 import json
 import unittest
+
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
@@ -50,6 +52,13 @@ class TestPatchAssessor(unittest.TestCase):
         with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             file_contents = json.loads(file_handle.read())
             self.assertTrue('Unexpected return code (100) from package manager on command: LANG=en_US.UTF8 sudo apt-get -s dist-upgrade' in str(file_contents))
+
+    def test_assessment_telemetry_fail(self):
+        backup_telemetry_writer = self.runtime.telemetry_writer
+        telemetry_writer = TelemetryWriter(self.runtime.env_layer, self.runtime.composite_logger, events_folder_path=None)
+        self.runtime.patch_assessor.telemetry_writer = telemetry_writer
+        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        self.runtime.patch_assessor.telemetry_writer = backup_telemetry_writer
 
     def mock_refresh_repo(self):
         pass

@@ -158,13 +158,28 @@ class ZypperPackageManager(PackageManager):
             else:  # verbose diagnostic log
                 self.log_success_on_invoke(code, out)
 
-            if code == self.zypper_exitcode_zypper_updated:
-                self.composite_logger.log_debug(" - Package manager update detected. Patch installation run will be repeated.")
-                self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
-            elif code == self.zypper_exitcode_reboot_required:
-                self.composite_logger.log_warning("Machine requires reboot after patch installation. Setting force_reboot flag to True.")
-                self.force_reboot = True
+            if code == self.zypper_exitcode_zypper_updated or code == self.zypper_exitcode_reboot_required:
+                self.__handle_zypper_updated_or_reboot_exit_codes(command, code)
+
             return out
+
+    def __handle_zypper_updated_or_reboot_exit_codes(self, command, code):
+        """ Handles exit code 102 or 103 when returned from invoking package manager.
+            Does not repeat installation or reboot if it is a dry run. """
+        if "--dry-run" in command:
+            self.composite_logger.log_debug(
+                "Exit code {0} detected from command \"{1}\", but it was a dry run. Continuing execution without repeating installation or rebooting.".format(
+                str(code), command))
+            return
+
+        if code == self.zypper_exitcode_zypper_updated:
+            self.composite_logger.log_debug(
+                " - Package manager update detected. Patch installation run will be repeated.")
+            self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
+        elif code == self.zypper_exitcode_reboot_required:
+            self.composite_logger.log_warning(
+                "Machine requires reboot after patch installation. Setting force_reboot flag to True.")
+            self.force_reboot = True
 
     def modify_upgrade_or_patch_command_to_replacefiles(self, command):
         """ Modifies a command to invoke_package_manager for update or patch to include a --replacefiles flag. 
