@@ -85,9 +85,16 @@ class ArgumentComposer(object):
             "maximumAssessmentInterval": self.maximum_assessment_interval
         }
 
+        agent_settings = {
+            "AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES": [
+                {"key": 'ExtensionTelemetryPipeline', "value": "1.0"}
+            ]
+        }
+
         return str(self.__ARG_TEMPLATE.format(self.__EXEC, Constants.ARG_SEQUENCE_NUMBER, self.sequence_number,
                                               Constants.ARG_ENVIRONMENT_SETTINGS, self.__get_encoded_json_str(environment_settings),
                                               Constants.ARG_CONFIG_SETTINGS, self.__get_encoded_json_str(config_settings),
+                                              Constants.ARG_AGENT_SETTINGS, self.__get_encoded_json_str(agent_settings),
                                               Constants.ARG_AUTO_ASSESS_ONLY, str(self.exec_auto_assess_only),
                                               Constants.ARG_INTERNAL_RECORDER_ENABLED, str(False),
                                               Constants.ARG_INTERNAL_EMULATOR_ENABLED, str(self.emulator_enabled))).split(' ')
