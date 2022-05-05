@@ -41,6 +41,7 @@ class Constants(object):
     # Execution Arguments
     ARG_SEQUENCE_NUMBER = '-sequenceNumber'
     ARG_ENVIRONMENT_SETTINGS = "-environmentSettings"
+    ARG_AGENT_SETTINGS = "-agentSettings"
     ARG_CONFIG_SETTINGS = "-configSettings"
     ARG_AUTO_ASSESS_ONLY = "-autoAssessOnly"
     ARG_PROTECTED_CONFIG_SETTINGS = "-protectedConfigSettings"
