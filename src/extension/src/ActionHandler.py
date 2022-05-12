@@ -20,6 +20,7 @@ import os
 import shutil
 import time
 from distutils.version import LooseVersion
+from os import path
 
 from extension.src.Constants import Constants
 from extension.src.EnableCommandHandler import EnableCommandHandler
@@ -184,7 +185,7 @@ class ActionHandler(object):
             new_version_config_folder = self.ext_env_handler.config_folder
             extension_pardir = os.path.abspath(os.path.join(new_version_config_folder, os.path.pardir, os.path.pardir))
             self.logger.log("Parent directory for all extension version artifacts [Directory={0}]".format(str(extension_pardir)))
-            paths_to_all_versions = self.get_all_versions(extension_pardir)
+            paths_to_all_versions = self.filter_files_from_versions(self.get_all_versions(extension_pardir))
             self.logger.log("List of all extension versions found on the machine. [All Versions={0}]".format(paths_to_all_versions))
             if len(paths_to_all_versions) <= 1:
                 # Extension Update action called when
@@ -219,6 +220,10 @@ class ActionHandler(object):
     @staticmethod
     def get_all_versions(extension_pardir):
         return glob.glob(extension_pardir + '/*LinuxPatchExtension*')
+
+    @staticmethod
+    def filter_files_from_versions(paths_to_all_versions):
+        return [p for p in paths_to_all_versions if path.isdir(p)]
 
     def copy_config_files(self, src, dst, raise_if_not_copied=False):
         """ Copies files, required by the extension, from the given config/src folder """

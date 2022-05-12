@@ -369,3 +369,25 @@ class TestActionHandler(unittest.TestCase):
             self.action_handler.enable()
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
+    @staticmethod
+    def mock_path_isdir(path):
+        return 'LinuxPatchExtension-' in path
+
+    def test_filter_files_from_versions(self):
+        backup_path_isdir = os.path.isdir
+        os.path.isdir = self.mock_path_isdir
+
+        """ Checks that non-folders are filtered out from list of all versions """
+        all_versions_including_files = [
+            '/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension__1.6.35.zip',
+            '/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.36',
+            '/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension.388.manifest.xml',
+            '/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.35'
+        ]
+
+        all_versions = self.action_handler.filter_files_from_versions(all_versions_including_files);
+        self.assertTrue(len(all_versions) == 2)
+        self.assertTrue('/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.36' in all_versions)
+        self.assertTrue('/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.35' in all_versions)
+        os.path.isdir = backup_path_isdir
+
