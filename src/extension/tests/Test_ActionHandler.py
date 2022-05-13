@@ -43,6 +43,7 @@ class TestActionHandler(unittest.TestCase):
         self.runtime = RuntimeComposer()
         runtime_context_handler = RuntimeContextHandler(self.runtime.logger)
         self.ext_env_handler = ExtEnvHandler(self.runtime.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+        self.ext_env_handler.telemetry_supported = True
         self.setup_files_and_folders(self.temp_dir)
 
         self.ext_config_settings_handler = ExtConfigSettingsHandler(self.runtime.logger, self.runtime.json_file_handler, self.ext_env_handler.config_folder)

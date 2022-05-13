@@ -34,7 +34,7 @@ class PatchAssessor(object):
     def start_assessment(self):
         """ Start a patch assessment """
         self.status_handler.set_current_operation(Constants.ASSESSMENT)
-        self.raise_if_agent_incompatible()
+        self.raise_if_telemetry_unsupported()
 
         self.composite_logger.log('\nStarting patch assessment...')
 
@@ -79,15 +79,15 @@ class PatchAssessor(object):
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
 
-    def raise_if_agent_incompatible(self):
+    def raise_if_telemetry_unsupported(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
             self.composite_logger.log("Skipping agent compatibility check for Arc cloud type when operation is not manual")
             return
-        if not self.telemetry_writer.is_agent_compatible():
-            error_msg = "{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, self.telemetry_writer.get_telemetry_diagnostics())
+        if not self.telemetry_writer.is_telemetry_supported():
+            error_msg = "{0}".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG)
             self.composite_logger.log_error(error_msg)
             self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
             raise Exception(error_msg)
 
-        self.composite_logger.log("{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, self.telemetry_writer.get_telemetry_diagnostics()))
+        self.composite_logger.log("{0}".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG))
 

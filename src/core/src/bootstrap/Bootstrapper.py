@@ -68,8 +68,6 @@ class Bootstrapper(object):
         """ Performs the minimum steps required to determine where to start logging """
         sequence_number = self.get_value_from_argv(argv, Constants.ARG_SEQUENCE_NUMBER)
         environment_settings = json.loads(base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_ENVIRONMENT_SETTINGS).replace("b\'", "")))
-        agent_settings = base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_AGENT_SETTINGS).replace("b\'", ""))
-        os.environ[Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR] = agent_settings
         log_folder = environment_settings[Constants.EnvSettings.LOG_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
         exec_demarcator = ".aa" if auto_assessment_only else ""
         log_file_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.log")

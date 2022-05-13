@@ -34,7 +34,7 @@ Structure of the file this class deals with: HandlerEnvironment.json
 
 
 class ExtEnvHandler(object):
-    """ Responsible for all operations with HandlerEnvironment.json file """
+    """ Responsible for all operations with HandlerEnvironment.json file and other environment config """
     def __init__(self, json_file_handler, handler_env_file=Constants.HANDLER_ENVIRONMENT_FILE, handler_env_file_path=Constants.HANDLER_ENVIRONMENT_FILE_PATH):
         json_file_handler = json_file_handler
         self.env_settings_all_keys = Constants.EnvSettingsFields
@@ -47,6 +47,8 @@ class ExtEnvHandler(object):
             self.events_folder = self.get_ext_env_config_value_safely(self.env_settings_all_keys.events_folder, raise_if_not_found=False)
             if self.events_folder is None:
                 self.events_folder = self.get_ext_env_config_value_safely(self.env_settings_all_keys.events_folder_preview, raise_if_not_found=False)
+
+        self.telemetry_supported = False
 
     def get_ext_env_config_value_safely(self, key, raise_if_not_found=True):
         """ Allows a update deployment configuration value to be queried safely with a fall-back default (optional).

@@ -60,14 +60,19 @@ class ArgumentComposer(object):
         # REAL environment settings
         self.emulator_enabled = False
 
-    def get_composed_arguments(self):
+    def get_composed_arguments(self, env_settings={}):
         """ Serializes state into arguments for consumption """
         environment_settings = {
             "logFolder": self.__log_folder,
             "configFolder": self.__config_folder,
             "statusFolder": self.__status_folder,
-            "eventsFolder": self.events_folder
+            "eventsFolder": self.events_folder,
+            "telemetrySupported": True
         }
+
+        # Apply any extra env settings passed in
+        for key in env_settings:
+            environment_settings[key] = env_settings[key]
 
         config_settings = {
             "operation": self.operation,
@@ -85,16 +90,9 @@ class ArgumentComposer(object):
             "maximumAssessmentInterval": self.maximum_assessment_interval
         }
 
-        agent_settings = {
-            "AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES": [
-                {"key": 'ExtensionTelemetryPipeline', "value": "1.0"}
-            ]
-        }
-
         return str(self.__ARG_TEMPLATE.format(self.__EXEC, Constants.ARG_SEQUENCE_NUMBER, self.sequence_number,
                                               Constants.ARG_ENVIRONMENT_SETTINGS, self.__get_encoded_json_str(environment_settings),
                                               Constants.ARG_CONFIG_SETTINGS, self.__get_encoded_json_str(config_settings),
-                                              Constants.ARG_AGENT_SETTINGS, self.__get_encoded_json_str(agent_settings),
                                               Constants.ARG_AUTO_ASSESS_ONLY, str(self.exec_auto_assess_only),
                                               Constants.ARG_INTERNAL_RECORDER_ENABLED, str(False),
                                               Constants.ARG_INTERNAL_EMULATOR_ENABLED, str(self.emulator_enabled))).split(' ')

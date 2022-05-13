@@ -287,9 +287,10 @@ class TestCoreMain(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         argument_composer.events_folder = None
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        composed_arguments = argument_composer.get_composed_arguments(dict(telemetrySupported=False))
+        runtime = RuntimeCompositor(composed_arguments, True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
-        CoreMain(argument_composer.get_composed_arguments())
+        CoreMain(composed_arguments)
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]

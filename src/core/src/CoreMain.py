@@ -56,6 +56,7 @@ class CoreMain(object):
             composite_logger.log_debug("Obtaining execution configuration...")
             execution_config = container.get('execution_config')
             telemetry_writer.set_operation_id(execution_config.activity_id)
+            telemetry_writer.set_telemetry_is_supported(execution_config.telemetry_supported)
             patch_operation_requested = execution_config.operation.lower()
 
             patch_assessor = container.get('patch_assessor')

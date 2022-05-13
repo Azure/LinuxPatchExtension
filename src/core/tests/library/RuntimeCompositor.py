@@ -92,6 +92,9 @@ class RuntimeCompositor(object):
         # Extension handler dependency
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
 
+        self.telemetry_writer.set_telemetry_is_supported(self.execution_config.telemetry_supported)
+        self.container.get('telemetry_writer').set_telemetry_is_supported(self.execution_config.telemetry_supported)
+
         # Mock service and timer creation and removal used for Auto Assessment
         self.backup_create_and_set_service_idem = self.configure_patching_processor.auto_assess_service_manager.create_and_set_service_idem
         self.configure_patching_processor.auto_assess_service_manager.create_and_set_service_idem = self.mock_create_and_set_service_idem
@@ -101,8 +104,6 @@ class RuntimeCompositor(object):
         self.configure_patching_processor.auto_assess_service_manager.remove_service = self.mock_remove_service
         self.backup_remove_timer = self.configure_patching_processor.auto_assess_timer_manager.remove_timer
         self.configure_patching_processor.auto_assess_timer_manager.remove_timer = self.mock_remove_timer
-        self.backup_os_getenv = os.getenv
-        os.getenv = self.getenv_telemetry_enabled
 
     def stop(self):
         self.file_logger.close(message_at_close="<Runtime stopped>")
@@ -168,15 +169,6 @@ class RuntimeCompositor(object):
 
     def mock_remove_timer(self):
         pass
-
-    def getenv_telemetry_enabled(self, key, value=None):
-        """ Overrides get_env_var method to enable telemetry by default for all tests """
-        value = self.backup_os_getenv(key, value)
-        if key == Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR:
-            # Default to supported telemetry so test cases pass. This can be overridden on a per-test basis for testing
-            return '[{"Key": "ExtensionTelemetryPipeline", "Value": "1.0"}]'
-        else:
-            return value
 
     @staticmethod
     def write_to_file(path, data):

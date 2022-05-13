@@ -134,7 +134,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         argument_composer.operation = Constants.CONFIGURE_PATCHING
         argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
         argument_composer.events_folder = None
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings=dict(telemetrySupported=False)), True, Constants.APT)
         runtime.set_legacy_test_type('HappyPath')
         runtime.configure_patching_processor.start_configure_patching()
 

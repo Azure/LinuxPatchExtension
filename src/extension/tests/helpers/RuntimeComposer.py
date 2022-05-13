@@ -13,7 +13,6 @@ from extension.src.local_loggers.Logger import Logger
 class RuntimeComposer(object):
     def __init__(self):
         self.backup_os_getenv = os.getenv
-        os.getenv = self.getenv_telemetry_enabled
         self.logger = Logger()
         self.utility = Utility(self.logger)
         self.json_file_handler = JsonFileHandler(self.logger)

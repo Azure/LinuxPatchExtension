@@ -215,45 +215,6 @@ class TestTelemetryWriter(unittest.TestCase):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         os.listdir = backup_os_listdir
 
-    def test_agent_version_info(self):
-        # Case 1: HappyPath - WALinuxAgent is installed and version information is returned
-        self.runtime.set_legacy_test_type('HappyPath')
-        self.assertEqual(self.runtime.telemetry_writer.get_agent_version(), '2.2.49.2')
-        self.assertEqual(self.runtime.telemetry_writer.get_goal_state_agent_version(), '2.6.0.2')
-
-        # Case 2: SadPath - WALinuxAgent is not installed
-        self.runtime.set_legacy_test_type('SadPath')
-        self.assertTrue(self.runtime.telemetry_writer.get_agent_version() is None)
-        self.assertTrue(self.runtime.telemetry_writer.get_goal_state_agent_version() is None)
-
-    def test_agent_not_supported_env_var_telemetry_key_not_exists(self):
-        backup_os_getenv = os.getenv
-
-        def mock_os_getenv(key, default=None):
-            value = backup_os_getenv(key, default)
-            if key == Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR:
-                return '[]'
-            else:
-                return value
-
-        os.getenv = mock_os_getenv
-        self.assertEqual("Diagnostic-code: 2.2.49.2/2.6.0.2/1/0/2", self.runtime.telemetry_writer.get_telemetry_diagnostics())
-        os.getenv = backup_os_getenv
-
-    def test_agent_not_supported_env_var_supported_features_not_exists(self):
-        backup_os_getenv = os.getenv
-
-        def mock_os_getenv(key, default=None):
-            value = backup_os_getenv(key, default)
-            if key == Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR:
-                return None
-            else:
-                return value
-
-        os.getenv = mock_os_getenv
-        self.assertEqual("Diagnostic-code: 2.2.49.2/2.6.0.2/1/0/1", self.runtime.telemetry_writer.get_telemetry_diagnostics())
-        os.getenv = backup_os_getenv
-
 
 if __name__ == '__main__':
     unittest.main()

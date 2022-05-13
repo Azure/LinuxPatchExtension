@@ -63,24 +63,16 @@ class ProcessHandler(object):
             env_settings.update({env_settings_keys.config_folder: ext_env_handler.config_folder})
             env_settings.update({env_settings_keys.status_folder: ext_env_handler.status_folder})
             env_settings.update({env_settings_keys.events_folder: ext_env_handler.events_folder})
+            env_settings.update({env_settings_keys.telemetry_supported: ext_env_handler.telemetry_supported})
         return env_settings
-
-    @staticmethod
-    def get_agent_settings():
-        agent_settings = {}
-        agent_env_settings = os.getenv(Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR)
-        if agent_env_settings is not None:
-            agent_settings = agent_env_settings
-        return agent_settings
 
     def start_daemon(self, seq_no, config_settings, ext_env_handler):
         """ Launches the core code in a separate independent process with required arguments and exits the current process immediately """
         exec_path = os.path.join(os.getcwd(), Constants.CORE_CODE_FILE_NAME)
         public_config_settings = base64.b64encode(json.dumps(self.get_public_config_settings(config_settings)).encode("utf-8")).decode("utf-8")
         env_settings = base64.b64encode(json.dumps(self.get_env_settings(ext_env_handler)).encode("utf-8")).decode("utf-8")
-        agent_settings = base64.b64encode(json.dumps(self.get_agent_settings()).encode("utf-8")).decode("utf-8")
 
-        args = " -sequenceNumber {0} -environmentSettings \'{1}\' -configSettings \'{2}\' -agentSettings \'{3}\'".format(str(seq_no), env_settings, public_config_settings, agent_settings)
+        args = " -sequenceNumber {0} -environmentSettings \'{1}\' -configSettings \'{2}\'".format(str(seq_no), env_settings, public_config_settings)
 
         # Verify the python version available on the machine to use
         self.logger.log("Python version: " + " ".join(sys.version.splitlines()))
