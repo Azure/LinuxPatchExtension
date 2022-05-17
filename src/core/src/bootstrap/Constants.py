@@ -259,8 +259,8 @@ class Constants(object):
 
     TELEMETRY_TASK_NAME = "ExtensionCoreLog"
 
-    TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
-    TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"
+    TELEMETRY_NOT_COMPATIBLE_ERROR_MSG = "Telemetry is not supported. To resolve: http://aka.ms/UpdateLinuxAgent"
+    TELEMETRY_COMPATIBLE_MSG = "Telemetry is supported."
 
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 

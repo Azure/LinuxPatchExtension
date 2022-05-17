@@ -200,7 +200,7 @@ class TestStatusHandler(unittest.TestCase):
 
         # Adding a long error that will not be truncated (special case)
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        long_error_message = "{0} [Diagnostic-code: 2.2.49.2/2.6.0.2/0/1/0]".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG)
+        long_error_message = "{0} {1}".format(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG, "a"*60)
         self.assertTrue(len(long_error_message) > Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS)
         self.runtime.status_handler.add_error_to_status(long_error_message, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         substatus_file_data = []

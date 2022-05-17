@@ -80,7 +80,7 @@ class StatusHandler(object):
         self.__current_operation = None
 
         # If an error message is any of these strings, it ignores the length limit (STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS)
-        self.__ignore_error_message_restriction_compliance_strings = [Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG]
+        self.__ignore_error_message_restriction_compliance_strings = [Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG]
 
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
         if (execution_config.maintenance_run_id is not None or execution_config.health_store_id is not None) and execution_config.operation.lower() == Constants.INSTALLATION.lower():
