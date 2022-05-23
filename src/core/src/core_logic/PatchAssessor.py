@@ -15,9 +15,12 @@
 # Requires Python 2.7+
 
 """ A patch assessment """
-import time
-from core.src.bootstrap.Constants import Constants
+import json
 import os
+import shutil
+import time
+import datetime
+from core.src.bootstrap.Constants import Constants
 
 class PatchAssessor(object):
     """ Wrapper class of a single patch assessment """
@@ -38,7 +41,13 @@ class PatchAssessor(object):
         self.status_handler.set_current_operation(Constants.ASSESSMENT)
         self.raise_if_agent_incompatible()
 
+        if self.execution_config.exec_auto_assess_only and not self.should_auto_assessment_run():
+            self.composite_logger.log("\nAutomatic patch assessment not required at this time.\n")
+            self.lifecycle_manager.lifecycle_status_check()
+            return True
+
         self.composite_logger.log('\nStarting patch assessment...')
+        self.write_assessment_state()   # success / failure does not matter, only that an attempt started
 
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
@@ -65,7 +74,7 @@ class PatchAssessor(object):
                 break
             except Exception as error:
                 if i < Constants.MAX_ASSESSMENT_RETRY_COUNT - 1:
-                    error_msg = 'Retryable error retrieving available patches: ' + repr(error)
+                    error_msg = 'Retriable error retrieving available patches: ' + repr(error)
                     self.composite_logger.log_warning(error_msg)
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                     time.sleep(2*(i + 1))
@@ -94,94 +103,109 @@ class PatchAssessor(object):
         self.composite_logger.log("{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, self.telemetry_writer.get_telemetry_diagnostics()))
 
     # region - Auto-assessment extensions
-    def read_core_sequence(self):
-        """ Reads the core sequence file, but additionally establishes if this class is allowed to write to it when the freshest data is evaluated. """
-        self.composite_logger.log_debug("Reading core sequence...")
+    def should_auto_assessment_run(self):
+        # get last start time
+        try:
+            assessment_state = self.read_assessment_state()
+            last_start_in_seconds_since_epoch = assessment_state['lastStartInSecondsSinceEpoch']
+        except Exception as error:
+            self.composite_logger.log_warning("No valid last start information available for auto-assessment.")
+            return True
+
+        # get minimum elapsed time required
+        min_elapsed_seconds_required = self.__convert_iso8601_duration_to_total_seconds(Constants.MIN_AUTO_ASSESSMENT_INTERVAL)
+
+        # check if required duration has passed
+        elapsed_time_in_seconds = self.get_seconds_since_epoch() - last_start_in_seconds_since_epoch
+        if elapsed_time_in_seconds < 0:
+            self.composite_logger.log_warning("Anomaly detected in system time now or during the last assessment run. Assessment will run anyway.")
+            return True
+        else:
+            return elapsed_time_in_seconds >= min_elapsed_seconds_required
+
+    def read_assessment_state(self):
+        """ Reads the assessment state file. """
+        self.composite_logger.log_debug("Reading assessment state...")
         if not os.path.exists(self.assessment_state_file_path) or not os.path.isfile(self.assessment_state_file_path):
             # Neutralizes directories
             if os.path.isdir(self.assessment_state_file_path):
-                self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+                self.composite_logger.log_error("Assessment state file path returned a directory. Attempting to reset.")
                 shutil.rmtree(self.assessment_state_file_path)
-            # Writes a vanilla core sequence file
-            self.read_only_mode = False
-            self.update_core_sequence()
+            # Writes a vanilla assessment statefile
+            self.write_assessment_state()
 
         # Read (with retries for only IO Errors)
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
                 with self.env_layer.file_system.open(self.assessment_state_file_path, mode="r") as file_handle:
-                    core_sequence = json.load(file_handle)['coreSequence']
+                    assessment_state = json.load(file_handle)['assessmentState']
 
-                # The following code will only execute in the event of a bug
-                if not self.read_only_mode and os.getpid() not in core_sequence['processIds']:
-                    self.composite_logger.log_error("SERIOUS ERROR -- Core sequence was taken over in violation of sequence contract.")
-                    self.read_only_mode = True  # This should never happen, but we're switching back into read-only mode.
-                    if self.execution_config.exec_auto_assess_only:  # Yield execution precedence out of caution, if it's low pri auto-assessment
-                        return core_sequence
-
-                if self.read_only_mode:
-                    if core_sequence['completed'].lower() == 'true' or len(self.identify_running_processes(core_sequence['processIds'])) == 0:
-                        # Short-circuit for re-enable for completed non-auto-assess operations that should not run
-                        if not self.execution_config.exec_auto_assess_only and core_sequence['number'] == self.execution_config.sequence_number and core_sequence['completed'].lower() == 'true':
-                            self.composite_logger.log_debug("Not attempting to take ownership of core sequence since the sequence number as it's already done and this is the main process.")
-                            return core_sequence
-
-                        # Auto-assess over non-auto-assess is not a trivial override and is short-circuited to be evaluated in detail later
-                        if self.execution_config.exec_auto_assess_only and not core_sequence["autoAssessment"].lower() == 'true':
-                            self.composite_logger.log_debug("Auto-assessment cannot supersede the main core process trivially.")
-                            return core_sequence
-
-                        self.composite_logger.log_debug("Attempting to take ownership of core sequence.")
-                        self.read_only_mode = False
-                        self.update_core_sequence()
-                        self.read_only_mode = True
-
-                        # help re-evaluate if assertion succeeded
-                        with self.env_layer.file_system.open(self.assessment_state_file_path, mode="r") as file_handle:
-                            core_sequence = json.load(file_handle)['coreSequence']
-
-                    if os.getpid() in core_sequence['processIds']:
-                        self.composite_logger.log_debug("Successfully took ownership of core sequence.")
-                        self.read_only_mode = False
-
-                return core_sequence
+                return assessment_state
             except Exception as error:
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    self.composite_logger.log_warning("Exception on core sequence read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    self.composite_logger.log_warning("Exception on assessment state read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i + 1)
                 else:
-                    self.composite_logger.log_error("Unable to read core state file (retries exhausted). [Exception={0}]".format(repr(error)))
+                    self.composite_logger.log_error("Unable to read assessment state file (retries exhausted). [Exception={0}]".format(repr(error)))
                     raise
 
-    def update_core_sequence(self, completed=False):
-        if self.read_only_mode:
-            self.composite_logger.log_debug("Core sequence will not be updated to avoid contention... [DesiredCompletedValue={0}]".format(str(completed)))
-            return
+    def write_assessment_state(self):
+        self.composite_logger.log_debug("Updating assessment state... ")
 
-        self.composite_logger.log_debug("Updating core sequence... [Completed={0}]".format(str(completed)))
-        core_sequence = {'number': self.execution_config.sequence_number,
-                         'action': self.execution_config.operation,
-                         'completed': str(completed),
+        # lastHeartbeat below is redundant, but is present for ease of debuggability
+        assessment_state = {'number': self.execution_config.sequence_number,
+                         'lastStartInSecondsSinceEpoch': self.get_seconds_since_epoch(),
                          'lastHeartbeat': str(self.env_layer.datetime.timestamp()),
-                         'processIds': [os.getpid()] if not completed else [],
+                         'processIds': [os.getpid()],
                          'autoAssessment': str(self.execution_config.exec_auto_assess_only)}
-        core_state_payload = json.dumps({"coreSequence": core_sequence})
+        assessment_state_payload = json.dumps({"assessmentState": assessment_state})
 
         if os.path.isdir(self.assessment_state_file_path):
-            self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+            self.composite_logger.log_error("assessment state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.assessment_state_file_path)
 
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
                 with self.env_layer.file_system.open(self.assessment_state_file_path, 'w+') as file_handle:
-                    file_handle.write(core_state_payload)
+                    file_handle.write(assessment_state_payload)
             except Exception as error:
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    self.composite_logger.log_warning("Exception on core sequence update. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    self.composite_logger.log_warning("Exception on assessment state update. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i + 1)
                 else:
-                    self.composite_logger.log_error("Unable to write to core state file (retries exhausted). [Exception={0}]".format(repr(error)))
+                    self.composite_logger.log_error("Unable to write to assessment state file (retries exhausted). [Exception={0}]".format(repr(error)))
                     raise
 
-        self.composite_logger.log_debug("Completed updating core sequence.")
+        self.composite_logger.log_debug("Completed updating assessment state.")
 
+    def get_seconds_since_epoch(self):
+        return int((datetime.datetime.now() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+    def __convert_iso8601_duration_to_total_seconds(self, duration):
+        """
+            No non-default period (Y,M,W,D) is supported. Time is supported (H,M,S).
+        """
+        remaining = str(duration)
+        if 'PT' not in remaining:
+            raise Exception("Unexpected duration format. [Duration={0}]".format(duration))
+
+        discard, remaining = self.__extract_most_significant_unit_from_duration(remaining, 'PT')
+        hours, remaining = self.__extract_most_significant_unit_from_duration(remaining, 'H')
+        minutes, remaining = self.__extract_most_significant_unit_from_duration(remaining, 'M')
+        seconds, remaining = self.__extract_most_significant_unit_from_duration(remaining, 'S')
+
+        return datetime.timedelta(hours=int(hours), minutes=int(minutes), seconds=int(seconds)).total_seconds()
+
+    @staticmethod
+    def __extract_most_significant_unit_from_duration(duration_portion, unit_delimiter):
+        """ Internal helper function """
+        duration_split = duration_portion.split(unit_delimiter)
+        most_significant_unit = 0
+        if len(duration_split) == 2:  # found and extracted
+            most_significant_unit = duration_split[0]
+            remaining_duration_portion = duration_split[1]
+        elif len(duration_split) == 1:  # not found
+            remaining_duration_portion = duration_split[0]
+        else:  # bad data
+            raise Exception("Invalid duration portion: {0}".format(str(duration_portion)))
+        return most_significant_unit, remaining_duration_portion
