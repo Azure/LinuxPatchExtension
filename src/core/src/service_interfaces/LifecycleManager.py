@@ -24,11 +24,12 @@ from core.src.bootstrap.Constants import Constants
 class LifecycleManager(object):
     """ Parent class for LifecycleManagers of Azure and ARC ( auto assessment ), manages lifecycle within the extension wrapper ~ """
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         self.env_layer = env_layer
         self.execution_config = execution_config
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
+        self.status_handler = status_handler
 
         # Handshake file paths
         self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.EXT_STATE_FILE)

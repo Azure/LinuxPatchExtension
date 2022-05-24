@@ -245,6 +245,35 @@ class StatusHandler(object):
         self.is_reboot_pending = is_reboot_pending
     # endregion
 
+    # region - Terminal state management
+    def report_sequence_number_changed_termination(self):
+        """ Based on the current operation, sends """
+        current_operation = self.execution_config.operation.lower()
+        error_code = Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED
+        message = "Execution was stopped due to a newer operation taking precedence."
+
+        if self.execution_config.exec_auto_assess_only:
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.ASSESSMENT)
+            self.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+            return
+
+        if current_operation == Constants.CONFIGURE_PATCHING.lower() or \
+                current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT.lower() or \
+                current_operation == Constants.ASSESSMENT.lower() or \
+                current_operation == Constants.INSTALLATION.lower():
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING)
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
+            self.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
+
+        if current_operation == Constants.ASSESSMENT.lower() or current_operation == Constants.INSTALLATION.lower():
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.ASSESSMENT)
+            self.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+
+        if current_operation == Constants.INSTALLATION.lower():
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.INSTALLATION)
+            self.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+    # endregion - Terminal state management
+
     # region - Substatus generation
     def set_maintenance_window_exceeded(self, maintenance_windows_exceeded):
         self.__maintenance_window_exceeded = maintenance_windows_exceeded
@@ -360,6 +389,9 @@ class StatusHandler(object):
 
     def set_patch_metadata_for_healthstore_substatus_json(self, status=Constants.STATUS_SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False, wait_after_update=False):
         """ Prepare the healthstore substatus json including message containing summary to be sent to healthstore """
+        if self.execution_config.exec_auto_assess_only and status == Constants.STATUS_TRANSITIONING:
+            raise Exception("Auto-assessment mode. Unexpected attempt to update healthstore status.")
+
         self.composite_logger.log_debug("Setting patch metadata for healthstore substatus. [Substatus={0}] [Report to HealthStore={1}]".format(str(status), str(report_to_healthstore)))
 
         # Wrap patch metadata into healthstore summary
@@ -390,6 +422,9 @@ class StatusHandler(object):
                                               automatic_os_patch_state=Constants.AutomaticOSPatchStates.UNKNOWN,
                                               auto_assessment_state=Constants.AutoAssessmentStates.UNKNOWN):
         """ Prepare the configure patching substatus json including the message containing configure patching summary """
+        if self.execution_config.exec_auto_assess_only and status == Constants.STATUS_TRANSITIONING:
+            raise Exception("Auto-assessment mode. Unexpected attempt to update configure patching status.")
+
         self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap default automatic OS patch state on the machine, at the time of this request, into configure patching summary
@@ -473,6 +508,7 @@ class StatusHandler(object):
         :param initial_load: If no status file exists AND initial_load is true, a default initial status file is created.
         :return: None
         """
+        self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
         # Initializing records safely
         self.__installation_substatus_json = None
@@ -495,6 +531,7 @@ class StatusHandler(object):
 
         # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.status_file_path) and initial_load:
+            self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()
             return
 
@@ -621,6 +658,8 @@ class StatusHandler(object):
 
     # region - Error objects
     def set_current_operation(self, operation):
+        if self.execution_config.exec_auto_assess_only and operation != Constants.ASSESSMENT:
+            raise Exception("Status reporting for a non-assessment operation was attempted when executing in auto-assessment mode. [Operation={0}]".format(str(operation)))
         self.__current_operation = operation
 
     def get_current_operation(self):
