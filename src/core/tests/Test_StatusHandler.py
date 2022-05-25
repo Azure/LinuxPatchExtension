@@ -357,6 +357,7 @@ class TestStatusHandler(unittest.TestCase):
             self.assertTrue(substatus_file_data["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
             formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
             self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
+            self.assertEqual(formatted_message["startedBy"], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
 
     def test_set_patch_metadata_for_healthstore_substatus_json_auto_assess_transitioning(self):
         self.runtime.execution_config.exec_auto_assess_only = True

@@ -252,24 +252,15 @@ class StatusHandler(object):
         error_code = Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED
         message = "Execution was stopped due to a newer operation taking precedence."
 
-        if self.execution_config.exec_auto_assess_only:
+        if current_operation == Constants.ASSESSMENT.lower() or self.execution_config.exec_auto_assess_only:
             self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.ASSESSMENT)
             self.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
-            return
-
-        if current_operation == Constants.CONFIGURE_PATCHING.lower() or \
-                current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT.lower() or \
-                current_operation == Constants.ASSESSMENT.lower() or \
-                current_operation == Constants.INSTALLATION.lower():
+        elif current_operation == Constants.CONFIGURE_PATCHING.lower() or current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT.lower():
             self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING)
             self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
+            # TODO: pass in patch state / auto assessment state
             self.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
-
-        if current_operation == Constants.ASSESSMENT.lower() or current_operation == Constants.INSTALLATION.lower():
-            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.ASSESSMENT)
-            self.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
-
-        if current_operation == Constants.INSTALLATION.lower():
+        elif current_operation == Constants.INSTALLATION.lower():
             self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.INSTALLATION)
             self.set_installation_substatus_json(status=Constants.STATUS_ERROR)
     # endregion - Terminal state management
@@ -389,7 +380,7 @@ class StatusHandler(object):
 
     def set_patch_metadata_for_healthstore_substatus_json(self, status=Constants.STATUS_SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False, wait_after_update=False):
         """ Prepare the healthstore substatus json including message containing summary to be sent to healthstore """
-        if self.execution_config.exec_auto_assess_only and status == Constants.STATUS_TRANSITIONING:
+        if self.execution_config.exec_auto_assess_only:  # Previously included: status == Constants.STATUS_TRANSITIONING
             raise Exception("Auto-assessment mode. Unexpected attempt to update healthstore status.")
 
         self.composite_logger.log_debug("Setting patch metadata for healthstore substatus. [Substatus={0}] [Report to HealthStore={1}]".format(str(status), str(report_to_healthstore)))
@@ -422,7 +413,7 @@ class StatusHandler(object):
                                               automatic_os_patch_state=Constants.AutomaticOSPatchStates.UNKNOWN,
                                               auto_assessment_state=Constants.AutoAssessmentStates.UNKNOWN):
         """ Prepare the configure patching substatus json including the message containing configure patching summary """
-        if self.execution_config.exec_auto_assess_only and status == Constants.STATUS_TRANSITIONING:
+        if self.execution_config.exec_auto_assess_only:  # Previously included: status == Constants.STATUS_TRANSITIONING
             raise Exception("Auto-assessment mode. Unexpected attempt to update configure patching status.")
 
         self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))
@@ -508,8 +499,6 @@ class StatusHandler(object):
         :param initial_load: If no status file exists AND initial_load is true, a default initial status file is created.
         :return: None
         """
-        self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
-
         # Initializing records safely
         self.__installation_substatus_json = None
         self.__installation_summary_json = None
@@ -528,6 +517,8 @@ class StatusHandler(object):
         self.__configure_patching_summary_json = None
         self.__configure_patching_errors = []
         self.__configure_patching_auto_assessment_errors = []
+
+        self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
         # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.status_file_path) and initial_load:
