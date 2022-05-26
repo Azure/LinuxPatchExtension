@@ -247,7 +247,7 @@ class StatusHandler(object):
 
     # region - Terminal state management
     def report_sequence_number_changed_termination(self):
-        """ Based on the current operation, sends """
+        """ Based on the current operation, adds an error status and sets the substatus to error """
         current_operation = self.execution_config.operation.lower()
         error_code = Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED
         message = "Execution was stopped due to a newer operation taking precedence."
