@@ -380,7 +380,7 @@ class StatusHandler(object):
 
     def set_patch_metadata_for_healthstore_substatus_json(self, status=Constants.STATUS_SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False, wait_after_update=False):
         """ Prepare the healthstore substatus json including message containing summary to be sent to healthstore """
-        if self.execution_config.exec_auto_assess_only:  # Previously included: status == Constants.STATUS_TRANSITIONING
+        if self.execution_config.exec_auto_assess_only:
             raise Exception("Auto-assessment mode. Unexpected attempt to update healthstore status.")
 
         self.composite_logger.log_debug("Setting patch metadata for healthstore substatus. [Substatus={0}] [Report to HealthStore={1}]".format(str(status), str(report_to_healthstore)))
@@ -413,7 +413,7 @@ class StatusHandler(object):
                                               automatic_os_patch_state=Constants.AutomaticOSPatchStates.UNKNOWN,
                                               auto_assessment_state=Constants.AutoAssessmentStates.UNKNOWN):
         """ Prepare the configure patching substatus json including the message containing configure patching summary """
-        if self.execution_config.exec_auto_assess_only:  # Previously included: status == Constants.STATUS_TRANSITIONING
+        if self.execution_config.exec_auto_assess_only:
             raise Exception("Auto-assessment mode. Unexpected attempt to update configure patching status.")
 
         self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))

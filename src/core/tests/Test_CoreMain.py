@@ -846,10 +846,9 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
-        # Step 2: Update 1.status to transitioning and ExtState.json to different sequence number
         scratch_path = os.path.join(os.path.curdir, "scratch")
 
-        # Set 1.status to Transitioning
+        # Step 2: Set 1.status to Transitioning
         with open(os.path.join(scratch_path, "1.status"), 'r+') as f:
             status = json.load(f)
             status[0]["status"]["status"] = "transitioning"
@@ -859,21 +858,17 @@ class TestCoreMain(unittest.TestCase):
             f.truncate()
             f.close()
 
-        # Step 3: Run Assessment again with sequence number 1 to automatically terminate and report operation superseded
-        argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-        runtime.set_legacy_test_type('HappyPath')
-        # Set ExtState.json sequence number to 2 so this operation will be superseded
+        # Step 3: Update sequence number in ExtState.json to mock a new incoming request
         runtime.write_ext_state_file(runtime.lifecycle_manager.ext_state_file_path, "2",
                                   datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
                                   runtime.execution_config.operation)
 
-        # Should raise a SystemExit exception
         raised_exit_exception = False
+        # Step 4: Run Assessment again with sequence number 1 to mock an older request that should automatically terminate and report operation superseded
         try:
             CoreMain(argument_composer.get_composed_arguments())
         except SystemExit as error:
+            # Should raise a SystemExit exception
             raised_exit_exception = True
 
         self.assertTrue(raised_exit_exception)
