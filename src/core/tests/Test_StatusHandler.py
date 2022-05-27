@@ -362,17 +362,17 @@ class TestStatusHandler(unittest.TestCase):
     def test_set_patch_metadata_for_healthstore_substatus_json_auto_assess_transitioning(self):
         self.runtime.execution_config.exec_auto_assess_only = True
         self.assertRaises(Exception,
-                          lambda: self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json(status=Constants.STATUS_TRANSITIONING))
+                          lambda: self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json())
 
     def test_set_configure_patching_substatus_json_auto_assess_transitioning(self):
         self.runtime.execution_config.exec_auto_assess_only = True
         self.assertRaises(Exception,
-                          lambda: self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json(status=Constants.STATUS_TRANSITIONING))
+                          lambda: self.runtime.status_handler.set_configure_patching_substatus_json())
 
     def test_set_current_operation_auto_assess_non_assessment(self):
         self.runtime.execution_config.exec_auto_assess_only = True
         self.assertRaises(Exception,
-                          lambda: self.runtime.status_handler.set_current_operation(status=Constants.INSTALLATION))
+                          lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
 
 
 if __name__ == '__main__':
