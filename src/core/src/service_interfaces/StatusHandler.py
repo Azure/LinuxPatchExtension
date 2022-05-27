@@ -247,7 +247,7 @@ class StatusHandler(object):
 
     # region - Terminal state management
     def report_sequence_number_changed_termination(self):
-        """ Based on the current operation (Assessment or Installation), adds an error status and sets the substatus to error """
+        """ Based on the current operation, adds an error status and sets the substatus to error """
         current_operation = self.execution_config.operation.lower()
         error_code = Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED
         message = "Execution was stopped due to a newer operation taking precedence."
@@ -255,6 +255,10 @@ class StatusHandler(object):
         if current_operation == Constants.ASSESSMENT.lower() or self.execution_config.exec_auto_assess_only:
             self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.ASSESSMENT)
             self.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+        # elif current_operation == Constants.CONFIGURE_PATCHING.lower() or current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT.lower():
+        #     self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING)
+        #     self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
+        #     self.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
         elif current_operation == Constants.INSTALLATION.lower():
             self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.INSTALLATION)
             self.set_installation_substatus_json(status=Constants.STATUS_ERROR)
