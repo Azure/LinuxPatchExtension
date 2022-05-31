@@ -339,29 +339,66 @@ class TestActionHandler(unittest.TestCase):
                 self.assertEqual(events[0]["OperationId"], self.action_handler.operation_id_substitute_for_all_actions_in_telemetry)
 
     def test_write_basic_status_uninstall(self):
-        """ Check that a basic status file is NOT written during uninstall handler command setup """
+        """ Validate a basic status file is written if seq no exists in env var """
+        # no status file if seq no not found
         self.action_handler.uninstall()
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
+        # status file will be written if seq no is found
+        self.action_handler.seq_no = 1234
+        self.action_handler.uninstall()
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
+        self.assertEquals(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEquals(status_json[0]["status"]["operation"], "")
+        self.assertEquals(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEquals(status_json[0]["status"]["code"], 0)
+        self.assertEquals(status_json[0]["status"]["formattedMessage"]["message"], "Extension {0} in progress".format(str(Constants.UNINSTALL)))
+        self.assertEquals(status_json[0]["status"]["substatus"], [])
+
     def test_write_basic_status_install(self):
-        """ Check that a basic status file is NOT written during install handler command setup """
+        """ Validate a basic status file is written if seq no exists in env var """
+        # no status file if seq no not found
         self.action_handler.install()
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
+        # status file will be written if seq no is found
+        self.action_handler.seq_no = 1234
+        self.action_handler.install()
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
     def test_write_basic_status_update(self):
-        """ Check that a basic status file is NOT written during update handler command setup """
+        """ Validate a basic status file is written if seq no exists in env var """
+        # no status file if seq no not found
         self.action_handler.update()
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
+        # status file will be written if seq no is found
+        self.action_handler.seq_no = 1234
+        self.action_handler.update()
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
     def test_write_basic_status_disable(self):
-        """ Check that a basic status file is NOT written during disable handler command setup """
+        """ Validate a basic status file is written if seq no exists in env var """
+        # no status file if seq no not found
         self.action_handler.disable()
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
+        # status file will be written if seq no is found
+        self.action_handler.seq_no = 1234
+        self.action_handler.disable()
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
     def test_write_basic_status_reset(self):
-        """ Check that a basic status file is NOT written during reset handler command setup """
+        """ Validate a basic status file is written if seq no exists in env var """
+        # no status file if seq no not found
         self.action_handler.reset()
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+        # status file will be written if seq no is found
+        self.action_handler.seq_no = 1234
+        self.action_handler.reset()
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
     def test_write_basic_status_enable(self):
         """ Check that a basic status file is written during enable handler command setup """

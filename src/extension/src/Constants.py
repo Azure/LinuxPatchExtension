@@ -124,6 +124,9 @@ class Constants(object):
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         OPERATION_FAILED = "OPERATION_FAILED"
         DEFAULT_ERROR = "ERROR"  # default error code
+        SEQUENCE_NUMBER_NOT_FOUND = "SEQUENCE_NUMBER_NOT_FOUND"
+        OPERATION_NOT_SUPPORTED = "OPERATION_NOT_SUPPORTED"
+        HANDLER_ACTION_FAILED = "HANDLER_ACTION_FAILED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
     PYTHON_NOT_FOUND = "Python version could not be discovered for core invocation."
