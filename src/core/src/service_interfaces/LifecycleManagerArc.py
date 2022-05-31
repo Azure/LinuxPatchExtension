@@ -24,8 +24,8 @@ from core.src.service_interfaces.LifecycleManager import LifecycleManager
 class LifecycleManagerArc(LifecycleManager):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
-        super(LifecycleManagerArc,self).__init__(env_layer,execution_config,composite_logger,telemetry_writer)
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
+        super(LifecycleManagerArc,self).__init__(env_layer,execution_config,composite_logger,telemetry_writer, status_handler)
 
         # Handshake file paths
         self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.EXT_STATE_FILE)
