@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.37"
+    EXT_VERSION = "1.6.38"
 
     # Runtime environments
     TEST = 'Test'
@@ -228,10 +228,10 @@ class Constants(object):
         ERROR = 1
 
     class PatchOperationErrorCodes(EnumBackport):
-        # todo: finalize these error codes
-        PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
-        OPERATION_FAILED = "OPERATION_FAILED"
         DEFAULT_ERROR = "ERROR"  # default error code
+        OPERATION_FAILED = "OPERATION_FAILED"
+        PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
+        NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 

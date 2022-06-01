@@ -171,17 +171,17 @@ class ConfigurationFactory(object):
         configuration = {
             'config_env': Constants.PROD,
             'package_manager_name': package_manager_name,
-            'lifecycle_manager': {
-                'component': self.lifecycle_manager_component,
-                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
-                'component_kwargs': {}
-            },
             'status_handler': {
                 'component': StatusHandler,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer'],
                 'component_kwargs': {
                     'vm_cloud_type': self.vm_cloud_type
                 }
+            },
+            'lifecycle_manager': {
+                'component': self.lifecycle_manager_component,
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler'],
+                'component_kwargs': {}
             },
             'package_manager': {
                 'component': package_manager_component,

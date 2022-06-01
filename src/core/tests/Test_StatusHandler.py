@@ -349,6 +349,31 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_installation_substatus_json()
         self.assertEqual(expected_maintenance_run_id, self.get_status_handler_substatus_maintenance_run_id())
 
+    def test_sequence_number_changed_termination_auto_assess_only(self):
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.runtime.status_handler.report_sequence_number_changed_termination()
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+            self.assertTrue(substatus_file_data["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
+            self.assertEqual(formatted_message["startedBy"], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
+
+    def test_set_patch_metadata_for_healthstore_substatus_json_auto_assess_transitioning(self):
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.assertRaises(Exception,
+                          lambda: self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json())
+
+    def test_set_configure_patching_substatus_json_auto_assess_transitioning(self):
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.assertRaises(Exception,
+                          lambda: self.runtime.status_handler.set_configure_patching_substatus_json())
+
+    def test_set_current_operation_auto_assess_non_assessment(self):
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.assertRaises(Exception,
+                          lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
+
 
 if __name__ == '__main__':
     unittest.main()
