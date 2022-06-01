@@ -124,9 +124,6 @@ class Constants(object):
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         OPERATION_FAILED = "OPERATION_FAILED"
         DEFAULT_ERROR = "ERROR"  # default error code
-        SEQUENCE_NUMBER_NOT_FOUND = "SEQUENCE_NUMBER_NOT_FOUND"
-        OPERATION_NOT_SUPPORTED = "OPERATION_NOT_SUPPORTED"
-        HANDLER_ACTION_FAILED = "HANDLER_ACTION_FAILED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
     PYTHON_NOT_FOUND = "Python version could not be discovered for core invocation."
@@ -204,19 +201,20 @@ class Constants(object):
 
     class ExitCode(EnumBackport):
         Okay = 0
-        HandlerFailed = -1
-        MissingConfig = -2
-        BadConfig = -3
         UnsupportedOperatingSystem = 51
         MissingDependency = 52
         ConfigurationError = 53
-        BadHandlerEnvironmentFile = 3560
-        UnableToReadStatusFile = 3561
-        CreateFileLoggerFailure = 3562
-        ReadingAndDeserializingConfigFileFailure = 3563
-        InvalidConfigSettingPropertyValue = 3564
-        CreateLoggerFailure = 3565
-        CreateStatusWriterFailure = 3566
+        BadHandlerEnvironmentFile = 54
+        UnableToReadStatusFile = 55
+        CreateFileLoggerFailure = 56
+        ReadingAndDeserializingConfigFileFailure = 57
+        InvalidConfigSettingPropertyValue = 58
+        CreateLoggerFailure = 59
+        CreateStatusWriterFailure = 60
+        HandlerFailed = 61
+        MissingConfig = 62
+        BadConfig = 63
+        OperationNotSupported = 64
 
     class AgentEnvVarStatusCode(EnumBackport):
         AGENT_ENABLED = "AGENT_ENABLED"

@@ -23,6 +23,7 @@ import unittest
 
 from extension.src.ActionHandler import ActionHandler
 from extension.src.Constants import Constants
+from extension.src.InstallCommandHandler import InstallCommandHandler
 from extension.src.ProcessHandler import ProcessHandler
 from extension.src.RuntimeContextHandler import RuntimeContextHandler
 from extension.src.TelemetryWriter import TelemetryWriter
@@ -50,8 +51,12 @@ class TestActionHandler(unittest.TestCase):
         ext_state_handler = ExtStateHandler(self.ext_env_handler.config_folder, self.runtime.utility, self.runtime.json_file_handler)
         ext_output_status_handler = ExtOutputStatusHandler(self.runtime.logger, self.runtime.utility, self.runtime.json_file_handler, self.ext_env_handler.status_folder)
         process_handler = ProcessHandler(self.runtime.logger, self.runtime.env_layer, ext_output_status_handler)
+
+        self.backup_get_seq_no_from_env_var = self.ext_config_settings_handler.get_seq_no_from_env_var
+        self.ext_config_settings_handler.get_seq_no_from_env_var = self.mock_get_seq_no_from_env_var
         self.action_handler = ActionHandler(self.runtime.logger, self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.utility, runtime_context_handler, self.runtime.json_file_handler, self.runtime.env_health_manager,
                                             self.ext_env_handler, self.ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, datetime.datetime.utcnow())
+        self.ext_config_settings_handler.get_seq_no_from_env_var = self.backup_get_seq_no_from_env_var
 
         self.backup_get_seq_no_from_env_var = self.ext_config_settings_handler.get_seq_no_from_env_var
         self.ext_config_settings_handler.get_seq_no_from_env_var = self.mock_get_seq_no_from_env_var
@@ -92,6 +97,9 @@ class TestActionHandler(unittest.TestCase):
         self.ext_env_handler.log_folder = log_folder_complete_path
         self.ext_env_handler.events_folder = events_folder_complete_path
 
+    def mock_get_seq_no_from_env_var(self):
+        return 1234
+
     def mock_get_all_versions(self, extension_pardir):
         return [extension_pardir + '/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.3',
                 extension_pardir + '/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5',
@@ -105,6 +113,17 @@ class TestActionHandler(unittest.TestCase):
 
     def mock_os_path_realpath(self, file):
         return self.ext_env_handler.config_folder
+
+    def mock_config_settings_read_file(self, seq_no):
+        ext_config_settings_handler = ExtConfigSettingsHandler(self.runtime.logger, self.runtime.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
+        config_values = ext_config_settings_handler.read_file(seq_no)
+        return config_values
+
+    def mock_setup_throws_exception(self, action, log_message):
+        raise Exception
+
+    def mock_validate_os_type(self):
+        return True
 
     @staticmethod
     def create_latest_extension_dir(version, test_dir):
@@ -144,6 +163,7 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        self.validate_status_file_on_success(self.action_handler.seq_no)
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
         self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
@@ -164,6 +184,7 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        self.validate_status_file_on_success(self.action_handler.seq_no)
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
         self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
@@ -184,6 +205,7 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        self.validate_status_file_on_success(self.action_handler.seq_no)
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
         self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
@@ -204,6 +226,7 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
         self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        self.validate_status_file_on_success(self.action_handler.seq_no)
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
         self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
@@ -216,6 +239,7 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.ext_env_handler.events_folder = test_dir
         self.action_handler.ext_env_handler.config_folder = '/test/config'
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.HandlerFailed)
+        self.validate_status_file_on_failure(self.action_handler.seq_no, "No earlier versions for the extension found on the machine. So, could not copy any references to the current version.")
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
         self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
@@ -232,6 +256,7 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.get_all_versions = self.mock_get_all_versions
         self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.HandlerFailed)
+        self.validate_status_file_on_failure(self.action_handler.seq_no, "No earlier versions for the extension found on the machine. So, could not copy any references to the current version.")
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
         self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
@@ -247,6 +272,7 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.get_all_versions = self.mock_get_all_versions_exception
         self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.HandlerFailed)
+        self.validate_status_file_on_failure(self.action_handler.seq_no, "Error occurred during extension update")
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
         self.runtime.telemetry_writer.events_folder_path = None
         # Remove the directory after the test
@@ -338,73 +364,185 @@ class TestActionHandler(unittest.TestCase):
                 events = json.load(f)
                 self.assertEqual(events[0]["OperationId"], self.action_handler.operation_id_substitute_for_all_actions_in_telemetry)
 
-    def test_write_basic_status_uninstall(self):
-        """ Validate a basic status file is written if seq no exists in env var """
+    def test_write_basic_status(self):
         # no status file if seq no not found
-        self.action_handler.uninstall()
+        self.action_handler.seq_no = None
+        self.action_handler.write_basic_status(Constants.INSTALL)
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
         # status file will be written if seq no is found
-        self.action_handler.seq_no = 1234
-        self.action_handler.uninstall()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.action_handler.seq_no = 6789
+        self.action_handler.write_basic_status(Constants.INSTALL)
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '6789.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
         self.assertEquals(status_json[0]["status"]["name"], "Azure Patch Management")
         self.assertEquals(status_json[0]["status"]["operation"], "")
         self.assertEquals(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
         self.assertEquals(status_json[0]["status"]["code"], 0)
-        self.assertEquals(status_json[0]["status"]["formattedMessage"]["message"], "Extension {0} in progress".format(str(Constants.UNINSTALL)))
+        self.assertEquals(status_json[0]["status"]["formattedMessage"]["message"], "")
         self.assertEquals(status_json[0]["status"]["substatus"], [])
 
-    def test_write_basic_status_install(self):
+        # status file write for ENABLE (adds more details to status json than non ENABLE operations)
+        self.backup_config_settings_read_file = self.ext_config_settings_handler.read_file
+        self.ext_config_settings_handler.read_file = self.mock_config_settings_read_file
+
+        self.action_handler.seq_no = 1234
+        self.action_handler.write_basic_status(Constants.ENABLE)
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
+        self.assertEquals(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEquals(status_json[0]["status"]["operation"], "Installation")
+        self.assertEquals(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEquals(status_json[0]["status"]["code"], 0)
+        self.assertEquals(status_json[0]["status"]["formattedMessage"]["message"], "")
+        self.assertEquals(status_json[0]["status"]["substatus"], [])
+
+        self.ext_config_settings_handler.read_file = self.backup_config_settings_read_file
+
+    def test_status_file_on_uninstall_success(self):
         """ Validate a basic status file is written if seq no exists in env var """
-        # no status file if seq no not found
+        # no status file if seq no not found in env var
+        self.action_handler.seq_no = None
+        self.action_handler.uninstall()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+        # Uninstall succeeds, seq no available in env var, status file is written
+        self.action_handler.seq_no = 1234
+        self.action_handler.uninstall()
+        self.validate_status_file_on_success(self.action_handler.seq_no)
+
+    def test_status_file_on_uninstall_failed(self):
+        """ Validate a basic status file is written if seq no exists in env var """
+        self.backup_setup = self.action_handler.setup
+        self.action_handler.setup = self.mock_setup_throws_exception
+
+        # no status file if seq no not found in env var
+        self.action_handler.seq_no = None
+        self.action_handler.uninstall()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+        # Uninstall fails, seq no available in env var, status file is written
+        self.action_handler.seq_no = 1234
+        self.action_handler.uninstall()
+        self.validate_status_file_on_failure(self.action_handler.seq_no, "Error occurred during extension uninstall")
+
+        self.action_handler.setup = self.backup_setup
+
+    def test_status_file_on_install_success(self):
+        """ Validate a basic status file is written if seq no exists in env var """
+        self.backup_validate_os_type = InstallCommandHandler.validate_os_type
+        InstallCommandHandler.validate_os_type = self.mock_validate_os_type
+
+        # no status file if seq no not found in env var
+        self.action_handler.seq_no = None
         self.action_handler.install()
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
-        # status file will be written if seq no is found
+        # Uninstall succeeds, seq no available in env var, status file is written
         self.action_handler.seq_no = 1234
         self.action_handler.install()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.validate_status_file_on_success(self.action_handler.seq_no)
 
-    def test_write_basic_status_update(self):
+        InstallCommandHandler.validate_os_type = self.backup_validate_os_type
+
+    def test_status_file_on_install_failed(self):
         """ Validate a basic status file is written if seq no exists in env var """
-        # no status file if seq no not found
-        self.action_handler.update()
+        self.backup_setup = self.action_handler.setup
+        self.action_handler.setup = self.mock_setup_throws_exception
+
+        # no status file if seq no not found in env var
+        self.action_handler.seq_no = None
+        self.action_handler.install()
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
-        # status file will be written if seq no is found
+        # Uninstall fails, seq no available in env var, status file is written
         self.action_handler.seq_no = 1234
-        self.action_handler.update()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.action_handler.install()
+        self.validate_status_file_on_failure(self.action_handler.seq_no, "Error occurred during extension install")
 
-    def test_write_basic_status_disable(self):
+        self.action_handler.setup = self.backup_setup
+
+    def test_status_file_on_disable_success(self):
         """ Validate a basic status file is written if seq no exists in env var """
-        # no status file if seq no not found
+        # no status file if seq no not found in env var
+        self.action_handler.seq_no = None
         self.action_handler.disable()
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
-        # status file will be written if seq no is found
+        # Uninstall succeeds, seq no available in env var, status file is written
         self.action_handler.seq_no = 1234
         self.action_handler.disable()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.validate_status_file_on_success(self.action_handler.seq_no)
 
-    def test_write_basic_status_reset(self):
+    def test_status_file_on_disable_failed(self):
         """ Validate a basic status file is written if seq no exists in env var """
-        # no status file if seq no not found
+        self.backup_setup = self.action_handler.setup
+        self.action_handler.setup = self.mock_setup_throws_exception
+
+        # no status file if seq no not found in env var
+        self.action_handler.seq_no = None
+        self.action_handler.disable()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+        # Uninstall fails, seq no available in env var, status file is written
+        self.action_handler.seq_no = 1234
+        self.action_handler.disable()
+        self.validate_status_file_on_failure(self.action_handler.seq_no, "Error occurred during extension disable")
+
+    def test_status_file_on_reset_success(self):
+        """ Validate a basic status file is written if seq no exists in env var """
+        # no status file if seq no not found in env var
+        self.action_handler.seq_no = None
         self.action_handler.reset()
         self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
 
-        # status file will be written if seq no is found
+        # Uninstall succeeds, seq no available in env var, status file is written
         self.action_handler.seq_no = 1234
         self.action_handler.reset()
-        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        self.validate_status_file_on_success(self.action_handler.seq_no)
 
-    def test_write_basic_status_enable(self):
+    def test_status_file_on_reset_failed(self):
+        """ Validate a basic status file is written if seq no exists in env var """
+        self.backup_setup = self.action_handler.setup
+        self.action_handler.setup = self.mock_setup_throws_exception
+
+        # no status file if seq no not found in env var
+        self.action_handler.seq_no = None
+        self.action_handler.reset()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+        # Uninstall fails, seq no available in env var, status file is written
+        self.action_handler.seq_no = 1234
+        self.action_handler.reset()
+        self.validate_status_file_on_failure(self.action_handler.seq_no, "Error occurred during extension reset")
+
+    def test_status_file_on_enable_success(self):
         """ Check that a basic status file is written during enable handler command setup """
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+        status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["operation"], "Installation")
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEqual(status_json[0]["status"]["code"], 0)
+        self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
+        self.assertEqual(status_json[0]["status"]["substatus"], [])
+
+    def test_status_file_on_enable_failed(self):
+        """ Validate a basic status file is written if seq no exists in env var """
+        self.backup_setup = self.action_handler.setup
+        self.action_handler.setup = self.mock_setup_throws_exception
+
+        # no status file if seq no not found in env var
+        self.action_handler.seq_no = None
+        self.action_handler.enable()
+        self.assertFalse(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
+
+        # Uninstall fails, seq no available in env var, status file is written
+        self.action_handler.seq_no = 1234
+        self.action_handler.enable()
+        self.validate_status_file_on_failure(self.action_handler.seq_no, "Error occurred during extension enable")
 
     @staticmethod
     def mock_path_isdir(path):
@@ -427,4 +565,25 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue('/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.36' in all_versions)
         self.assertTrue('/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.35' in all_versions)
         os.path.isdir = backup_path_isdir
+
+    def validate_status_file_on_success(self, seq_no):
+        # validate status file
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, str(seq_no) + '.status')))
+        status_json = self.action_handler.ext_output_status_handler.read_file(seq_no)
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["operation"], "")
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Success.lower())
+        self.assertEqual(status_json[0]["status"]["code"], 0)
+        self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
+        self.assertEqual(status_json[0]["status"]["substatus"], [])
+
+    def validate_status_file_on_failure(self, seq_no, message, code=Constants.ExitCode.HandlerFailed):
+        self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, str(seq_no) + '.status')))
+        status_json = self.action_handler.ext_output_status_handler.read_file(seq_no)
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["operation"], "")
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Error.lower())
+        self.assertEqual(status_json[0]["status"]["code"], code)
+        self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], message)
+        self.assertEqual(status_json[0]["status"]["substatus"], [])
 

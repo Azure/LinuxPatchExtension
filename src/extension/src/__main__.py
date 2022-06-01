@@ -71,7 +71,6 @@ def main(argv):
             raise Exception(error_msg)
     except Exception as error:
         logger.log_error(repr(error))
-        # may come here
         exit_code = Constants.ExitCode.HandlerFailed
     finally:
         if stdout_file_mirror is not None:

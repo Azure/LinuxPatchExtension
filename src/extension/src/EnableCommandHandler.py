@@ -68,8 +68,8 @@ class EnableCommandHandler(object):
             # Allow only certain operations
             if operation not in [Constants.NOOPERATION, Constants.ASSESSMENT, Constants.INSTALLATION, Constants.CONFIGURE_PATCHING]:
                 self.logger.log_error("Requested operation is not supported by the extension")
-                self.ext_output_status_handler.add_error_to_message(self.seq_no, message="Requested operation {0} is not supported by the extension".format(str(operation)), error_code=Constants.PatchOperationErrorCodes.OPERATION_NOT_SUPPORTED)
-                exit(Constants.ExitCode.InvalidConfigSettingPropertyValue)
+                self.ext_output_status_handler.write_status_file(operation, self.seq_no, status=Constants.Status.Error.lower(), message="Requested operation {0} is not supported by the extension".format(str(operation)), code=Constants.ExitCode.OperationNotSupported)
+                exit(Constants.ExitCode.OperationNotSupported)
 
             prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.ENABLE_MAX_RUNTIME)
             self.ext_state_handler.create_file(self.seq_no, operation, prev_patch_max_end_time)
@@ -124,11 +124,7 @@ class EnableCommandHandler(object):
         """ Creates <sequence number>.status to report the current request's status and launches core code to handle the requested operation """
         # create Status file
         if create_status_output_file:
-            self.ext_output_status_handler.write_status_file(
-                config_settings.__getattribute__(self.config_public_settings.operation),
-                self.seq_no,
-                status=self.status.Transitioning.lower(),
-                message="Extension enable in progress")
+            self.ext_output_status_handler.write_status_file(config_settings.__getattribute__(self.config_public_settings.operation), self.seq_no, status=self.status.Transitioning.lower())
         else:
             self.ext_output_status_handler.update_file(self.seq_no)
         # launch core code in a process and exit extension handler
