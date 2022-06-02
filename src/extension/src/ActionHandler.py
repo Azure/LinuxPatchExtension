@@ -164,8 +164,9 @@ class ActionHandler(object):
         try:
             self.setup(action=Constants.INSTALL, log_message="Extension installation started")
             install_command_handler = InstallCommandHandler(self.logger, self.ext_env_handler)
+            exit_code_from_executing_install = install_command_handler.execute_handler_action()
             self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
-            return install_command_handler.execute_handler_action()
+            return exit_code_from_executing_install
 
         except Exception as error:
             self.logger.log_error("Error occurred during extension install. [Error={0}]".format(repr(error)))

@@ -213,7 +213,6 @@ class Constants(object):
         CreateStatusWriterFailure = 60
         HandlerFailed = 61
         MissingConfig = 62
-        BadConfig = 63
         OperationNotSupported = 64
 
     class AgentEnvVarStatusCode(EnumBackport):
