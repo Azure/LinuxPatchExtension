@@ -253,6 +253,9 @@ class TestActionHandler(unittest.TestCase):
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
+    def test_telemetry_available(self):
+        self.assertTrue(self.runtime.telemetry_writer.is_agent_compatible())
+
     def test_telemetry_available_env_var_not_exists(self):
         # agent env var is not set so telemetry is not supported
         backup_os_getenv = os.getenv
