@@ -28,10 +28,9 @@ from core.src.bootstrap.Constants import Constants
 class TelemetryWriter(object):
     """Class for writing telemetry data to data transports"""
 
-    def __init__(self, env_layer, composite_logger, events_folder_path):
+    def __init__(self, env_layer, composite_logger, events_folder_path, telemetry_supported):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
-        self.__is_telemetry_supported = False
         self.__operation_id = str(datetime.datetime.utcnow())
         self.events_folder_path = None
         self.__telemetry_event_counter = 1  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
@@ -41,12 +40,10 @@ class TelemetryWriter(object):
         if self.__get_events_folder_path_exists(events_folder_path):
             self.events_folder_path = events_folder_path
 
-    def set_telemetry_is_supported(self, telemetry_is_supported):
-        self.__is_telemetry_supported = telemetry_is_supported and self.events_folder_path is not None
-        if self.__is_telemetry_supported:
-            self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
-            self.write_machine_config_info()
+        self.__is_telemetry_supported = telemetry_supported and self.events_folder_path is not None
 
+        self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
+        self.write_machine_config_info()
 
     def write_config_info(self, config_info, config_type='unknown'):
         # Configuration info

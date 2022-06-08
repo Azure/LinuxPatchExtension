@@ -55,7 +55,13 @@ class TestPatchAssessor(unittest.TestCase):
 
     def test_assessment_telemetry_fail(self):
         backup_telemetry_writer = self.runtime.telemetry_writer
-        telemetry_writer = TelemetryWriter(self.runtime.env_layer, self.runtime.composite_logger, events_folder_path=None)
+        telemetry_writer = TelemetryWriter(self.runtime.env_layer, self.runtime.composite_logger, events_folder_path=None, telemetry_supported=False)
+        self.runtime.patch_assessor.telemetry_writer = telemetry_writer
+        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        telemetry_writer = TelemetryWriter(self.runtime.env_layer, self.runtime.composite_logger, events_folder_path="events", telemetry_supported=False)
+        self.runtime.patch_assessor.telemetry_writer = telemetry_writer
+        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        telemetry_writer = TelemetryWriter(self.runtime.env_layer, self.runtime.composite_logger, events_folder_path=None, telemetry_supported=True)
         self.runtime.patch_assessor.telemetry_writer = telemetry_writer
         self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
         self.runtime.patch_assessor.telemetry_writer = backup_telemetry_writer

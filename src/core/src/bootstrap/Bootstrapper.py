@@ -36,7 +36,7 @@ class Bootstrapper(object):
 
         # Container initialization
         print("Building bootstrap container configuration...")
-        self.configuration_factory = ConfigurationFactory(self.log_file_path, self.real_record_path, self.recorder_enabled, self.emulator_enabled, self.events_folder)
+        self.configuration_factory = ConfigurationFactory(self.log_file_path, self.real_record_path, self.recorder_enabled, self.emulator_enabled, self.events_folder, self.telemetry_supported)
         self.container = Container()
         self.container.build(self.configuration_factory.get_bootstrap_configuration(self.current_env))
 
@@ -50,7 +50,6 @@ class Bootstrapper(object):
             self.stdout_file_mirror = StdOutFileMirror(self.env_layer, self.file_logger)
         self.composite_logger = self.container.get('composite_logger')
         self.telemetry_writer = self.container.get('telemetry_writer')
-        self.telemetry_writer.set_telemetry_is_supported(self.telemetry_supported)
         self.composite_logger.telemetry_writer = self.telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
 
         print("\nCompleted building bootstrap container configuration.\n")
