@@ -71,6 +71,7 @@ class RuntimeCompositor(object):
 
         # re-initializing telemetry_writer, outside of Bootstrapper, to correctly set the env_layer configured for tests
         self.telemetry_writer = TelemetryWriter(self.env_layer, self.composite_logger, bootstrapper.telemetry_writer.events_folder_path)
+        self.telemetry_writer.set_telemetry_is_supported(bootstrapper.telemetry_supported)
         bootstrapper.telemetry_writer = self.telemetry_writer
         bootstrapper.composite_logger.telemetry_writer = self.telemetry_writer
 
@@ -91,9 +92,6 @@ class RuntimeCompositor(object):
         self.vm_cloud_type = bootstrapper.configuration_factory.vm_cloud_type
         # Extension handler dependency
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
-
-        self.telemetry_writer.set_telemetry_is_supported(self.execution_config.telemetry_supported)
-        self.container.get('telemetry_writer').set_telemetry_is_supported(self.execution_config.telemetry_supported)
 
         # Mock service and timer creation and removal used for Auto Assessment
         self.backup_create_and_set_service_idem = self.configure_patching_processor.auto_assess_service_manager.create_and_set_service_idem
