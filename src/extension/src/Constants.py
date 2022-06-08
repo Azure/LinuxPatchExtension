@@ -204,16 +204,16 @@ class Constants(object):
         UnsupportedOperatingSystem = 51
         MissingDependency = 52
         ConfigurationError = 53
-        BadHandlerEnvironmentFile = 54
-        UnableToReadStatusFile = 55
-        CreateFileLoggerFailure = 56
-        ReadingAndDeserializingConfigFileFailure = 57
-        InvalidConfigSettingPropertyValue = 58
-        CreateLoggerFailure = 59
-        CreateStatusWriterFailure = 60
-        HandlerFailed = 61
-        MissingConfig = 62
-        OperationNotSupported = 64
+        BadHandlerEnvironmentFile = 81
+        UnableToReadStatusFile = 82
+        CreateFileLoggerFailure = 83
+        ReadingAndDeserializingConfigFileFailure = 84
+        InvalidConfigSettingPropertyValue = 85
+        CreateLoggerFailure = 86
+        CreateStatusWriterFailure = 87
+        HandlerFailed = 88
+        MissingConfig = 89
+        OperationNotSupported = 90
 
     class AgentEnvVarStatusCode(EnumBackport):
         AGENT_ENABLED = "AGENT_ENABLED"
