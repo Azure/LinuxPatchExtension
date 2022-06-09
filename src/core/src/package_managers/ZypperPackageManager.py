@@ -65,6 +65,9 @@ class ZypperPackageManager(PackageManager):
         self.zypper_success_exit_codes = [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated, self.zypper_exitcode_reboot_required]
         self.zypper_retriable_exit_codes = [self.zypper_exitcode_zypp_locked, self.zypper_exitcode_zypp_lib_exit_err, self.zypper_exitcode_repos_skipped]
 
+        # Additional output messages that corresponds with exit code 103
+        self.zypper_out_zypper_updated_msg = 'Warning: One of the installed patches affects the package manager itself. Run this command once more to install any other needed patches.'
+
         # Support to check for processes requiring restart
         self.zypper_ps = "sudo zypper ps -s"
 
@@ -158,27 +161,26 @@ class ZypperPackageManager(PackageManager):
             else:  # verbose diagnostic log
                 self.log_success_on_invoke(code, out)
 
-            if code == self.zypper_exitcode_zypper_updated or code == self.zypper_exitcode_reboot_required:
-                self.__handle_zypper_updated_or_reboot_exit_codes(command, code)
+            self.__handle_zypper_updated_or_reboot_exit_codes(command, out, code)
 
             return out
 
-    def __handle_zypper_updated_or_reboot_exit_codes(self, command, code):
+    def __handle_zypper_updated_or_reboot_exit_codes(self, command, out, code):
         """ Handles exit code 102 or 103 when returned from invoking package manager.
             Does not repeat installation or reboot if it is a dry run. """
         if "--dry-run" in command:
             self.composite_logger.log_debug(
-                "Exit code {0} detected from command \"{1}\", but it was a dry run. Continuing execution without repeating installation or rebooting.".format(
+                " - Exit code {0} detected from command \"{1}\", but it was a dry run. Continuing execution without performing additional actions.".format(
                 str(code), command))
             return
 
-        if code == self.zypper_exitcode_zypper_updated:
+        if code == self.zypper_exitcode_zypper_updated or self.zypper_out_zypper_updated_msg in out:
             self.composite_logger.log_debug(
-                " - Package manager update detected. Patch installation run will be repeated.")
+                " - One of the installed patches affects the package manager itself. Patch installation run will be repeated.")
             self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
         elif code == self.zypper_exitcode_reboot_required:
             self.composite_logger.log_warning(
-                "Machine requires reboot after patch installation. Setting force_reboot flag to True.")
+                " - Machine requires reboot after patch installation. Setting force_reboot flag to True.")
             self.force_reboot = True
 
     def modify_upgrade_or_patch_command_to_replacefiles(self, command):
@@ -379,10 +381,6 @@ class ZypperPackageManager(PackageManager):
 
         lines = output.strip().split('\n')
         for line in lines:
-            if "Warning: One of the installed patches affects the package manager itself. Run this command once more to install any other needed patches." in line:
-                self.composite_logger.log_debug(" - Package manager requires restart. Patch installation run will be repeated.")
-                self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
-
             if not parser_seeing_packages_flag:
                 if 'package is going to be installed' in line or 'package is going to be upgraded' in line or \
                         'packages are going to be installed:' in line or 'packages are going to be upgraded:' in line:
