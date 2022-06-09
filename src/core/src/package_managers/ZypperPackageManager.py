@@ -170,7 +170,7 @@ class ZypperPackageManager(PackageManager):
             Does not repeat installation or reboot if it is a dry run. """
         if "--dry-run" in command:
             self.composite_logger.log_debug(
-                "Exit code {0} detected from command \"{1}\", but it was a dry run. Continuing execution without performing additional actions.".format(
+                " - Exit code {0} detected from command \"{1}\", but it was a dry run. Continuing execution without performing additional actions.".format(
                 str(code), command))
             return
 
@@ -180,7 +180,7 @@ class ZypperPackageManager(PackageManager):
             self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
         elif code == self.zypper_exitcode_reboot_required:
             self.composite_logger.log_warning(
-                "Machine requires reboot after patch installation. Setting force_reboot flag to True.")
+                " - Machine requires reboot after patch installation. Setting force_reboot flag to True.")
             self.force_reboot = True
 
     def modify_upgrade_or_patch_command_to_replacefiles(self, command):
