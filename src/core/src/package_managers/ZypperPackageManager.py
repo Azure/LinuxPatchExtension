@@ -176,7 +176,7 @@ class ZypperPackageManager(PackageManager):
 
         if code == self.zypper_exitcode_zypper_updated or self.zypper_out_zypper_updated_msg in out:
             self.composite_logger.log_debug(
-                "One of the installed patches affects the package manager itself. Patch installation run will be repeated.")
+                " - One of the installed patches affects the package manager itself. Patch installation run will be repeated.")
             self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
         elif code == self.zypper_exitcode_reboot_required:
             self.composite_logger.log_warning(
