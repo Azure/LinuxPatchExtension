@@ -161,8 +161,7 @@ class ZypperPackageManager(PackageManager):
             else:  # verbose diagnostic log
                 self.log_success_on_invoke(code, out)
 
-            if code == self.zypper_exitcode_zypper_updated or code == self.zypper_exitcode_reboot_required:
-                self.__handle_zypper_updated_or_reboot_exit_codes(command, out, code)
+            self.__handle_zypper_updated_or_reboot_exit_codes(command, out, code)
 
             return out
 
@@ -171,13 +170,13 @@ class ZypperPackageManager(PackageManager):
             Does not repeat installation or reboot if it is a dry run. """
         if "--dry-run" in command:
             self.composite_logger.log_debug(
-                "Exit code {0} detected from command \"{1}\", but it was a dry run. Continuing execution without repeating installation or rebooting.".format(
+                "Exit code {0} detected from command \"{1}\", but it was a dry run. Continuing execution without performing additional actions.".format(
                 str(code), command))
             return
 
         if code == self.zypper_exitcode_zypper_updated or self.zypper_out_zypper_updated_msg in out:
             self.composite_logger.log_debug(
-                " - Package manager update detected. Patch installation run will be repeated.")
+                "One of the installed patches affects the package manager itself. Patch installation run will be repeated.")
             self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
         elif code == self.zypper_exitcode_reboot_required:
             self.composite_logger.log_warning(
