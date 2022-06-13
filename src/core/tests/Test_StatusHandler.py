@@ -198,22 +198,6 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 1)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
 
-        # Adding a long error that will not be truncated (special case)
-        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        long_error_message = "{0} {1}".format(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG, "a"*60)
-        self.assertTrue(len(long_error_message) > Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS)
-        self.runtime.status_handler.add_error_to_status(long_error_message, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        substatus_file_data = []
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][1]
-        self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 1)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 2)
-        message = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["message"]
-        self.assertTrue(len(message) > Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS)
-        self.assertEqual(message, long_error_message)
-
     def test_add_duplicate_error(self):
         # Setting operation to assessment to add all errors under assessment substatus
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
