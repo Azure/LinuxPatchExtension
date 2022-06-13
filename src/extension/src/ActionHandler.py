@@ -65,10 +65,23 @@ class ActionHandler(object):
             raise e
 
     def setup(self, action, log_message):
-        self.setup_file_logger(action)
-        self.setup_telemetry()
-        self.logger.log(log_message)
-        self.write_basic_status(action)
+        try:
+            self.setup_file_logger(action)
+            self.validate_sudo()  # Validating sudo as early as possible and before it's use in setup_telemetry
+            self.setup_telemetry()
+            self.logger.log(log_message)
+        except Exception:
+            raise
+        finally:
+            self.write_basic_status(action)
+
+    def validate_sudo(self):
+        # Disable tty for sudo access, if required
+        self.env_health_manager.ensure_tty_not_required()
+
+        # Ensure sudo works in the environment
+        sudo_check_result = self.env_health_manager.check_sudo_status()
+        self.logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
 
     def write_basic_status(self, action):
         """ Writes a basic status file if one for the same sequence number does not exist """
@@ -165,7 +178,10 @@ class ActionHandler(object):
             self.setup(action=Constants.INSTALL, log_message="Extension installation started")
             install_command_handler = InstallCommandHandler(self.logger, self.ext_env_handler)
             exit_code_from_executing_install = install_command_handler.execute_handler_action()
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
+            if exit_code_from_executing_install == Constants.ExitCode.Okay or exit_code_from_executing_install is None:
+                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
+            else:
+                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension install", code=exit_code_from_executing_install)
             return exit_code_from_executing_install
 
         except Exception as error:
@@ -291,6 +307,8 @@ class ActionHandler(object):
             self.setup(action=Constants.ENABLE, log_message="Enable triggered on extension")
             enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.env_health_manager, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
             exit_code_returned_from_executing_enable = enable_command_handler.execute_handler_action()
+            if exit_code_returned_from_executing_enable is not None and exit_code_returned_from_executing_enable != Constants.ExitCode.Okay:
+                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension enable", code=exit_code_returned_from_executing_enable)
             return Constants.ExitCode.Okay if exit_code_returned_from_executing_enable is None else exit_code_returned_from_executing_enable
 
         except Exception as error:

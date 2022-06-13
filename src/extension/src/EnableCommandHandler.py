@@ -41,18 +41,11 @@ class EnableCommandHandler(object):
     def execute_handler_action(self):
         """ Responsible for taking appropriate action for enable command as per the request sent in Handler Configuration file by user """
         try:
-            # Disable tty for sudo access, if required
-            self.env_health_manager.ensure_tty_not_required()
-
-            # Ensure sudo works in the environment
-            sudo_check_result = self.env_health_manager.check_sudo_status()
-            self.logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
-
             # fetch seq_no
             self.seq_no = self.ext_config_settings_handler.get_seq_no(is_enable_request=True)
             if self.seq_no is None:
                 self.logger.log_error("Sequence number for current operation not found")
-                exit(Constants.ExitCode.MissingConfig)
+                return Constants.ExitCode.MissingConfig
 
             # read status file, to load any preserve existing context
             self.ext_output_status_handler.read_file(self.seq_no)

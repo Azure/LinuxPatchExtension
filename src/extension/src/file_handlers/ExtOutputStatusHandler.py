@@ -63,6 +63,10 @@ class ExtOutputStatusHandler(object):
         # self.read_file()
 
     def write_status_file(self, operation, seq_no, status=Constants.Status.Transitioning.lower(), message="", code=Constants.ExitCode.Okay):
+        if seq_no is None:
+            self.logger.log_error("Cannot write status file since sequence number is not available. [Sequence={0}]".format(str(seq_no)))
+            return
+
         self.logger.log("Writing status file to provide patch management data for [Sequence={0}]".format(str(seq_no)))
         file_name = self.__get_status_file_name(seq_no)
         status_file_payload = self.__new_basic_status_json(operation, status, message, code)
