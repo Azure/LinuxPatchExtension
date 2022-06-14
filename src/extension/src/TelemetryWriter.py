@@ -93,7 +93,7 @@ class TelemetryWriter(object):
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
         try:
-            if not self.__events_folder_exists() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+            if not self.is_telemetry_supported() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
 
             self.__delete_older_events()
