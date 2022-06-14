@@ -116,7 +116,7 @@ class ActionHandler(object):
         """ Init telemetry if agent is compatible (events_folder is specified).
             Otherwise, error since guest agent does not support telemetry. """
         events_folder = self.ext_env_handler.events_folder
-        self.telemetry_writer.events_folder_path = self.ext_env_handler.events_folder
+        self.telemetry_writer.events_folder_path = events_folder
 
         # If events folder is given but does not exist, create it before checking for is_telemetry_supported
         events_folder_previously_existed = True
