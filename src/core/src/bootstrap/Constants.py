@@ -257,7 +257,12 @@ class Constants(object):
         Informational = "Informational"
         LogAlways = "LogAlways"
 
-    TELEMETRY_TASK_NAME = "ExtensionCoreLog"
+    # Telemetry Task Names for disambiguation
+    class TelemetryTaskName(EnumBackport):
+        UNKNOWN = "Core.Unknown"                     # function parameter default
+        STARTUP = "Core.Startup"                     # initial value until execution mode is determined
+        EXEC = "Core.Exec"                           # mainline execution triggered from handler
+        AUTO_ASSESSMENT = "Core.AutoAssessment"      # auto-assessment triggered from scheduler
 
     TELEMETRY_NOT_COMPATIBLE_ERROR_MSG = "Telemetry is not supported. To resolve: http://aka.ms/UpdateLinuxAgent"
     TELEMETRY_COMPATIBLE_MSG = "Telemetry is supported."
