@@ -258,7 +258,12 @@ class Constants(object):
         Informational = "Informational"
         LogAlways = "LogAlways"
 
-    TELEMETRY_TASK_NAME = "ExtensionCoreLog"
+    # Telemetry Task Names for disambiguation
+    class TelemetryTaskName(EnumBackport):
+        UNKNOWN = "Core.Unknown"                     # function parameter default
+        STARTUP = "Core.Startup"                     # initial value until execution mode is determined
+        EXEC = "Core.Exec"                           # mainline execution triggered from handler
+        AUTO_ASSESSMENT = "Core.AutoAssessment"      # auto-assessment triggered from scheduler
 
     TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
     TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"

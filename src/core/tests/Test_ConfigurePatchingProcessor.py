@@ -266,7 +266,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         with open(os.path.join(runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertTrue('ExtensionCoreLog' in events[0]['TaskName'])
+            self.assertTrue('Core' in events[0]['TaskName'])
             f.close()
 
 
