@@ -264,8 +264,8 @@ class Constants(object):
         EXEC = "Core.Exec"                           # mainline execution triggered from handler
         AUTO_ASSESSMENT = "Core.AutoAssessment"      # auto-assessment triggered from scheduler
 
-    TELEMETRY_NOT_COMPATIBLE_ERROR_MSG = "Telemetry is not supported. To resolve: http://aka.ms/UpdateLinuxAgent"
-    TELEMETRY_COMPATIBLE_MSG = "Telemetry is supported."
+    TELEMETRY_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
+    TELEMETRY_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"
 
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 

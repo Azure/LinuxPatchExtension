@@ -254,7 +254,7 @@ class TelemetryWriter(object):
                 self.logger.log_telemetry_module_error("Error occurred while fetching contents from existing event file. [File={0}] [Error={1}].".format(repr(file_path), repr(error)))
                 raise
 
-    def is_agent_compatible(self):
-        """ Verifies if telemetry is available using an environment variable. """
-        return self.__agent_is_compatible
+    def is_telemetry_supported(self):
+        """ Verifies if telemetry is available using an environment variable and events_folder exists. """
+        return self.__agent_is_compatible and self.__events_folder_exists()
 
