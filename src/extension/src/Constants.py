@@ -83,7 +83,7 @@ class Constants(object):
         Informational = "Informational"
         LogAlways = "LogAlways"
 
-    TELEMETRY_TASK_NAME = "HandlerLog"
+    TELEMETRY_TASK_NAME = "Handler"
 
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
