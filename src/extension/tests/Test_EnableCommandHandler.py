@@ -183,7 +183,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.env_health_manager, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, datetime.utcnow())
         with self.assertRaises(SystemExit) as sys_exit:
             enable_command_handler.execute_handler_action()
-        self.assertEqual(sys_exit.exception.code, Constants.ExitCode.InvalidConfigSettingPropertyValue)
+        self.assertEqual(sys_exit.exception.code, Constants.ExitCode.OperationNotSupported)
 
     def test_enable_command_with_telemetry(self):
         # testing enable action's response with telemetry. Should writes .json events at the location specified in HandlerEnvironment.json

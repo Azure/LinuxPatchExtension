@@ -202,19 +202,19 @@ class Constants(object):
 
     class ExitCode(EnumBackport):
         Okay = 0
-        HandlerFailed = -1
-        MissingConfig = -2
-        BadConfig = -3
         UnsupportedOperatingSystem = 51
         MissingDependency = 52
         ConfigurationError = 53
-        BadHandlerEnvironmentFile = 3560
-        UnableToReadStatusFile = 3561
-        CreateFileLoggerFailure = 3562
-        ReadingAndDeserializingConfigFileFailure = 3563
-        InvalidConfigSettingPropertyValue = 3564
-        CreateLoggerFailure = 3565
-        CreateStatusWriterFailure = 3566
+        BadHandlerEnvironmentFile = 81
+        UnableToReadStatusFile = 82
+        CreateFileLoggerFailure = 83
+        ReadingAndDeserializingConfigFileFailure = 84
+        InvalidConfigSettingPropertyValue = 85
+        CreateLoggerFailure = 86
+        CreateStatusWriterFailure = 87
+        HandlerFailed = 88
+        MissingConfig = 89
+        OperationNotSupported = 90
 
     class AgentEnvVarStatusCode(EnumBackport):
         AGENT_ENABLED = "AGENT_ENABLED"
