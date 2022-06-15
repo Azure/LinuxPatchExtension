@@ -40,7 +40,7 @@ class ConfigurePatchingProcessor(object):
         """ Start configure patching """
         try:
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
-            self.__raise_if_telemetry_unsupported()
+            self.__raise_if_agent_incompatible()
             self.composite_logger.log('\nStarting configure patching...')
 
             self.__report_consolidated_configure_patch_status(status=Constants.STATUS_TRANSITIONING)
@@ -136,12 +136,12 @@ class ConfigurePatchingProcessor(object):
                                                                   automatic_os_patch_state=self.current_auto_os_patch_state,
                                                                   auto_assessment_state=self.current_auto_assessment_state)
 
-    def __raise_if_telemetry_unsupported(self):
+    def __raise_if_agent_incompatible(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
-            self.composite_logger.log("Skipping telemetry compatibility check for Arc cloud type when operation is not manual")
+            self.composite_logger.log("Skipping agent compatibility check for Arc cloud type when operation is not manual")
             return
-        if not self.telemetry_writer.is_telemetry_supported():
-            error_msg = "{0}".format(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG)
+        if not self.telemetry_writer.is_agent_compatible():
+            error_msg = "{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, self.telemetry_writer.get_telemetry_diagnostics())
             raise Exception(error_msg)
 
-        self.composite_logger.log("{0}".format(Constants.TELEMETRY_COMPATIBLE_MSG))
+        self.composite_logger.log("{0} [{1}]".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, self.telemetry_writer.get_telemetry_diagnostics()))

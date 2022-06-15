@@ -49,7 +49,6 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.json_file_handler = runtime.json_file_handler
         self.runtime_context_handler = RuntimeContextHandler(self.logger)
         self.ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
-        self.ext_env_handler.telemetry_supported = True
         self.config_folder = self.ext_env_handler.config_folder
         self.ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, self.config_folder)
         self.core_state_handler = CoreStateHandler(self.config_folder, self.json_file_handler)

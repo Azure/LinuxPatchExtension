@@ -44,7 +44,6 @@ class ExecutionConfig(object):
         self.config_folder = self.environment_settings[Constants.EnvSettings.CONFIG_FOLDER]
         self.status_folder = self.environment_settings[Constants.EnvSettings.STATUS_FOLDER]
         self.events_folder = self.environment_settings[Constants.EnvSettings.EVENTS_FOLDER]
-        self.telemetry_supported = self.environment_settings[Constants.EnvSettings.TELEMETRY_SUPPORTED]
 
         # Config Settings
         self.composite_logger.log_debug(" - Parsing configuration settings... [ConfigSettings={0}]".format(str(self.config_settings)))

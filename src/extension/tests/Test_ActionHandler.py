@@ -44,7 +44,6 @@ class TestActionHandler(unittest.TestCase):
         self.runtime = RuntimeComposer()
         runtime_context_handler = RuntimeContextHandler(self.runtime.logger)
         self.ext_env_handler = ExtEnvHandler(self.runtime.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
-        self.ext_env_handler.telemetry_supported = True
         self.setup_files_and_folders(self.temp_dir)
 
         self.ext_config_settings_handler = ExtConfigSettingsHandler(self.runtime.logger, self.runtime.json_file_handler, self.ext_env_handler.config_folder)
@@ -279,13 +278,7 @@ class TestActionHandler(unittest.TestCase):
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
-    def test_telemetry_available(self):
-        self.runtime.telemetry_writer.events_folder_path = tempfile.mkdtemp()
-        self.assertTrue(self.runtime.telemetry_writer.is_telemetry_supported())
-        shutil.rmtree(self.runtime.telemetry_writer.events_folder_path)
-        self.runtime.telemetry_writer.events_folder_path = None
-
-    def test_telemetry_not_available_env_var_not_exists(self):
+    def test_telemetry_available_env_var_not_exists(self):
         # agent env var is not set so telemetry is not supported
         backup_os_getenv = os.getenv
         backup_telemetry_writer = self.runtime.telemetry_writer
@@ -303,7 +296,7 @@ class TestActionHandler(unittest.TestCase):
         file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
         self.assertTrue(file_read is not None)
         file_contents = file_read.read()
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in file_contents)
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG in file_contents)
         self.assertTrue(Constants.AgentEnvVarStatusCode.FAILED_TO_GET_AGENT_SUPPORTED_FEATURES in file_contents)
         file_read.close()
 
@@ -314,7 +307,7 @@ class TestActionHandler(unittest.TestCase):
         self.runtime.telemetry_writer = backup_telemetry_writer
         self.action_handler.telemetry_writer = backup_telemetry_writer
 
-    def test_telemetry_not_available_env_var_key_not_exists(self):
+    def test_telemetry_available_env_var_key_not_exists(self):
         # agent env var is not set so telemetry is not supported
         backup_os_getenv = os.getenv
         backup_telemetry_writer = self.runtime.telemetry_writer
@@ -332,7 +325,7 @@ class TestActionHandler(unittest.TestCase):
         file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
         self.assertTrue(file_read is not None)
         file_contents = file_read.read()
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in file_contents)
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG in file_contents)
         self.assertTrue(Constants.AgentEnvVarStatusCode.FAILED_TO_GET_TELEMETRY_KEY in file_contents)
         file_read.close()
 

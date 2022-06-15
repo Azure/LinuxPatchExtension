@@ -59,7 +59,6 @@ class Constants(object):
         CONFIG_FOLDER = "configFolder"
         STATUS_FOLDER = "statusFolder"
         EVENTS_FOLDER = "eventsFolder"
-        TELEMETRY_SUPPORTED = "telemetrySupported"
 
     class ConfigSettings(EnumBackport):
         OPERATION = 'operation'
@@ -247,6 +246,8 @@ class Constants(object):
     TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS = 15  # buffer for telemetry event counter text added at the end of every message sent to telemetry
     TELEMETRY_MAX_EVENT_COUNT_THROTTLE = 60
     TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 60
+    AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR = 'AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES'
+    TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY = 'ExtensionTelemetryPipeline'
 
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):
@@ -264,8 +265,8 @@ class Constants(object):
         EXEC = "Core.Exec"                           # mainline execution triggered from handler
         AUTO_ASSESSMENT = "Core.AutoAssessment"      # auto-assessment triggered from scheduler
 
-    TELEMETRY_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
-    TELEMETRY_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"
+    TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
+    TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"
 
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -275,3 +276,8 @@ class Constants(object):
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
 
+    # These are numbers instead of strings like extension because they are customer facing in the error message diagnostics
+    class AgentEnvVarStatusCode(EnumBackport):
+        AGENT_ENABLED = 0
+        FAILED_TO_GET_AGENT_SUPPORTED_FEATURES = 1
+        FAILED_TO_GET_TELEMETRY_KEY = 2

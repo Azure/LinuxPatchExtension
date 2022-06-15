@@ -93,7 +93,7 @@ class TelemetryWriter(object):
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
         try:
-            if not self.is_telemetry_supported() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+            if not self.__events_folder_exists() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
 
             self.__delete_older_events()
@@ -254,7 +254,7 @@ class TelemetryWriter(object):
                 self.logger.log_telemetry_module_error("Error occurred while fetching contents from existing event file. [File={0}] [Error={1}].".format(repr(file_path), repr(error)))
                 raise
 
-    def is_telemetry_supported(self):
-        """ Verifies if telemetry is available using an environment variable and events_folder exists. """
-        return self.__agent_is_compatible and self.__events_folder_exists()
+    def is_agent_compatible(self):
+        """ Verifies if telemetry is available using an environment variable. """
+        return self.__agent_is_compatible
 

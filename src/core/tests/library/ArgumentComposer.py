@@ -60,19 +60,14 @@ class ArgumentComposer(object):
         # REAL environment settings
         self.emulator_enabled = False
 
-    def get_composed_arguments(self, env_settings={}):
+    def get_composed_arguments(self):
         """ Serializes state into arguments for consumption """
         environment_settings = {
             "logFolder": self.__log_folder,
             "configFolder": self.__config_folder,
             "statusFolder": self.__status_folder,
-            "eventsFolder": self.events_folder,
-            "telemetrySupported": True
+            "eventsFolder": self.events_folder
         }
-
-        # Apply any extra env settings passed in
-        for key in env_settings:
-            environment_settings[key] = env_settings[key]
 
         config_settings = {
             "operation": self.operation,

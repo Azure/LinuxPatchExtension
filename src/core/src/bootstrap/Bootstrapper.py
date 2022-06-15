@@ -31,12 +31,12 @@ class Bootstrapper(object):
         self.current_env = self.get_current_env()
         self.argv = argv
         self.auto_assessment_only = bool(self.get_value_from_argv(self.argv, Constants.ARG_AUTO_ASSESS_ONLY, "False") == "True")
-        self.log_file_path, self.real_record_path, self.events_folder, self.telemetry_supported = self.get_path_to_log_files_and_telemetry_dir(argv, self.auto_assessment_only)
+        self.log_file_path, self.real_record_path, self.events_folder = self.get_path_to_log_files_and_telemetry_dir(argv, self.auto_assessment_only)
         self.recorder_enabled, self.emulator_enabled = self.get_recorder_emulator_flags(argv)
 
         # Container initialization
         print("Building bootstrap container configuration...")
-        self.configuration_factory = ConfigurationFactory(self.log_file_path, self.real_record_path, self.recorder_enabled, self.emulator_enabled, self.events_folder, self.telemetry_supported)
+        self.configuration_factory = ConfigurationFactory(self.log_file_path, self.real_record_path, self.recorder_enabled, self.emulator_enabled, self.events_folder)
         self.container = Container()
         self.container.build(self.configuration_factory.get_bootstrap_configuration(self.current_env))
 
@@ -73,8 +73,7 @@ class Bootstrapper(object):
         log_file_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.log")
         real_rec_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.rec")
         events_folder = environment_settings[Constants.EnvSettings.EVENTS_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
-        telemetry_supported = environment_settings[Constants.EnvSettings.TELEMETRY_SUPPORTED]
-        return log_file_path, real_rec_path, events_folder, telemetry_supported
+        return log_file_path, real_rec_path, events_folder
 
     def reset_auto_assessment_log_file_if_needed(self):
         """ Deletes the auto assessment log file when needed to prevent excessive growth """
