@@ -230,6 +230,7 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.set_legacy_test_type('SuccessInstallPath')
         runtime.patch_installer.lifecycle_manager.get_vm_cloud_type = lambda: Constants.VMCloudType.ARC
         runtime.patch_installer.execution_config.operation = Constants.CONFIGURE_PATCHING
+        # Should not raise an exception because it is an ARC VM and it is not installation or assessment
         runtime.patch_installer.raise_if_telemetry_unsupported()
         runtime.stop()
 
