@@ -81,12 +81,12 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         prev_modified_time = stat_file_name.st_mtime
 
-        ext_status_handler.update_file("test1", dir_path)
+        ext_status_handler.update_file("test1")
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         modified_time = stat_file_name.st_mtime
         self.assertEqual(prev_modified_time, modified_time)
 
-        ext_status_handler.update_file(file_name, dir_path)
+        ext_status_handler.update_file(file_name)
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         modified_time = stat_file_name.st_mtime
         self.assertNotEqual(prev_modified_time, modified_time)

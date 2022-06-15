@@ -41,6 +41,7 @@ def main(argv):
     logger = Logger()
     telemetry_writer = TelemetryWriter(logger, env_layer)
     logger.telemetry_writer = telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
+    exit_code = None
     try:
         # initializing action handler
         # args will have values install, uninstall, etc, as given in MsftLinuxPatchExtShim.sh in the operation var
@@ -62,19 +63,21 @@ def main(argv):
             ext_output_status_handler = ExtOutputStatusHandler(logger, utility, json_file_handler, ext_env_handler.status_folder)
             process_handler = ProcessHandler(logger, env_layer, ext_output_status_handler)
             action_handler = ActionHandler(logger, env_layer, telemetry_writer, utility, runtime_context_handler, json_file_handler, env_health_manager, ext_env_handler, ext_config_settings_handler, core_state_handler, ext_state_handler, ext_output_status_handler, process_handler, cmd_exec_start_time)
-            action_handler.determine_operation(argv[1])
+            exit_code_from_handler_actions = action_handler.determine_operation(argv[1])
+            exit_code = Constants.ExitCode.Okay if exit_code_from_handler_actions is None else exit_code_from_handler_actions
         else:
             error_cause = "No configuration provided in HandlerEnvironment" if ext_env_handler.handler_environment_json is None else "Path to config folder not specified in HandlerEnvironment"
             error_msg = "Error processing file. [File={0}] [Error={1}]".format(Constants.HANDLER_ENVIRONMENT_FILE, error_cause)
             raise Exception(error_msg)
     except Exception as error:
         logger.log_error(repr(error))
-        return Constants.ExitCode.HandlerFailed
+        exit_code = Constants.ExitCode.HandlerFailed
     finally:
         if stdout_file_mirror is not None:
             stdout_file_mirror.stop()
         if file_logger is not None:
             file_logger.close()
+    exit(exit_code)
 
 
 if __name__ == '__main__':
