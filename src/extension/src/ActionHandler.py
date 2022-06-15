@@ -151,6 +151,7 @@ class ActionHandler(object):
             # As this is a common function used by all handler actions, setting operation_id such that it will be the same timestamp for all handler actions, which can be used for identifying all events for an operation.
             # NOTE: Enable handler action will set operation_id to activity_id from config settings. And the same will be used in Core.
             self.telemetry_writer.set_operation_id(self.operation_id_substitute_for_all_actions_in_telemetry)
+            self.ext_env_handler.telemetry_supported = True
             self.__log_telemetry_info(telemetry_supported=True, events_folder_previously_existed=events_folder_previously_existed)
         else:
             # This line only logs to file since events_folder_path is not set in telemetry_writer
