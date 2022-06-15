@@ -134,21 +134,23 @@ class ActionHandler(object):
         """ Init telemetry if agent is compatible (events_folder is specified).
             Otherwise, error since guest agent does not support telemetry. """
         events_folder = self.ext_env_handler.events_folder
-        if events_folder is not None:
+        self.telemetry_writer.events_folder_path = events_folder
+
+        # If events folder is given but does not exist, create it before checking for is_telemetry_supported
+        events_folder_previously_existed = True
+        if events_folder is not None and not os.path.exists(events_folder):
+            os.mkdir(events_folder)
+            self.logger.log(
+                "Events folder path found in HandlerEnvironment but does not exist on disk. Creating now. [Path={0}][AgentVersion={1}]".format(
+                    str(events_folder), str(self.telemetry_writer.get_agent_version())))
+            events_folder_previously_existed = False
+
+        if self.telemetry_writer.is_telemetry_supported():
             # Guest agent fully supports telemetry
 
-            self.telemetry_writer.events_folder_path = events_folder
             # As this is a common function used by all handler actions, setting operation_id such that it will be the same timestamp for all handler actions, which can be used for identifying all events for an operation.
             # NOTE: Enable handler action will set operation_id to activity_id from config settings. And the same will be used in Core.
             self.telemetry_writer.set_operation_id(self.operation_id_substitute_for_all_actions_in_telemetry)
-
-            events_folder_previously_existed = True
-            if not os.path.exists(events_folder):
-                os.mkdir(events_folder)
-                self.logger.log("Events folder path found in HandlerEnvironment but does not exist on disk. Creating now. [Path={0}][AgentVersion={1}]".format(
-                    str(events_folder), str(self.telemetry_writer.get_agent_version())))
-                events_folder_previously_existed = False
-
             self.__log_telemetry_info(telemetry_supported=True, events_folder_previously_existed=events_folder_previously_existed)
         else:
             # This line only logs to file since events_folder_path is not set in telemetry_writer

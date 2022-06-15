@@ -50,6 +50,7 @@ def main(argv):
         runtime_context_handler = RuntimeContextHandler(logger)
         json_file_handler = JsonFileHandler(logger)
         ext_env_handler = ExtEnvHandler(json_file_handler)
+        ext_env_handler.telemetry_supported = telemetry_writer.is_telemetry_supported()
         env_health_manager = EnvHealthManager(env_layer)
         if ext_env_handler.handler_environment_json is not None and ext_env_handler.config_folder is not None:
             config_folder = ext_env_handler.config_folder

@@ -189,6 +189,57 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertEqual(expected_patch_version, json.loads(substatus_file_data['formattedMessage']['message'])['patchVersion'])
         runtime.stop()
 
+    def test_raise_if_telemetry_unsupported(self):
+        # Constants.VMCloudType.ARC
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=1, minutes=2)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": True}), True, Constants.YUM)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        runtime.patch_installer.raise_if_telemetry_unsupported()
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": False}), True, Constants.YUM)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        self.assertRaises(Exception, runtime.patch_installer.raise_if_telemetry_unsupported)
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": True}), True, Constants.YUM)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        runtime.patch_installer.lifecycle_manager.get_vm_cloud_type = lambda: Constants.VMCloudType.ARC
+        runtime.patch_installer.raise_if_telemetry_unsupported()
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": False}), True, Constants.YUM)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        runtime.patch_installer.lifecycle_manager.get_vm_cloud_type = lambda: Constants.VMCloudType.ARC
+        self.assertRaises(Exception, runtime.patch_installer.raise_if_telemetry_unsupported)
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": True}), True, Constants.YUM)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        runtime.patch_installer.lifecycle_manager.get_vm_cloud_type = lambda: Constants.VMCloudType.ARC
+        runtime.patch_installer.execution_config.operation = Constants.CONFIGURE_PATCHING
+        runtime.patch_installer.raise_if_telemetry_unsupported()
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": False}), True, Constants.YUM)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        runtime.patch_installer.lifecycle_manager.get_vm_cloud_type = lambda: Constants.VMCloudType.ARC
+        runtime.patch_installer.execution_config.operation = Constants.CONFIGURE_PATCHING
+        # Should not raise an exception because it is an ARC VM and it is not installation or assessment
+        runtime.patch_installer.raise_if_telemetry_unsupported()
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": True}), True, Constants.YUM)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        runtime.patch_installer.execution_config.operation = Constants.CONFIGURE_PATCHING
+        runtime.patch_installer.raise_if_telemetry_unsupported()
+        runtime.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

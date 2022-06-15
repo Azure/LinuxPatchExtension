@@ -137,6 +137,7 @@ class Constants(object):
         status_folder = "statusFolder"
         events_folder = "eventsFolder"
         events_folder_preview = "eventsFolder_preview"
+        telemetry_supported = "telemetrySupported"
 
     # Config Settings json keys
     RUNTIME_SETTINGS = "runtimeSettings"
