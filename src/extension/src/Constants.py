@@ -215,6 +215,7 @@ class Constants(object):
         HandlerFailed = 88
         MissingConfig = 89
         OperationNotSupported = 90
+        AutoAssessmentFailure = 91
 
     class AgentEnvVarStatusCode(EnumBackport):
         AGENT_ENABLED = "AGENT_ENABLED"
