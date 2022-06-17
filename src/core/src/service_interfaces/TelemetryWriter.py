@@ -180,7 +180,7 @@ class TelemetryWriter(object):
 
         except Exception as e:
             self.composite_logger.log_telemetry_module_error("Error occurred while writing telemetry events. [Error={0}]".format(repr(e)))
-            raise Exception("Internal reporting error. Execution could not complete.")
+            raise Exception("Telemetry error: {0}".format(repr(e)))
 
     def __delete_older_events_if_dir_size_limit_not_met(self):
         """ Delete older events until the at least one new event file can be added as per the size restrictions """
