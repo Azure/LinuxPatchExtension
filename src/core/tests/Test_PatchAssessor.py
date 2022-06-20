@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import datetime
 import json
 import unittest
 
@@ -65,6 +65,13 @@ class TestPatchAssessor(unittest.TestCase):
         self.runtime.patch_assessor.telemetry_writer = telemetry_writer
         self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
         self.runtime.patch_assessor.telemetry_writer = backup_telemetry_writer
+
+    def test_convert_iso8601_duration_to_total_seconds(self):
+        self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H'), 21600)
+        self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H5M'), 21900)
+        self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H5M14S'), 21914)
+        self.assertRaises(Exception, lambda: self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('6H5M14S'))
+        self.assertRaises(Exception, lambda: self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds(''))
 
     def mock_refresh_repo(self):
         pass
