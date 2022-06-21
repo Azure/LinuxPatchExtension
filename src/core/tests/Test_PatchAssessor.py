@@ -66,6 +66,19 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
         self.runtime.patch_assessor.telemetry_writer = backup_telemetry_writer
 
+    def test_assessment_state_file(self):
+        # read_assessment_state creates a vanilla assessment state file if none exists
+        assessment_state = self.runtime.patch_assessor.read_assessment_state()
+        with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            file_contents = json.loads(file_handle.read())
+
+
+        self.runtime.patch_assessor.write_assessment_state()
+        assessment_state = self.runtime.patch_assessor.read_assessment_state()
+        with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            file_contents = json.loads(file_handle.read())
+        print()
+
     def test_convert_iso8601_duration_to_total_seconds(self):
         self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H'), 21600)
         self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H5M'), 21900)

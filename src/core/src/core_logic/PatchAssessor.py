@@ -138,9 +138,7 @@ class PatchAssessor(object):
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
                 with self.env_layer.file_system.open(self.assessment_state_file_path, mode="r") as file_handle:
-                    assessment_state = json.load(file_handle)['assessmentState']
-
-                return assessment_state
+                    return json.load(file_handle)['assessmentState']
             except Exception as error:
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
                     self.composite_logger.log_warning("Exception on assessment state read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
@@ -161,13 +159,14 @@ class PatchAssessor(object):
         assessment_state_payload = json.dumps({"assessmentState": assessment_state})
 
         if os.path.isdir(self.assessment_state_file_path):
-            self.composite_logger.log_error("assessment state file path returned a directory. Attempting to reset.")
+            self.composite_logger.log_error("Assessment state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.assessment_state_file_path)
 
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
                 with self.env_layer.file_system.open(self.assessment_state_file_path, 'w+') as file_handle:
                     file_handle.write(assessment_state_payload)
+                    break
             except Exception as error:
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
                     self.composite_logger.log_warning("Exception on assessment state update. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
