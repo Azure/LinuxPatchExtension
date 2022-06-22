@@ -112,7 +112,7 @@ class Constants(object):
     DISABLE = "Disable"
 
     # Settings for Error Objects logged in status file
-    STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128
+    STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 256
     STATUS_ERROR_LIMIT = 5
 
     class PatchOperationTopLevelErrorCode(EnumBackport):

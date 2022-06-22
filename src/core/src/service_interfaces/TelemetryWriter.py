@@ -163,24 +163,32 @@ class TelemetryWriter(object):
         NOTE: is_event_file_throttling_needed is used to determine if event file throttling is required and as such should always be True.
         The only scenario where this is False is when throttling is taking place and we write to telemetry about it. i.e. only from within __throttle_telemetry_writes_if_required()"""
         try:
+            code = 1
             if not self.is_telemetry_supported() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
 
+            code = 2
             # ensure file throttle limit is reached
             self.__throttle_telemetry_writes_if_required(is_event_file_throttling_needed)
 
+            code = 3
             self.__delete_older_events_if_dir_size_limit_not_met()
 
+            code = 4
             event = self.__new_event_json(event_level, message, task_name)
+            code = 5
             if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARS:
                 self.composite_logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
+                code = 6
             else:
                 file_path, all_events = self.__get_file_and_content_to_write(self.events_folder_path, event)
+                code = 7
                 self.__write_event_using_temp_file(file_path, all_events)
+                code = 8
 
         except Exception as e:
             self.composite_logger.log_telemetry_module_error("Error occurred while writing telemetry events. [Error={0}]".format(repr(e)))
-            raise Exception("Telemetry error: {0}".format(repr(e)))
+            raise Exception("ERR {0}: {1}".format(code, repr(e)))
 
     def __delete_older_events_if_dir_size_limit_not_met(self):
         """ Delete older events until the at least one new event file can be added as per the size restrictions """
