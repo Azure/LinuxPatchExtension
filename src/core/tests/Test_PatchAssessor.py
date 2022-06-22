@@ -89,11 +89,16 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertEqual(state1["lastStartInSecondsSinceEpoch"], state2["lastStartInSecondsSinceEpoch"])
 
     def test_should_auto_assessment_run(self):
-        # File just written, should fail
-        assessment_state = self.runtime.patch_assessor.read_assessment_state()
+        # First file write (since it does not exist on read) so it should succeed since last assessment time is 0
+        self.runtime.patch_assessor.read_assessment_state()
+        self.assertTrue(self.runtime.patch_assessor.should_auto_assessment_run())
+
+        # Second file write, should fail now that the last assessment time is not 0
+        self.runtime.patch_assessor.write_assessment_state()
         self.assertFalse(self.runtime.patch_assessor.should_auto_assessment_run())
 
         # It has been minimum delay time since last run
+        assessment_state = self.runtime.patch_assessor.read_assessment_state()
         min_auto_assess_interval_in_seconds = self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds(Constants.MIN_AUTO_ASSESSMENT_INTERVAL)
         assessment_state["lastStartInSecondsSinceEpoch"] -= min_auto_assess_interval_in_seconds
         with open(self.runtime.patch_assessor.assessment_state_file_path, 'w+') as file_handle:

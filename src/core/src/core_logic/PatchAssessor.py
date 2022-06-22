@@ -132,7 +132,7 @@ class PatchAssessor(object):
                 self.composite_logger.log_error("Assessment state file path returned a directory. Attempting to reset.")
                 shutil.rmtree(self.assessment_state_file_path)
             # Writes a vanilla assessment statefile
-            self.write_assessment_state()
+            self.write_assessment_state(first_write=True)
 
         # Read (with retries for only IO Errors)
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
@@ -147,12 +147,13 @@ class PatchAssessor(object):
                     self.composite_logger.log_error("Unable to read assessment state file (retries exhausted). [Exception={0}]".format(repr(error)))
                     raise
 
-    def write_assessment_state(self):
+    def write_assessment_state(self, first_write=False):
         self.composite_logger.log_debug("Updating assessment state... ")
 
         # lastHeartbeat below is redundant, but is present for ease of debuggability
         assessment_state = {'number': self.execution_config.sequence_number,
-                         'lastStartInSecondsSinceEpoch': self.__get_seconds_since_epoch(),
+                         # Set lastStartInSecondsSinceEpoch to 0 if file did not exist before (first write) to ensure it can run assessment when first created
+                         'lastStartInSecondsSinceEpoch': self.__get_seconds_since_epoch() if not first_write else 0,
                          'lastHeartbeat': str(self.env_layer.datetime.timestamp()),
                          'processIds': [os.getpid()],
                          'autoAssessment': str(self.execution_config.exec_auto_assess_only)}
