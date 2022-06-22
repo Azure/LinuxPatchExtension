@@ -17,6 +17,7 @@ import datetime
 import json
 import unittest
 
+from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -88,8 +89,23 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertEqual(state1["lastStartInSecondsSinceEpoch"], state2["lastStartInSecondsSinceEpoch"])
 
     def test_should_auto_assessment_run(self):
-        # TODO
-        pass
+        # File just written, should fail
+        assessment_state = self.runtime.patch_assessor.read_assessment_state()
+        self.assertFalse(self.runtime.patch_assessor.should_auto_assessment_run())
+
+        # It has been minimum delay time since last run
+        min_auto_assess_interval_in_seconds = self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds(Constants.MIN_AUTO_ASSESSMENT_INTERVAL)
+        assessment_state["lastStartInSecondsSinceEpoch"] -= min_auto_assess_interval_in_seconds
+        with open(self.runtime.patch_assessor.assessment_state_file_path, 'w+') as file_handle:
+            file_handle.write(json.dumps({"assessmentState": assessment_state}))
+        self.assertTrue(self.runtime.patch_assessor.should_auto_assessment_run())
+
+        # Time is in future, so run assessment and correct anomaly
+        self.runtime.patch_assessor.write_assessment_state()
+        assessment_state["lastStartInSecondsSinceEpoch"] += 5000000
+        with open(self.runtime.patch_assessor.assessment_state_file_path, 'w+') as file_handle:
+            file_handle.write(json.dumps({"assessmentState": assessment_state}))
+        self.assertTrue(self.runtime.patch_assessor.should_auto_assessment_run())
 
     def test_convert_iso8601_duration_to_total_seconds(self):
         self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H'), 21600)

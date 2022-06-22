@@ -113,7 +113,7 @@ class PatchAssessor(object):
             return True
 
         # get minimum elapsed time required
-        min_elapsed_seconds_required = self.__convert_iso8601_duration_to_total_seconds(Constants.MIN_AUTO_ASSESSMENT_INTERVAL)
+        min_elapsed_seconds_required = self.convert_iso8601_duration_to_total_seconds(Constants.MIN_AUTO_ASSESSMENT_INTERVAL)
 
         # check if required duration has passed
         elapsed_time_in_seconds = self.__get_seconds_since_epoch() - last_start_in_seconds_since_epoch
