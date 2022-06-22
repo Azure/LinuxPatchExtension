@@ -69,15 +69,27 @@ class TestPatchAssessor(unittest.TestCase):
     def test_assessment_state_file(self):
         # read_assessment_state creates a vanilla assessment state file if none exists
         assessment_state = self.runtime.patch_assessor.read_assessment_state()
-        with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            file_contents = json.loads(file_handle.read())
+        with open(self.runtime.patch_assessor.assessment_state_file_path, 'r') as file_handle:
+            assessment_state_from_file = json.loads(file_handle.read())["assessmentState"]
+            self.assessment_state_equals(assessment_state, assessment_state_from_file)
 
-
+        # write and test again
         self.runtime.patch_assessor.write_assessment_state()
         assessment_state = self.runtime.patch_assessor.read_assessment_state()
-        with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            file_contents = json.loads(file_handle.read())
-        print()
+        with open(self.runtime.patch_assessor.assessment_state_file_path, 'r') as file_handle:
+            assessment_state_from_file = json.loads(file_handle.read())["assessmentState"]
+            self.assessment_state_equals(assessment_state, assessment_state_from_file)
+
+    def assessment_state_equals(self, state1, state2):
+        self.assertEqual(state1["processIds"][0], state2["processIds"][0])
+        self.assertEqual(state1["lastHeartbeat"], state2["lastHeartbeat"])
+        self.assertEqual(state1["number"], state2["number"])
+        self.assertEqual(state1["autoAssessment"], state2["autoAssessment"])
+        self.assertEqual(state1["lastStartInSecondsSinceEpoch"], state2["lastStartInSecondsSinceEpoch"])
+
+    def test_should_auto_assessment_run(self):
+        # TODO
+        pass
 
     def test_convert_iso8601_duration_to_total_seconds(self):
         self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H'), 21600)
