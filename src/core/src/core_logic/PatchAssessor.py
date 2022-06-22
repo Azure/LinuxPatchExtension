@@ -202,11 +202,11 @@ class PatchAssessor(object):
         """ Internal helper function """
         duration_split = duration_portion.split(unit_delimiter)
         most_significant_unit = 0
+        remaining_duration_portion = ''
         if len(duration_split) == 2:  # found and extracted
             most_significant_unit = duration_split[0]
             remaining_duration_portion = duration_split[1]
         elif len(duration_split) == 1:  # not found
             remaining_duration_portion = duration_split[0]
-        else:  # bad data
-            raise Exception("Invalid duration portion: {0}".format(str(duration_portion)))
+
         return most_significant_unit, remaining_duration_portion

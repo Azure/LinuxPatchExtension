@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 import datetime
 import json
+import os
 import unittest
 
 from core.src.bootstrap.Constants import Constants
@@ -81,6 +82,26 @@ class TestPatchAssessor(unittest.TestCase):
             assessment_state_from_file = json.loads(file_handle.read())["assessmentState"]
             self.assessment_state_equals(assessment_state, assessment_state_from_file)
 
+        # Assessment state file is a directory
+        if os.path.exists(self.runtime.patch_assessor.assessment_state_file_path):
+            os.remove(self.runtime.patch_assessor.assessment_state_file_path)
+
+        os.mkdir(self.runtime.patch_assessor.assessment_state_file_path)
+        self.assertTrue(self.runtime.patch_assessor.read_assessment_state() is not None)
+
+        if os.path.exists(self.runtime.patch_assessor.assessment_state_file_path):
+            os.remove(self.runtime.patch_assessor.assessment_state_file_path)
+
+        os.mkdir(self.runtime.patch_assessor.assessment_state_file_path)
+        self.runtime.patch_assessor.write_assessment_state()
+
+        # Opening file throws exception
+        backup_open = self.runtime.patch_assessor.env_layer.file_system.open
+        self.runtime.patch_assessor.env_layer.file_system.open = lambda: self.raise_ex()
+        self.assertRaises(Exception, self.runtime.patch_assessor.read_assessment_state)
+        self.assertRaises(Exception, self.runtime.patch_assessor.write_assessment_state)
+        self.runtime.patch_assessor.env_layer.file_system.open = backup_open
+
     def assessment_state_equals(self, state1, state2):
         self.assertEqual(state1["processIds"][0], state2["processIds"][0])
         self.assertEqual(state1["lastHeartbeat"], state2["lastHeartbeat"])
@@ -112,12 +133,19 @@ class TestPatchAssessor(unittest.TestCase):
             file_handle.write(json.dumps({"assessmentState": assessment_state}))
         self.assertTrue(self.runtime.patch_assessor.should_auto_assessment_run())
 
+        # Test exception case: exception is caught and assessment should run
+        self.runtime.patch_assessor.read_assessment_state = lambda: self.raise_ex()
+        self.assertTrue(self.runtime.patch_assessor.should_auto_assessment_run())
+
     def test_convert_iso8601_duration_to_total_seconds(self):
         self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H'), 21600)
         self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H5M'), 21900)
         self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H5M14S'), 21914)
         self.assertRaises(Exception, lambda: self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('6H5M14S'))
         self.assertRaises(Exception, lambda: self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds(''))
+
+    def raise_ex(self):
+        raise Exception()
 
     def mock_refresh_repo(self):
         pass
