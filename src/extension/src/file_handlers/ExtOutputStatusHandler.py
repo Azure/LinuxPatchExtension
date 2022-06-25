@@ -141,7 +141,7 @@ class ExtOutputStatusHandler(object):
             self.update_key_value_safely(status_json[0], self.file_keys.status_status, status, self.file_keys.status_status)
             self.update_key_value_safely(status_json[0], self.file_keys.status_code, code, self.file_keys.status_status)
             self.update_key_value_safely(status_json[0], self.file_keys.timestamp_utc, str(datetime.datetime.utcnow().strftime(Constants.UTC_DATETIME_FORMAT)))
-            self.update_key_value_safely(status_json[0][self.file_keys.status_status], self.file_keys.status_formatted_message_message, str(message), self.file_keys.status_formatted_message)
+            self.update_key_value_safely(status_json[0][self.file_keys.status], self.file_keys.status_formatted_message_message, str(message), self.file_keys.status_formatted_message)
             self.json_file_handler.write_to_json_file(self.__dir_path, file_name, status_json)
         except Exception as error:
             error_message = "Error in status file creation: " + repr(error)
