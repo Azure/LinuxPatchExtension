@@ -121,10 +121,10 @@ class ExtOutputStatusHandler(object):
     def update_key_value_safely(self, status_json, key, value_to_update, parent_key=None):
         if status_json is not None and len(status_json) != 0:
             if parent_key is None:
-                status_json[0].update({key: value_to_update})
+                status_json.update({key: value_to_update})
             else:
-                if parent_key in status_json[0]:
-                    status_json[0].get(parent_key).update({key: value_to_update})
+                if parent_key in status_json:
+                    status_json.get(parent_key).update({key: value_to_update})
                 else:
                     self.logger.log_error("Error updating config value in status file. [Config={0}]".format(key))
 
@@ -138,10 +138,10 @@ class ExtOutputStatusHandler(object):
             if status_json is None:
                 self.logger.log_error("Error processing file. [File={0}]".format(file_name))
                 return
-            self.update_key_value_safely(status_json, self.file_keys.status_status, status, self.file_keys.status_status)
-            self.update_key_value_safely(status_json, self.file_keys.status_code, code, self.file_keys.status_status)
-            self.update_key_value_safely(status_json, self.file_keys.timestamp_utc, str(datetime.datetime.utcnow().strftime(Constants.UTC_DATETIME_FORMAT)))
-            self.update_key_value_safely(status_json, self.file_keys.status_formatted_message_message, str(message), self.file_keys.status_formatted_message)
+            self.update_key_value_safely(status_json[0], self.file_keys.status_status, status, self.file_keys.status_status)
+            self.update_key_value_safely(status_json[0], self.file_keys.status_code, code, self.file_keys.status_status)
+            self.update_key_value_safely(status_json[0], self.file_keys.timestamp_utc, str(datetime.datetime.utcnow().strftime(Constants.UTC_DATETIME_FORMAT)))
+            self.update_key_value_safely(status_json[0][self.file_keys.status], self.file_keys.status_formatted_message_message, str(message), self.file_keys.status_formatted_message)
             self.json_file_handler.write_to_json_file(self.__dir_path, file_name, status_json)
         except Exception as error:
             error_message = "Error in status file creation: " + repr(error)
