@@ -45,7 +45,7 @@ class EnableCommandHandler(object):
             self.seq_no = self.ext_config_settings_handler.get_seq_no(is_enable_request=True)
             if self.seq_no is None:
                 self.logger.log_error("Sequence number for current operation not found")
-                exit(Constants.ExitCode.MissingConfig)
+                exit(Constants.ExitCode.ConfigurationError)
 
             # read status file, to load any preserve existing context
             self.ext_output_status_handler.read_file(self.seq_no)
