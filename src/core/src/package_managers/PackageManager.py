@@ -208,7 +208,7 @@ class PackageManager(object):
         exec_cmd = str(self.get_install_command(cmd, package_and_dependencies, package_and_dependency_versions))
 
         self.composite_logger.log_debug("UPDATING PACKAGE (WITH DEPENDENCIES) USING COMMAND: " + exec_cmd)
-        code, out = self.env_layer.run_command_output(exec_cmd, False, False)
+        out, code = self.invoke_package_manager(exec_cmd, raise_on_exception=False)
         package_size = self.get_package_size(out)
         self.composite_logger.log_debug("\n<PackageInstallOutput>\n" + out + "\n</PackageInstallOutput>")  # wrapping multi-line for readability
 

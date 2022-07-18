@@ -740,6 +740,12 @@ class LegacyEnvLayerExtensions():
                         "sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run") > -1:
                         code = 0
                         output = "Package sucessfully installed!"
+                    elif cmd.find("force-dpkg-failure") > -1:
+                        code = 100
+                        output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
+                    elif cmd.find("sudo dpkg --configure -a") > -1:
+                        code = 0
+                        output = ""
             elif self.legacy_test_type == 'FailInstallPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -892,6 +898,9 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("force-dpkg-failure") > -1:
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
+                    elif cmd.find("sudo dpkg --configure -a") > -1:
+                        code = 1
+                        output = "Failed"
             elif self.legacy_test_type == 'SSLCertificateIssueType1HappyPathAfterFix':
                 if self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("yum update -y --disablerepo='*' --enablerepo='*microsoft*'") > -1:

@@ -99,15 +99,25 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertEqual(package_manager.is_package_version_installed('mysql-server', '5.7.25-0ubuntu0.16.04.2'), True)
         self.assertEqual(package_manager.is_package_version_installed('mysql-client', '5.7.25-0ubuntu0.16.04.2'), False)
 
-    def test_install_package_failure(self):
+    def test_install_package_dpkg_interrupted_mitigation_success(self):
+        self.runtime.set_legacy_test_type('SuccessInstallPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+
+        # test for successfully installing a package with mitigation step
+        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
+        package_manager.invoke_package_manager('sudo apt-get -y --only-upgrade true install force-dpkg-failure', raise_on_exception=True)
+
+    def test_install_package_dpkg_interrupted_mitigation_failure(self):
         self.runtime.set_legacy_test_type('FailInstallPath')
 
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
 
-        # test for unsuccessfully installing a package
+        # test for unsuccessfully installing a package (mitigation step unsuccessful)
         self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
-        self.assertRaises(Exception, lambda: package_manager.invoke_package_manager('sudo apt-get -y --only-upgrade true install force-dpkg-failure'))
+        self.assertRaises(Exception, lambda: package_manager.invoke_package_manager('sudo apt-get -y --only-upgrade true install force-dpkg-failure', raise_on_exception=True))
 
     def test_install_package_only_upgrades(self):
         self.runtime.set_legacy_test_type('FailInstallPath')

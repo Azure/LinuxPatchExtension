@@ -100,7 +100,7 @@ class YumPackageManager(PackageManager):
         pass  # Refresh the repo is no ops in YUM
 
     # region Get Available Updates
-    def invoke_package_manager(self, command):
+    def invoke_package_manager(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
         code, out = self.env_layer.run_command_output(command, False, False)
@@ -114,14 +114,15 @@ class YumPackageManager(PackageManager):
             self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            if raise_on_exception:
+                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
             self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.composite_logger.log_verbose("==========================================================================\n\n")
-        return out
+        return out, code
 
     # region Classification-based (incl. All) update check
     def get_all_updates(self, cached=False):
@@ -131,7 +132,7 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_debug(" - Returning cached package data.")
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
-        out = self.invoke_package_manager(self.yum_check)
+        out, code = self.invoke_package_manager(self.yum_check)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
         self.composite_logger.log_debug("Discovered " + str(len(self.all_updates_cached)) + " package entries.")
         return self.all_updates_cached, self.all_update_versions_cached
@@ -140,7 +141,7 @@ class YumPackageManager(PackageManager):
         """Get missing security updates"""
         self.composite_logger.log("\nDiscovering 'security' packages...")
         self.install_yum_security_prerequisite()
-        out = self.invoke_package_manager(self.yum_check_security)
+        out, code = self.invoke_package_manager(self.yum_check_security)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
 
         if len(security_packages) == 0 and 'CentOS' in str(self.env_layer.platform.linux_distribution()):   # deliberately non-terminal
@@ -254,7 +255,7 @@ class YumPackageManager(PackageManager):
         # kernel.x86_64                                                                                    3.10.0-862.2.3.el7                                                                                     updates
         # kernel.x86_64                                                                                    3.10.0-862.3.2.el7                                                                                     updates
         cmd = self.single_package_check_versions.replace('<PACKAGE-NAME>', package_name)
-        output = self.invoke_package_manager(cmd)
+        output, code = self.invoke_package_manager(cmd)
         packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
         return package_versions
 
@@ -265,7 +266,7 @@ class YumPackageManager(PackageManager):
         # kernel.x86_64                                                                                   3.10.0-514.el7                                                                                    @anaconda/7.3
         self.composite_logger.log_debug("\nCHECKING PACKAGE INSTALL STATUS FOR: " + str(package_name) + " (" + str(package_version) + ")")
         cmd = self.single_package_check_installed.replace('<PACKAGE-NAME>', package_name)
-        output = self.invoke_package_manager(cmd)
+        output, code = self.invoke_package_manager(cmd)
         packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
 
         for index, package in enumerate(packages):
@@ -300,7 +301,7 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + package_name))
         dependent_updates = []
 
-        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_name)
+        output, code = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_name)
         lines = output.strip().split('\n')
 
         for line in lines:
@@ -889,7 +890,7 @@ class YumPackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(self.yum_ps_prerequisite, False, False)  # idempotent, doesn't install if already present
         self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
 
-        output = self.invoke_package_manager(self.yum_ps)
+        output, code = self.invoke_package_manager(self.yum_ps)
         lines = output.strip().split('\n')
 
         process_list_flag = False

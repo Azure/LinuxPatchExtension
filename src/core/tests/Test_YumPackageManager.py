@@ -418,7 +418,7 @@ class TestYumPackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager)
 
-        output = package_manager.invoke_package_manager(package_manager.yum_check)
+        output, code = package_manager.invoke_package_manager(package_manager.yum_check)
         self.assertTrue(len(output) > 0)
 
     def test_ssl_certificate_issue_type1_fix_fail(self):
@@ -435,7 +435,7 @@ class TestYumPackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager)
 
-        output = package_manager.invoke_package_manager(package_manager.yum_check)
+        output, code = package_manager.invoke_package_manager(package_manager.yum_check)
         self.assertTrue(len(output) > 0)
 
     def test_ssl_certificate_issue_type2_fix_fail(self):
@@ -452,7 +452,7 @@ class TestYumPackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager)
 
-        output = package_manager.invoke_package_manager(package_manager.yum_check)
+        output, code = package_manager.invoke_package_manager(package_manager.yum_check)
         self.assertTrue(len(output) > 0)
 
     def test_ssl_certificate_issue_type3_fix_fail(self):

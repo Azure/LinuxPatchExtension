@@ -60,26 +60,34 @@ class AptitudePackageManager(PackageManager):
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.APT)
         self.STR_DPKG_WAS_INTERRUPTED = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
         self.ESM_MARKER = "The following packages could receive security updates with UA Infra: ESM service enabled:"
+        self.dpkg_configure_all_cmd = 'sudo dpkg --configure -a'
 
     def refresh_repo(self):
         self.composite_logger.log("\nRefreshing local repo...")
         self.invoke_package_manager(self.repo_refresh)
 
     # region Get Available Updates
-    def invoke_package_manager(self, command):
+    def invoke_package_manager(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
         code, out = self.env_layer.run_command_output(command, False, False)
 
         if code != self.apt_exitcode_ok and self.STR_DPKG_WAS_INTERRUPTED in out:
-            self.composite_logger.log_error('[ERROR] YOU NEED TO TAKE ACTION TO PROCEED. The package manager on this machine is not in a healthy state, and '
-                                            'Patch Management cannot proceed successfully. Before the next Patch Operation, please run the following '
-                                            'command and perform any configuration steps necessary on the machine to return it to a healthy state: '
-                                            'sudo dpkg --configure -a')
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
+            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+            self.composite_logger.log_warning(" - Detected unhealthy package manager. Attempting to mitigate using command: " + str(self.dpkg_configure_all_cmd))
+
+            code, out = self.env_layer.run_command_output(self.dpkg_configure_all_cmd, False, False)
+            if code != self.apt_exitcode_ok:
+                self.composite_logger.log_error('[ERROR] YOU NEED TO TAKE ACTION TO PROCEED. The package manager on this machine is not in a healthy state, and '
+                                                'Patch Management cannot proceed successfully. Before the next Patch Operation, please run the following '
+                                                'command and perform any configuration steps necessary on the machine to return it to a healthy state: '
+                                                'sudo dpkg --configure -a')
+                self.telemetry_writer.write_execution_error(command, code, out)
+                error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+                if raise_on_exception:
+                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
@@ -87,14 +95,15 @@ class AptitudePackageManager(PackageManager):
             self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            if raise_on_exception:
+                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
             self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.composite_logger.log_verbose("==========================================================================\n\n")
-        return out
+        return out, code
 
     def invoke_apt_cache(self, command):
         """Invoke apt-cache using the command input"""
@@ -124,7 +133,7 @@ class AptitudePackageManager(PackageManager):
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
         cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '')
-        out = self.invoke_package_manager(cmd)
+        out, code = self.invoke_package_manager(cmd)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
 
         self.composite_logger.log_debug("Discovered " + str(len(self.all_updates_cached)) + " package entries.")
@@ -138,7 +147,7 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_warning(" - SLP:: Return code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
 
         cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '-oDir::Etc::Sourcelist=' + self.security_sources_list)
-        out = self.invoke_package_manager(cmd)
+        out, code = self.invoke_package_manager(cmd)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
 
         self.composite_logger.log("Discovered " + str(len(security_packages)) + " 'security' package entries.")
@@ -318,7 +327,7 @@ class AptitudePackageManager(PackageManager):
         # apt/xenial-updates,now 1.2.29 amd64 [installed]
         self.composite_logger.log_debug(" - [2/2] Verifying install status with Apt.")
         cmd = self.single_package_find_installed_apt.replace('<PACKAGE-NAME>', package_name)
-        output = self.invoke_package_manager(cmd)
+        output, code = self.invoke_package_manager(cmd)
         lines = output.strip().split('\n')
 
         for line in lines:
@@ -349,7 +358,7 @@ class AptitudePackageManager(PackageManager):
         cmd = self.single_package_dependency_resolution_template.replace('<PACKAGE-NAME>', package_name)
 
         self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(cmd))
-        output = self.invoke_package_manager(cmd)
+        output, code = self.invoke_package_manager(cmd)
 
         packages, package_versions = self.extract_packages_and_versions(output)
         if package_name in packages:
