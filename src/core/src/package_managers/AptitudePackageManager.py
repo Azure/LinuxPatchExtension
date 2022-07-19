@@ -60,7 +60,6 @@ class AptitudePackageManager(PackageManager):
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.APT)
         self.STR_DPKG_WAS_INTERRUPTED = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
         self.ESM_MARKER = "The following packages could receive security updates with UA Infra: ESM service enabled:"
-        self.dpkg_configure_all_cmd = 'sudo dpkg --configure -a'
 
     def refresh_repo(self):
         self.composite_logger.log("\nRefreshing local repo...")
@@ -73,21 +72,15 @@ class AptitudePackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(command, False, False)
 
         if code != self.apt_exitcode_ok and self.STR_DPKG_WAS_INTERRUPTED in out:
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_warning(" - Detected unhealthy package manager. Attempting to mitigate using command: " + str(self.dpkg_configure_all_cmd))
-
-            code, out = self.env_layer.run_command_output(self.dpkg_configure_all_cmd, False, False)
-            if code != self.apt_exitcode_ok:
-                self.composite_logger.log_error('[ERROR] YOU NEED TO TAKE ACTION TO PROCEED. The package manager on this machine is not in a healthy state, and '
-                                                'Patch Management cannot proceed successfully. Before the next Patch Operation, please run the following '
-                                                'command and perform any configuration steps necessary on the machine to return it to a healthy state: '
-                                                'sudo dpkg --configure -a')
-                self.telemetry_writer.write_execution_error(command, code, out)
-                error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
-                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                if raise_on_exception:
-                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            self.composite_logger.log_error('[ERROR] YOU NEED TO TAKE ACTION TO PROCEED. The package manager on this machine is not in a healthy state, and '
+                                            'Patch Management cannot proceed successfully. Before the next Patch Operation, please run the following '
+                                            'command and perform any configuration steps necessary on the machine to return it to a healthy state: '
+                                            'sudo dpkg --configure -a')
+            self.telemetry_writer.write_execution_error(command, code, out)
+            error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            if raise_on_exception:
+                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))

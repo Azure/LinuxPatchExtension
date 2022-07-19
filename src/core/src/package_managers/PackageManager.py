@@ -57,7 +57,7 @@ class PackageManager(object):
 
     # region Get Available Updates
     @abstractmethod
-    def invoke_package_manager(self, command):
+    def invoke_package_manager(self, command, raise_on_exception=True):
         pass
 
     def get_available_updates(self, package_filter):
