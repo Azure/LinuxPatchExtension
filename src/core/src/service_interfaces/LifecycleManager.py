@@ -75,6 +75,11 @@ class LifecycleManager(object):
             # Writes a vanilla core sequence file
             self.read_only_mode = False
             self.update_core_sequence()
+        elif os.path.exists(self.core_state_file_path) and os.path.isfile(self.core_state_file_path) and os.stat(self.core_state_file_path).st_size == 0:
+            # Core sequence file exists but is empty (unexpected state that will result in a JSON decode error)
+            # Write a vanilla core sequence file to correct empty file
+            self.read_only_mode = False
+            self.update_core_sequence()
 
         # Read (with retries for only IO Errors)
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
