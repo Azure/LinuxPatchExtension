@@ -69,7 +69,7 @@ class StatusHandler(object):
         self.__configure_patching_auto_assessment_error_count = 0  # All errors relating to auto-assessment configuration.
 
         # Load the currently persisted status file into memory
-        self.__load_status_file_components(initial_load=True)
+        self.load_status_file_components(initial_load=True)
 
         # Tracker for reboot pending status, the value is updated externally(PatchInstaller.py) whenever package is installed. As this var is directly written in status file, setting the default to False, instead of Empty/Unknown, to maintain a true bool field as per Agent team's architecture
         self.is_reboot_pending = False
@@ -490,7 +490,7 @@ class StatusHandler(object):
         except KeyError:
             return default_value
 
-    def __load_status_file_components(self, initial_load=False):
+    def load_status_file_components(self, initial_load=False):
         """ Loads currently persisted status data into memory.
         :param initial_load: If no status file exists AND initial_load is true, a default initial status file is created.
         :return: None
