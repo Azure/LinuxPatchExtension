@@ -96,6 +96,8 @@ class LifecycleManagerAzure(LifecycleManager):
 
             # Signalling take-over of core state by auto-assessment after safety checks for any competing process
             self.update_core_sequence(completed=False)
+            # Refresh status file in memory to be up-to-date
+            self.status_handler.load_status_file_components()
         else:
             # Logic for all non-Auto-assessment operations
             extension_sequence = self.read_extension_sequence()
