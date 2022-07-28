@@ -124,7 +124,46 @@ class StatusHandler(object):
                 }
                 self.__assessment_packages.append(record)
 
+        self.__assessment_packages = self.__sort_packages_by_classification_and_state(self.__assessment_packages)
         self.set_assessment_substatus_json()
+
+    def __sort_packages_by_classification_and_state(self, packages_list):
+        """ Sorts a list of packages (usually either self.__assessment_packages or self.__installation_packages) by classification and patchState properties.
+            (sorting order from highest priority to lowest):
+            1. Classification: Security, Critical, Other, Unclassified
+            2. Patch State: Failed, Installed, Available, Pending, Excluded, NotSelected
+        """
+        classification_order = {
+            [Constants.PackageClassification.SECURITY]: 1,
+            [Constants.PackageClassification.CRITICAL]: 2,
+            [Constants.PackageClassification.OTHER]: 3,
+            [Constants.PackageClassification.UNCLASSIFIED]: 4
+        }
+
+        patch_state_order = {
+            [Constants.FAILED]: 1,
+            [Constants.INSTALLED]: 2,
+            [Constants.AVAILABLE]: 3,
+            [Constants.PENDING]: 4,
+            [Constants.EXCLUDED]: 5,
+            [Constants.NOT_SELECTED]: 6
+        }
+
+        def sort_patch_state_key(x):
+            return patch_state_order[x["patchState"]]
+
+        def sort_classification_key(x):
+            lowest_classification = classification_order[x["classifications"][0]]
+            for i in range(1, len(x["classifications"])):
+                lowest_classification = min(lowest_classification, classification_order[x["classifications"][i]])
+            return lowest_classification
+
+        # Sort by patch state first then sort by classification so each type of classification is already sorted at the end
+        list_sorted_by_patch_state = sorted(packages_list, key=sort_patch_state_key)
+        list_sorted_by_classification = sorted(list_sorted_by_patch_state, key=sort_classification_key)
+        # COMMENT: these sort calls can be combined into one by separating the value ranges in the tables above, such as classification_order to 100, 200, 300, etc
+        # and having one key function that combines the result of classification_order and patch_state_order
+        return list_sorted_by_classification
 
     def set_package_install_status(self, package_names, package_versions, status="Pending", classification=None):
         """ Externally available method to set installation status for one or more packages of the **SAME classification and status** """
@@ -155,6 +194,7 @@ class StatusHandler(object):
                 }
                 self.__installation_packages.append(record)
 
+        self.__installation_packages = self.__sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
     @staticmethod
@@ -185,6 +225,7 @@ class StatusHandler(object):
                     self.composite_logger.log_debug("Setting classification for package: [Package={0}] [Classification={1}]".format(str(package_name), str(classification)))
                     self.__installation_packages[i]['classifications'] = [classification]
 
+        self.__installation_packages = self.__sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
     def __get_patch_id(self, package_name, package_version):
