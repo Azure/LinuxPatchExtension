@@ -28,7 +28,7 @@ class Constants(object):
                         yield item
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.40"
+    EXT_VERSION = "1.6.41"
 
     # Runtime environments
     TEST = 'Test'
@@ -213,9 +213,8 @@ class Constants(object):
         CreateLoggerFailure = 86
         CreateStatusWriterFailure = 87
         HandlerFailed = 88
-        MissingConfig = 89
-        OperationNotSupported = 90
-        AutoAssessmentFailure = 91
+        OperationNotSupported = 89
+        AutoAssessmentFailure = 90
 
     class AgentEnvVarStatusCode(EnumBackport):
         AGENT_ENABLED = "AGENT_ENABLED"

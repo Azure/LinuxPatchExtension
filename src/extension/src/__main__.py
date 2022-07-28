@@ -55,7 +55,7 @@ def main(argv):
             config_folder = ext_env_handler.config_folder
             if config_folder is None or not os.path.exists(config_folder):
                 logger.log_error("Config folder not found at [{0}].".format(repr(config_folder)))
-                exit(Constants.ExitCode.MissingConfig)
+                exit(Constants.ExitCode.ConfigurationError)
 
             ext_config_settings_handler = ExtConfigSettingsHandler(logger, json_file_handler, config_folder)
             core_state_handler = CoreStateHandler(config_folder, json_file_handler)
