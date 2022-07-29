@@ -16,7 +16,6 @@
 import datetime
 import json
 import unittest
-import os
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.tests.library.ArgumentComposer import ArgumentComposer
