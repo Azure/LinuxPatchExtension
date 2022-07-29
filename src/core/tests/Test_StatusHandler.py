@@ -84,8 +84,8 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_install_status("samba-common-bin", "2:4.4.5+dfsg-2ubuntu5.4", Constants.INSTALLED)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["patchInstallationState"], Constants.INSTALLED)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["name"], "samba-common-bin")
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchInstallationState"], Constants.INSTALLED)
 
     def test_set_package_install_status_classification(self):
         packages, package_versions = self.runtime.package_manager.get_all_updates()
