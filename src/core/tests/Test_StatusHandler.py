@@ -16,6 +16,7 @@
 import datetime
 import json
 import unittest
+import os
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -357,6 +358,34 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.exec_auto_assess_only = True
         self.assertRaises(Exception,
                           lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
+
+    def test_sort_packages_by_classification_and_state(self):
+        with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/AssessmentSummary.json", 'r') as file_handle:
+            assessment_patches = json.load(file_handle)["patches"]
+            assessment_patches_sorted = self.runtime.status_handler.sort_packages_by_classification_and_state(assessment_patches)
+            self.assertEqual(assessment_patches_sorted[0]["name"], "test-package-3")
+            self.assertEqual(assessment_patches_sorted[1]["name"], "test-package-4")
+            self.assertEqual(assessment_patches_sorted[2]["name"], "test-package-7")
+            self.assertEqual(assessment_patches_sorted[3]["name"], "test-package-1")
+            self.assertEqual(assessment_patches_sorted[4]["name"], "test-package-5")
+            self.assertEqual(assessment_patches_sorted[5]["name"], "test-package-2")
+            self.assertEqual(assessment_patches_sorted[6]["name"], "test-package-6")
+
+        with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/InstallationSummary.json", 'r') as file_handle:
+            installation_patches = json.load(file_handle)["patches"]
+            installation_patches_sorted = self.runtime.status_handler.sort_packages_by_classification_and_state(installation_patches)
+            self.assertEqual(installation_patches_sorted[0]["name"], "test-package-6")
+            self.assertEqual(installation_patches_sorted[1]["name"], "test-package-12")
+            self.assertEqual(installation_patches_sorted[2]["name"], "test-package-11")
+            self.assertEqual(installation_patches_sorted[3]["name"], "test-package-10")
+            self.assertEqual(installation_patches_sorted[4]["name"], "test-package-9")
+            self.assertEqual(installation_patches_sorted[5]["name"], "test-package-8")
+            self.assertEqual(installation_patches_sorted[6]["name"], "test-package-7")
+            self.assertEqual(installation_patches_sorted[7]["name"], "test-package-5")
+            self.assertEqual(installation_patches_sorted[8]["name"], "test-package-4")
+            self.assertEqual(installation_patches_sorted[9]["name"], "test-package-3")
+            self.assertEqual(installation_patches_sorted[10]["name"], "test-package-2")
+            self.assertEqual(installation_patches_sorted[11]["name"], "test-package-1")
 
 
 if __name__ == '__main__':

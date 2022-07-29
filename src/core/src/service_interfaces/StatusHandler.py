@@ -112,7 +112,7 @@ class StatusHandler(object):
                 if patch_id == self.__assessment_packages[i]['patchId']:
                     patch_already_saved = True
                     self.__assessment_packages[i]['classifications'] = [classification]
-                    self.__assessment_packages[i]['patchState'] = status
+                    # self.__assessment_packages[i]['patchState'] = status
 
             if patch_already_saved is False:
                 record = {
@@ -124,33 +124,37 @@ class StatusHandler(object):
                 }
                 self.__assessment_packages.append(record)
 
-        self.__assessment_packages = self.__sort_packages_by_classification_and_state(self.__assessment_packages)
+        self.__assessment_packages = self.sort_packages_by_classification_and_state(self.__assessment_packages)
         self.set_assessment_substatus_json()
 
-    def __sort_packages_by_classification_and_state(self, packages_list):
+    def sort_packages_by_classification_and_state(self, packages_list):
         """ Sorts a list of packages (usually either self.__assessment_packages or self.__installation_packages) by classification and patchState properties.
             (sorting order from highest priority to lowest):
             1. Classification: Security, Critical, Other, Unclassified
-            2. Patch State: Failed, Installed, Available, Pending, Excluded, NotSelected
+            2. Patch Installation State: Failed, Installed, Available, Pending, Excluded, NotSelected
         """
         classification_order = {
-            [Constants.PackageClassification.SECURITY]: 1,
-            [Constants.PackageClassification.CRITICAL]: 2,
-            [Constants.PackageClassification.OTHER]: 3,
-            [Constants.PackageClassification.UNCLASSIFIED]: 4
+            Constants.PackageClassification.SECURITY: 1,
+            Constants.PackageClassification.CRITICAL: 2,
+            Constants.PackageClassification.OTHER: 3,
+            Constants.PackageClassification.UNCLASSIFIED: 4
         }
 
         patch_state_order = {
-            [Constants.FAILED]: 1,
-            [Constants.INSTALLED]: 2,
-            [Constants.AVAILABLE]: 3,
-            [Constants.PENDING]: 4,
-            [Constants.EXCLUDED]: 5,
-            [Constants.NOT_SELECTED]: 6
+            Constants.FAILED: 1,
+            Constants.INSTALLED: 2,
+            Constants.AVAILABLE: 3,
+            Constants.PENDING: 4,
+            Constants.EXCLUDED: 5,
+            Constants.NOT_SELECTED: 6
         }
 
         def sort_patch_state_key(x):
-            return patch_state_order[x["patchState"]]
+            # Only for installation result packages
+            if "patchInstallationState" in x.keys():
+                return patch_state_order[x["patchInstallationState"]]
+            else:
+                return 0
 
         def sort_classification_key(x):
             lowest_classification = classification_order[x["classifications"][0]]
@@ -194,7 +198,7 @@ class StatusHandler(object):
                 }
                 self.__installation_packages.append(record)
 
-        self.__installation_packages = self.__sort_packages_by_classification_and_state(self.__installation_packages)
+        self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
     @staticmethod
@@ -225,7 +229,7 @@ class StatusHandler(object):
                     self.composite_logger.log_debug("Setting classification for package: [Package={0}] [Classification={1}]".format(str(package_name), str(classification)))
                     self.__installation_packages[i]['classifications'] = [classification]
 
-        self.__installation_packages = self.__sort_packages_by_classification_and_state(self.__installation_packages)
+        self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
     def __get_patch_id(self, package_name, package_version):
