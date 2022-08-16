@@ -5,9 +5,6 @@ import tempfile
 import time
 import unittest
 from extension.src.Constants import Constants
-from extension.src.EnvLayer import EnvLayer
-from extension.src.TelemetryWriter import TelemetryWriter
-from extension.src.local_loggers.Logger import Logger
 from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 from extension.tests.helpers.RuntimeComposer import RuntimeComposer
 
@@ -17,8 +14,6 @@ class TestTelemetryWriter(unittest.TestCase):
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
-        self.logger = self.runtime.logger
-        self.env_layer = self.runtime.env_layer
         self.telemetry_writer = self.runtime.telemetry_writer
         self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
 
