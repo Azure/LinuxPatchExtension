@@ -6,7 +6,7 @@ on:
     branches: [master]
 jobs:
   codecov-python-39:
-    runs-on: windows-2019
+    runs-on: windows-latest
     env:
       PYTHONTRACEMALLOC: 1
     steps:
@@ -30,7 +30,7 @@ jobs:
           echo '===============FINISH CORE TESTS...===============' >> ../../../err.txt
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           flags: python39
           name: python-39
@@ -44,7 +44,7 @@ jobs:
           echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
   codecov-python-27:
-    runs-on: windows-2019
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -66,7 +66,7 @@ jobs:
           echo '===============FINISH CORE TESTS...===============' >> ../../../err2.txt
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           flags: python27
           name: python-27
