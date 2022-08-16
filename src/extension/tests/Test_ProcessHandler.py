@@ -44,8 +44,6 @@ class TestProcessHandler(unittest.TestCase):
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        self.process.terminate()
-        self.process.wait()
 
     def mock_is_process_running_to_return_true(self, pid):
         return True
@@ -162,14 +160,20 @@ class TestProcessHandler(unittest.TestCase):
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
         process = process_handler.start_daemon(seq_no, config_settings, ext_env_handler)
         self.assertTrue(process is None)
+        self.process.terminate()
+        self.process.wait()
 
         # process launched with no issues
+        self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         subprocess.Popen = self.mock_subprocess_popen_process_launched_with_no_issues
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
         process = process_handler.start_daemon(seq_no, config_settings, ext_env_handler)
         self.assertTrue(process is not None)
+        self.process.terminate()
+        self.process.wait()
 
         # process launched but is not running soon after
+        self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         subprocess.Popen = self.mock_subprocess_popen_process_not_running_after_launch
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
 
@@ -180,6 +184,8 @@ class TestProcessHandler(unittest.TestCase):
 
         process = process_handler.start_daemon(seq_no, config_settings, ext_env_handler)
         self.assertTrue(process is None)
+        self.process.terminate()
+        self.process.wait()
 
         # resetting mocks
         ProcessHandler.get_python_cmd = get_python_cmd_backup
