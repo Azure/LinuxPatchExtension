@@ -40,10 +40,11 @@ class TestProcessHandler(unittest.TestCase):
         self.env_layer = runtime.env_layer
         dir_path = os.path.join(os.path.pardir, "tests", "helpers")
         self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
-        self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        self.process.terminate()
+        self.process.wait()
 
     def mock_is_process_running_to_return_true(self, pid):
         return True
