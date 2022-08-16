@@ -55,19 +55,17 @@ class TestFileLogger(unittest.TestCase):
     def test_write(self):
         self.file_logger.write("Test log")
         self.file_logger.close()
-        file_read = open(self.file_path, "r")
-        self.assertTrue(file_read is not None)
-        self.assertTrue("Test log" in file_read.readlines()[-1])
-        file_read.close()
+        with open(self.file_path, "r") as file_read:
+            self.assertTrue(file_read is not None)
+            self.assertTrue("Test log" in file_read.readlines()[-1])
 
     def test_flush(self):
         self.file_logger.write("flush this")
         self.file_logger.flush()
-        file_read = open(self.file_path, "r")
-        self.assertTrue(file_read is not None)
-        self.assertTrue("flush this" in file_read.readlines()[-1])
-        file_read.close()
-        self.file_logger.close()
+        with open(self.file_path, "r") as file_read:
+            self.assertTrue(file_read is not None)
+            self.assertTrue("flush this" in file_read.readlines()[-1])
+            self.file_logger.close()
 
     def test_close(self):
         self.file_logger.close()
