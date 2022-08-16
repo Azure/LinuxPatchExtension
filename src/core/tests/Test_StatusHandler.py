@@ -359,7 +359,7 @@ class TestStatusHandler(unittest.TestCase):
                           lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
 
     def test_sort_packages_by_classification_and_state(self):
-        with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/AssessmentSummary.json", 'r') as file_handle:
+        with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/PatchOrderAssessmentSummary.json", 'r') as file_handle:
             assessment_patches = json.load(file_handle)["patches"]
             assessment_patches_sorted = self.runtime.status_handler.sort_packages_by_classification_and_state(assessment_patches)
             self.assertEqual(assessment_patches_sorted[0]["name"], "test-package-3")
@@ -370,7 +370,7 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(assessment_patches_sorted[5]["name"], "test-package-2")
             self.assertEqual(assessment_patches_sorted[6]["name"], "test-package-6")
 
-        with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/InstallationSummary.json", 'r') as file_handle:
+        with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/PatchOrderInstallationSummary.json", 'r') as file_handle:
             installation_patches = json.load(file_handle)["patches"]
             installation_patches_sorted = self.runtime.status_handler.sort_packages_by_classification_and_state(installation_patches)
             self.assertEqual(installation_patches_sorted[0]["name"], "test-package-6")

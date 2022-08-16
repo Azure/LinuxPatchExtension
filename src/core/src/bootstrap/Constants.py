@@ -276,14 +276,15 @@ class Constants(object):
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
 
     # Package / Patch State Ordering Constants
-    PackageClassificationOrder = {
+    # This ordering ensures that the most important information is preserved in the case of patch object truncation
+    PackageClassificationOrderInStatusReporting = {
         PackageClassification.SECURITY: 1,
         PackageClassification.CRITICAL: 2,
         PackageClassification.OTHER: 3,
         PackageClassification.UNCLASSIFIED: 4
     }
 
-    PatchStateOrder = {
+    PatchStateOrderInStatusReporting = {
         FAILED: 1,
         INSTALLED: 2,
         AVAILABLE: 3,

@@ -136,14 +136,14 @@ class StatusHandler(object):
         def sort_patch_state_key(x):
             # Only for installation result packages
             if "patchInstallationState" in x.keys():
-                return Constants.PatchStateOrder[x["patchInstallationState"]]
+                return Constants.PatchStateOrderInStatusReporting[x["patchInstallationState"]]
             else:
                 return 0
 
         def sort_classification_key(x):
-            lowest_classification = Constants.PackageClassificationOrder[x["classifications"][0]]
+            lowest_classification = Constants.PackageClassificationOrderInStatusReporting[x["classifications"][0]]
             for i in range(1, len(x["classifications"])):
-                lowest_classification = min(lowest_classification, Constants.PackageClassificationOrder[x["classifications"][i]])
+                lowest_classification = min(lowest_classification, Constants.PackageClassificationOrderInStatusReporting[x["classifications"][i]])
             return lowest_classification
 
         # Sort by patch state first then sort by classification so each type of classification is already sorted at the end
