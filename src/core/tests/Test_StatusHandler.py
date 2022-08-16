@@ -362,29 +362,35 @@ class TestStatusHandler(unittest.TestCase):
         with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/PatchOrderAssessmentSummary.json", 'r') as file_handle:
             assessment_patches = json.load(file_handle)["patches"]
             assessment_patches_sorted = self.runtime.status_handler.sort_packages_by_classification_and_state(assessment_patches)
-            self.assertEqual(assessment_patches_sorted[0]["name"], "test-package-3")
-            self.assertEqual(assessment_patches_sorted[1]["name"], "test-package-4")
-            self.assertEqual(assessment_patches_sorted[2]["name"], "test-package-7")
-            self.assertEqual(assessment_patches_sorted[3]["name"], "test-package-1")
-            self.assertEqual(assessment_patches_sorted[4]["name"], "test-package-5")
-            self.assertEqual(assessment_patches_sorted[5]["name"], "test-package-2")
-            self.assertEqual(assessment_patches_sorted[6]["name"], "test-package-6")
+            #                                                                           + Classifications    | Patch State +
+            #                                                                           |--------------------|-------------|
+            self.assertEqual(assessment_patches_sorted[0]["name"], "test-package-3")  # | Other, Security    |             |
+            self.assertEqual(assessment_patches_sorted[1]["name"], "test-package-4")  # | Security, Critical |             |
+            self.assertEqual(assessment_patches_sorted[2]["name"], "test-package-7")  # | Security           |             |
+            self.assertEqual(assessment_patches_sorted[3]["name"], "test-package-1")  # | Critical           |             |
+            self.assertEqual(assessment_patches_sorted[4]["name"], "test-package-5")  # | Critical, Other    |             |
+            self.assertEqual(assessment_patches_sorted[5]["name"], "test-package-2")  # | Other              |             |
+            self.assertEqual(assessment_patches_sorted[6]["name"], "test-package-6")  # | Unclassified       |             |
 
         with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/PatchOrderInstallationSummary.json", 'r') as file_handle:
             installation_patches = json.load(file_handle)["patches"]
             installation_patches_sorted = self.runtime.status_handler.sort_packages_by_classification_and_state(installation_patches)
-            self.assertEqual(installation_patches_sorted[0]["name"], "test-package-6")
-            self.assertEqual(installation_patches_sorted[1]["name"], "test-package-12")
-            self.assertEqual(installation_patches_sorted[2]["name"], "test-package-11")
-            self.assertEqual(installation_patches_sorted[3]["name"], "test-package-10")
-            self.assertEqual(installation_patches_sorted[4]["name"], "test-package-9")
-            self.assertEqual(installation_patches_sorted[5]["name"], "test-package-8")
-            self.assertEqual(installation_patches_sorted[6]["name"], "test-package-7")
-            self.assertEqual(installation_patches_sorted[7]["name"], "test-package-5")
-            self.assertEqual(installation_patches_sorted[8]["name"], "test-package-4")
-            self.assertEqual(installation_patches_sorted[9]["name"], "test-package-3")
-            self.assertEqual(installation_patches_sorted[10]["name"], "test-package-2")
-            self.assertEqual(installation_patches_sorted[11]["name"], "test-package-1")
+            #                                                                              + Classifications    | Patch State +
+            #                                                                              |--------------------|-------------|
+            self.assertEqual(installation_patches_sorted[0]["name"], "test-package-6")  #  | Security           | Failed      |
+            self.assertEqual(installation_patches_sorted[1]["name"], "test-package-12")  # | Critical, Security | Failed      |
+            self.assertEqual(installation_patches_sorted[2]["name"], "test-package-11")  # | Security           | Installed   |
+            self.assertEqual(installation_patches_sorted[3]["name"], "test-package-10")  # | Security           | Available   |
+            self.assertEqual(installation_patches_sorted[4]["name"], "test-package-9")  #  | Security           | Pending     |
+            self.assertEqual(installation_patches_sorted[5]["name"], "test-package-8")  #  | Security, Critical | Excluded    |
+            self.assertEqual(installation_patches_sorted[6]["name"], "test-package-7")  #  | Security           | NotSelected |
+            self.assertEqual(installation_patches_sorted[7]["name"], "test-package-14")  # | Critical           | Installed   |
+            self.assertEqual(installation_patches_sorted[8]["name"], "test-package-13")  # | Critical           | Available   |
+            self.assertEqual(installation_patches_sorted[9]["name"], "test-package-5")  #  | Other              | Installed   |
+            self.assertEqual(installation_patches_sorted[10]["name"], "test-package-4")  # | Other              | Available   |
+            self.assertEqual(installation_patches_sorted[11]["name"], "test-package-3")  # | Other              | Pending     |
+            self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
+            self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
 
 if __name__ == '__main__':

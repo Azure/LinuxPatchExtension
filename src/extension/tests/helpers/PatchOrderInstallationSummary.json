@@ -23,6 +23,15 @@
         {
             "version": "2.0.24-9.11.1",
             "classifications": [
+                "Critical"
+            ],
+            "name": "test-package-14",
+            "patchId": "test-package-id",
+            "patchInstallationState": "Installed"
+        },
+        {
+            "version": "2.0.24-9.11.1",
+            "classifications": [
                 "Other"
             ],
             "name": "test-package-3",
@@ -55,6 +64,15 @@
             "name": "test-package-6",
             "patchId": "test-package-id",
             "patchInstallationState": "Failed"
+        },
+        {
+            "version": "2.0.24-9.11.1",
+            "classifications": [
+                "Critical"
+            ],
+            "name": "test-package-13",
+            "patchId": "test-package-id",
+            "patchInstallationState": "Available"
         },
         {
             "version": "2.0.24-9.11.1",
