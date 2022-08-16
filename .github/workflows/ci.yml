@@ -6,7 +6,7 @@ on:
     branches: [master]
 jobs:
   codecov-python-39:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     env:
       PYTHONTRACEMALLOC: 1
     steps:
@@ -44,7 +44,7 @@ jobs:
           echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
   codecov-python-27:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
