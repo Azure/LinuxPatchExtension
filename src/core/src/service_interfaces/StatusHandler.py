@@ -172,7 +172,7 @@ class StatusHandler(object):
 
             if patch_already_saved is False:
                 if classification is None:
-                    classification = "Other"
+                    classification = Constants.PackageClassification.OTHER
                 record = {
                     "patchId": str(patch_id),
                     "name": str(package_name),
