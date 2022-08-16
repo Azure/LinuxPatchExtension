@@ -43,8 +43,6 @@ class TestProcessHandler(unittest.TestCase):
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        self.process.terminate()
-        self.process.wait()
 
     def mock_is_process_running_to_return_true(self, pid):
         return True
