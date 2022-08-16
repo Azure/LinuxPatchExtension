@@ -275,3 +275,20 @@ class Constants(object):
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
 
+    # Package / Patch State Ordering Constants
+    PackageClassificationOrder = {
+        PackageClassification.SECURITY: 1,
+        PackageClassification.CRITICAL: 2,
+        PackageClassification.OTHER: 3,
+        PackageClassification.UNCLASSIFIED: 4
+    }
+
+    PatchStateOrder = {
+        FAILED: 1,
+        INSTALLED: 2,
+        AVAILABLE: 3,
+        PENDING: 4,
+        EXCLUDED: 5,
+        NOT_SELECTED: 6
+    }
+

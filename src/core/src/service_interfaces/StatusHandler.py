@@ -133,33 +133,17 @@ class StatusHandler(object):
             1. Classification: Security, Critical, Other, Unclassified
             2. Patch Installation State: Failed, Installed, Available, Pending, Excluded, NotSelected
         """
-        classification_order = {
-            Constants.PackageClassification.SECURITY: 1,
-            Constants.PackageClassification.CRITICAL: 2,
-            Constants.PackageClassification.OTHER: 3,
-            Constants.PackageClassification.UNCLASSIFIED: 4
-        }
-
-        patch_state_order = {
-            Constants.FAILED: 1,
-            Constants.INSTALLED: 2,
-            Constants.AVAILABLE: 3,
-            Constants.PENDING: 4,
-            Constants.EXCLUDED: 5,
-            Constants.NOT_SELECTED: 6
-        }
-
         def sort_patch_state_key(x):
             # Only for installation result packages
             if "patchInstallationState" in x.keys():
-                return patch_state_order[x["patchInstallationState"]]
+                return Constants.PatchStateOrder[x["patchInstallationState"]]
             else:
                 return 0
 
         def sort_classification_key(x):
-            lowest_classification = classification_order[x["classifications"][0]]
+            lowest_classification = Constants.PackageClassificationOrder[x["classifications"][0]]
             for i in range(1, len(x["classifications"])):
-                lowest_classification = min(lowest_classification, classification_order[x["classifications"][i]])
+                lowest_classification = min(lowest_classification, Constants.PackageClassificationOrder[x["classifications"][i]])
             return lowest_classification
 
         # Sort by patch state first then sort by classification so each type of classification is already sorted at the end
