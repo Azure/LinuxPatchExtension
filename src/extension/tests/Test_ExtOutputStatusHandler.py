@@ -81,17 +81,32 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         prev_modified_time = stat_file_name.st_mtime
 
-        ext_status_handler.update_file("test1", dir_path)
+        ext_status_handler.update_file("test1")
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         modified_time = stat_file_name.st_mtime
         self.assertEqual(prev_modified_time, modified_time)
 
-        ext_status_handler.update_file(file_name, dir_path)
+        ext_status_handler.update_file(file_name)
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         modified_time = stat_file_name.st_mtime
         self.assertNotEqual(prev_modified_time, modified_time)
         updated_status_json = ext_status_handler.read_file(file_name)
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_status], self.status.Transitioning.lower())
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_name], "Azure Patch Management")
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_operation], "Assessment")
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_code], Constants.ExitCode.Okay)
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_formatted_message][self.status_file_fields.status_formatted_message_message], "")
+
+        ext_status_handler.update_file(file_name, Constants.Status.Success.lower(), Constants.ExitCode.Okay, "Test message")
+        stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
+        modified_time = stat_file_name.st_mtime
+        self.assertNotEqual(prev_modified_time, modified_time)
+        updated_status_json = ext_status_handler.read_file(file_name)
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_status], self.status.Success.lower())
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_name], "Azure Patch Management")
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_operation], "Assessment")
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_code], Constants.ExitCode.Okay)
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_formatted_message][self.status_file_fields.status_formatted_message_message], "Test message")
         shutil.rmtree(dir_path)
 
     def test_add_error_to_status(self):

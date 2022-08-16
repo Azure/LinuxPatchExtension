@@ -35,6 +35,8 @@ class TelemetryWriter(object):
         self.agent_env_var_code = Constants.AgentEnvVarStatusCode.AGENT_ENABLED
         self.__operation_id = ""
         self.__agent_is_compatible = self.__get_agent_supports_telemetry_from_env_var()
+        self.__task_name_watermark = "." + str(datetime.datetime.utcnow().hour) + "." + str(datetime.datetime.utcnow().minute) + "." + str(datetime.datetime.utcnow().second) + "." + str(os.getpid())
+        self.__task_name = Constants.TELEMETRY_TASK_NAME + self.__task_name_watermark
 
     def __new_event_json(self, event_level, message, task_name):
         return {
@@ -91,11 +93,12 @@ class TelemetryWriter(object):
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
         try:
-            if not self.__events_folder_exists() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
+            if not self.is_telemetry_supported() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
 
             self.__delete_older_events()
 
+            task_name = self.__task_name if task_name == Constants.TELEMETRY_TASK_NAME else task_name
             event = self.__new_event_json(event_level, message, task_name)
             if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARS:
                 self.logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
@@ -251,7 +254,7 @@ class TelemetryWriter(object):
                 self.logger.log_telemetry_module_error("Error occurred while fetching contents from existing event file. [File={0}] [Error={1}].".format(repr(file_path), repr(error)))
                 raise
 
-    def is_agent_compatible(self):
-        """ Verifies if telemetry is available using an environment variable. """
-        return self.__agent_is_compatible
+    def is_telemetry_supported(self):
+        """ Verifies if telemetry is available using an environment variable and events_folder exists. """
+        return self.__agent_is_compatible and self.__events_folder_exists()
 

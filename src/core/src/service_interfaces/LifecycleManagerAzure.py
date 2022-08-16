@@ -25,8 +25,8 @@ from core.src.service_interfaces.LifecycleManager import LifecycleManager
 class LifecycleManagerAzure(LifecycleManager):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer):
-        super(LifecycleManagerAzure, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer)
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
+        super(LifecycleManagerAzure, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
 
         # Handshake file paths
         self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.EXT_STATE_FILE)
@@ -96,6 +96,8 @@ class LifecycleManagerAzure(LifecycleManager):
 
             # Signalling take-over of core state by auto-assessment after safety checks for any competing process
             self.update_core_sequence(completed=False)
+            # Refresh status file in memory to be up-to-date
+            self.status_handler.load_status_file_components()
         else:
             # Logic for all non-Auto-assessment operations
             extension_sequence = self.read_extension_sequence()
@@ -127,7 +129,8 @@ class LifecycleManagerAzure(LifecycleManager):
             self.update_core_sequence(completed=False)
         else:
             self.composite_logger.log_error("Extension goal state has changed. Terminating current sequence: {0}".format(self.execution_config.sequence_number))
-            self.update_core_sequence(completed=True)   # forced-to-complete scenario | extension wrapper will be watching for this event
+            self.status_handler.report_sequence_number_changed_termination()        # fail everything in a sequence number change
+            self.update_core_sequence(completed=True)       # forced-to-complete scenario | extension wrapper will be watching for this event
             self.composite_logger.file_logger.close()
             self.env_layer.exit(0)
         self.composite_logger.log_debug("Completed lifecycle status check.")   

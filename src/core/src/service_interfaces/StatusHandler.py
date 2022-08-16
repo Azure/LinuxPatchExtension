@@ -69,7 +69,7 @@ class StatusHandler(object):
         self.__configure_patching_auto_assessment_error_count = 0  # All errors relating to auto-assessment configuration.
 
         # Load the currently persisted status file into memory
-        self.__load_status_file_components(initial_load=True)
+        self.load_status_file_components(initial_load=True)
 
         # Tracker for reboot pending status, the value is updated externally(PatchInstaller.py) whenever package is installed. As this var is directly written in status file, setting the default to False, instead of Empty/Unknown, to maintain a true bool field as per Agent team's architecture
         self.is_reboot_pending = False
@@ -78,9 +78,6 @@ class StatusHandler(object):
         self.__os_name_and_version = self.get_os_name_and_version()
 
         self.__current_operation = None
-
-        # If an error message is any of these strings, it ignores the length limit (STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS)
-        self.__ignore_error_message_restriction_compliance_strings = [Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG]
 
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
         if (execution_config.maintenance_run_id is not None or execution_config.health_store_id is not None) and execution_config.operation.lower() == Constants.INSTALLATION.lower():
@@ -245,6 +242,25 @@ class StatusHandler(object):
         self.is_reboot_pending = is_reboot_pending
     # endregion
 
+    # region - Terminal state management
+    def report_sequence_number_changed_termination(self):
+        """ Based on the current operation, adds an error status and sets the substatus to error """
+        current_operation = self.execution_config.operation.lower()
+        error_code = Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED
+        message = "Execution was stopped due to a newer operation taking precedence."
+
+        if current_operation == Constants.ASSESSMENT.lower() or self.execution_config.exec_auto_assess_only:
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.ASSESSMENT)
+            self.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+        elif current_operation == Constants.CONFIGURE_PATCHING.lower() or current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT.lower():
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING)
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
+            self.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
+        elif current_operation == Constants.INSTALLATION.lower():
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.INSTALLATION)
+            self.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+    # endregion - Terminal state management
+
     # region - Substatus generation
     def set_maintenance_window_exceeded(self, maintenance_windows_exceeded):
         self.__maintenance_window_exceeded = maintenance_windows_exceeded
@@ -360,6 +376,9 @@ class StatusHandler(object):
 
     def set_patch_metadata_for_healthstore_substatus_json(self, status=Constants.STATUS_SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False, wait_after_update=False):
         """ Prepare the healthstore substatus json including message containing summary to be sent to healthstore """
+        if self.execution_config.exec_auto_assess_only:
+            raise Exception("Auto-assessment mode. Unexpected attempt to update healthstore status.")
+
         self.composite_logger.log_debug("Setting patch metadata for healthstore substatus. [Substatus={0}] [Report to HealthStore={1}]".format(str(status), str(report_to_healthstore)))
 
         # Wrap patch metadata into healthstore summary
@@ -390,6 +409,9 @@ class StatusHandler(object):
                                               automatic_os_patch_state=Constants.AutomaticOSPatchStates.UNKNOWN,
                                               auto_assessment_state=Constants.AutoAssessmentStates.UNKNOWN):
         """ Prepare the configure patching substatus json including the message containing configure patching summary """
+        if self.execution_config.exec_auto_assess_only:
+            raise Exception("Auto-assessment mode. Unexpected attempt to update configure patching status.")
+
         self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap default automatic OS patch state on the machine, at the time of this request, into configure patching summary
@@ -468,7 +490,7 @@ class StatusHandler(object):
         except KeyError:
             return default_value
 
-    def __load_status_file_components(self, initial_load=False):
+    def load_status_file_components(self, initial_load=False):
         """ Loads currently persisted status data into memory.
         :param initial_load: If no status file exists AND initial_load is true, a default initial status file is created.
         :return: None
@@ -493,8 +515,11 @@ class StatusHandler(object):
         self.__configure_patching_errors = []
         self.__configure_patching_auto_assessment_errors = []
 
+        self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
+
         # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.status_file_path) and initial_load:
+            self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()
             return
 
@@ -621,6 +646,8 @@ class StatusHandler(object):
 
     # region - Error objects
     def set_current_operation(self, operation):
+        if self.execution_config.exec_auto_assess_only and operation != Constants.ASSESSMENT:
+            raise Exception("Status reporting for a non-assessment operation was attempted when executing in auto-assessment mode. [Operation={0}]".format(str(operation)))
         self.__current_operation = operation
 
     def get_current_operation(self):
@@ -688,11 +715,7 @@ class StatusHandler(object):
         """ Removes line breaks, tabs and restricts message to a character limit """
         message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
         formatted_message = re.sub(r"\s+", " ", str(full_message))
-        ignore_message_restriction = any(ignore_string in formatted_message for ignore_string in self.__ignore_error_message_restriction_compliance_strings)
-        if ignore_message_restriction is False:
-            return formatted_message[:message_size_limit - 3] + '...' if len(formatted_message) > message_size_limit else formatted_message
-        else:
-            return formatted_message
+        return formatted_message[:message_size_limit - 3] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
     @staticmethod
     def __try_add_error(error_list, detail):

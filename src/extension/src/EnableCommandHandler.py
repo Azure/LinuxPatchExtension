@@ -41,18 +41,11 @@ class EnableCommandHandler(object):
     def execute_handler_action(self):
         """ Responsible for taking appropriate action for enable command as per the request sent in Handler Configuration file by user """
         try:
-            # Disable tty for sudo access, if required
-            self.env_health_manager.ensure_tty_not_required()
-
-            # Ensure sudo works in the environment
-            sudo_check_result = self.env_health_manager.check_sudo_status()
-            self.logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
-
             # fetch seq_no
             self.seq_no = self.ext_config_settings_handler.get_seq_no(is_enable_request=True)
             if self.seq_no is None:
                 self.logger.log_error("Sequence number for current operation not found")
-                exit(Constants.ExitCode.MissingConfig)
+                exit(Constants.ExitCode.ConfigurationError)
 
             # read status file, to load any preserve existing context
             self.ext_output_status_handler.read_file(self.seq_no)
@@ -68,7 +61,8 @@ class EnableCommandHandler(object):
             # Allow only certain operations
             if operation not in [Constants.NOOPERATION, Constants.ASSESSMENT, Constants.INSTALLATION, Constants.CONFIGURE_PATCHING]:
                 self.logger.log_error("Requested operation is not supported by the extension")
-                exit(Constants.ExitCode.InvalidConfigSettingPropertyValue)
+                self.ext_output_status_handler.write_status_file(operation, self.seq_no, status=Constants.Status.Error.lower(), message="Requested operation {0} is not supported by the extension".format(str(operation)), code=Constants.ExitCode.OperationNotSupported)
+                exit(Constants.ExitCode.OperationNotSupported)
 
             prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.ENABLE_MAX_RUNTIME)
             self.ext_state_handler.create_file(self.seq_no, operation, prev_patch_max_end_time)
@@ -125,7 +119,7 @@ class EnableCommandHandler(object):
         if create_status_output_file:
             self.ext_output_status_handler.write_status_file(config_settings.__getattribute__(self.config_public_settings.operation), self.seq_no, status=self.status.Transitioning.lower())
         else:
-            self.ext_output_status_handler.update_file(self.seq_no, self.ext_env_handler.status_folder)
+            self.ext_output_status_handler.update_file(self.seq_no)
         # launch core code in a process and exit extension handler
         process = self.process_handler.start_daemon(self.seq_no, config_settings, self.ext_env_handler)
         self.logger.log("exiting extension handler")

@@ -287,9 +287,10 @@ class TestCoreMain(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         argument_composer.events_folder = None
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        composed_arguments = argument_composer.get_composed_arguments(dict(telemetrySupported=False))
+        runtime = RuntimeCompositor(composed_arguments, True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
-        CoreMain(argument_composer.get_composed_arguments())
+        CoreMain(composed_arguments)
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
@@ -297,14 +298,14 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
-    def test_installation_operation_fail_due_to_no_telemetry(self):
-        # testing on auto patching request
+    def test_installation_operation_fail_due_to_telemetry_unsupported_no_events_folder(self):
+        # events_folder is None
         argument_composer = ArgumentComposer()
         argument_composer.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         argument_composer.events_folder = None
@@ -318,18 +319,48 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertFalse(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertFalse(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue("Installation failed due to assessment failure. Please refer the error details in assessment substatus" in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        runtime.stop()
+
+    def test_installation_operation_fail_due_to_no_telemetry(self):
+        # telemetry not supported
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.INSTALLATION
+        argument_composer.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": False}), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        # Skip assessment because it will always raise an exception at raise_if_telemetry_unsupported
+        # and will never raise an exception in installation's raise_if_telemetry_unsupported
+        runtime.patch_assessor.start_assessment = lambda: ()
+        CoreMain(argument_composer.get_composed_arguments())
+
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 4)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 2)
+        self.assertFalse(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue("Installation failed due to assessment failure. Please refer the error details in assessment substatus" in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertEqual(len(json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"]), 1)
+        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_assessment_operation_fail_on_arc_due_to_no_telemetry(self):
@@ -346,10 +377,10 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_installation_operation_fail_on_arc_due_to_no_telemetry(self):
@@ -367,18 +398,18 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertFalse(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertFalse(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue("Installation failed due to assessment failure. Please refer the error details in assessment substatus" in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_install_all_packages_for_centos_autopatching(self):
@@ -824,6 +855,70 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
+    def test_assessment_superseded(self):
+        """Unit test for an assessment request that gets superseded by a newer operation..
+        Result: Assessment should terminate with a superseded error message."""
+        # Step 1: Run assessment normally to generate 0.status and ExtState.json
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('HappyPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+
+        scratch_path = os.path.join(os.path.curdir, "scratch")
+
+        # Step 2: Set 1.status to Transitioning
+        with open(os.path.join(scratch_path, "1.status"), 'r+') as f:
+            status = json.load(f)
+            status[0]["status"]["status"] = "transitioning"
+            status[0]["status"]["substatus"][0]["status"] = "transitioning"
+            f.seek(0)  # rewind
+            json.dump(status, f)
+            f.truncate()
+            f.close()
+
+        # Step 3: Update sequence number in ExtState.json to mock a new incoming request
+        runtime.write_ext_state_file(runtime.lifecycle_manager.ext_state_file_path, "2",
+                                  datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                                  runtime.execution_config.operation)
+
+        raised_exit_exception = False
+        # Step 4: Run Assessment again with sequence number 1 to mock an older request that should automatically terminate and report operation superseded
+        try:
+            CoreMain(argument_composer.get_composed_arguments())
+        except SystemExit as error:
+            # Should raise a SystemExit exception
+            raised_exit_exception = True
+
+        self.assertTrue(raised_exit_exception)
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED in substatus_file_data[0]["formattedMessage"]["message"])
+
+        runtime.stop()
+
     def __check_telemetry_events(self, runtime):
         all_events = os.listdir(runtime.telemetry_writer.events_folder_path)
         self.assertTrue(len(all_events) > 0)
@@ -831,7 +926,7 @@ class TestCoreMain(unittest.TestCase):
         with open(os.path.join(runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
-            self.assertTrue('ExtensionCoreLog' in events[0]['TaskName'])
+            self.assertTrue('Core' in events[0]['TaskName'])
             f.close()
 
 

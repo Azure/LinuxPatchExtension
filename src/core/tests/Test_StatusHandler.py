@@ -198,22 +198,6 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 1)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
 
-        # Adding a long error that will not be truncated (special case)
-        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        long_error_message = "{0} [Diagnostic-code: 2.2.49.2/2.6.0.2/0/1/0]".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG)
-        self.assertTrue(len(long_error_message) > Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS)
-        self.runtime.status_handler.add_error_to_status(long_error_message, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        substatus_file_data = []
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][1]
-        self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 1)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 2)
-        message = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["message"]
-        self.assertTrue(len(message) > Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS)
-        self.assertEqual(message, long_error_message)
-
     def test_add_duplicate_error(self):
         # Setting operation to assessment to add all errors under assessment substatus
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
@@ -348,6 +332,31 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.maintenance_run_id = None  # Give None, expect empty string
         self.runtime.status_handler.set_installation_substatus_json()
         self.assertEqual(expected_maintenance_run_id, self.get_status_handler_substatus_maintenance_run_id())
+
+    def test_sequence_number_changed_termination_auto_assess_only(self):
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.runtime.status_handler.report_sequence_number_changed_termination()
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+            self.assertTrue(substatus_file_data["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
+            self.assertEqual(formatted_message["startedBy"], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
+
+    def test_set_patch_metadata_for_healthstore_substatus_json_auto_assess_transitioning(self):
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.assertRaises(Exception,
+                          lambda: self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json())
+
+    def test_set_configure_patching_substatus_json_auto_assess_transitioning(self):
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.assertRaises(Exception,
+                          lambda: self.runtime.status_handler.set_configure_patching_substatus_json())
+
+    def test_set_current_operation_auto_assess_non_assessment(self):
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.assertRaises(Exception,
+                          lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
 
 
 if __name__ == '__main__':

@@ -28,7 +28,7 @@ class Constants(object):
                         yield item
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.36"
+    EXT_VERSION = "1.6.41"
 
     # Runtime environments
     TEST = 'Test'
@@ -83,7 +83,7 @@ class Constants(object):
         Informational = "Informational"
         LogAlways = "LogAlways"
 
-    TELEMETRY_TASK_NAME = "HandlerLog"
+    TELEMETRY_TASK_NAME = "Handler"
 
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -137,6 +137,7 @@ class Constants(object):
         status_folder = "statusFolder"
         events_folder = "eventsFolder"
         events_folder_preview = "eventsFolder_preview"
+        telemetry_supported = "telemetrySupported"
 
     # Config Settings json keys
     RUNTIME_SETTINGS = "runtimeSettings"
@@ -201,19 +202,19 @@ class Constants(object):
 
     class ExitCode(EnumBackport):
         Okay = 0
-        HandlerFailed = -1
-        MissingConfig = -2
-        BadConfig = -3
         UnsupportedOperatingSystem = 51
         MissingDependency = 52
         ConfigurationError = 53
-        BadHandlerEnvironmentFile = 3560
-        UnableToReadStatusFile = 3561
-        CreateFileLoggerFailure = 3562
-        ReadingAndDeserializingConfigFileFailure = 3563
-        InvalidConfigSettingPropertyValue = 3564
-        CreateLoggerFailure = 3565
-        CreateStatusWriterFailure = 3566
+        BadHandlerEnvironmentFile = 81
+        UnableToReadStatusFile = 82
+        CreateFileLoggerFailure = 83
+        ReadingAndDeserializingConfigFileFailure = 84
+        InvalidConfigSettingPropertyValue = 85
+        CreateLoggerFailure = 86
+        CreateStatusWriterFailure = 87
+        HandlerFailed = 88
+        OperationNotSupported = 89
+        AutoAssessmentFailure = 90
 
     class AgentEnvVarStatusCode(EnumBackport):
         AGENT_ENABLED = "AGENT_ENABLED"

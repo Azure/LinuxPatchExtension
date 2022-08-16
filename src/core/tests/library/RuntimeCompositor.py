@@ -70,7 +70,7 @@ class RuntimeCompositor(object):
         self.composite_logger = bootstrapper.composite_logger
 
         # re-initializing telemetry_writer, outside of Bootstrapper, to correctly set the env_layer configured for tests
-        self.telemetry_writer = TelemetryWriter(self.env_layer, self.composite_logger, bootstrapper.telemetry_writer.events_folder_path)
+        self.telemetry_writer = TelemetryWriter(self.env_layer, self.composite_logger, bootstrapper.telemetry_writer.events_folder_path, bootstrapper.telemetry_supported)
         bootstrapper.telemetry_writer = self.telemetry_writer
         bootstrapper.composite_logger.telemetry_writer = self.telemetry_writer
 
@@ -101,8 +101,6 @@ class RuntimeCompositor(object):
         self.configure_patching_processor.auto_assess_service_manager.remove_service = self.mock_remove_service
         self.backup_remove_timer = self.configure_patching_processor.auto_assess_timer_manager.remove_timer
         self.configure_patching_processor.auto_assess_timer_manager.remove_timer = self.mock_remove_timer
-        self.backup_os_getenv = os.getenv
-        os.getenv = self.getenv_telemetry_enabled
 
     def stop(self):
         self.file_logger.close(message_at_close="<Runtime stopped>")
@@ -168,15 +166,6 @@ class RuntimeCompositor(object):
 
     def mock_remove_timer(self):
         pass
-
-    def getenv_telemetry_enabled(self, key, value=None):
-        """ Overrides get_env_var method to enable telemetry by default for all tests """
-        value = self.backup_os_getenv(key, value)
-        if key == Constants.AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR:
-            # Default to supported telemetry so test cases pass. This can be overridden on a per-test basis for testing
-            return '[{"Key": "ExtensionTelemetryPipeline", "Value": "1.0"}]'
-        else:
-            return value
 
     @staticmethod
     def write_to_file(path, data):
