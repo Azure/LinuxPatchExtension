@@ -1,6 +1,7 @@
 import os
 import tempfile
 import time
+import uuid
 
 from extension.src.Constants import Constants
 from extension.src.EnvLayer import EnvLayer
@@ -26,7 +27,7 @@ class RuntimeComposer(object):
         self.env_health_manager.check_sudo_status = self.mock_check_sudo_status
 
         if os.getenv('RUNNER_TEMP', None) is not None:
-            tempfile.mkdtemp = lambda: os.getenv('RUNNER_TEMP')
+            tempfile.mkdtemp = lambda: os.path.join(os.getenv('RUNNER_TEMP'), uuid.uuid4())
 
         print("CWD: {0}".format(os.getcwd()))
 
