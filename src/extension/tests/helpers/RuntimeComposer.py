@@ -28,6 +28,8 @@ class RuntimeComposer(object):
         if os.getenv('RUNNER_TEMP', None) is not None:
             tempfile.mkdtemp = lambda: os.getenv('RUNNER_TEMP')
 
+        print("CWD: {0}".format(os.getcwd()))
+
     def mock_sleep(self, seconds):
         pass
 
