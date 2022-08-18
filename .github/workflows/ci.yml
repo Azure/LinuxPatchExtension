@@ -81,7 +81,9 @@ jobs:
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err2.txt
       - name: Collect coverage
-        run: coverage xml
+        run: |
+          cd ./src/core/tests
+          coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
