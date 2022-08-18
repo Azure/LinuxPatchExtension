@@ -380,7 +380,7 @@ class TestActionHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '6789.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
         self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
-        self.assertEqual(status_json[0]["status"]["operation"], "f")
+        self.assertEqual(status_json[0]["status"]["operation"], "")
         self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
         self.assertEqual(status_json[0]["status"]["code"], 0)
         self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
