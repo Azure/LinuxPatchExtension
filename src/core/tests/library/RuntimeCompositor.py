@@ -18,6 +18,7 @@ import datetime
 import json
 import os
 import socket
+import tempfile
 import time
 
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
@@ -45,6 +46,9 @@ class RuntimeCompositor(object):
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
         self.vm_cloud_type = vm_cloud_type
         Constants.Paths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
+
+        if os.getenv('RUNNER_TEMP', None) is not None:
+            tempfile.mkdtemp = lambda: os.getenv('RUNNER_TEMP')
 
         # Overriding time.sleep and urlopen to avoid delays in test execution
         self.backup_time_sleep = time.sleep

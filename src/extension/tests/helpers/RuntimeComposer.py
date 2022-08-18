@@ -1,4 +1,5 @@
 import os
+import tempfile
 import time
 
 from extension.src.Constants import Constants
@@ -23,6 +24,9 @@ class RuntimeComposer(object):
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
         self.env_health_manager.check_sudo_status = self.mock_check_sudo_status
+
+        if os.getenv('RUNNER_TEMP', None) is not None:
+            tempfile.mkdtemp = lambda: os.getenv('RUNNER_TEMP')
 
     def mock_sleep(self, seconds):
         pass
