@@ -20,6 +20,7 @@ import os
 import socket
 import tempfile
 import time
+import uuid
 
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -48,7 +49,11 @@ class RuntimeCompositor(object):
         Constants.Paths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
 
         if os.getenv('RUNNER_TEMP', None) is not None:
-            tempfile.mkdtemp = lambda: os.getenv('RUNNER_TEMP')
+            def mkdtemp_runner():
+                temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
+                os.mkdir(temp_path)
+                return temp_path
+            tempfile.mkdtemp = mkdtemp_runner
 
         # Overriding time.sleep and urlopen to avoid delays in test execution
         self.backup_time_sleep = time.sleep

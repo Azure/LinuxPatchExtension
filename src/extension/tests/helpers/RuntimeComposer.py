@@ -33,8 +33,6 @@ class RuntimeComposer(object):
                 return temp_path
             tempfile.mkdtemp = mkdtemp_runner
 
-        print("CWD: {0}".format(os.getcwd()))
-
     def mock_sleep(self, seconds):
         pass
 
