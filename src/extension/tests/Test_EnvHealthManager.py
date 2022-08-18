@@ -39,7 +39,7 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestEnvManager(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestEnvManager runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         # create tempdir which will have all the required files
         self.temp_dir = tempfile.mkdtemp()
         self.env_layer = EnvLayer()
@@ -49,7 +49,7 @@ class TestEnvManager(unittest.TestCase):
         time.sleep = self.mock_sleep
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestEnvManager runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         # delete tempdir
         shutil.rmtree(self.temp_dir)
 

@@ -27,7 +27,7 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestInstallCommandHandler(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestInstallCommandHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         runtime = RuntimeComposer()
         self.logger = runtime.logger
         self.telemetry_writer = runtime.telemetry_writer
@@ -37,7 +37,7 @@ class TestInstallCommandHandler(unittest.TestCase):
         self.json_file_handler.get_json_file_content = self.mock_get_json_file_content_to_return_none
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestInstallCommandHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         # reseting mocks
         self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
 

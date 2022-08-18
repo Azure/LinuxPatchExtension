@@ -32,14 +32,14 @@ class TestFileLogger(unittest.TestCase):
 
     # setup
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestFileLogger runner -----------------\n")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------\n")
         self.test_dir = tempfile.mkdtemp()
         self.file_path = path.join(self.test_dir, 'test.log')
         self.file_logger = FileLogger(self.test_dir, 'test.log')
 
     # teardown
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestFileLogger runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         shutil.rmtree(self.test_dir)
 
     def test_file_open(self):

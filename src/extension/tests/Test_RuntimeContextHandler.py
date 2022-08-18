@@ -28,14 +28,14 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestRuntimeContextHandler(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestRuntimeContextHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         runtime = RuntimeComposer()
         self.json_file_handler = runtime.json_file_handler
         self.runtime_context_handler = RuntimeContextHandler(runtime.logger)
         self.core_state_fields = Constants.CoreStateFields
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestRuntimeContextHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
 
     def test_check_if_patch_completes_in_time(self):
         core_state_handler = CoreStateHandler(os.path.join(os.path.pardir, "tests", "helpers"), self.json_file_handler)

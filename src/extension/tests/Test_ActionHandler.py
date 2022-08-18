@@ -38,7 +38,7 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 class TestActionHandler(unittest.TestCase):
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestActionHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.temp_dir = tempfile.mkdtemp()
 
         self.runtime = RuntimeComposer()
@@ -66,7 +66,7 @@ class TestActionHandler(unittest.TestCase):
         os.path.realpath = self.mock_os_path_realpath
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestActionHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         self.ext_config_settings_handler.get_seq_no_from_env_var = self.backup_get_seq_no_from_env_var
         os.path.realpath = self.backup_mock_os_path_realpath
         # delete tempdir
@@ -379,12 +379,12 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.write_basic_status(Constants.INSTALL)
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '6789.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
-        self.assertEquals(status_json[0]["status"]["name"], "Azure Patch Management")
-        self.assertEquals(status_json[0]["status"]["operation"], "")
-        self.assertEquals(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
-        self.assertEquals(status_json[0]["status"]["code"], 0)
-        self.assertEquals(status_json[0]["status"]["formattedMessage"]["message"], "")
-        self.assertEquals(status_json[0]["status"]["substatus"], [])
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["operation"], "f")
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEqual(status_json[0]["status"]["code"], 0)
+        self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
+        self.assertEqual(status_json[0]["status"]["substatus"], [])
 
         # status file write for ENABLE (adds more details to status json than non ENABLE operations)
         self.backup_config_settings_read_file = self.ext_config_settings_handler.read_file
@@ -394,12 +394,12 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.write_basic_status(Constants.ENABLE)
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
-        self.assertEquals(status_json[0]["status"]["name"], "Azure Patch Management")
-        self.assertEquals(status_json[0]["status"]["operation"], "Installation")
-        self.assertEquals(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
-        self.assertEquals(status_json[0]["status"]["code"], 0)
-        self.assertEquals(status_json[0]["status"]["formattedMessage"]["message"], "")
-        self.assertEquals(status_json[0]["status"]["substatus"], [])
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["operation"], "Installation")
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEqual(status_json[0]["status"]["code"], 0)
+        self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
+        self.assertEqual(status_json[0]["status"]["substatus"], [])
 
         self.ext_config_settings_handler.read_file = self.backup_config_settings_read_file
 

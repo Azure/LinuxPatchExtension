@@ -28,7 +28,7 @@ class TestLogger(unittest.TestCase):
 
     # setup
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestLogger runner -----------------\n")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------\n")
         self.test_dir = tempfile.mkdtemp()
         self.file_path = path.join(self.test_dir, 'test.txt')
         self.file_logger = FileLogger(self.test_dir, 'test.txt')
@@ -36,7 +36,7 @@ class TestLogger(unittest.TestCase):
 
     # teardown
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestLogger runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         shutil.rmtree(self.test_dir)
 
     def test_log(self):

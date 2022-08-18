@@ -26,12 +26,12 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestJsonFileHandler(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestJsonFileHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         runtime = RuntimeComposer()
         self.json_file_handler = runtime.json_file_handler
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestJsonFileHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
 
     def mock_json_dump_with_exception(self):
         raise Exception

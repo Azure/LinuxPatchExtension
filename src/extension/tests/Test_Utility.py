@@ -25,12 +25,12 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestUtility(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestUtility runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
         self.utility = self.runtime.utility
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestUtility runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
 
     def mock_os_remove_to_return_exception(self, path):
         raise Exception

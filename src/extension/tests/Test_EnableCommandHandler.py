@@ -37,7 +37,7 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestEnableCommandHandler(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestEnableCommandHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         # create tempdir which will have all the required files
         self.temp_dir = tempfile.mkdtemp()
         runtime = RuntimeComposer()
@@ -62,7 +62,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         ProcessHandler.start_daemon = self.mock_start_daemon_to_return_true
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestEnableCommandHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         # reseting mocks to their original definition
         ProcessHandler.start_daemon = self.start_daemon_backup
         self.logger.file_logger.close()

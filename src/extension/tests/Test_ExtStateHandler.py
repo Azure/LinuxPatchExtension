@@ -28,7 +28,7 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestExtStateHandler(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestExtStateHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
         self.logger = self.runtime.logger
         self.utility = self.runtime.utility
@@ -36,7 +36,7 @@ class TestExtStateHandler(unittest.TestCase):
         self.ext_state_fields = Constants.ExtStateFields
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestExtStateHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
 
     def test_create_file(self):
         test_dir = tempfile.mkdtemp()

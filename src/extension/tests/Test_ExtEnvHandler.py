@@ -26,13 +26,13 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 class TestExtEnvHandler(unittest.TestCase):
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup TestExtEnvHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
         self.json_file_handler = self.runtime.json_file_handler
         self.env_settings_fields = Constants.EnvSettingsFields
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down TestExtEnvHandler runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
 
     def test_file_read_success(self):
         ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
