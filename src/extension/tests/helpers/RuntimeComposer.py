@@ -27,7 +27,11 @@ class RuntimeComposer(object):
         self.env_health_manager.check_sudo_status = self.mock_check_sudo_status
 
         if os.getenv('RUNNER_TEMP', None) is not None:
-            tempfile.mkdtemp = lambda: os.path.join(os.getenv('RUNNER_TEMP'), uuid.uuid4())
+            def mkdtemp_runner():
+                temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
+                os.mkdir(temp_path)
+                return temp_path
+            tempfile.mkdtemp = mkdtemp_runner
 
         print("CWD: {0}".format(os.getcwd()))
 
