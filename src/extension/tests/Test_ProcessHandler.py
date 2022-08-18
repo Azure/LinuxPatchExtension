@@ -162,8 +162,6 @@ class TestProcessHandler(unittest.TestCase):
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
         process = process_handler.start_daemon(seq_no, config_settings, ext_env_handler)
         self.assertTrue(process is None)
-        self.process.terminate()
-        self.process.wait()
 
         # process launched with no issues
         subprocess.Popen = self.mock_subprocess_popen_process_launched_with_no_issues

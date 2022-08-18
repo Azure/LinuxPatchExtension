@@ -94,10 +94,6 @@ class ProcessHandler(object):
         if process.pid is not None:
             self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
             did_process_start = self.__check_process_state(process, seq_no)
-            if not did_process_start:
-                process.terminate()
-                process.wait()
-
             return process if did_process_start else None
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
 

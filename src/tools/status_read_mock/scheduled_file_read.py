@@ -9,9 +9,10 @@ def read_file_and_log_content():
         # add path of the file to be read
         # eg: file_path = '/test/1.txt'
         file_path = ''
-        with open(file_path, 'r') as file_handle:
-            data = file_handle.read()
-            print(data)
+        file_handle = open(file_path, 'r')
+        data = file_handle.read()
+        print(data)
+        file_handle.close()
     except Exception as error:
         print("Error occurred during file operation: " + repr(error))
         data = "Error occurred during file operation: " + repr(error)

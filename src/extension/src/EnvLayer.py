@@ -67,7 +67,6 @@ class EnvLayer(object):
             process = subprocess.Popen(stdout=out_file, *popenargs, **kwargs)
             output, unused_err = process.communicate()
             retcode = process.poll()
-            process.wait()
 
             if retcode:
                 cmd = kwargs.get("args")
