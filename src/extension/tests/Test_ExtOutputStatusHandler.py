@@ -89,6 +89,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         ext_status_handler.update_file(file_name)
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         modified_time = stat_file_name.st_mtime
+        print("Should fail at line below")
         self.assertNotEqual(prev_modified_time, modified_time)  # Fails here on GitHub
         updated_status_json = ext_status_handler.read_file(file_name)
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_status], self.status.Transitioning.lower())
