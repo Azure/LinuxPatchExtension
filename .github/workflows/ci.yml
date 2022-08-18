@@ -24,7 +24,7 @@ jobs:
         run: |
           cd ./src/extension/tests
           echo '===============START EXTENSION TESTS...==============='
-          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
+          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH EXTENSION TESTS...==============='
       - name: Run core tests
         continue-on-error: true
@@ -32,10 +32,12 @@ jobs:
         run: |
           cd ./src/core/tests
           echo '===============START CORE TESTS...==============='
-          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
+          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH CORE TESTS...==============='
       - name: Collect coverage
-        run: coverage xml
+        run: |
+          cd ./src/core/tests
+          coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
