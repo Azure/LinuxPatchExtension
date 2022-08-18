@@ -72,7 +72,7 @@ class JsonFileHandler(object):
             for retry in range(0, self.retry_count):
                 try:
                     time.sleep(retry)
-                    with open(file_path, 'w') as json_file:
+                    with open(file_path, 'w+') as json_file:
                         json.dump(content, json_file, default=self.json_default_converter)
                         return
                 except Exception as error:
