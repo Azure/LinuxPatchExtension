@@ -7,6 +7,7 @@ on:
 jobs:
   codecov-python-39:
     runs-on: windows-latest
+    continue-on-error: true
     env:
       PYTHONTRACEMALLOC: 1
     steps:
@@ -49,6 +50,7 @@ jobs:
   codecov-python-27:
     runs-on: windows-latest
     needs: codecov-python-39
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v3
