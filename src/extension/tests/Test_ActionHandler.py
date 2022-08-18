@@ -300,11 +300,12 @@ class TestActionHandler(unittest.TestCase):
 
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
 
-        with open(self.runtime.logger.file_logger.log_file_path, "r") as file_read:
-            self.assertTrue(file_read is not None)
-            file_contents = file_read.read()
-            self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in file_contents)
-            self.assertTrue(Constants.AgentEnvVarStatusCode.FAILED_TO_GET_AGENT_SUPPORTED_FEATURES in file_contents)
+        file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
+        self.assertTrue(file_read is not None)
+        file_contents = file_read.read()
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in file_contents)
+        self.assertTrue(Constants.AgentEnvVarStatusCode.FAILED_TO_GET_AGENT_SUPPORTED_FEATURES in file_contents)
+        file_read.close()
 
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
@@ -328,11 +329,12 @@ class TestActionHandler(unittest.TestCase):
 
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
 
-        with open(self.runtime.logger.file_logger.log_file_path, "r") as file_read:
-            self.assertTrue(file_read is not None)
-            file_contents = file_read.read()
-            self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in file_contents)
-            self.assertTrue(Constants.AgentEnvVarStatusCode.FAILED_TO_GET_TELEMETRY_KEY in file_contents)
+        file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
+        self.assertTrue(file_read is not None)
+        file_contents = file_read.read()
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG in file_contents)
+        self.assertTrue(Constants.AgentEnvVarStatusCode.FAILED_TO_GET_TELEMETRY_KEY in file_contents)
+        file_read.close()
 
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
@@ -351,9 +353,10 @@ class TestActionHandler(unittest.TestCase):
         with self.assertRaises(SystemExit) as sys_exit:
             self.action_handler.enable()
 
-        with open(self.runtime.logger.file_logger.log_file_path, "r") as file_read:
-            self.assertTrue(file_read is not None)
-            self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG not in file_read.read())
+        file_read = open(self.runtime.logger.file_logger.log_file_path, "r")
+        self.assertTrue(file_read is not None)
+        self.assertTrue(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG not in file_read.read())
+        file_read.close()
 
         self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
 
