@@ -47,10 +47,11 @@ class RuntimeCompositor(object):
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
         self.vm_cloud_type = vm_cloud_type
         Constants.Paths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
+        self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
 
-        if os.getenv('RUNNER_TEMP', None) is not None:
+        if self.is_github_runner:
             def mkdtemp_runner():
-                temp_path = os.path.join(os.getcwd(), "tmp-" + str(uuid.uuid4()))
+                temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
                 os.mkdir(temp_path)
                 return temp_path
             tempfile.mkdtemp = mkdtemp_runner
