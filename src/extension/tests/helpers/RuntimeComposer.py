@@ -28,7 +28,7 @@ class RuntimeComposer(object):
 
         if os.getenv('RUNNER_TEMP', None) is not None:
             def mkdtemp_runner():
-                temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
+                temp_path = os.path.join(os.getcwd(), "tmp-" + str(uuid.uuid4()))
                 os.mkdir(temp_path)
                 return temp_path
             tempfile.mkdtemp = mkdtemp_runner
