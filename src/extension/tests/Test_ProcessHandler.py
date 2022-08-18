@@ -30,7 +30,7 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestProcessHandler(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup TestProcessHandler runner -----------------")
         runtime = RuntimeComposer()
         self.logger = runtime.logger
         self.telemetry_writer = runtime.telemetry_writer
@@ -43,7 +43,7 @@ class TestProcessHandler(unittest.TestCase):
         self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down TestProcessHandler runner -----------------")
         self.process.terminate()
         self.process.wait()
 

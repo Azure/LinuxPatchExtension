@@ -28,7 +28,7 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 class TestExtOutputStatusHandler(unittest.TestCase):
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup TestExtOutputStatusHandler runner -----------------")
         self.runtime = RuntimeComposer()
         self.logger = self.runtime.logger
         self.telemetry_writer = self.runtime.telemetry_writer
@@ -39,7 +39,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         self.status = Constants.Status
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down TestExtOutputStatusHandler runner -----------------")
 
     def test_create_status_file(self):
         file_name = "test"

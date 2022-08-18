@@ -27,14 +27,14 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestCoreStateHandler(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup TestCoreStateHandler runner -----------------")
         self.runtime = RuntimeComposer()
         self.utility = self.runtime.utility
         self.json_file_handler = self.runtime.json_file_handler
         self.core_state_fields = Constants.CoreStateFields
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down TestCoreStateHandler runner -----------------")
 
     def test_file_exists(self):
         core_state_handler = CoreStateHandler(os.path.join(os.path.pardir, "tests", "helpers"), self.json_file_handler)

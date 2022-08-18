@@ -26,11 +26,11 @@ class TestHandlerManifest(unittest.TestCase):
     """Test case to guard against handler manifest changes - not really a unit test"""
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup TestHandlerManifest runner -----------------")
         self.handler_manifest_file = os.path.join(os.path.pardir, 'src', Constants.HANDLER_MANIFEST_FILE)
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down TestHandlerManifest runner -----------------")
 
     def test_handler_manifest_json(self):
         with open(self.handler_manifest_file, "r") as handler_manifest_file_handle:

@@ -12,13 +12,13 @@ from extension.tests.helpers.RuntimeComposer import RuntimeComposer
 class TestTelemetryWriter(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup TestTelemetryWriter runner -----------------")
         self.runtime = RuntimeComposer()
         self.telemetry_writer = self.runtime.telemetry_writer
         self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down TestTelemetryWriter runner -----------------")
         shutil.rmtree(self.telemetry_writer.events_folder_path)
 
     def mock_time(self):

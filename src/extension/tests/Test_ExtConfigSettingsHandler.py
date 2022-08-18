@@ -30,7 +30,7 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 class TestExtConfigSettingsHandler(unittest.TestCase):
 
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup TestExtConfigSettingsHandler runner -----------------")
         self.runtime = RuntimeComposer()
         self.logger = self.runtime.logger
         self.telemetry_writer = self.runtime.telemetry_writer
@@ -39,7 +39,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         self.config_public_settings_fields = Constants.ConfigPublicSettingsFields
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down TestExtConfigSettingsHandler runner -----------------")
 
     def mock_getenv(self, key):
         return 1234

@@ -38,7 +38,7 @@ from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
 class TestActionHandler(unittest.TestCase):
     def setUp(self):
-        VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- setup TestActionHandler runner -----------------")
         self.temp_dir = tempfile.mkdtemp()
 
         self.runtime = RuntimeComposer()
@@ -66,7 +66,7 @@ class TestActionHandler(unittest.TestCase):
         os.path.realpath = self.mock_os_path_realpath
 
     def tearDown(self):
-        VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        VirtualTerminal().print_lowlight("\n----------------- tear down TestActionHandler runner -----------------")
         self.ext_config_settings_handler.get_seq_no_from_env_var = self.backup_get_seq_no_from_env_var
         os.path.realpath = self.backup_mock_os_path_realpath
         # delete tempdir
