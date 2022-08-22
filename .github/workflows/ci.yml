@@ -7,28 +7,39 @@ on:
 jobs:
   codecov-python-39:
     runs-on: windows-latest
+    env:
+      PYTHONTRACEMALLOC: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Python 3.9
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.9
       - name: Install dependencies
         run: pip install coverage
-      - name: Run tests and collect coverage
+      - name: Run extension tests
+        continue-on-error: true
+        shell: cmd
         run: |
           cd ./src/extension/tests
           echo '===============START EXTENSION TESTS...===============' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH EXTENSION TESTS...===============' >> ../../../err.txt
-          cd ../../core/tests
+      - name: Run core tests
+        continue-on-error: true
+        shell: cmd
+        run: |
+          cd ./src/core/tests
           echo '===============START CORE TESTS...===============' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err.txt
+      - name: Collect coverage
+        run: |
+          cd ./src/core/tests
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           flags: python39
           name: python-39
@@ -43,28 +54,38 @@ jobs:
           exit 1
   codecov-python-27:
     runs-on: windows-latest
+    needs: codecov-python-39
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Python 2.7
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 2.7
       - name: Install dependencies
         run: pip install coverage
-      - name: Run tests and collect coverage
+      - name: Run extension tests
+        continue-on-error: true
+        shell: cmd
         run: |
           cd ./src/extension/tests
           echo '===============START EXTENSION TESTS...===============' >> ../../../err2.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
           echo '===============FINISH EXTENSION TESTS...===============' >> ../../../err2.txt
-          cd ../../core/tests
+      - name: Run core tests
+        continue-on-error: true
+        shell: cmd
+        run: |
+          cd ./src/core/tests
           echo '===============START CORE TESTS...===============' >> ../../../err2.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err2.txt
+      - name: Collect coverage
+        run: |
+          cd ./src/core/tests
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           flags: python27
           name: python-27

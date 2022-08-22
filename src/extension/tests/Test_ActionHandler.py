@@ -382,12 +382,12 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.write_basic_status(Constants.INSTALL)
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '6789.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
-        self.assertEquals(status_json[0]["status"]["name"], "Azure Patch Management")
-        self.assertEquals(status_json[0]["status"]["operation"], "")
-        self.assertEquals(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
-        self.assertEquals(status_json[0]["status"]["code"], 0)
-        self.assertEquals(status_json[0]["status"]["formattedMessage"]["message"], "")
-        self.assertEquals(status_json[0]["status"]["substatus"], [])
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["operation"], "")
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEqual(status_json[0]["status"]["code"], 0)
+        self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
+        self.assertEqual(status_json[0]["status"]["substatus"], [])
 
         # status file write for ENABLE (adds more details to status json than non ENABLE operations)
         self.backup_config_settings_read_file = self.ext_config_settings_handler.read_file
@@ -397,12 +397,12 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.write_basic_status(Constants.ENABLE)
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
-        self.assertEquals(status_json[0]["status"]["name"], "Azure Patch Management")
-        self.assertEquals(status_json[0]["status"]["operation"], "Installation")
-        self.assertEquals(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
-        self.assertEquals(status_json[0]["status"]["code"], 0)
-        self.assertEquals(status_json[0]["status"]["formattedMessage"]["message"], "")
-        self.assertEquals(status_json[0]["status"]["substatus"], [])
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["operation"], "Installation")
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEqual(status_json[0]["status"]["code"], 0)
+        self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
+        self.assertEqual(status_json[0]["status"]["substatus"], [])
 
         self.ext_config_settings_handler.read_file = self.backup_config_settings_read_file
 
