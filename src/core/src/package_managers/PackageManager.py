@@ -57,8 +57,12 @@ class PackageManager(object):
 
     # region Get Available Updates
     @abstractmethod
-    def invoke_package_manager(self, command, raise_on_exception=True):
+    def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         pass
+
+    def invoke_package_manager(self, command):
+        out, code = self.invoke_package_manager_advanced(command, raise_on_exception=True)
+        return out
 
     def get_available_updates(self, package_filter):
         """Returns List of all installed packages with available updates."""
@@ -208,7 +212,7 @@ class PackageManager(object):
         exec_cmd = str(self.get_install_command(cmd, package_and_dependencies, package_and_dependency_versions))
 
         self.composite_logger.log_debug("UPDATING PACKAGE (WITH DEPENDENCIES) USING COMMAND: " + exec_cmd)
-        out, code = self.invoke_package_manager(exec_cmd, raise_on_exception=False)
+        out, code = self.invoke_package_manager_advanced(exec_cmd, raise_on_exception=False)
         package_size = self.get_package_size(out)
         self.composite_logger.log_debug("\n<PackageInstallOutput>\n" + out + "\n</PackageInstallOutput>")  # wrapping multi-line for readability
 
