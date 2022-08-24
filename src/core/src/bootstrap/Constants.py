@@ -127,9 +127,13 @@ class Constants(object):
         DISABLED = "Disabled"
         ENABLED = "Enabled"
 
+    # To separately preserve assessment + auto-assessment state information
+    ASSESSMENT_STATE_FILE = "AssessmentState.json"
+    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"
+    MIN_AUTO_ASSESSMENT_INTERVAL = "PT6H"   # do not perform auto-assessment if the last assessment happened less than this time interval ago
+
     # wait time after status updates
     WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS = 20
-    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"
 
     # Status file states
     STATUS_TRANSITIONING = "Transitioning"
