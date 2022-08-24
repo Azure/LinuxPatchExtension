@@ -76,7 +76,6 @@ class ZypperPackageManager(PackageManager):
         self.zypper_get_process_tree_cmd = 'ps --forest -o pid,cmd -g $(ps -o sid= -p {})'
         self.package_manager_max_retries = 5
         self.zypp_lock_timeout_backup = None
-        self.repo_refresh_services_attempted = False
 
         # auto OS updates
         self.current_auto_os_update_service = None
@@ -120,6 +119,7 @@ class ZypperPackageManager(PackageManager):
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
+        repo_refresh_services_attempted = False
 
         for i in range(1, self.package_manager_max_retries + 1):
             self.set_lock_timeout_and_backup_original()
@@ -128,10 +128,10 @@ class ZypperPackageManager(PackageManager):
 
             if code not in self.zypper_success_exit_codes:  # more known return codes should be added as appropriate
                 # Refresh repo services if no repos are defined
-                if code == self.zypper_exitcode_no_repos and command != self.repo_refresh_services and not self.repo_refresh_services_attempted:
+                if code == self.zypper_exitcode_no_repos and command != self.repo_refresh_services and not repo_refresh_services_attempted:
                     self.composite_logger.log_warning("Warning: no repos defined on command: {0}".format(str(command)))
                     self.__refresh_repo_services()
-                    self.repo_refresh_services_attempted = True
+                    repo_refresh_services_attempted = True
                     continue
 
                 if code == self.zypper_exitcode_zypp_exit_err_commit:
@@ -165,7 +165,6 @@ class ZypperPackageManager(PackageManager):
                 self.log_success_on_invoke(code, out)
 
             self.__handle_zypper_updated_or_reboot_exit_codes(command, out, code)
-            self.repo_refresh_services_attempted = False
 
             return out, code
 
