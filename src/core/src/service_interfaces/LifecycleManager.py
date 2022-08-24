@@ -64,17 +64,28 @@ class LifecycleManager(object):
                     self.composite_logger.log_error("Unable to read extension state file (retries exhausted). [Exception={0}]".format(repr(error)))
                     raise
 
-    def read_core_sequence(self):
-        """ Reads the core sequence file, but additionally establishes if this class is allowed to write to it when the freshest data is evaluated. """
-        self.composite_logger.log_debug("Reading core sequence...")
+    def identify_and_mitigate_core_sequence_issues(self):
+        """ Checks for issues with the core sequence file (file not exists, is dir, etc) and attempts to mitigate them. """
         if not os.path.exists(self.core_state_file_path) or not os.path.isfile(self.core_state_file_path):
             # Neutralizes directories
             if os.path.isdir(self.core_state_file_path):
                 self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
                 shutil.rmtree(self.core_state_file_path)
             # Writes a vanilla core sequence file
+            self.composite_logger.log_warning("Core state file did not exist. Attempting to reset.")
             self.read_only_mode = False
             self.update_core_sequence()
+        elif os.path.exists(self.core_state_file_path) and os.path.isfile(self.core_state_file_path) and os.stat(self.core_state_file_path).st_size == 0:
+            # Core sequence file exists but is empty (unexpected state that will result in a JSON decode error)
+            # Write a vanilla core sequence file to correct empty file
+            self.composite_logger.log_warning("Core state file existed but was empty. Attempting to reset.")
+            self.read_only_mode = False
+            self.update_core_sequence()
+
+    def read_core_sequence(self):
+        """ Reads the core sequence file, but additionally establishes if this class is allowed to write to it when the freshest data is evaluated. """
+        self.composite_logger.log_debug("Reading core sequence...")
+        self.identify_and_mitigate_core_sequence_issues()
 
         # Read (with retries for only IO Errors)
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
