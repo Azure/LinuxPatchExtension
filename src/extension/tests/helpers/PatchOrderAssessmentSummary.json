@@ -1,0 +1,72 @@
+{
+    "assessmentActivityId": "d7e26b52-c18e-46ec-a44b-8cb7bd7a62a3",
+    "errors": {
+        "message": "0 error/s reported.",
+        "code": 0,
+        "details": []
+    },
+    "rebootPending": false,
+    "startTime": "2022-07-29T08:21:27.5109106Z",
+    "lastModifiedTime": "2022-07-29T08:24:38Z",
+    "startedBy": "User",
+    "otherPatchCount": 6,
+    "criticalAndSecurityPatchCount": 5,
+    "patches": [
+        {
+            "version": "2.44-12.34.1",
+            "classifications": [
+                "Other"
+            ],
+            "name": "test-package-2",
+            "patchId": "test-package-2-1"
+        },
+        {
+            "version": "2.44-12.34.1",
+            "classifications": [
+                "Other", "Security"
+            ],
+            "name": "test-package-3",
+            "patchId": "test-package-3-1"
+        },
+        {
+            "version": "2.44-12.34.1",
+            "classifications": [
+                "Critical"
+            ],
+            "name": "test-package-1",
+            "patchId": "test-package-1-1"
+        },
+        {
+            "version": "2.44-12.34.1",
+            "classifications": [
+                "Security", "Critical"
+            ],
+            "name": "test-package-4",
+            "patchId": "test-package-4-1"
+        },
+        {
+            "version": "2.44-12.34.1",
+            "classifications": [
+                "Critical", "Other"
+            ],
+            "name": "test-package-5",
+            "patchId": "test-package-5-1"
+        },
+        {
+            "version": "2.44-12.34.1",
+            "classifications": [
+                "Unclassified"
+            ],
+            "name": "test-package-6",
+            "patchId": "test-package-6-1"
+        },
+        {
+            "version": "2.44-12.34.1",
+            "classifications": [
+                "Security"
+            ],
+            "name": "test-package-7",
+            "patchId": "test-package-7-1"
+        }
+    ]
+}
