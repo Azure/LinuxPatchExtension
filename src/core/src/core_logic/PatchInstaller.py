@@ -205,7 +205,7 @@ class PatchInstaller(object):
             for i in range(0, Constants.MAX_INSTALLATION_RETRY_COUNT):
                 install_result = package_manager.install_update_and_dependencies(package_and_dependencies, package_and_dependency_versions, simulate)
                 if install_result != Constants.INSTALLED:
-                    if i <= Constants.MAX_INSTALLATION_RETRY_COUNT:
+                    if i < Constants.MAX_INSTALLATION_RETRY_COUNT - 1:
                         time.sleep(i + 1)
                         self.composite_logger.log_warning("Retrying installation of package. [Package={0}]".format(package_manager.get_product_name(package_and_dependencies[0])))
 

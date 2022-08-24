@@ -116,9 +116,10 @@ class ZypperPackageManager(PackageManager):
                 self.force_reboot = True
 
     # region Get Available Updates
-    def invoke_package_manager(self, command):
+    def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
+        repo_refresh_services_attempted = False
 
         for i in range(1, self.package_manager_max_retries + 1):
             self.set_lock_timeout_and_backup_original()
@@ -127,9 +128,10 @@ class ZypperPackageManager(PackageManager):
 
             if code not in self.zypper_success_exit_codes:  # more known return codes should be added as appropriate
                 # Refresh repo services if no repos are defined
-                if code == self.zypper_exitcode_no_repos and command != self.repo_refresh_services:
+                if code == self.zypper_exitcode_no_repos and command != self.repo_refresh_services and not repo_refresh_services_attempted:
                     self.composite_logger.log_warning("Warning: no repos defined on command: {0}".format(str(command)))
                     self.__refresh_repo_services()
+                    repo_refresh_services_attempted = True
                     continue
 
                 if code == self.zypper_exitcode_zypp_exit_err_commit:
@@ -146,7 +148,7 @@ class ZypperPackageManager(PackageManager):
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
 
                 # Not a retriable error code, so raise an exception
-                if code not in self.zypper_retriable_exit_codes:
+                if code not in self.zypper_retriable_exit_codes and raise_on_exception:
                     raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
                 # Retriable error code, so check number of retries and wait then retry if applicable; otherwise, raise error after max retries
@@ -157,13 +159,14 @@ class ZypperPackageManager(PackageManager):
                 else:
                     error_msg = "Unable to invoke package manager (retries exhausted) [{0}] [RetryCount={1}]".format(error_msg, str(i))
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+                    if raise_on_exception:
+                        raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             else:  # verbose diagnostic log
                 self.log_success_on_invoke(code, out)
 
             self.__handle_zypper_updated_or_reboot_exit_codes(command, out, code)
 
-            return out
+            return out, code
 
     def __handle_zypper_updated_or_reboot_exit_codes(self, command, out, code):
         """ Handles exit code 102 or 103 when returned from invoking package manager.

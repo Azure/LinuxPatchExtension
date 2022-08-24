@@ -554,8 +554,8 @@ class TestZypperPackageManager(unittest.TestCase):
         try:
             package_manager.invoke_package_manager(cmd_to_run)
         except Exception as error:
-            # Should only try once since this is not a retriable error code
-            self.assertEqual(counter[0], 1)
+            # Should try twice - once to fail and refresh repo, twice to ultimately fail with same error code (non-retriable)
+            self.assertEqual(counter[0], 2)
             self.assertTrue(self.is_string_in_status_file('Unexpected return code (6) from package manager on command: sudo zypper refresh'))
             self.assertTrue('Unexpected return code (6) from package manager on command: sudo zypper refresh' in repr(error))
 
