@@ -149,15 +149,13 @@ class PatchAssessor(object):
 
     def write_assessment_state(self, first_write=False):
         """
-        CoreState.json sample structure:
+        AssessmentState.json sample structure:
         {
-            "coreSequence": {
-                "number": 3,
-                "action": "<Assessment/Deployment>",
-                "completed": "<true/false>",
-                "lastHeartbeat": "",
-                "processIds": ["", ...]
-            }
+            "number": "<sequence number>",
+            "lastStartInSecondsSinceEpoch": "<number>",
+            "lastHeartbeat": "<timestamp>",
+            "processIds": ["", ...],
+            "autoAssessment": "<true/false>"
         }
         """
         self.composite_logger.log_debug("Updating assessment state... ")
