@@ -66,7 +66,7 @@ class AptitudePackageManager(PackageManager):
         self.invoke_package_manager(self.repo_refresh)
 
     # region Get Available Updates
-    def invoke_package_manager(self, command):
+    def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
         self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
         code, out = self.env_layer.run_command_output(command, False, False)
@@ -79,7 +79,8 @@ class AptitudePackageManager(PackageManager):
             self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            if raise_on_exception:
+                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
             self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
@@ -87,14 +88,15 @@ class AptitudePackageManager(PackageManager):
             self.telemetry_writer.write_execution_error(command, code, out)
             error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            if raise_on_exception:
+                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
             self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
             self.composite_logger.log_verbose("==========================================================================\n\n")
-        return out
+        return out, code
 
     def invoke_apt_cache(self, command):
         """Invoke apt-cache using the command input"""

@@ -103,11 +103,24 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('FailInstallPath')
 
         package_manager = self.container.get('package_manager')
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
         self.assertIsNotNone(package_manager)
 
         # test for unsuccessfully installing a package
         self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
         self.assertRaises(Exception, lambda: package_manager.invoke_package_manager('sudo apt-get -y --only-upgrade true install force-dpkg-failure'))
+
+        # ensure that error message appears in substatus properly
+        substatus_file_data = []
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            status = json.load(file_handle)
+            self.assertEqual(status[0]["status"]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+            substatus_file_data = status[0]["status"]["substatus"][0]
+
+        error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
+        self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
+        self.assertTrue(error_msg in str(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]))
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
 
     def test_install_package_only_upgrades(self):
         self.runtime.set_legacy_test_type('FailInstallPath')
