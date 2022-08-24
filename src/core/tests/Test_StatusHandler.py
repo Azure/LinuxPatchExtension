@@ -84,8 +84,8 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_install_status("samba-common-bin", "2:4.4.5+dfsg-2ubuntu5.4", Constants.INSTALLED)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["patchInstallationState"], Constants.INSTALLED)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["name"], "samba-common-bin")
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchInstallationState"], Constants.INSTALLED)
 
     def test_set_package_install_status_classification(self):
         packages, package_versions = self.runtime.package_manager.get_all_updates()
@@ -357,6 +357,40 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.exec_auto_assess_only = True
         self.assertRaises(Exception,
                           lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
+
+    def test_sort_packages_by_classification_and_state(self):
+        with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/PatchOrderAssessmentSummary.json", 'r') as file_handle:
+            assessment_patches = json.load(file_handle)["patches"]
+            assessment_patches_sorted = self.runtime.status_handler.sort_packages_by_classification_and_state(assessment_patches)
+            #                                                                           + Classifications    | Patch State +
+            #                                                                           |--------------------|-------------|
+            self.assertEqual(assessment_patches_sorted[0]["name"], "test-package-3")  # | Other, Security    |             |
+            self.assertEqual(assessment_patches_sorted[1]["name"], "test-package-4")  # | Security, Critical |             |
+            self.assertEqual(assessment_patches_sorted[2]["name"], "test-package-7")  # | Security           |             |
+            self.assertEqual(assessment_patches_sorted[3]["name"], "test-package-1")  # | Critical           |             |
+            self.assertEqual(assessment_patches_sorted[4]["name"], "test-package-5")  # | Critical, Other    |             |
+            self.assertEqual(assessment_patches_sorted[5]["name"], "test-package-2")  # | Other              |             |
+            self.assertEqual(assessment_patches_sorted[6]["name"], "test-package-6")  # | Unclassified       |             |
+
+        with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/PatchOrderInstallationSummary.json", 'r') as file_handle:
+            installation_patches = json.load(file_handle)["patches"]
+            installation_patches_sorted = self.runtime.status_handler.sort_packages_by_classification_and_state(installation_patches)
+            #                                                                              + Classifications    | Patch State +
+            #                                                                              |--------------------|-------------|
+            self.assertEqual(installation_patches_sorted[0]["name"], "test-package-6")  #  | Security           | Failed      |
+            self.assertEqual(installation_patches_sorted[1]["name"], "test-package-12")  # | Critical, Security | Failed      |
+            self.assertEqual(installation_patches_sorted[2]["name"], "test-package-11")  # | Security           | Installed   |
+            self.assertEqual(installation_patches_sorted[3]["name"], "test-package-10")  # | Security           | Available   |
+            self.assertEqual(installation_patches_sorted[4]["name"], "test-package-9")  #  | Security           | Pending     |
+            self.assertEqual(installation_patches_sorted[5]["name"], "test-package-8")  #  | Security, Critical | Excluded    |
+            self.assertEqual(installation_patches_sorted[6]["name"], "test-package-7")  #  | Security           | NotSelected |
+            self.assertEqual(installation_patches_sorted[7]["name"], "test-package-14")  # | Critical           | Installed   |
+            self.assertEqual(installation_patches_sorted[8]["name"], "test-package-13")  # | Critical           | Available   |
+            self.assertEqual(installation_patches_sorted[9]["name"], "test-package-5")  #  | Other              | Installed   |
+            self.assertEqual(installation_patches_sorted[10]["name"], "test-package-4")  # | Other              | Available   |
+            self.assertEqual(installation_patches_sorted[11]["name"], "test-package-3")  # | Other              | Pending     |
+            self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
+            self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
 
 if __name__ == '__main__':
