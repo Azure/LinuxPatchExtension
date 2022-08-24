@@ -86,6 +86,7 @@ class TestPatchAssessor(unittest.TestCase):
         if os.path.exists(self.runtime.patch_assessor.assessment_state_file_path):
             os.remove(self.runtime.patch_assessor.assessment_state_file_path)
 
+        # Attempt to read when it does not exist - should create default assessment state file
         os.mkdir(self.runtime.patch_assessor.assessment_state_file_path)
         self.assertTrue(self.runtime.patch_assessor.read_assessment_state() is not None)
 
@@ -93,7 +94,9 @@ class TestPatchAssessor(unittest.TestCase):
             os.remove(self.runtime.patch_assessor.assessment_state_file_path)
 
         os.mkdir(self.runtime.patch_assessor.assessment_state_file_path)
+        # Attempt to write when it does not exist - should also create default assessment state file
         self.runtime.patch_assessor.write_assessment_state()
+        self.assertTrue(self.runtime.patch_assessor.read_assessment_state() is not None)
 
         # Opening file throws exception
         backup_open = self.runtime.patch_assessor.env_layer.file_system.open
@@ -114,7 +117,7 @@ class TestPatchAssessor(unittest.TestCase):
         self.runtime.patch_assessor.read_assessment_state()
         self.assertTrue(self.runtime.patch_assessor.should_auto_assessment_run())
 
-        # Second file write, should fail now that the last assessment time is not 0
+        # Second file write, should fail now since minimum delay between assessments hasn't been met
         self.runtime.patch_assessor.write_assessment_state()
         self.assertFalse(self.runtime.patch_assessor.should_auto_assessment_run())
 
