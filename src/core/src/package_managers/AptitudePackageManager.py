@@ -36,6 +36,7 @@ class AptitudePackageManager(PackageManager):
         self.prep_security_sources_list_cmd = 'sudo grep security /etc/apt/sources.list > ' + self.security_sources_list
         self.dist_upgrade_simulation_cmd_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
         self.single_package_check_versions = 'apt-cache madison <PACKAGE-NAME>'
+        self.single_package_apt_cache_show = 'apt-cache show <PACKAGE-NAME>'
         self.single_package_find_installed_dpkg = 'sudo dpkg -s <PACKAGE-NAME>'
         self.single_package_find_installed_apt = 'sudo apt list --installed <PACKAGE-NAME>'
         self.single_package_upgrade_simulation_cmd = '''DEBIAN_FRONTEND=noninteractive apt-get -y --only-upgrade true -s install '''
@@ -128,8 +129,10 @@ class AptitudePackageManager(PackageManager):
         cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '')
         out = self.invoke_package_manager(cmd)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
-
         self.composite_logger.log_debug("Discovered " + str(len(self.all_updates_cached)) + " package entries.")
+
+        self.all_updates_cached, self.all_update_versions_cached = self.filter_or_update_package_versions_for_publish_date(self.all_updates_cached, self.all_update_versions_cached)
+
         return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
@@ -142,8 +145,10 @@ class AptitudePackageManager(PackageManager):
         cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '-oDir::Etc::Sourcelist=' + self.security_sources_list)
         out = self.invoke_package_manager(cmd)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
-
         self.composite_logger.log("Discovered " + str(len(security_packages)) + " 'security' package entries.")
+
+        self.all_updates_cached, self.all_update_versions_cached = self.filter_or_update_package_versions_for_publish_date(self.all_updates_cached, self.all_update_versions_cached)
+
         return security_packages, security_package_versions
 
     def get_other_updates(self):
@@ -159,9 +164,42 @@ class AptitudePackageManager(PackageManager):
             if package not in security_packages:
                 other_packages.append(package)
                 other_package_versions.append(all_package_versions[index])
-
         self.composite_logger.log("Discovered " + str(len(other_packages)) + " 'other' package entries.")
+
+        self.all_updates_cached, self.all_update_versions_cached = self.filter_or_update_package_versions_for_publish_date(self.all_updates_cached, self.all_update_versions_cached)
+
         return other_packages, other_package_versions
+    # endregion
+
+    # region Publish Date support
+    def filter_or_update_package_versions_for_publish_date(self, packages, package_versions):
+        if self.execution_config.max_patch_publish_date is None:
+            return packages, package_versions
+
+        self.execution_config.log_debug("Filtering for maxPatchPublishDate: " + str(self.execution_config.max_patch_publish_date))
+        filtered_package_names = []
+        filtered_package_versions = []
+
+        for package in packages:
+            package_versions, package_publish_dates = self.get_versions_and_publish_dates_for_package(package)
+
+        # TODO - Task 1: for all packages returned:
+        #   get versions and associated publish dates (get_versions_and_publish_dates_for_package)
+        #   if there's no version with a published date less than target, exclude the package from the list altogether
+        #   else pick the date that is closest to the target and less than it, and include that version in the list to be returned
+
+        return filtered_package_names, filtered_package_versions
+
+    def get_versions_and_publish_dates_for_package(self, package):
+        versions = []
+        publish_dates = []
+
+        command = self.single_package_apt_cache_show.replace('<PACKAGE-NAME>', package)
+        out = self.invoke_apt_cache(command)
+
+        # TODO - Task 2: parse apt-cache show output to get versions and publish_dates - see extract_packages_and_versions for example
+
+        return versions, publish_dates      # better data structures can be used, but sticking to a historical pattern for now
     # endregion
 
     # region Output Parser(s)

@@ -55,6 +55,7 @@ class ExecutionConfig(object):
         self.included_classifications_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.CLASSIFICATIONS_TO_INCLUDE, [])
         self.included_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_INCLUDE, [])
         self.excluded_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_EXCLUDE, [])
+        self.max_patch_publish_date = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAX_PATCH_PUBLISH_DATE, None)
         self.maintenance_run_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAINTENANCE_RUN_ID)
         self.health_store_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.HEALTH_STORE_ID)
         if self.operation == Constants.INSTALLATION:
@@ -87,6 +88,7 @@ class ExecutionConfig(object):
         self.composite_logger.log_debug("Setting execution configuration values for auto assessment.")
         self.activity_id = str(uuid.uuid4())
         self.included_classifications_list = self.included_package_name_mask_list = self.excluded_package_name_mask_list = []
+        self.max_patch_publish_date = None
         self.maintenance_run_id = None
         self.start_time = self.env_layer.datetime.standard_datetime_to_utc(datetime.datetime.utcnow())
         self.duration = Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION

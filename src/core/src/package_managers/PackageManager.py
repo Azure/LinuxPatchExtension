@@ -27,6 +27,7 @@ class PackageManager(object):
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         self.env_layer = env_layer
+        self.execution_config = execution_config
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
         self.status_handler = status_handler

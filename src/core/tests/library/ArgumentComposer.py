@@ -49,6 +49,7 @@ class ArgumentComposer(object):
         self.classifications_to_include = []
         self.patches_to_include = []
         self.patches_to_exclude = []
+        self.max_patch_publish_date = "2022-08-20T00:00:00.0Z"
         self.maintenance_run_id = None  # Since this is optional, all possible inputs for this are added in respective tests
         self.health_store_id = None
         self.patch_mode = None
@@ -83,6 +84,7 @@ class ArgumentComposer(object):
             "classificationsToInclude": self.classifications_to_include,
             "patchesToInclude": self.patches_to_include,
             "patchesToExclude": self.patches_to_exclude,
+            "maxPatchPublishDate": self.max_patch_publish_date,
             "maintenanceRunId": self.maintenance_run_id,
             "healthStoreId": self.health_store_id,
             "patchMode": self.patch_mode,

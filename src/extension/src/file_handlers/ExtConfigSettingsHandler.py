@@ -123,6 +123,7 @@ class ExtConfigSettingsHandler(object):
                 include_classifications = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.include_classifications, raise_if_not_found=False)
                 include_patches = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.include_patches, raise_if_not_found=False)
                 exclude_patches = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.exclude_patches, raise_if_not_found=False)
+                max_patch_publish_date = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.max_patch_publish_date, raise_if_not_found=False)
                 internal_settings = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.internal_settings, raise_if_not_found=False)
                 maintenance_run_id = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.maintenance_run_id, raise_if_not_found=False)
                 health_store_id = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.health_store_id, raise_if_not_found=False)
@@ -131,10 +132,11 @@ class ExtConfigSettingsHandler(object):
                 maximum_assessment_interval = self.get_ext_config_value_safely(config_settings_json, self.public_settings_all_keys.maximum_assessment_interval, raise_if_not_found=False)
                 config_settings_values = collections.namedtuple("config_settings", [self.public_settings_all_keys.operation, self.public_settings_all_keys.activity_id, self.public_settings_all_keys.start_time,
                                                                                     self.public_settings_all_keys.maximum_duration, self.public_settings_all_keys.reboot_setting, self.public_settings_all_keys.include_classifications,
-                                                                                    self.public_settings_all_keys.include_patches, self.public_settings_all_keys.exclude_patches, self.public_settings_all_keys.internal_settings,
+                                                                                    self.public_settings_all_keys.include_patches, self.public_settings_all_keys.exclude_patches,
+                                                                                    self.public_settings_all_keys.max_patch_publish_date, self.public_settings_all_keys.internal_settings,
                                                                                     self.public_settings_all_keys.maintenance_run_id, self.public_settings_all_keys.health_store_id, self.public_settings_all_keys.patch_mode,
                                                                                     self.public_settings_all_keys.assessment_mode, self.public_settings_all_keys.maximum_assessment_interval])
-                return config_settings_values(operation, activity_id, start_time, max_duration, reboot_setting, include_classifications, include_patches, exclude_patches,
+                return config_settings_values(operation, activity_id, start_time, max_duration, reboot_setting, include_classifications, include_patches, exclude_patches, max_patch_publish_date,
                                               internal_settings, maintenance_run_id, health_store_id, patch_mode, assessment_mode, maximum_assessment_interval)
             else:
                 config_invalid_due_to = "no content found in the file" if config_settings_json is None else "settings not in expected format"

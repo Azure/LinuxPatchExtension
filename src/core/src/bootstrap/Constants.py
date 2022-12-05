@@ -70,6 +70,7 @@ class Constants(object):
         CLASSIFICATIONS_TO_INCLUDE = 'classificationsToInclude'
         PATCHES_TO_INCLUDE = 'patchesToInclude'
         PATCHES_TO_EXCLUDE = 'patchesToExclude'
+        MAX_PATCH_PUBLISH_DATE = 'maxPatchPublishDate'
         MAINTENANCE_RUN_ID = 'maintenanceRunId'
         HEALTH_STORE_ID = 'healthStoreId'
         PATCH_MODE = 'patchMode'

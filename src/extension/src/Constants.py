@@ -155,6 +155,7 @@ class Constants(object):
         include_classifications = "classificationsToInclude"
         include_patches = "patchesToInclude"
         exclude_patches = "patchesToExclude"
+        max_patch_publish_date = "maxPatchPublishDate"
         internal_settings = "internalSettings"
         maintenance_run_id = "maintenanceRunId"
         health_store_id = "healthStoreId"

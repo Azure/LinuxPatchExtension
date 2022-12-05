@@ -230,6 +230,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
                         self.config_public_settings_fields.include_classifications: ["Critical","Security"],
                         self.config_public_settings_fields.include_patches: ["*", "test*", "*ern*=1.2*", "kern*=1.23.45"],
                         self.config_public_settings_fields.exclude_patches: ["*", "test", "*test"],
+                        self.config_public_settings_fields.max_patch_publish_date: "2022-08-20T00:00:00.0Z",
                         self.config_public_settings_fields.internal_settings: "<serialized-json>",
                         self.config_public_settings_fields.maintenance_run_id: "2019-07-20T12:12:14Z",
                         self.config_public_settings_fields.patch_mode: "AutomaticByPlatform",
@@ -341,6 +342,10 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
         # verify patchesToExclude is read successfully
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.exclude_patches), None)
         self.assertTrue("test" in config_settings.__getattribute__(self.config_public_settings_fields.exclude_patches))
+
+        # verify maxPatchPublishDate is read successfully
+        self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.max_patch_publish_date), None)
+        self.assertTrue("2022-08-20T00:00:00Z" in config_settings.__getattribute__(self.config_public_settings_fields.max_patch_publish_date))
 
         # verify internalSettings is read successfully
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.internal_settings), None)

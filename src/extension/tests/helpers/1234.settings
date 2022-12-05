@@ -12,6 +12,7 @@
                 "classificationsToInclude":["Critical","Security"],
                 "patchesToInclude": ["*ern*=1.2*", "kern*=1.23.45"],
                 "patchesToExclude": ["test", "*test"],
+                "maxPatchPublishDate": "2022-08-20T00:00:00Z",
                 "internalSettings": "test",
                 "maintenanceRunId": "2019-07-20T12:12:14Z",
                 "healthStoreId": "2021-09-15T12:12:14Z",
