@@ -21,6 +21,7 @@ import os
 import shutil
 import time
 from core.src.bootstrap.Constants import Constants
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 
 
 class PatchAssessor(object):
@@ -48,6 +49,8 @@ class PatchAssessor(object):
 
         self.composite_logger.log('\nStarting patch assessment...')
         self.write_assessment_state()   # success / failure does not matter, only that an attempt started
+
+        startTime = self.env_layer.datetime.datetime_utcnow()
 
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
@@ -87,6 +90,14 @@ class PatchAssessor(object):
                     self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
                     raise
 
+        endTime = self.env_layer.datetime.datetime_utcnow()
+        patchService = self.package_manager.__class__.__name__
+        machine_details = TelemetryWriter.machine_info
+
+        assessmentDetails = {'job': "Assessment", 'startTime': str(startTime), 'endTime': str(endTime),
+                             'patchService': patchService, 'machineDetails': machine_details}
+
+        self.composite_logger.log(str(assessmentDetails))
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
 

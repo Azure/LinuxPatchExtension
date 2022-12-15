@@ -19,6 +19,7 @@ import datetime
 import os
 import time
 from core.src.bootstrap.Constants import Constants
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 
 
 class PatchInstaller(object):
@@ -70,6 +71,7 @@ class PatchInstaller(object):
                 self.composite_logger.log_debug("Attempting to reboot the machine prior to patch installation as there is a reboot pending...")
                 reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
 
+        startTime = self.env_layer.datetime.datetime_utcnow()
         # Install Updates
         installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
 
@@ -87,6 +89,15 @@ class PatchInstaller(object):
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         self.composite_logger.log("\nInstalled update count: " + str(installed_update_count) + " (including dependencies)")
+
+        endTime = self.env_layer.datetime.datetime_utcnow()
+        patchService = self.package_manager.__class__.__name__
+        machine_details = TelemetryWriter.machine_info
+
+        InstallUpdatesDetails = {'job': "Install Updates", 'startTime': str(startTime), 'endTime': str(endTime), 'installed_update_count': str(installed_update_count), 'update_run_successful': str(update_run_successful),
+                             'maintenance_window': str(maintenance_window.duration), 'maintenance_window_exceeded': str(maintenance_window_exceeded), 'patchService': patchService, 'machineDetails': machine_details}
+
+        self.composite_logger.log(str(InstallUpdatesDetails))
 
         # Reboot as per setting and environment state
         reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))

@@ -28,6 +28,8 @@ from core.src.bootstrap.Constants import Constants
 class TelemetryWriter(object):
     """Class for writing telemetry data to data transports"""
 
+    machine_info = ""
+
     def __init__(self, env_layer, composite_logger, events_folder_path, telemetry_supported):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
@@ -75,14 +77,14 @@ class TelemetryWriter(object):
     # Composed payload
     def write_machine_config_info(self):
         # Machine info - sent only once at the start of the run
-        machine_info = {
+        TelemetryWriter.machine_info = {
             'platform_name': str(self.env_layer.platform.linux_distribution()[0]),
             'platform_version': str(self.env_layer.platform.linux_distribution()[1]),
             'machine_cpu': self.get_machine_processor(),
             'machine_arch': str(self.env_layer.platform.machine()),
             'disk_type': self.get_disk_type()
         }
-        return self.write_config_info(machine_info, 'machine_config')
+        return self.write_config_info(TelemetryWriter.machine_info, 'machine_config')
 
     def write_execution_error(self, cmd, code, output):
         # Expected to log any errors from a cmd execution, including package manager execution errors
