@@ -20,7 +20,7 @@ import os
 import time
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
-
+from Stopwatch import Stopwatch
 
 class PatchInstaller(object):
     """" Wrapper class for a single patch installation operation """
@@ -34,6 +34,7 @@ class PatchInstaller(object):
         self.lifecycle_manager = lifecycle_manager
 
         self.package_manager = package_manager
+        self.package_manager_name = self.package_manager.__class__.__name__
         self.package_filter = package_filter
         self.maintenance_window = maintenance_window
         self.reboot_manager = reboot_manager
@@ -51,6 +52,9 @@ class PatchInstaller(object):
         self.raise_if_telemetry_unsupported()
 
         self.composite_logger.log('\nStarting patch installation...')
+
+        stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
+        stopwatch.start()
 
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
         self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
@@ -70,11 +74,10 @@ class PatchInstaller(object):
             else:
                 self.composite_logger.log_debug("Attempting to reboot the machine prior to patch installation as there is a reboot pending...")
                 reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
-
-        startTime = self.env_layer.datetime.datetime_utcnow()
+        
         # Install Updates
         installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
-
+        number_of_rounds = 1
         # Repeat patch installation if flagged as required and time is available
         if not maintenance_window_exceeded and package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):
             self.composite_logger.log("\nInstalled update count (first round): " + str(installed_update_count))
@@ -82,22 +85,29 @@ class PatchInstaller(object):
             package_manager.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False)  # Resetting
             new_installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
             installed_update_count += new_installed_update_count
+            number_of_rounds = number_of_rounds + 1
 
             if package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # We should not see this again
                 error_msg = "Unexpected repeated package manager update occurred. Please re-run the update deployment."
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+                perc_maintenance_window_used = maintenance_window.get_percentage_maintenance_window_used()
+                patch_installation_perf_log  = {Constants.LogStrings.TASK: Constants.LogStrings.PATCH_INSTALLATION, Constants.LogStrings.PACKAGE_MANAGER: self.package_manager_name,
+                                                Constants.LogStrings.UPDATE_RUN_SUCCESSFUL: str(update_run_successful), Constants.LogStrings.INSTALLED_UPDATE_COUNT: str(installed_update_count),
+                                                Constants.LogStrings.NUMBER_OF_ROUNDS: str(number_of_rounds), Constants.LogStrings.MAINTENANCE_WINDOW: str(maintenance_window.duration),
+                                                Constants.LogStrings.PERC_MAINTENANCE_WINDOW_USED: str(perc_maintenance_window_used), Constants.LogStrings.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded),
+                                                Constants.LogStrings.TASK_STATUS: Constants.LogStrings.FAILED, Constants.LogStrings.ERROR_MSG: error_msg}
+                stopwatch.stop_and_write_telemetry(str(patch_installation_perf_log))
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         self.composite_logger.log("\nInstalled update count: " + str(installed_update_count) + " (including dependencies)")
 
-        endTime = self.env_layer.datetime.datetime_utcnow()
-        patchService = self.package_manager.__class__.__name__
-        machine_details = TelemetryWriter.machine_info
-
-        InstallUpdatesDetails = {'job': "Install Updates", 'startTime': str(startTime), 'endTime': str(endTime), 'installed_update_count': str(installed_update_count), 'update_run_successful': str(update_run_successful),
-                             'maintenance_window': str(maintenance_window.duration), 'maintenance_window_exceeded': str(maintenance_window_exceeded), 'patchService': patchService, 'machineDetails': machine_details}
-
-        self.composite_logger.log(str(InstallUpdatesDetails))
+        perc_maintenance_window_used = maintenance_window.get_percentage_maintenance_window_used()
+        patch_installation_perf_log  = {Constants.LogStrings.TASK: Constants.LogStrings.PATCH_INSTALLATION, Constants.LogStrings.PACKAGE_MANAGER: self.package_manager_name,
+                                        Constants.LogStrings.UPDATE_RUN_SUCCESSFUL: str(update_run_successful), Constants.LogStrings.INSTALLED_UPDATE_COUNT: str(installed_update_count),
+                                        Constants.LogStrings.NUMBER_OF_ROUNDS: str(number_of_rounds), Constants.LogStrings.MAINTENANCE_WINDOW: str(maintenance_window.duration),
+                                        Constants.LogStrings.PERC_MAINTENANCE_WINDOW_USED: str(perc_maintenance_window_used), Constants.LogStrings.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded),
+                                        Constants.LogStrings.TASK_STATUS: Constants.LogStrings.SUCCEEDED, Constants.LogStrings.ERROR_MSG: ""}
+        stopwatch.stop_and_write_telemetry(str(patch_installation_perf_log))
 
         # Reboot as per setting and environment state
         reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))

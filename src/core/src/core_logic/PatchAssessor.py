@@ -21,7 +21,7 @@ import os
 import shutil
 import time
 from core.src.bootstrap.Constants import Constants
-from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
+from Stopwatch import Stopwatch
 
 
 class PatchAssessor(object):
@@ -35,6 +35,7 @@ class PatchAssessor(object):
         self.status_handler = status_handler
         self.lifecycle_manager = lifecycle_manager
         self.package_manager = package_manager
+        self.package_manager_name = self.package_manager.__class__.__name__
         self.assessment_state_file_path = os.path.join(self.execution_config.config_folder, Constants.ASSESSMENT_STATE_FILE)
 
     def start_assessment(self):
@@ -50,7 +51,8 @@ class PatchAssessor(object):
         self.composite_logger.log('\nStarting patch assessment...')
         self.write_assessment_state()   # success / failure does not matter, only that an attempt started
 
-        startTime = self.env_layer.datetime.datetime_utcnow()
+        stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
+        stopwatch.start()
 
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
@@ -60,11 +62,13 @@ class PatchAssessor(object):
         self.composite_logger.log("\n\nGetting available patches...")
         self.package_manager.refresh_repo()
         self.status_handler.reset_assessment_data()
+        number_of_tries = 0
 
         for i in range(0, Constants.MAX_ASSESSMENT_RETRY_COUNT):
             try:
                 if self.lifecycle_manager is not None:
                     self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
+                number_of_tries = number_of_tries + 1
                 packages, package_versions = self.package_manager.get_all_updates()
                 self.telemetry_writer.write_event("Full assessment: " + str(packages), Constants.TelemetryEventLevel.Verbose)
                 self.status_handler.set_package_assessment_status(packages, package_versions)
@@ -84,20 +88,20 @@ class PatchAssessor(object):
                 else:
                     error_msg = 'Error retrieving available patches: ' + repr(error)
                     self.composite_logger.log_error(error_msg)
+                    assessment_perf_log = {Constants.LogStrings.TASK: Constants.LogStrings.ASSESSMENT, Constants.LogStrings.PACKAGE_MANAGER: self.package_manager_name,
+                                           Constants.LogStrings.NUMBER_OF_TRIALS: str(number_of_tries), Constants.LogStrings.TASK_STATUS: Constants.LogStrings.FAILED,
+                                           Constants.LogStrings.ERROR_MSG: error_msg}
+                    stopwatch.stop_and_write_telemetry(str(self.assessment_perf_log))
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                     if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                         error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
                     self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
                     raise
 
-        endTime = self.env_layer.datetime.datetime_utcnow()
-        patchService = self.package_manager.__class__.__name__
-        machine_details = TelemetryWriter.machine_info
-
-        assessmentDetails = {'job': "Assessment", 'startTime': str(startTime), 'endTime': str(endTime),
-                             'patchService': patchService, 'machineDetails': machine_details}
-
-        self.composite_logger.log(str(assessmentDetails))
+        assessment_perf_log = {Constants.LogStrings.TASK: Constants.LogStrings.ASSESSMENT, Constants.LogStrings.PACKAGE_MANAGER: self.package_manager_name,
+                               Constants.LogStrings.NUMBER_OF_TRIALS: str(number_of_tries), Constants.LogStrings.TASK_STATUS: Constants.LogStrings.SUCCEEDED,
+                               Constants.LogStrings.ERROR_MSG: ""}
+        stopwatch.stop_and_write_telemetry(str(assessment_perf_log))
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
 
