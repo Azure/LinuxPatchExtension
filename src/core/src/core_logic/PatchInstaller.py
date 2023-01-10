@@ -19,7 +19,6 @@ import datetime
 import os
 import time
 from core.src.bootstrap.Constants import Constants
-from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from Stopwatch import Stopwatch
 
 class PatchInstaller(object):
