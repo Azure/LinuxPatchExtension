@@ -102,16 +102,14 @@ class Constants(object):
     class LogStrings:
         TASK = "task"
         TASK_STATUS = "task_status"
-        ASSESSMENT = "Assessment"
-        PATCH_INSTALLATION = "PatchInstallation"
         PACKAGE_MANAGER = "package_manager"
         NUMBER_OF_TRIALS = "number_of_trials"
         NUMBER_OF_ROUNDS = "number_of_rounds"
         FAILED = "failed"
         SUCCEEDED = "succeeded"
         ERROR_MSG = "error_msg"
-        INSTALLED_UPDATE_COUNT = "installed_update_count"
-        UPDATE_RUN_SUCCESSFUL = "update_run_successful"
+        INSTALLED_PATCH_COUNT = "installed_patch_count"
+        PATCH_OPERATION_SUCCESSFUL = "patch_operation_successful"
         MAINTENANCE_WINDOW = "maintenance_window"
         PERC_MAINTENANCE_WINDOW_USED = "perc_maintenance_window_used"
         MAINTENANCE_WINDOW_EXCEEDED = "maintenance_window_exceeded"
@@ -120,10 +118,6 @@ class Constants(object):
         TIME_TAKEN = "time_taken"
         MACHINE_INFO = "machine_info"
         MESSAGE = "message"
-
-    # Stopwatch exception strings
-    STARTED_ALREADY = "Stopwatch is already started" 
-    STOPPED_ALREADY = "Stopwatch is already stoppped"
 
     # Patch Modes for Configure Patching
     class PatchModes(EnumBackport):

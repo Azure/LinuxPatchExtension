@@ -26,6 +26,10 @@ class Stopwatch(object):
         self.start_time = None
         self.end_time = None
 
+        # Stopwatch exception strings
+        self.STARTED_ALREADY = "Stopwatch is already started"
+        self.STOPPED_ALREADY = "Stopwatch is already stoppped"
+
     def __del__(self):
         # call stop only if end_time is None otherwise stop() is already called.
         if (self.end_time == None):
@@ -36,18 +40,18 @@ class Stopwatch(object):
 
     def start(self):
         if (self.start_time != None):
-            raise Exception(Constants.STARTED_ALREADY)
+            raise Exception(self.STARTED_ALREADY)
         self.start_time = self.env_layer.datetime.datetime_utcnow()
 
     def stop(self):
         if (self.end_time != None):
-            raise Exception(Constants.STOPPED_ALREADY)
+            raise Exception(self.STOPPED_ALREADY)
         self.end_time = self.env_layer.datetime.datetime_utcnow()
         self.time_taken = self.env_layer.datetime.total_minutes_from_time_delta(self.end_time - self.start_time)
 
     def stop_and_write_telemetry(self, message):
         if (self.end_time != None):
-            raise Exception(Constants.STOPPED_ALREADY)
+            raise Exception(self.STOPPED_ALREADY)
         self.stop()
         self.task_details = {Constants.LogStrings.START_TIME: str(self.start_time), Constants.LogStrings.END_TIME: str(self.end_time), Constants.LogStrings.TIME_TAKEN: str(self.time_taken),
                              Constants.LogStrings.MACHINE_INFO: self.telemetry_writer.machine_info, Constants.LogStrings.MESSAGE: str(message)}

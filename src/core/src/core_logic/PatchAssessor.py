@@ -51,8 +51,8 @@ class PatchAssessor(object):
         self.composite_logger.log('\nStarting patch assessment...')
         self.write_assessment_state()   # success / failure does not matter, only that an attempt started
 
-        stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
-        stopwatch.start()
+        self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
+        self.stopwatch.start()
 
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
@@ -88,22 +88,22 @@ class PatchAssessor(object):
                 else:
                     error_msg = 'Error retrieving available patches: ' + repr(error)
                     self.composite_logger.log_error(error_msg)
-                    assessment_perf_log = {Constants.LogStrings.TASK: Constants.LogStrings.ASSESSMENT, Constants.LogStrings.PACKAGE_MANAGER: self.package_manager_name,
-                                           Constants.LogStrings.NUMBER_OF_TRIALS: str(number_of_tries), Constants.LogStrings.TASK_STATUS: Constants.LogStrings.FAILED,
-                                           Constants.LogStrings.ERROR_MSG: error_msg}
-                    stopwatch.stop_and_write_telemetry(str(self.assessment_perf_log))
+                    self.write_assessment_perf_logs(number_of_tries, Constants.LogStrings.FAILED, error_msg)
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                     if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                         error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
                     self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
                     raise
 
-        assessment_perf_log = {Constants.LogStrings.TASK: Constants.LogStrings.ASSESSMENT, Constants.LogStrings.PACKAGE_MANAGER: self.package_manager_name,
-                               Constants.LogStrings.NUMBER_OF_TRIALS: str(number_of_tries), Constants.LogStrings.TASK_STATUS: Constants.LogStrings.SUCCEEDED,
-                               Constants.LogStrings.ERROR_MSG: ""}
-        stopwatch.stop_and_write_telemetry(str(assessment_perf_log))
+        self.write_assessment_perf_logs(number_of_tries, Constants.LogStrings.SUCCEEDED, "")
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
+
+    def write_assessment_perf_logs(self, number_of_tries, task_status, error_msg):
+        assessment_perf_log = {Constants.LogStrings.TASK: Constants.ASSESSMENT, Constants.LogStrings.PACKAGE_MANAGER: self.package_manager_name,
+                               Constants.LogStrings.NUMBER_OF_TRIALS: str(number_of_tries), Constants.LogStrings.TASK_STATUS: task_status,
+                               Constants.LogStrings.ERROR_MSG: error_msg}
+        self.stopwatch.stop_and_write_telemetry(str(assessment_perf_log))
 
     def raise_if_telemetry_unsupported(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
