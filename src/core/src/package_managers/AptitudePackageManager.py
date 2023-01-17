@@ -20,7 +20,7 @@ import os
 import re
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
-
+import uuid
 
 class AptitudePackageManager(PackageManager):
     """Implementation of Debian/Ubuntu based package management operations"""
@@ -30,10 +30,12 @@ class AptitudePackageManager(PackageManager):
         super(AptitudePackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         self.repo_refresh = 'sudo apt-get -q update'
+        self.global_guid = str(uuid.uuid4())
 
         # Support to get updates and their dependencies
-        self.security_sources_list = '/tmp/az-update-security.list'
+        self.security_sources_list = '/tmp/aumcenter-security-patches-{0}.list'.format(self.global_guid)
         self.prep_security_sources_list_cmd = 'sudo grep security /etc/apt/sources.list > ' + self.security_sources_list
+        self.remove_security_sources_list_cmd = 'sudo rm ' + '/tmp/aumcenter-security-patches-*.list' #to remove all files, following this pattern
         self.dist_upgrade_simulation_cmd_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
         self.single_package_check_versions = 'apt-cache madison <PACKAGE-NAME>'
         self.single_package_find_installed_dpkg = 'sudo dpkg -s <PACKAGE-NAME>'
@@ -61,9 +63,24 @@ class AptitudePackageManager(PackageManager):
         self.STR_DPKG_WAS_INTERRUPTED = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
         self.ESM_MARKER = "The following packages could receive security updates with UA Infra: ESM service enabled:"
 
+        #deleting not needed files.
+        self.remove_script_created_files()
+
+    # We will call the destructor to clear files created by script.
+    def __del__(self):
+        self.remove_script_created_files()
+
     def refresh_repo(self):
         self.composite_logger.log("\nRefreshing local repo...")
         self.invoke_package_manager(self.repo_refresh)
+
+    #should be called from outside or on destructor.
+    def remove_script_created_files(self):
+        """Delete the file created to avoid storage consumption."""
+        code, out = self.util.run_command_output(self.remove_security_sources_list_cmd, False, False)
+        if code != 0:
+            self.composite_logger.log_warning("Unexpected Return code: " + self.util._to_str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()) \
+            + ' from command: ' + self.remove_security_sources_list_cmd)
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
