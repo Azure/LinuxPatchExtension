@@ -79,8 +79,8 @@ class AptitudePackageManager(PackageManager):
         """Delete the file created to avoid storage consumption."""
         code, out = self.env_layer.run_command_output(self.remove_security_sources_list_cmd, False, False)
         if code != 0:
-            self.composite_logger.log_warning(" Unexpected return code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines())
-            + ' from command: ' + self.remove_security_sources_list_cmd)
+            self.composite_logger.log_warning(" Unexpected return code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()) \
+                + ' from command: ' + self.remove_security_sources_list_cmd)
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
