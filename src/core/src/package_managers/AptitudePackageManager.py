@@ -34,7 +34,7 @@ class AptitudePackageManager(PackageManager):
 
         # Support to get updates and their dependencies
         self.security_sources_list = '/tmp/aumcenter-security-patches-{0}.list'.format(self.global_guid)
-        self.prep_security_sources_list_cmd = 'sudo grep security /etc/apt/sources.list > ' + self.security_sources_list
+        self.prep_security_sources_list_cmd = 'sudo grep security /etc/apt/sources.list > ' + self.security_sources_list + ' | chmod 600 ' + self.security_sources_list
         self.remove_security_sources_list_cmd = 'sudo rm ' + '/tmp/aumcenter-security-patches-*.list' #to remove all files, following this pattern
         self.dist_upgrade_simulation_cmd_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
         self.single_package_check_versions = 'apt-cache madison <PACKAGE-NAME>'
