@@ -77,7 +77,7 @@ class AptitudePackageManager(PackageManager):
     #should be called from outside or on destructor.
     def remove_script_created_files(self):
         """Delete the file created to avoid storage consumption."""
-        code, out = self.util.run_command_output(self.remove_security_sources_list_cmd, False, False)
+        code, out = self.env_layer.run_command_output(self.remove_security_sources_list_cmd, False, False)
         if code != 0:
             self.composite_logger.log_warning("Unexpected Return code: " + self.util._to_str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()) \
             + ' from command: ' + self.remove_security_sources_list_cmd)
