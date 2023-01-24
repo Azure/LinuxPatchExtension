@@ -132,15 +132,15 @@ class ProcessHandler(object):
         command_to_use_for_python = "python"
         command_to_use_for_python3 = "python3"
 
-        # check if the machine contains python
-        code_returned_for_python_check, output_for_python_check = self.env_layer.run_command_output(command_to_check_for_python, False, False)
-        if code_returned_for_python_check == 0 and command_to_use_for_python in str(output_for_python_check) and command_to_use_for_python3 not in str(output_for_python_check):
-            return command_to_use_for_python
-
         # check if the machine contains python3
         code_returned_for_python3_check, output_for_python3_check = self.env_layer.run_command_output(command_to_check_for_python3, False, False)
         if code_returned_for_python3_check == 0 and command_to_use_for_python3 in str(output_for_python3_check):
             return command_to_use_for_python3
+
+        # check if the machine contains python
+        code_returned_for_python_check, output_for_python_check = self.env_layer.run_command_output(command_to_check_for_python, False, False)
+        if code_returned_for_python_check == 0 and command_to_use_for_python in str(output_for_python_check) and command_to_use_for_python3 not in str(output_for_python_check):
+            return command_to_use_for_python
 
         return Constants.PYTHON_NOT_FOUND
 
