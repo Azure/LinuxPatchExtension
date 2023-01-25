@@ -44,6 +44,9 @@ class ExecutionConfig(object):
         self.config_folder = self.environment_settings[Constants.EnvSettings.CONFIG_FOLDER]
         self.status_folder = self.environment_settings[Constants.EnvSettings.STATUS_FOLDER]
         self.events_folder = self.environment_settings[Constants.EnvSettings.EVENTS_FOLDER]
+        self.temp_folder = self.environment_settings[Constants.EnvSettings.TEMP_FOLDER]
+        # todo: Q or point of discussion for reviewer: should we add a none and/or path exists check on temp folder? If yes, what is core supposed to do in that scenario?
+
         self.telemetry_supported = self.environment_settings[Constants.EnvSettings.TELEMETRY_SUPPORTED]
 
         # Config Settings

@@ -17,6 +17,7 @@
 from __future__ import print_function
 import base64
 import datetime
+import glob
 import json
 import os
 import re
@@ -428,6 +429,25 @@ class EnvLayer(object):
                     else:
                         raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_path), repr(error)))
 
+        @staticmethod
+        def delete_artifacts_from_dir(dir_name, artifact_identifier, raise_if_delete_failed=False):
+            """ Clears all artifacts from given dir. NOTE: Uses artifact_identifier to determine the content to delete """
+            artifacts_to_remove = glob.glob(str(dir_name) + "/" + str(artifact_identifier))
+            for artifact in artifacts_to_remove:
+                try:
+                    os.remove(artifact)
+                except Exception as error:
+                    error_message = "Unable to delete files from directory [Dir={0}][File={1}][Error={2}][RaiseIfDeleteFailed={3}].".format(
+                        str(dir_name),
+                        str(artifact),
+                        repr(error),
+                        str(raise_if_delete_failed))
+
+                    if raise_if_delete_failed:
+                        raise Exception(error_message)
+                    else:
+                        print(error_message)
+                        return None
 # endregion - File system emulation and extensions
 
 # region - DateTime emulation and extensions

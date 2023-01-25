@@ -16,8 +16,10 @@
 
 from __future__ import print_function
 import getpass
+import glob
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -243,5 +245,42 @@ class EnvLayer(object):
 
             if was_path:  # what was passed in was not a file handle, so close the handle that was init here
                 file_handle.close()
+
+        @staticmethod
+        def delete_artifacts_from_dir(dir_name, artifact_identifier, raise_if_delete_failed=False):
+            """ Clears all artifacts from given dir. NOTE: Uses artifact_identifier to determine the content to delete """
+            artifacts_to_remove = glob.glob(str(dir_name) + "/" + str(artifact_identifier))
+            for artifact in artifacts_to_remove:
+                try:
+                    os.remove(artifact)
+                except Exception as error:
+                    error_message = "Unable to delete files from directory [Dir={0}][File={1}][Error={2}][RaiseIfDeleteFailed={3}].".format(
+                        str(dir_name),
+                        str(artifact),
+                        repr(error),
+                        str(raise_if_delete_failed))
+
+                    if raise_if_delete_failed:
+                        raise Exception(error_message)
+                    else:
+                        print(error_message)
+                        return None
+
+        @staticmethod
+        def delete_dir(dir_name, raise_if_delete_failed=False):
+            """ Deletes given directory and all of it's contents """
+            try:
+                shutil.rmtree(dir_name)
+            except Exception as error:
+                error_message = "Unable to delete directory [Dir={0}][Error={1}][RaiseIfDeleteFailed={2}].".format(
+                    str(dir_name),
+                    repr(error),
+                    str(raise_if_delete_failed))
+
+                if raise_if_delete_failed:
+                    raise Exception(error_message)
+                else:
+                    print(error_message)
+                    return None
 
 # endregion - File system

@@ -59,6 +59,7 @@ class Constants(object):
         CONFIG_FOLDER = "configFolder"
         STATUS_FOLDER = "statusFolder"
         EVENTS_FOLDER = "eventsFolder"
+        TEMP_FOLDER = "tempFolder"
         TELEMETRY_SUPPORTED = "telemetrySupported"
 
     class ConfigSettings(EnumBackport):
@@ -75,6 +76,9 @@ class Constants(object):
         PATCH_MODE = 'patchMode'
         ASSESSMENT_MODE = 'assessmentMode'
         MAXIMUM_ASSESSMENT_INTERVAL = 'maximumAssessmentInterval'
+
+    # todo: best place to enlist this?
+    ARTIFACT_IDENTIFIER_FOR_ITEMS_TO_CLEANUP_UNDER_TEMP_FOLDER = "*.list"
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
