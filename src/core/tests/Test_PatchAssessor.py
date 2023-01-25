@@ -22,7 +22,7 @@ from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
-
+from core.src.core_logic.Stopwatch import Stopwatch
 
 class TestPatchAssessor(unittest.TestCase):
     def setUp(self):
@@ -146,6 +146,19 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertEqual(self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('PT6H5M14S'), 21914)
         self.assertRaises(Exception, lambda: self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds('6H5M14S'))
         self.assertRaises(Exception, lambda: self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds(''))
+
+    def test_write_assessment_perf_logs(self):
+        self.runtime.patch_assessor.stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken is None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is None)
+        self.runtime.patch_assessor.stopwatch.start()
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is not None)
+        self.runtime.patch_assessor.write_assessment_perf_logs(1, Constants.TaskStatus.SUCCEEDED, "")
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is not None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken is not None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is not None)
 
     def raise_ex(self):
         raise Exception()

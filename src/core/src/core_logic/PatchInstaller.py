@@ -19,7 +19,7 @@ import datetime
 import os
 import time
 from core.src.bootstrap.Constants import Constants
-from Stopwatch import Stopwatch
+from core.src.core_logic.Stopwatch import Stopwatch
 
 class PatchInstaller(object):
     """" Wrapper class for a single patch installation operation """
@@ -89,12 +89,12 @@ class PatchInstaller(object):
             if package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # We should not see this again
                 error_msg = "Unexpected repeated package manager update occurred. Please re-run the update deployment."
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                self.write_installer_perf_logs(update_run_successful, installed_update_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, Constants.LogStrings.FAILED, error_msg)
+                self.write_installer_perf_logs(update_run_successful, installed_update_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.FAILED, error_msg)
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         self.composite_logger.log("\nInstalled update count: " + str(installed_update_count) + " (including dependencies)")
 
-        self.write_installer_perf_logs(update_run_successful, installed_update_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, Constants.LogStrings.SUCCEEDED, "")
+        self.write_installer_perf_logs(update_run_successful, installed_update_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.SUCCEEDED, "")
 
         # Reboot as per setting and environment state
         reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
@@ -109,11 +109,11 @@ class PatchInstaller(object):
     def write_installer_perf_logs(self, patch_operation_successful, installed_patch_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, task_status, error_msg):
         perc_maintenance_window_used = maintenance_window.get_percentage_maintenance_window_used()
 
-        patch_installation_perf_log  = {Constants.LogStrings.TASK: Constants.INSTALLATION, Constants.LogStrings.PACKAGE_MANAGER: self.package_manager_name,
-                                        Constants.LogStrings.PATCH_OPERATION_SUCCESSFUL: str(patch_operation_successful), Constants.LogStrings.INSTALLED_PATCH_COUNT: str(installed_patch_count),
-                                        Constants.LogStrings.NUMBER_OF_ROUNDS: str(number_of_rounds), Constants.LogStrings.MAINTENANCE_WINDOW: str(maintenance_window.duration),
-                                        Constants.LogStrings.PERC_MAINTENANCE_WINDOW_USED: str(perc_maintenance_window_used), Constants.LogStrings.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded),
-                                        Constants.LogStrings.TASK_STATUS: task_status, Constants.LogStrings.ERROR_MSG: error_msg}
+        patch_installation_perf_log  = {Constants.PerfLogTrackerParams.TASK: Constants.INSTALLATION, Constants.PerfLogTrackerParams.TASK_STATUS: str(task_status), Constants.PerfLogTrackerParams.ERROR_MSG: error_msg, 
+                                        Constants.PerfLogTrackerParams.PACKAGE_MANAGER: self.package_manager_name, Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_operation_successful), 
+                                        Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT: str(installed_patch_count), Constants.PerfLogTrackerParams.NUMBER_OF_TRIALS: str(number_of_rounds), 
+                                        Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW: str(maintenance_window.duration), Constants.PerfLogTrackerParams.PERC_MAINTENANCE_WINDOW_USED: str(perc_maintenance_window_used), 
+                                        Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded)}
         self.stopwatch.stop_and_write_telemetry(str(patch_installation_perf_log))
 
     def raise_if_telemetry_unsupported(self):

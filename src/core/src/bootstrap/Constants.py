@@ -99,14 +99,11 @@ class Constants(object):
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
 
     # Strings used in perf logs
-    class LogStrings:
+    class PerfLogTrackerParams:
         TASK = "task"
         TASK_STATUS = "task_status"
         PACKAGE_MANAGER = "package_manager"
         NUMBER_OF_TRIALS = "number_of_trials"
-        NUMBER_OF_ROUNDS = "number_of_rounds"
-        FAILED = "failed"
-        SUCCEEDED = "succeeded"
         ERROR_MSG = "error_msg"
         INSTALLED_PATCH_COUNT = "installed_patch_count"
         PATCH_OPERATION_SUCCESSFUL = "patch_operation_successful"
@@ -118,6 +115,10 @@ class Constants(object):
         TIME_TAKEN = "time_taken"
         MACHINE_INFO = "machine_info"
         MESSAGE = "message"
+
+    class TaskStatus(EnumBackport):
+        SUCCEEDED = "succeeded"
+        FAILED = "failed"
 
     # Patch Modes for Configure Patching
     class PatchModes(EnumBackport):

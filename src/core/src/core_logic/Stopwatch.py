@@ -16,8 +16,14 @@
 
 from core.src.bootstrap.Constants import Constants
 
+
 class Stopwatch(object):
     """Implements the stopwatch logic"""
+
+    # Stopwatch exception strings
+    STARTED_ALREADY = "Stopwatch is already started"
+    NOT_STARTED = "Stopwatch is not started"
+    STOPPED_ALREADY = "Stopwatch is already stoppped"
 
     def __init__(self, env_layer, telemetry_writer, composite_logger):
         self.env_layer = env_layer
@@ -25,34 +31,39 @@ class Stopwatch(object):
         self.composite_logger = composite_logger
         self.start_time = None
         self.end_time = None
-
-        # Stopwatch exception strings
-        self.STARTED_ALREADY = "Stopwatch is already started"
-        self.STOPPED_ALREADY = "Stopwatch is already stoppped"
+        self.time_taken = None
+        self.task_details = None
 
     def __del__(self):
+        # if start_time is None that means Stopwatch is not started and hence no need to log
         # call stop only if end_time is None otherwise stop() is already called.
-        if (self.end_time == None):
+        if self.start_time is not None and self.end_time is None:
             self.stop()
-            self.task_details = {Constants.LogStrings.START_TIME: str(self.start_time), Constants.LogStrings.END_TIME: str(self.end_time), Constants.LogStrings.TIME_TAKEN: str(self.time_taken),
-                                 Constants.LogStrings.MACHINE_INFO: self.telemetry_writer.machine_info, Constants.LogStrings.MESSAGE: ""}
-            self.composite_logger.log(str(self.task_details))
+            self.set_task_details("")
+            self.composite_logger.log("Stopwatch details before instance is destroyed: " + str(self.task_details))
 
     def start(self):
-        if (self.start_time != None):
-            raise Exception(self.STARTED_ALREADY)
+        if self.start_time is not None:
+            raise Exception(Stopwatch.STARTED_ALREADY)
         self.start_time = self.env_layer.datetime.datetime_utcnow()
 
     def stop(self):
-        if (self.end_time != None):
-            raise Exception(self.STOPPED_ALREADY)
+        if self.start_time is None:
+            raise Exception(Stopwatch.NOT_STARTED)
+        if self.end_time is not None:
+            raise Exception(Stopwatch.STOPPED_ALREADY)
         self.end_time = self.env_layer.datetime.datetime_utcnow()
         self.time_taken = self.env_layer.datetime.total_minutes_from_time_delta(self.end_time - self.start_time)
 
     def stop_and_write_telemetry(self, message):
-        if (self.end_time != None):
-            raise Exception(self.STOPPED_ALREADY)
+        if self.start_time is None:
+            raise Exception(Stopwatch.NOT_STARTED)
+        if self.end_time is not None:
+            raise Exception(Stopwatch.STOPPED_ALREADY)
         self.stop()
-        self.task_details = {Constants.LogStrings.START_TIME: str(self.start_time), Constants.LogStrings.END_TIME: str(self.end_time), Constants.LogStrings.TIME_TAKEN: str(self.time_taken),
-                             Constants.LogStrings.MACHINE_INFO: self.telemetry_writer.machine_info, Constants.LogStrings.MESSAGE: str(message)}
-        self.composite_logger.log(str(self.task_details))
+        self.set_task_details(message)
+        self.composite_logger.log("Stopwatch details: " + str(self.task_details))
+
+    def set_task_details(self, message):
+        self.task_details = {Constants.PerfLogTrackerParams.START_TIME: str(self.start_time), Constants.PerfLogTrackerParams.END_TIME: str(self.end_time), Constants.PerfLogTrackerParams.TIME_TAKEN: str(self.time_taken),
+                             Constants.PerfLogTrackerParams.MACHINE_INFO: self.telemetry_writer.machine_info, Constants.PerfLogTrackerParams.MESSAGE: str(message)}

@@ -21,7 +21,7 @@ import os
 import shutil
 import time
 from core.src.bootstrap.Constants import Constants
-from Stopwatch import Stopwatch
+from core.src.core_logic.Stopwatch import Stopwatch
 
 
 class PatchAssessor(object):
@@ -88,21 +88,21 @@ class PatchAssessor(object):
                 else:
                     error_msg = 'Error retrieving available patches: ' + repr(error)
                     self.composite_logger.log_error(error_msg)
-                    self.write_assessment_perf_logs(number_of_tries, Constants.LogStrings.FAILED, error_msg)
+                    self.write_assessment_perf_logs(number_of_tries, Constants.TaskStatus.FAILED, error_msg)
                     self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                     if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                         error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
                     self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
                     raise
 
-        self.write_assessment_perf_logs(number_of_tries, Constants.LogStrings.SUCCEEDED, "")
+        self.write_assessment_perf_logs(number_of_tries, Constants.TaskStatus.SUCCEEDED, "")
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
 
     def write_assessment_perf_logs(self, number_of_tries, task_status, error_msg):
-        assessment_perf_log = {Constants.LogStrings.TASK: Constants.ASSESSMENT, Constants.LogStrings.PACKAGE_MANAGER: self.package_manager_name,
-                               Constants.LogStrings.NUMBER_OF_TRIALS: str(number_of_tries), Constants.LogStrings.TASK_STATUS: task_status,
-                               Constants.LogStrings.ERROR_MSG: error_msg}
+        assessment_perf_log = {Constants.PerfLogTrackerParams.TASK: Constants.ASSESSMENT, Constants.PerfLogTrackerParams.TASK_STATUS: str(task_status),
+                               Constants.PerfLogTrackerParams.ERROR_MSG: error_msg, Constants.PerfLogTrackerParams.PACKAGE_MANAGER: self.package_manager_name,
+                               Constants.PerfLogTrackerParams.NUMBER_OF_TRIALS: str(number_of_tries)}
         self.stopwatch.stop_and_write_telemetry(str(assessment_perf_log))
 
     def raise_if_telemetry_unsupported(self):
