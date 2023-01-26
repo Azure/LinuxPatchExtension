@@ -61,13 +61,10 @@ class CoreMain(object):
             patch_operation_requested = execution_config.operation.lower()
 
             # clean up temp folder before any operation execution begins from Core
-            if bootstrapper.env_layer is not None \
-                    and execution_config is not None \
-                    and execution_config.temp_folder is not None \
-                    and os.path.exists(execution_config.temp_folder):
+            if self.is_temp_folder_available(bootstrapper.env_layer, execution_config):
                 composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
-                                           .format(Constants.ARTIFACT_IDENTIFIER_FOR_ITEMS_TO_CLEANUP_UNDER_TEMP_FOLDER, str(execution_config.temp_folder)))
-                bootstrapper.env_layer.file_system.delete_artifacts_from_dir(execution_config.temp_folder, Constants.ARTIFACT_IDENTIFIER_FOR_ITEMS_TO_CLEANUP_UNDER_TEMP_FOLDER)
+                                           .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
+                bootstrapper.env_layer.file_system.delete_files_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
 
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
@@ -127,13 +124,10 @@ class CoreMain(object):
         finally:
             # clean up temp folder after all operation execution is finished from Core
             # Note to reviewer: This only deletes all *.list files currently
-            if bootstrapper.env_layer is not None \
-                    and execution_config is not None \
-                    and execution_config.temp_folder is not None \
-                    and os.path.exists(execution_config.temp_folder):
+            if self.is_temp_folder_available(bootstrapper.env_layer, execution_config):
                 composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
-                                           .format(Constants.ARTIFACT_IDENTIFIER_FOR_ITEMS_TO_CLEANUP_UNDER_TEMP_FOLDER, str(execution_config.temp_folder)))
-                bootstrapper.env_layer.file_system.delete_artifacts_from_dir(execution_config.temp_folder, Constants.ARTIFACT_IDENTIFIER_FOR_ITEMS_TO_CLEANUP_UNDER_TEMP_FOLDER)
+                                           .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
+                bootstrapper.env_layer.file_system.delete_files_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
 
             if lifecycle_manager is not None:
                 lifecycle_manager.update_core_sequence(completed=True)
@@ -158,4 +152,11 @@ class CoreMain(object):
         if not configure_patching_successful:
             status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
             composite_logger.log_debug('  -- Persisted failed configure patching substatus.')
+
+    @staticmethod
+    def is_temp_folder_available(env_layer, execution_config):
+        return env_layer is not None \
+                    and execution_config is not None \
+                    and execution_config.temp_folder is not None \
+                    and os.path.exists(execution_config.temp_folder)
 

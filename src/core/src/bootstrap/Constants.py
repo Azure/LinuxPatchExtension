@@ -77,8 +77,7 @@ class Constants(object):
         ASSESSMENT_MODE = 'assessmentMode'
         MAXIMUM_ASSESSMENT_INTERVAL = 'maximumAssessmentInterval'
 
-    # todo: best place to enlist this?
-    ARTIFACT_IDENTIFIER_FOR_ITEMS_TO_CLEANUP_UNDER_TEMP_FOLDER = "*.list"
+    TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list"]
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"

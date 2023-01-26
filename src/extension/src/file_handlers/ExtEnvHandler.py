@@ -89,7 +89,7 @@ class ExtEnvHandler(object):
                 and self.temp_folder is not None \
                 and os.path.exists(self.temp_folder):
             self.logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]".format("*", str(self.temp_folder)))
-            self.env_layer.file_system.delete_artifacts_from_dir(self.temp_folder, "*", raise_if_delete_failed=raise_if_delete_failed)
+            self.env_layer.file_system.delete_files_from_dir(self.temp_folder, ["*"], raise_if_delete_failed=raise_if_delete_failed)
         else:
             self.logger.log_debug("Temp folder not found")
 
@@ -99,7 +99,7 @@ class ExtEnvHandler(object):
                 and self.temp_folder is not None \
                 and os.path.exists(self.temp_folder):
             self.logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]".format("*", str(self.temp_folder)))
-            self.env_layer.file_system.delete_dir(self.temp_folder, raise_if_delete_failed=raise_if_delete_failed)
+            self.env_layer.file_system.remove_dir(self.temp_folder, raise_if_delete_failed=raise_if_delete_failed)
         else:
             self.logger.log_debug("Temp folder not found")
 
@@ -108,10 +108,12 @@ class ExtEnvHandler(object):
         # todo: Do we need to compute size from all inner dirs also? Or should we restrict tmp folder to only have files?
         if self.temp_folder is not None:
             size = 0
+            file_count = 0
             for path, dirs, files in os.walk(self.temp_folder):
                 for f in files:
                     fp = os.path.join(path, f)
                     size += os.stat(fp).st_size
-            self.logger.log_debug("Temp folder details: [Location={0}][TotalSizeOfAllFiles={1}]".format(str(self.temp_folder), str(size)))
+                    file_count += 1
+            self.logger.log_debug("Temp folder details: [Location={0}][TotalSizeOfAllFiles={1}][TotalNumberOfFiles-{2}]".format(str(self.temp_folder), str(size), str(file_count)))
         else:
             self.logger.log_debug("Temp folder not found")

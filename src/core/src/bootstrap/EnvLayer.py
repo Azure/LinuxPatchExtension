@@ -430,24 +430,26 @@ class EnvLayer(object):
                         raise Exception("Unable to write to {0} (retries exhausted). Error: {1}.".format(str(file_path), repr(error)))
 
         @staticmethod
-        def delete_artifacts_from_dir(dir_name, artifact_identifier, raise_if_delete_failed=False):
-            """ Clears all artifacts from given dir. NOTE: Uses artifact_identifier to determine the content to delete """
-            artifacts_to_remove = glob.glob(str(dir_name) + "/" + str(artifact_identifier))
-            for artifact in artifacts_to_remove:
-                try:
-                    os.remove(artifact)
-                except Exception as error:
-                    error_message = "Unable to delete files from directory [Dir={0}][File={1}][Error={2}][RaiseIfDeleteFailed={3}].".format(
-                        str(dir_name),
-                        str(artifact),
-                        repr(error),
-                        str(raise_if_delete_failed))
+        def delete_files_from_dir(dir_name, file_identifier_list, raise_if_delete_failed=False):
+            """ Clears all files from given dir. NOTE: Uses file_identifier_list to determine the content to delete """
+            for file_identifier in file_identifier_list:
+                files_to_delete = glob.glob(str(dir_name) + "/" + str(file_identifier))
 
-                    if raise_if_delete_failed:
-                        raise Exception(error_message)
-                    else:
-                        print(error_message)
-                        return None
+                for file_to_delete in files_to_delete:
+                    try:
+                        os.remove(file_to_delete)
+                    except Exception as error:
+                        error_message = "Unable to delete files from directory [Dir={0}][File={1}][Error={2}][RaiseIfDeleteFailed={3}].".format(
+                            str(dir_name),
+                            str(file_to_delete),
+                            repr(error),
+                            str(raise_if_delete_failed))
+
+                        if raise_if_delete_failed:
+                            raise Exception(error_message)
+                        else:
+                            print(error_message)
+                            return None
 # endregion - File system emulation and extensions
 
 # region - DateTime emulation and extensions
