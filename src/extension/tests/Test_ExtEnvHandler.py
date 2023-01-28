@@ -41,6 +41,41 @@ class TestExtEnvHandler(unittest.TestCase):
     def mock_os_pathexists(self, path):
         return True
 
+    def mock_os_remove(self, file_to_remove):
+        raise Exception("File could not be deleted")
+
+    def mock_shutil_rmtree(self, dir_to_remove):
+        raise Exception("Directory could not be deleted")
+
+    def create_ext_env_handler_and_validate_tmp_folder(self, test_dir):
+        # Reset os.pathexists that was mocked in setup()
+        os.path.exists = self.backup_pathexists
+
+        # create temp folder
+        ext_env_settings = [{
+            Constants.EnvSettingsFields.version: "1.0",
+            Constants.EnvSettingsFields.settings_parent_key: {
+                Constants.EnvSettingsFields.log_folder: os.path.join(test_dir, "testLog"),
+                Constants.EnvSettingsFields.config_folder: os.path.join(test_dir, "testConfig"),
+                Constants.EnvSettingsFields.status_folder: os.path.join(test_dir, "testStatus"),
+                Constants.EnvSettingsFields.events_folder_preview: os.path.join(test_dir, "testEventsPreview")
+            }
+        }]
+        file_name = Constants.HANDLER_ENVIRONMENT_FILE
+        self.runtime.create_temp_file(test_dir, file_name, content=json.dumps(ext_env_settings))
+        ext_env_handler = ExtEnvHandler(self.runtime.logger, self.runtime.env_layer, self.json_file_handler, handler_env_file_path=test_dir)
+        self.assertTrue(ext_env_handler.config_folder is not None)
+        self.assertTrue(ext_env_handler.temp_folder is not None)
+        self.assertEqual(ext_env_handler.temp_folder, os.path.join(test_dir, "tmp"))
+
+        # add files to tmp folder
+        self.runtime.create_temp_file(ext_env_handler.temp_folder, "Test1.list", content='')
+        self.runtime.create_temp_file(ext_env_handler.temp_folder, "Test2.list", content='')
+        self.assertTrue(os.path.isfile(os.path.join(ext_env_handler.temp_folder, "Test1.list")))
+        self.assertTrue(os.path.isfile(os.path.join(ext_env_handler.temp_folder, "Test2.list")))
+
+        return ext_env_handler
+
     def test_file_read_success(self):
         ext_env_handler = ExtEnvHandler(self.runtime.logger, self.runtime.env_layer, self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         self.assertTrue(ext_env_handler.log_folder is not None)
@@ -92,24 +127,95 @@ class TestExtEnvHandler(unittest.TestCase):
         shutil.rmtree(test_dir)
 
     def test_temp_folder_creation_success(self):
-        # Reset os.pathexists that was mocked in setup()
-        os.path.exists = self.backup_pathexists
-
         test_dir = tempfile.mkdtemp()
-        ext_env_settings = [{
-            Constants.EnvSettingsFields.version: "1.0",
-            Constants.EnvSettingsFields.settings_parent_key: {
-                Constants.EnvSettingsFields.log_folder: os.path.join(test_dir, "testLog"),
-                Constants.EnvSettingsFields.config_folder: os.path.join(test_dir, "testConfig"),
-                Constants.EnvSettingsFields.status_folder: os.path.join(test_dir, "testStatus"),
-                Constants.EnvSettingsFields.events_folder_preview: os.path.join(test_dir, "testEventsPreview")
-            }
-        }]
-        file_name = Constants.HANDLER_ENVIRONMENT_FILE
-        self.runtime.create_temp_file(test_dir, file_name, content=json.dumps(ext_env_settings))
-        ext_env_handler = ExtEnvHandler(self.runtime.logger, self.runtime.env_layer, self.json_file_handler, handler_env_file_path=test_dir)
-        self.assertTrue(ext_env_handler.config_folder is not None)
-        self.assertTrue(ext_env_handler.temp_folder is not None)
-        self.assertEqual(ext_env_handler.temp_folder, os.path.join(test_dir, "tmp"))
+        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
         shutil.rmtree(test_dir)
 
+    def test_delete_temp_folder_contents_success(self):
+        test_dir = tempfile.mkdtemp()
+        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
+
+        # delete temp content
+        ext_env_handler.delete_temp_folder_contents()
+
+        # validate files are deleted
+        self.assertFalse(os.path.isfile(os.path.join(ext_env_handler.temp_folder, "Test1.list")))
+        self.assertFalse(os.path.isfile(os.path.join(ext_env_handler.temp_folder, "Test2.list")))
+        shutil.rmtree(test_dir)
+
+    def test_delete_temp_folder_contents_when_none_exists(self):
+        ext_env_handler = ExtEnvHandler(self.runtime.logger, self.runtime.env_layer, self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+        self.assertTrue(ext_env_handler.log_folder is not None)
+        self.assertEqual(ext_env_handler.log_folder, "mockLog")
+        self.assertTrue(ext_env_handler.status_folder is not None)
+        self.assertTrue(ext_env_handler.temp_folder is not None)
+        self.assertEqual(ext_env_handler.temp_folder, "tmp")
+
+        # Reset os.pathexists that was mocked in setup()
+        os.path.exists = self.backup_pathexists
+        # delete temp content
+        ext_env_handler.delete_temp_folder_contents()
+
+    def test_delete_temp_folder_contents_failure(self):
+        test_dir = tempfile.mkdtemp()
+        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
+
+        # mock os.remove()
+        self.backup_os_remove = os.remove
+        os.remove = self.mock_os_remove
+
+        # delete temp content attempt #1, throws exception
+        self.assertRaises(Exception, lambda: ext_env_handler.delete_temp_folder_contents(raise_if_delete_failed=True))
+        self.assertTrue(os.path.isfile(os.path.join(ext_env_handler.temp_folder, "Test1.list")))
+        self.assertTrue(os.path.isfile(os.path.join(ext_env_handler.temp_folder, "Test2.list")))
+
+        # delete temp content attempt #2, does not throws exception
+        ext_env_handler.delete_temp_folder_contents()
+        self.assertTrue(os.path.isfile(os.path.join(ext_env_handler.temp_folder, "Test1.list")))
+        self.assertTrue(os.path.isfile(os.path.join(ext_env_handler.temp_folder, "Test2.list")))
+
+        # reset os.remove() mock
+        os.remove = self.backup_os_remove
+
+        shutil.rmtree(test_dir)
+
+    def test_delete_temp_folder_success(self):
+        test_dir = tempfile.mkdtemp()
+        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
+        ext_env_handler.delete_temp_folder()
+        self.assertFalse(os.path.isdir(os.path.join(ext_env_handler.temp_folder)))
+
+    def test_delete_temp_folder_when_none_exists(self):
+        ext_env_handler = ExtEnvHandler(self.runtime.logger, self.runtime.env_layer, self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+        self.assertTrue(ext_env_handler.log_folder is not None)
+        self.assertEqual(ext_env_handler.log_folder, "mockLog")
+        self.assertTrue(ext_env_handler.status_folder is not None)
+        self.assertTrue(ext_env_handler.temp_folder is not None)
+        self.assertEqual(ext_env_handler.temp_folder, "tmp")
+
+        # Reset os.pathexists that was mocked in setup()
+        os.path.exists = self.backup_pathexists
+        # delete temp content
+        ext_env_handler.delete_temp_folder_contents()
+        self.assertFalse(os.path.isdir(os.path.join(ext_env_handler.temp_folder)))
+
+    def test_delete_temp_folder_failure(self):
+        test_dir = tempfile.mkdtemp()
+        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
+
+        # mock shutil.rmtree()
+        self.backup_shutil_rmtree = shutil.rmtree
+        shutil.rmtree = self.mock_shutil_rmtree
+
+        # delete temp content attempt #1, throws exception
+        self.assertRaises(Exception, lambda: ext_env_handler.delete_temp_folder(raise_if_delete_failed=True))
+        self.assertTrue(os.path.isdir(os.path.join(ext_env_handler.temp_folder)))
+
+        # delete temp content attempt #2, does not throws exception
+        ext_env_handler.delete_temp_folder()
+        self.assertTrue(os.path.isdir(os.path.join(ext_env_handler.temp_folder)))
+
+        # reset shutil.rmtree() mock
+        shutil.rmtree = self.backup_shutil_rmtree
+
+        shutil.rmtree(test_dir)
