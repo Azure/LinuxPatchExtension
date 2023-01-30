@@ -61,7 +61,7 @@ class CoreMain(object):
             patch_operation_requested = execution_config.operation.lower()
 
             # clean up temp folder before any operation execution begins from Core
-            if self.is_temp_folder_available(bootstrapper.env_layer, execution_config):
+            if os.path.exists(execution_config.temp_folder):
                 composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
                                            .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
                 bootstrapper.env_layer.file_system.delete_files_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
@@ -122,8 +122,7 @@ class CoreMain(object):
             composite_logger.log_debug("Completed exception handling.\n")
 
         finally:
-            # clean up temp folder after all operation execution is finished from Core
-            # Note to reviewer: This only deletes all *.list files currently
+            # clean up temp folder of files created by Core after execution completes
             if self.is_temp_folder_available(bootstrapper.env_layer, execution_config):
                 composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
                                            .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
@@ -156,7 +155,7 @@ class CoreMain(object):
     @staticmethod
     def is_temp_folder_available(env_layer, execution_config):
         return env_layer is not None \
-                    and execution_config is not None \
-                    and execution_config.temp_folder is not None \
-                    and os.path.exists(execution_config.temp_folder)
+               and execution_config is not None \
+               and execution_config.temp_folder is not None \
+               and os.path.exists(execution_config.temp_folder)
 

@@ -14,9 +14,11 @@
 #
 # Requires Python 2.7+
 import datetime
+import glob
 import json
 import os
 import re
+import shutil
 import time
 import unittest
 import uuid
@@ -45,6 +47,9 @@ class TestCoreMain(unittest.TestCase):
 
     def mock_linux_distribution_to_return_redhat(self):
         return ['Red Hat Enterprise Linux Server', '7.5', 'Maipo']
+
+    def mock_os_remove(self, file_to_remove):
+        raise Exception("File could not be deleted")
 
     def test_operation_fail_for_non_autopatching_request(self):
         # Test for non auto patching request
@@ -917,6 +922,62 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED in substatus_file_data[0]["formattedMessage"]["message"])
 
+        runtime.stop()
+
+    def test_delete_temp_folder_contents_success(self):
+        argument_composer = ArgumentComposer()
+        self.assertTrue(argument_composer.temp_folder is not None)
+        self.assertEqual(argument_composer.temp_folder, os.path.join(os.path.dirname(argument_composer.events_folder), "tmp"))
+
+        # delete temp content
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # validate files are deleted
+        self.assertTrue(argument_composer.temp_folder is not None)
+        files_matched = glob.glob(str(argument_composer.temp_folder) + "/" + str(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST))
+        self.assertTrue(len(files_matched) == 0)
+        runtime.stop()
+
+    def test_delete_temp_folder_contents_when_none_exists(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        shutil.rmtree(runtime.execution_config.temp_folder)
+
+        # attempt to delete temp content
+        runtime.env_layer.file_system.delete_files_from_dir(runtime.execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
+
+        # validate files are deleted
+        self.assertTrue(runtime.execution_config.temp_folder is not None)
+        files_matched = glob.glob(str(runtime.execution_config.temp_folder) + "/" + str(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST))
+        self.assertTrue(len(files_matched) == 0)
+        runtime.stop()
+
+    def test_delete_temp_folder_contents_failure(self):
+        argument_composer = ArgumentComposer()
+        self.assertTrue(argument_composer.temp_folder is not None)
+        self.assertEqual(argument_composer.temp_folder, os.path.join(os.path.dirname(argument_composer.events_folder), "tmp"))
+
+        # mock os.remove()
+        self.backup_os_remove = os.remove
+        os.remove = self.mock_os_remove
+
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+
+        # delete temp content attempt #1, throws exception
+        self.assertRaises(Exception, lambda: runtime.env_layer.file_system.delete_files_from_dir(runtime.execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, raise_if_delete_failed=True))
+        self.assertTrue(os.path.isfile(os.path.join(runtime.execution_config.temp_folder, "temp1.list")))
+
+        # delete temp content attempt #2, does not throws exception
+        runtime.env_layer.file_system.delete_files_from_dir(runtime.execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
+        self.assertTrue(os.path.isfile(os.path.join(runtime.execution_config.temp_folder, "temp1.list")))
+
+        # reset os.remove() mock
+        os.remove = self.backup_os_remove
         runtime.stop()
 
     def __check_telemetry_events(self, runtime):

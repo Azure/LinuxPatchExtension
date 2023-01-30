@@ -20,6 +20,8 @@ import tempfile
 import unittest
 from extension.src.Constants import Constants
 from extension.src.file_handlers.ExtEnvHandler import ExtEnvHandler
+from extension.src.local_loggers.FileLogger import FileLogger
+from extension.src.local_loggers.Logger import Logger
 from extension.tests.helpers.RuntimeComposer import RuntimeComposer
 from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
@@ -47,7 +49,7 @@ class TestExtEnvHandler(unittest.TestCase):
     def mock_shutil_rmtree(self, dir_to_remove):
         raise Exception("Directory could not be deleted")
 
-    def create_ext_env_handler_and_validate_tmp_folder(self, test_dir):
+    def __create_ext_env_handler_and_validate_tmp_folder(self, test_dir):
         # Reset os.pathexists that was mocked in setup()
         os.path.exists = self.backup_pathexists
 
@@ -128,12 +130,12 @@ class TestExtEnvHandler(unittest.TestCase):
 
     def test_temp_folder_creation_success(self):
         test_dir = tempfile.mkdtemp()
-        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
+        ext_env_handler = self.__create_ext_env_handler_and_validate_tmp_folder(test_dir)
         shutil.rmtree(test_dir)
 
     def test_delete_temp_folder_contents_success(self):
         test_dir = tempfile.mkdtemp()
-        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
+        ext_env_handler = self.__create_ext_env_handler_and_validate_tmp_folder(test_dir)
 
         # delete temp content
         ext_env_handler.delete_temp_folder_contents()
@@ -158,7 +160,7 @@ class TestExtEnvHandler(unittest.TestCase):
 
     def test_delete_temp_folder_contents_failure(self):
         test_dir = tempfile.mkdtemp()
-        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
+        ext_env_handler = self.__create_ext_env_handler_and_validate_tmp_folder(test_dir)
 
         # mock os.remove()
         self.backup_os_remove = os.remove
@@ -181,9 +183,10 @@ class TestExtEnvHandler(unittest.TestCase):
 
     def test_delete_temp_folder_success(self):
         test_dir = tempfile.mkdtemp()
-        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
+        ext_env_handler = self.__create_ext_env_handler_and_validate_tmp_folder(test_dir)
         ext_env_handler.delete_temp_folder()
         self.assertFalse(os.path.isdir(os.path.join(ext_env_handler.temp_folder)))
+        shutil.rmtree(test_dir)
 
     def test_delete_temp_folder_when_none_exists(self):
         ext_env_handler = ExtEnvHandler(self.runtime.logger, self.runtime.env_layer, self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
@@ -201,7 +204,7 @@ class TestExtEnvHandler(unittest.TestCase):
 
     def test_delete_temp_folder_failure(self):
         test_dir = tempfile.mkdtemp()
-        ext_env_handler = self.create_ext_env_handler_and_validate_tmp_folder(test_dir)
+        ext_env_handler = self.__create_ext_env_handler_and_validate_tmp_folder(test_dir)
 
         # mock shutil.rmtree()
         self.backup_shutil_rmtree = shutil.rmtree
@@ -219,3 +222,75 @@ class TestExtEnvHandler(unittest.TestCase):
         shutil.rmtree = self.backup_shutil_rmtree
 
         shutil.rmtree(test_dir)
+
+    def test_get_temp_folder_success(self):
+        test_dir = tempfile.mkdtemp()
+        ext_env_handler = self.__create_ext_env_handler_and_validate_tmp_folder(test_dir)
+
+        # get temp content
+        temp_folder_path = ext_env_handler.get_temp_folder()
+
+        # validate path
+        self.assertEquals(temp_folder_path, ext_env_handler.temp_folder)
+
+        shutil.rmtree(test_dir)
+
+    def test_get_temp_folder_failure(self):
+        ext_env_handler = ExtEnvHandler(self.runtime.logger, self.runtime.env_layer, self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+        self.assertTrue(ext_env_handler.log_folder is not None)
+        self.assertEqual(ext_env_handler.log_folder, "mockLog")
+        self.assertTrue(ext_env_handler.status_folder is not None)
+        self.assertTrue(ext_env_handler.temp_folder is not None)
+        self.assertEqual(ext_env_handler.temp_folder, "tmp")
+
+        # Reset os.pathexists that was mocked in setup()
+        os.path.exists = self.backup_pathexists
+        # get temp content
+        self.assertRaises(Exception, lambda: ext_env_handler.get_temp_folder())
+
+    def test_log_temp_folder_success(self):
+        test_dir = tempfile.mkdtemp()
+        ext_env_handler = self.__create_ext_env_handler_and_validate_tmp_folder(test_dir)
+        log_file_path = os.path.join(test_dir, 'test.log')
+        file_logger = FileLogger(test_dir, 'test.log')
+        ext_env_handler.logger = Logger(file_logger)
+
+        # log temp content
+        ext_env_handler.log_temp_folder_details()
+        file_logger.close()
+
+        # validate
+        file_read = open(log_file_path, "r")
+        self.assertTrue(file_read is not None)
+        self.assertTrue("Temp folder details: " in file_read.readlines()[1])
+        file_read.close()
+
+        shutil.rmtree(test_dir)
+
+    def test_log_temp_folder_failure(self):
+        test_dir = tempfile.mkdtemp()
+        ext_env_handler = ExtEnvHandler(self.runtime.logger, self.runtime.env_layer, self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+        log_file_path = os.path.join(test_dir, 'test.log')
+        file_logger = FileLogger(test_dir, 'test.log')
+        ext_env_handler.logger = Logger(file_logger)
+        self.assertTrue(ext_env_handler.log_folder is not None)
+        self.assertEqual(ext_env_handler.log_folder, "mockLog")
+        self.assertTrue(ext_env_handler.status_folder is not None)
+        self.assertTrue(ext_env_handler.temp_folder is not None)
+        self.assertEqual(ext_env_handler.temp_folder, "tmp")
+
+        # Reset os.pathexists that was mocked in setup()
+        os.path.exists = self.backup_pathexists
+        # log temp content
+        ext_env_handler.temp_folder = None
+        ext_env_handler.log_temp_folder_details()
+        file_logger.close()
+
+        # validate
+        file_read = open(log_file_path, "r")
+        self.assertTrue(file_read is not None)
+        self.assertTrue("Temp folder not found" in file_read.readlines()[1])
+        file_read.close()
+
+        shutil.rmtree(test_dir)
+

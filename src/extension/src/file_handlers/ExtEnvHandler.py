@@ -106,7 +106,7 @@ class ExtEnvHandler(object):
     def log_temp_folder_details(self):
         """ Computes size of temp folder from all files in it. NOTE: Does not include dirs within temp folder for this calculation """
         # todo: Do we need to compute size from all inner dirs also? Or should we restrict tmp folder to only have files?
-        if self.temp_folder is not None:
+        if self.temp_folder is not None and os.path.exists(self.temp_folder):
             size = 0
             file_count = 0
             for path, dirs, files in os.walk(self.temp_folder):

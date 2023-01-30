@@ -36,8 +36,8 @@ class AptitudePackageManager(PackageManager):
         self.repo_refresh = 'sudo apt-get -q update'
 
         # Support to get updates and their dependencies
-        self.security_sources_list = execution_config.temp_folder + '/az-update-security-{0}.list'.format(security_list_guid)
-        self.prep_security_sources_list_cmd = 'sudo grep security /etc/apt/sources.list > ' + self.security_sources_list
+        self.security_sources_list = os.path.join(execution_config.temp_folder, 'az-update-security-{0}.list'.format(security_list_guid))
+        self.prep_security_sources_list_cmd = 'sudo grep security /etc/apt/sources.list > ' + os.path.normpath(self.security_sources_list)
         self.dist_upgrade_simulation_cmd_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
         self.single_package_check_versions = 'apt-cache madison <PACKAGE-NAME>'
         self.single_package_find_installed_dpkg = 'sudo dpkg -s <PACKAGE-NAME>'

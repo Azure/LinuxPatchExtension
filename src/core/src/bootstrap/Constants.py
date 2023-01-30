@@ -77,6 +77,7 @@ class Constants(object):
         ASSESSMENT_MODE = 'assessmentMode'
         MAXIMUM_ASSESSMENT_INTERVAL = 'maximumAssessmentInterval'
 
+    TEMP_FOLDER_DIR_NAME = "tmp"
     TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list"]
 
     # File to save default settings for auto OS updates
