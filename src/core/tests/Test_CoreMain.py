@@ -51,6 +51,9 @@ class TestCoreMain(unittest.TestCase):
     def mock_os_remove(self, file_to_remove):
         raise Exception("File could not be deleted")
 
+    def mock_os_path_exists(self, patch_to_validate):
+        return False
+
     def test_operation_fail_for_non_autopatching_request(self):
         # Test for non auto patching request
         argument_composer = ArgumentComposer()
@@ -885,7 +888,7 @@ class TestCoreMain(unittest.TestCase):
         scratch_path = os.path.join(os.path.curdir, "scratch")
 
         # Step 2: Set 1.status to Transitioning
-        with open(os.path.join(scratch_path, "1.status"), 'r+') as f:
+        with open(os.path.join(scratch_path, "status", "1.status"), 'r+') as f:
             status = json.load(f)
             status[0]["status"]["status"] = "transitioning"
             status[0]["status"]["substatus"][0]["status"] = "transitioning"
@@ -924,10 +927,46 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
+    def test_temp_folder_created_during_execution_config_init(self):
+        # temp_folder is set with a path in environment settings but the dir does not exist
+        argument_composer = ArgumentComposer()
+        shutil.rmtree(argument_composer.temp_folder)
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # validate temp_folder is created
+        self.assertTrue(runtime.execution_config.temp_folder is not None)
+        self.assertTrue(os.path.exists(runtime.execution_config.temp_folder))
+        runtime.stop()
+
+        # temp_folder is set to None in ExecutionConfig with a valid config_folder location
+        argument_composer = ArgumentComposer()
+        shutil.rmtree(argument_composer.temp_folder)
+        argument_composer.temp_folder = None
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # validate temp_folder is created
+        self.assertTrue(runtime.execution_config.temp_folder is not None)
+        self.assertTrue(os.path.exists(runtime.execution_config.temp_folder))
+        runtime.stop()
+
+        # temp_folder is set to None in ExecutionConfig with an invalid config_folder location, throws exception
+        argument_composer = ArgumentComposer()
+        shutil.rmtree(argument_composer.temp_folder)
+        argument_composer.temp_folder = None
+        argument_composer.operation = Constants.ASSESSMENT
+        # mock path exists check to return False on config_folder exists check
+        backup_os_path_exists = os.path.exists
+        os.path.exists = self.mock_os_path_exists
+        self.assertRaises(Exception, lambda: RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT))
+        # validate temp_folder is not created
+        self.assertFalse(os.path.exists(os.path.join(os.path.curdir, "scratch", "tmp")))
+        os.path.exists = backup_os_path_exists
+        runtime.stop()
+
     def test_delete_temp_folder_contents_success(self):
         argument_composer = ArgumentComposer()
         self.assertTrue(argument_composer.temp_folder is not None)
-        self.assertEqual(argument_composer.temp_folder, os.path.join(os.path.dirname(argument_composer.events_folder), "tmp"))
+        self.assertEqual(argument_composer.temp_folder, os.path.abspath(os.path.join(os.path.curdir, "scratch", "tmp")))
 
         # delete temp content
         argument_composer.operation = Constants.ASSESSMENT
@@ -959,7 +998,7 @@ class TestCoreMain(unittest.TestCase):
     def test_delete_temp_folder_contents_failure(self):
         argument_composer = ArgumentComposer()
         self.assertTrue(argument_composer.temp_folder is not None)
-        self.assertEqual(argument_composer.temp_folder, os.path.join(os.path.dirname(argument_composer.events_folder), "tmp"))
+        self.assertEqual(argument_composer.temp_folder, os.path.abspath(os.path.join(os.path.curdir, "scratch", "tmp")))
 
         # mock os.remove()
         self.backup_os_remove = os.remove

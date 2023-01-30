@@ -31,6 +31,9 @@ class ArgumentComposer(object):
         self.__TESTS_FOLDER = "tests"
         self.__SCRATCH_FOLDER = "scratch"
         self.__ARG_TEMPLATE = "{0} {1} {2} {3} \'{4}\' {5} \'{6}\' {7} {8}"
+        self.__CONFIG_FOLDER = "config"
+        self.__STATUS_FOLDER = "status"
+        self.__LOG_FOLDER = "log"
         self.__EVENTS_FOLDER = "events"
         self.__TEMP_FOLDER = "tmp"
 
@@ -38,9 +41,12 @@ class ArgumentComposer(object):
         self.sequence_number = 1
 
         # environment settings
-        self.__log_folder = self.__config_folder = self.__status_folder = self.__get_scratch_folder()
+        scratch_folder = self.__get_scratch_folder()
+        self.__log_folder = self.__get_custom_folder(scratch_folder, self.__LOG_FOLDER)
+        self.__config_folder = self.__get_custom_folder(scratch_folder, self.__CONFIG_FOLDER)
+        self.__status_folder = self.__get_custom_folder(scratch_folder, self.__STATUS_FOLDER)
         self.events_folder = self.__get_custom_folder(self.__log_folder, self.__EVENTS_FOLDER)
-        self.temp_folder = self.__get_custom_folder(self.__config_folder, self.__TEMP_FOLDER)
+        self.temp_folder = self.__get_custom_folder(scratch_folder, self.__TEMP_FOLDER)
 
         # config settings
         self.operation = Constants.INSTALLATION
@@ -115,9 +121,9 @@ class ArgumentComposer(object):
         return scratch_folder
 
     @staticmethod
-    def __get_custom_folder(scratch_folder, custom_folder_name):
+    def __get_custom_folder(par_dir, custom_folder_name):
         """ Returns a predetermined custom folder, and guarantees it exists and is empty. """
-        custom_folder = os.path.join(scratch_folder, custom_folder_name)
+        custom_folder = os.path.join(par_dir, custom_folder_name)
         if os.path.exists(custom_folder):
             shutil.rmtree(custom_folder, ignore_errors=True)
         if not os.path.exists(custom_folder):
