@@ -99,5 +99,13 @@ class TestMaintenanceWindow(unittest.TestCase):
         self.assertRaises(Exception, runtime.maintenance_window.get_percentage_maintenance_window_used)
         runtime.stop()
 
+    def test_get_percentage_maintenance_window_used_start_time_greater_exception(self):
+        argument_composer = ArgumentComposer()
+        # Setting start time 1 hour later than current time
+        argument_composer.start_time = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+        self.assertRaises(Exception, runtime.maintenance_window.get_percentage_maintenance_window_used)
+        runtime.stop()
+
 if __name__ == '__main__':
     unittest.main()

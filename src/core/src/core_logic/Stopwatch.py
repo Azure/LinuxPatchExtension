@@ -46,6 +46,9 @@ class Stopwatch(object):
         if self.start_time is not None:
             raise Exception(str(Stopwatch.StopwatchException.STARTED_ALREADY))
         self.start_time = self.env_layer.datetime.datetime_utcnow()
+        self.end_time = None
+        self.time_taken = None
+        self.task_details = None
 
     def stop(self):
         if self.start_time is None:

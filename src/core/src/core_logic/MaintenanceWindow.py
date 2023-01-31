@@ -77,6 +77,8 @@ class MaintenanceWindow(object):
         try:
             current_time = self.env_layer.datetime.datetime_utcnow()
             start_time = self.env_layer.datetime.utc_to_standard_datetime(self.start_time)
+            if current_time < start_time:
+                raise Exception("Start time {} is greater than current time {}".format(str(start_time), str(current_time)))
             dur = datetime.datetime.strptime(self.duration, "%H:%M:%S")
             dura = timedelta(hours=dur.hour, minutes=dur.minute, seconds=dur.second)
             total_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(dura)
