@@ -43,7 +43,12 @@ class TestActionHandler(unittest.TestCase):
 
         self.runtime = RuntimeComposer()
         runtime_context_handler = RuntimeContextHandler(self.runtime.logger)
-        self.ext_env_handler = ExtEnvHandler(self.runtime.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+
+        # Mock temp folder setup in ExtEnvHandler
+        self.ext_env_handler_get_temp_folder_backup = ExtEnvHandler.get_temp_folder
+        ExtEnvHandler.get_temp_folder = self.mock_get_temp_folder
+
+        self.ext_env_handler = ExtEnvHandler(self.runtime.logger, self.runtime.env_layer, self.runtime.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         self.ext_env_handler.telemetry_supported = True
         self.setup_files_and_folders(self.temp_dir)
 
@@ -69,6 +74,10 @@ class TestActionHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         self.ext_config_settings_handler.get_seq_no_from_env_var = self.backup_get_seq_no_from_env_var
         os.path.realpath = self.backup_mock_os_path_realpath
+
+        # reset temp folder mock from ExtEnvHandler
+        ExtEnvHandler.get_temp_folder = self.ext_env_handler_get_temp_folder_backup
+
         # delete tempdir
         shutil.rmtree(self.temp_dir)
 
@@ -83,11 +92,13 @@ class TestActionHandler(unittest.TestCase):
         status_folder_complete_path = os.path.join(temp_dir, status_folder)
         log_folder_complete_path = os.path.join(temp_dir, log_folder)
         events_folder_complete_path = os.path.join(temp_dir, log_folder, events_folder)
+        temp_folder_complete_path = os.path.join(os.path.dirname(config_folder_complete_path), Constants.TEMP_FOLDER_DIR_NAME)
 
         os.mkdir(config_folder_complete_path)
         os.mkdir(status_folder_complete_path)
         os.mkdir(log_folder_complete_path)
         os.mkdir(events_folder_complete_path)
+        os.mkdir(temp_folder_complete_path)
 
         # copying a sample version of the <seqno>.settings file from the helpers folder to the temp directory
         shutil.copy(os.path.join("helpers", "1234.settings"), config_folder_complete_path)
@@ -97,6 +108,7 @@ class TestActionHandler(unittest.TestCase):
         self.ext_env_handler.status_folder = status_folder_complete_path
         self.ext_env_handler.log_folder = log_folder_complete_path
         self.ext_env_handler.events_folder = events_folder_complete_path
+        self.ext_env_handler.temp_folder = temp_folder_complete_path
 
     def mock_get_seq_no_from_env_var(self):
         return 1234
@@ -125,6 +137,9 @@ class TestActionHandler(unittest.TestCase):
 
     def mock_validate_os_type(self):
         return True
+
+    def mock_get_temp_folder(self):
+        return "testTempFolder"
 
     @staticmethod
     def create_latest_extension_dir(version, test_dir):

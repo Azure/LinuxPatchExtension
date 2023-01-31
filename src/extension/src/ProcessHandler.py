@@ -63,6 +63,7 @@ class ProcessHandler(object):
             env_settings.update({env_settings_keys.config_folder: ext_env_handler.config_folder})
             env_settings.update({env_settings_keys.status_folder: ext_env_handler.status_folder})
             env_settings.update({env_settings_keys.events_folder: ext_env_handler.events_folder})
+            env_settings.update({env_settings_keys.temp_folder: ext_env_handler.temp_folder})
             env_settings.update({env_settings_keys.telemetry_supported: ext_env_handler.telemetry_supported})
         return env_settings
 
@@ -95,6 +96,9 @@ class ProcessHandler(object):
             self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
             did_process_start = self.__check_process_state(process, seq_no)
             return process if did_process_start else None
+
+        # Clear temp folder since core process launch failed
+        ext_env_handler.delete_temp_folder_contents()
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
 
     def stage_auto_assess_sh_safely(self, core_process_command):

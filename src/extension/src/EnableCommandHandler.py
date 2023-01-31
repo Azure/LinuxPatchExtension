@@ -68,6 +68,9 @@ class EnableCommandHandler(object):
             self.ext_state_handler.create_file(self.seq_no, operation, prev_patch_max_end_time)
             core_state_content = self.core_state_handler.read_file()
 
+            # log tmp folder size
+            self.ext_env_handler.log_temp_folder_details()
+
             # if NoOperation is requested, terminate all running processes from previous operation and update status file
             if operation == Constants.NOOPERATION:
                 self.process_nooperation(config_settings, core_state_content)
@@ -115,6 +118,9 @@ class EnableCommandHandler(object):
 
     def launch_new_process(self, config_settings, create_status_output_file):
         """ Creates <sequence number>.status to report the current request's status and launches core code to handle the requested operation """
+        # Clear temp folder since a new Core process is to be launched
+        self.ext_env_handler.delete_temp_folder_contents()
+
         # create Status file
         if create_status_output_file:
             self.ext_output_status_handler.write_status_file(config_settings.__getattribute__(self.config_public_settings.operation), self.seq_no, status=self.status.Transitioning.lower())
