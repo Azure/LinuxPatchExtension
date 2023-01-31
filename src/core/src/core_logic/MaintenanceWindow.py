@@ -82,7 +82,7 @@ class MaintenanceWindow(object):
             total_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(dura)
             elapsed_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(current_time - start_time)
             percent_maintenance_window_used = (elapsed_time_in_minutes / total_time_in_minutes) * 100
-        except ValueError as error:
+        except Exception as error:
             error_msg = "Error calculating percentage of maintenance window used."
             self.composite_logger.log_error("\n" + error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)

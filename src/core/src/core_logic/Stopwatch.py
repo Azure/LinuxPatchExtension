@@ -16,14 +16,14 @@
 
 from core.src.bootstrap.Constants import Constants
 
-
 class Stopwatch(object):
     """Implements the stopwatch logic"""
 
-    # Stopwatch exception strings
-    STARTED_ALREADY = "Stopwatch is already started"
-    NOT_STARTED = "Stopwatch is not started"
-    STOPPED_ALREADY = "Stopwatch is already stoppped"
+    class StopwatchException(Constants.EnumBackport):
+        # Stopwatch exception strings
+        STARTED_ALREADY = "Stopwatch is already started"
+        NOT_STARTED = "Stopwatch is not started"
+        STOPPED_ALREADY = "Stopwatch is already stoppped"
 
     def __init__(self, env_layer, telemetry_writer, composite_logger):
         self.env_layer = env_layer
@@ -44,22 +44,22 @@ class Stopwatch(object):
 
     def start(self):
         if self.start_time is not None:
-            raise Exception(Stopwatch.STARTED_ALREADY)
+            raise Exception(str(Stopwatch.StopwatchException.STARTED_ALREADY))
         self.start_time = self.env_layer.datetime.datetime_utcnow()
 
     def stop(self):
         if self.start_time is None:
-            raise Exception(Stopwatch.NOT_STARTED)
+            raise Exception(str(Stopwatch.StopwatchException.NOT_STARTED))
         if self.end_time is not None:
-            raise Exception(Stopwatch.STOPPED_ALREADY)
+            raise Exception(str(Stopwatch.StopwatchException.STOPPED_ALREADY))
         self.end_time = self.env_layer.datetime.datetime_utcnow()
         self.time_taken = self.env_layer.datetime.total_minutes_from_time_delta(self.end_time - self.start_time)
 
     def stop_and_write_telemetry(self, message):
         if self.start_time is None:
-            raise Exception(Stopwatch.NOT_STARTED)
+            raise Exception(str(Stopwatch.StopwatchException.NOT_STARTED))
         if self.end_time is not None:
-            raise Exception(Stopwatch.STOPPED_ALREADY)
+            raise Exception(str(Stopwatch.StopwatchException.STOPPED_ALREADY))
         self.stop()
         self.set_task_details(message)
         self.composite_logger.log("Stopwatch details: " + str(self.task_details))

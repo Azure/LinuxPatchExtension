@@ -76,7 +76,7 @@ class PatchInstaller(object):
 
         # Install Updates
         installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
-        number_of_rounds = 1
+        retry_count = 1
         # Repeat patch installation if flagged as required and time is available
         if not maintenance_window_exceeded and package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):
             self.composite_logger.log("\nInstalled update count (first round): " + str(installed_update_count))
@@ -84,17 +84,17 @@ class PatchInstaller(object):
             package_manager.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False)  # Resetting
             new_installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
             installed_update_count += new_installed_update_count
-            number_of_rounds = number_of_rounds + 1
+            retry_count = retry_count + 1
 
             if package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # We should not see this again
                 error_msg = "Unexpected repeated package manager update occurred. Please re-run the update deployment."
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                self.write_installer_perf_logs(update_run_successful, installed_update_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.FAILED, error_msg)
+                self.write_installer_perf_logs(update_run_successful, installed_update_count, retry_count, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.FAILED, error_msg)
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         self.composite_logger.log("\nInstalled update count: " + str(installed_update_count) + " (including dependencies)")
 
-        self.write_installer_perf_logs(update_run_successful, installed_update_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.SUCCEEDED, "")
+        self.write_installer_perf_logs(update_run_successful, installed_update_count, retry_count, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.SUCCEEDED, "")
 
         # Reboot as per setting and environment state
         reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))

@@ -148,17 +148,28 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertRaises(Exception, lambda: self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds(''))
 
     def test_write_assessment_perf_logs(self):
-        self.runtime.patch_assessor.stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is None)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is None)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken is None)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is None)
-        self.runtime.patch_assessor.stopwatch.start()
+        self.runtime.patch_assessor.start_assessment()
         self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is not None)
-        self.runtime.patch_assessor.write_assessment_perf_logs(1, Constants.TaskStatus.SUCCEEDED, "")
         self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is not None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time < self.runtime.patch_assessor.stopwatch.end_time)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken > 0)
+        task_info = "'{}': '{}'".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.ASSESSMENT))
+        self.assertTrue(task_info in str(self.runtime.patch_assessor.stopwatch.task_details))
+        task_status = "'{}': '{}'".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
+        self.assertTrue(task_status in str(self.runtime.patch_assessor.stopwatch.task_details))
+        err_msg = "'{}': ''".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
+        self.assertTrue(err_msg in str(self.runtime.patch_assessor.stopwatch.task_details))
+
+
+    def test_stopwatch_properties_assessment_fail(self):
+        self.runtime.set_legacy_test_type('UnalignedPath')
+        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is not None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken is None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is None)
 
     def raise_ex(self):
         raise Exception()

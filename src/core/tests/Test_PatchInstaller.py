@@ -242,19 +242,29 @@ class TestPatchInstaller(unittest.TestCase):
 
     def test_write_installer_perf_logs(self):
         runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), legacy_mode=True)
-        runtime.patch_installer.stopwatch = Stopwatch(runtime.env_layer, runtime.telemetry_writer, runtime.composite_logger)
-        self.assertTrue(runtime.patch_installer.stopwatch.start_time is None)
-        self.assertTrue(runtime.patch_installer.stopwatch.end_time is None)
-        self.assertTrue(runtime.patch_installer.stopwatch.time_taken is None)
-        self.assertTrue(runtime.patch_installer.stopwatch.task_details is None)
-        runtime.patch_installer.stopwatch.start()
+        runtime.patch_installer.start_installation(simulate=True)
         self.assertTrue(runtime.patch_installer.stopwatch.start_time is not None)
-        runtime.patch_installer.write_installer_perf_logs(True, 10, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, "")
         self.assertTrue(runtime.patch_installer.stopwatch.end_time is not None)
         self.assertTrue(runtime.patch_installer.stopwatch.time_taken is not None)
         self.assertTrue(runtime.patch_installer.stopwatch.task_details is not None)
+        self.assertTrue(runtime.patch_installer.stopwatch.start_time < runtime.patch_installer.stopwatch.end_time)
+        self.assertTrue(runtime.patch_installer.stopwatch.time_taken > 0)
+        task_info = "'{}': '{}'".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.INSTALLATION))
+        self.assertTrue(task_info in str(runtime.patch_installer.stopwatch.task_details))
+        task_status = "'{}': '{}'".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
+        self.assertTrue(task_status in str(runtime.patch_installer.stopwatch.task_details))
+        err_msg = "'{}': ''".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
+        self.assertTrue(err_msg in str(runtime.patch_installer.stopwatch.task_details))
         runtime.stop()
 
+    def test_stopwatch_properties_patch_install_fail(self):
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), legacy_mode=True)
+        runtime.set_legacy_test_type('FailInstallPath')
+        self.assertRaises(Exception, runtime.patch_installer.start_installation)
+        self.assertTrue(runtime.patch_installer.stopwatch.start_time is not None)
+        self.assertTrue(runtime.patch_installer.stopwatch.end_time is None)
+        self.assertTrue(runtime.patch_installer.stopwatch.time_taken is None)
+        self.assertTrue(runtime.patch_installer.stopwatch.task_details is None)
 
 if __name__ == '__main__':
     unittest.main()

@@ -112,6 +112,18 @@ class TestStopwatch(unittest.TestCase):
         stopwatch.stop()
         self.assertRaises(Exception, stopwatch.stop)
 
+    # test stop_and_write_telemetry when Stopwatch was never started
+    def test_stop_and_write_telemetry_not_started_exception(self):
+        stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
+        self.assertRaises(Exception, stopwatch.stop_and_write_telemetry, "")
+
+    # test stop_and_write_telemetry when Stopwatch was already stopped
+    def test_stop_and_write_telemetry_stopped_already_exception(self):
+        stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
+        stopwatch.start()
+        stopwatch.stop_and_write_telemetry("")
+        self.assertRaises(Exception, stopwatch.stop_and_write_telemetry, "")
+
 
 if __name__ == '__main__':
     unittest.main()

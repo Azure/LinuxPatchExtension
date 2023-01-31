@@ -91,5 +91,13 @@ class TestMaintenanceWindow(unittest.TestCase):
         self.assertLessEqual(perc_maintenance_window_used, 11)
         runtime.stop()
 
+    def test_get_percentage_maintenance_window_used_Fail(self):
+        argument_composer = ArgumentComposer()
+        # ZeroDivisionError should be thrown as duration is 0
+        argument_composer.maximum_duration = "PT0H"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+        self.assertRaises(Exception, runtime.maintenance_window.get_percentage_maintenance_window_used)
+        runtime.stop()
+
 if __name__ == '__main__':
     unittest.main()
