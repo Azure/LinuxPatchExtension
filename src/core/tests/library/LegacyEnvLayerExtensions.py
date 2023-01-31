@@ -969,7 +969,6 @@ class LegacyEnvLayerExtensions():
             else:
                 raise Exception("Unknown version of python encountered.")
 
-    # Note (For review): Had to repeat this function from RuntimeCompositor for it's use here.
     @staticmethod
     def write_to_file(path, data):
         with open(path, "w+") as file_handle:
