@@ -78,12 +78,10 @@ class MaintenanceWindow(object):
             current_time = self.env_layer.datetime.datetime_utcnow()
             start_time = self.env_layer.datetime.utc_to_standard_datetime(self.start_time)
             if current_time < start_time:
-                raise Exception("Start time {} is greater than current time {}".format(str(start_time), str(current_time)))
+                raise Exception("Start time {0} is greater than current time {1}".format(str(start_time), str(current_time)))
             dur = datetime.datetime.strptime(self.duration, "%H:%M:%S")
             dura = timedelta(hours=dur.hour, minutes=dur.minute, seconds=dur.second)
             total_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(dura)
-            if total_time_in_minutes == 0:
-                raise Exception("Total time in minutes is 0")
             elapsed_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(current_time - start_time)
             percent_maintenance_window_used = (elapsed_time_in_minutes / total_time_in_minutes) * 100
         except Exception as error:
