@@ -20,6 +20,7 @@ import os
 import re
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
+from core.src.package_managers.UbuntuProClient import UbuntuProClient
 
 
 class AptitudePackageManager(PackageManager):
@@ -60,6 +61,20 @@ class AptitudePackageManager(PackageManager):
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.APT)
         self.STR_DPKG_WAS_INTERRUPTED = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
         self.ESM_MARKER = "The following packages could receive security updates with UA Infra: ESM service enabled:"
+
+        # pro client
+        try:
+            self.maximum_os_version_supported = 18  # Currently we support only ubuntu 18 or lesser versions.
+            self.__pro_client_pre_req_met = False
+            self.ubuntu_pro_client = UbuntuProClient(env_layer, composite_logger)
+
+            if Constants.PRO_CLIENT_ENABLED and self.__get_os_major_version() < self.maximum_os_version_supported:
+                self.ubuntu_pro_client.install_or_update_pro()
+
+            # This flag will be used to determine if pro client can be used for querying reboot status or packages list.
+            self.__pro_client_pre_req_met = self.__is_pro_client_pre_req_met()
+        except Exception as error:
+            self.composite_logger.log_warning("Pro client pre-requisite check failed. + " + error.message)
 
     def refresh_repo(self):
         self.composite_logger.log("\nRefreshing local repo...")
@@ -517,3 +532,27 @@ class AptitudePackageManager(PackageManager):
     def do_processes_require_restart(self):
         """Defaulting this for Apt"""
         return False
+
+    def is_reboot_pending(self):
+        """Pro client implementation for reboot pending/"""
+        # If pre-requisite is False, raise exception to fall back
+        # to existing way in package_manager
+        if not self.__pro_client_pre_req_met:
+            self.composite_logger.log_warning("Pro client pre-requisite not met.")
+            return False, False
+        return self.ubuntu_pro_client.is_reboot_pending()
+
+    def __is_pro_client_pre_req_met(self):
+        """check required conditions to use pro client"""
+        if Constants.PRO_CLIENT_ENABLED \
+                and self.__get_os_major_version() <= self.maximum_os_version_supported \
+                and self.ubuntu_pro_client.is_pro_working():
+            return True
+        else:
+            return False
+
+    def __get_os_major_version(self):
+        """ get the os major version"""
+        os_version = self.env_layer.platform.linux_distribution()[1]
+        os_major_version = int(os_version.split('.')[0])
+        return os_major_version

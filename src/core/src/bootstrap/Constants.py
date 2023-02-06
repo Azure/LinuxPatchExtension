@@ -297,3 +297,5 @@ class Constants(object):
         NOT_SELECTED: 6
     }
 
+    # Feature flag for pro.
+    PRO_CLIENT_ENABLED = True
