@@ -107,14 +107,17 @@ class PatchInstaller(object):
         return overall_patch_installation_successful
 
     def write_installer_perf_logs(self, patch_operation_successful, installed_patch_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, task_status, error_msg):
-        perc_maintenance_window_used = maintenance_window.get_percentage_maintenance_window_used()
+        try:
+            perc_maintenance_window_used = maintenance_window.get_percentage_maintenance_window_used()
 
-        patch_installation_perf_log  = {Constants.PerfLogTrackerParams.TASK: Constants.INSTALLATION, Constants.PerfLogTrackerParams.TASK_STATUS: str(task_status), Constants.PerfLogTrackerParams.ERROR_MSG: error_msg, 
-                                        Constants.PerfLogTrackerParams.PACKAGE_MANAGER: self.package_manager_name, Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_operation_successful), 
-                                        Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT: str(installed_patch_count), Constants.PerfLogTrackerParams.NUMBER_OF_TRIALS: str(number_of_rounds), 
-                                        Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW: str(maintenance_window.duration), Constants.PerfLogTrackerParams.PERC_MAINTENANCE_WINDOW_USED: str(perc_maintenance_window_used), 
-                                        Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded)}
-        self.stopwatch.stop_and_write_telemetry(str(patch_installation_perf_log))
+            patch_installation_perf_log  = {Constants.PerfLogTrackerParams.TASK: Constants.INSTALLATION, Constants.PerfLogTrackerParams.TASK_STATUS: str(task_status), Constants.PerfLogTrackerParams.ERROR_MSG: error_msg, 
+                                            Constants.PerfLogTrackerParams.PACKAGE_MANAGER: self.package_manager_name, Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_operation_successful), 
+                                            Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT: str(installed_patch_count), Constants.PerfLogTrackerParams.NUMBER_OF_TRIALS: str(number_of_rounds), 
+                                            Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW: str(maintenance_window.duration), Constants.PerfLogTrackerParams.PERC_MAINTENANCE_WINDOW_USED: str(perc_maintenance_window_used), 
+                                            Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded)}
+            self.stopwatch.stop_and_write_telemetry(str(patch_installation_perf_log))
+        except Exception as error:
+            self.composite_logger.log_warning("Error in writing patch installation performance logs. Error is: " + repr(error))
 
     def raise_if_telemetry_unsupported(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
