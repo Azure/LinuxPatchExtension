@@ -67,7 +67,9 @@ class Bootstrapper(object):
     def get_path_to_log_files_and_telemetry_dir(self, argv, auto_assessment_only):
         """ Performs the minimum steps required to determine where to start logging """
         sequence_number = self.get_value_from_argv(argv, Constants.ARG_SEQUENCE_NUMBER)
-        environment_settings = json.loads(base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_ENVIRONMENT_SETTINGS).replace("b\'", "")))
+        decode_bytes = base64.b64decode(self.get_value_from_argv(argv, Constants.ARG_ENVIRONMENT_SETTINGS).replace("b\'", ""))
+        decode_value = decode_bytes.decode()
+        environment_settings = json.loads(decode_value)
         log_folder = environment_settings[Constants.EnvSettings.LOG_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
         exec_demarcator = ".aa" if auto_assessment_only else ""
         log_file_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.log")
