@@ -45,7 +45,7 @@ class TelemetryWriter(object):
         self.__is_telemetry_supported = telemetry_supported and self.events_folder_path is not None
 
         self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
-        self.write_machine_config_info()
+        self.set_machine_config_info()
 
     def write_config_info(self, config_info, config_type='unknown'):
         # Configuration info
@@ -73,16 +73,15 @@ class TelemetryWriter(object):
                 self.write_event(message, Constants.TelemetryEventLevel.Informational)
 
     # Composed payload
-    def write_machine_config_info(self):
+    def set_machine_config_info(self):
         # Machine info - sent only once at the start of the run
-        machine_info = {
+        self.machine_info = {
             'platform_name': str(self.env_layer.platform.linux_distribution()[0]),
             'platform_version': str(self.env_layer.platform.linux_distribution()[1]),
             'machine_cpu': self.get_machine_processor(),
             'machine_arch': str(self.env_layer.platform.machine()),
             'disk_type': self.get_disk_type()
         }
-        return self.write_config_info(machine_info, 'machine_config')
 
     def write_execution_error(self, cmd, code, output):
         # Expected to log any errors from a cmd execution, including package manager execution errors
