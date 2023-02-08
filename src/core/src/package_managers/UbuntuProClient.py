@@ -41,4 +41,5 @@ class UbuntuProClient:
 
     def is_reboot_pending(self):
         """query pro api to get the reboot status"""
+        # Return tuple(is command successfully run, reboot status).
         return True, False
