@@ -173,7 +173,7 @@ class PatchInstaller(object):
 
         self.composite_logger.log("packges remained after parallel patching: " + str(packages))
 
-        if packages.count() == 0 or maintenance_window_exceeded == True:
+        if len(packages) == 0 or maintenance_window_exceeded == True:
             installed_update_count += self.log_metrics_and_perform_final_reconciliation(packages, package_versions, maintenance_window, package_manager, simulate)
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
 
@@ -342,7 +342,7 @@ class PatchInstaller(object):
             if len(skip_packages) > 0:
                 self.composite_logger.log("[Skipping packages " + str(skip_packages) + " - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]")
 
-            if packages_in_batch.count() == 0:
+            if len(packages_in_batch) == 0:
                 continue
 
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
@@ -352,7 +352,7 @@ class PatchInstaller(object):
                                                             "Processing batch index: " + str(batch_index) + "\nProcessing packages: " + str(packages_in_batch) + " (" + str(package_versions_in_batch) + ")")
             self.composite_logger.log(progress_status)
 
-            if maintenance_window.is_package_install_time_available(remaining_time, packages_in_batch.count(), self.reboot_manager) is False:
+            if maintenance_window.is_package_install_time_available(remaining_time, len(packages_in_batch), self.reboot_manager) is False:
                 error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
                 self.composite_logger.log_error("\n" + error_msg)
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
