@@ -57,9 +57,6 @@ class PatchInstaller(object):
 
         self.composite_logger.log('\nStarting patch installation...')
 
-        install_sw = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
-        install_sw.start()
-
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
         self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
         self.composite_logger.log("Operation request time: " + self.execution_config.start_time + ",               Maintenance Window Duration: " + self.execution_config.duration)
@@ -96,8 +93,6 @@ class PatchInstaller(object):
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         self.composite_logger.log("\nInstalled update count: " + str(installed_update_count) + " (including dependencies)")
-
-        install_sw.stop_and_write_telemetry("installed patches : " + str(installed_update_count))
 
         # Reboot as per setting and environment state
         reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
