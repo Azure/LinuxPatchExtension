@@ -117,7 +117,7 @@ class PatchInstaller(object):
                                             Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded)}
             self.stopwatch.stop_and_write_telemetry(str(patch_installation_perf_log))
         except Exception as error:
-            self.composite_logger.log_warning("Error in writing patch installation performance logs. Error is: " + repr(error))
+            self.composite_logger.log_debug("Error in writing patch installation performance logs. Error is: " + repr(error))
 
     def raise_if_telemetry_unsupported(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:

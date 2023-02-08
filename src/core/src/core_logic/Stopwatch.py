@@ -44,25 +44,23 @@ class Stopwatch(object):
 
     def start(self):
         if self.start_time is not None:
-            raise Exception(str(Stopwatch.StopwatchException.STARTED_ALREADY))
+            self.composite_logger.log_debug(str(Stopwatch.StopwatchException.STARTED_ALREADY))
         self.start_time = self.env_layer.datetime.datetime_utcnow()
         self.end_time = None
         self.time_taken = None
         self.task_details = None
 
     def stop(self):
-        if self.start_time is None:
-            raise Exception(str(Stopwatch.StopwatchException.NOT_STARTED))
         if self.end_time is not None:
-            raise Exception(str(Stopwatch.StopwatchException.STOPPED_ALREADY))
+            self.composite_logger.log_debug(str(Stopwatch.StopwatchException.STOPPED_ALREADY))
         self.end_time = self.env_layer.datetime.datetime_utcnow()
+        if self.start_time is None:
+            self.composite_logger.log_debug(str(Stopwatch.StopwatchException.NOT_STARTED))
+            self.start_time = self.end_time
+
         self.time_taken = self.env_layer.datetime.total_minutes_from_time_delta(self.end_time - self.start_time)
 
     def stop_and_write_telemetry(self, message):
-        if self.start_time is None:
-            raise Exception(str(Stopwatch.StopwatchException.NOT_STARTED))
-        if self.end_time is not None:
-            raise Exception(str(Stopwatch.StopwatchException.STOPPED_ALREADY))
         self.stop()
         self.set_task_details(message)
         self.composite_logger.log("Stopwatch details: " + str(self.task_details))

@@ -95,34 +95,43 @@ class TestStopwatch(unittest.TestCase):
         self.assertTrue(stopwatch.task_details is not None)
 
     # test start Stopwatch twice
-    def test_started_already_exception(self):
+    def test_started_already(self):
         stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
         stopwatch.start()
-        self.assertRaises(Exception, stopwatch.start)
+        start1 = stopwatch.start_time
+        stopwatch.start()
+        start2 = stopwatch.start_time
+        self.assertTrue(start1 <= start2)
+        self.assertTrue(stopwatch.end_time is None)
+        self.assertTrue(stopwatch.time_taken is None)
+        self.assertTrue(stopwatch.task_details is None)
 
     # test stop Stopwatch when it was never started
-    def test_not_started_exception(self):
+    def test_not_started(self):
         stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
-        self.assertRaises(Exception, stopwatch.stop)
+        stopwatch.stop()
+        self.assertTrue(stopwatch.start_time is not None)
+        self.assertTrue(stopwatch.start_time == stopwatch.end_time)
+        self.assertTrue(stopwatch.time_taken == 0)
+        self.assertTrue(stopwatch.task_details is None)
 
     # test stop Stopwatch twice
-    def test_stopped_already_exception(self):
+    def test_stopped_already(self):
         stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
         stopwatch.start()
         stopwatch.stop()
-        self.assertRaises(Exception, stopwatch.stop)
+        start_time1 = stopwatch.start_time
+        end_time1 = stopwatch.end_time
+        time_taken1 = stopwatch.time_taken
+        stopwatch.stop()
+        start_time2 = stopwatch.start_time
+        end_time2 = stopwatch.end_time
+        time_taken2 = stopwatch.time_taken
+        self.assertTrue(start_time1 == start_time2)
+        self.assertTrue(end_time1 <= end_time2)
+        self.assertTrue(time_taken1 <= time_taken2)
+        
 
-    # test stop_and_write_telemetry when Stopwatch was never started
-    def test_stop_and_write_telemetry_not_started_exception(self):
-        stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
-        self.assertRaises(Exception, stopwatch.stop_and_write_telemetry, "")
-
-    # test stop_and_write_telemetry when Stopwatch was already stopped
-    def test_stop_and_write_telemetry_stopped_already_exception(self):
-        stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
-        stopwatch.start()
-        stopwatch.stop_and_write_telemetry("")
-        self.assertRaises(Exception, stopwatch.stop_and_write_telemetry, "")
 
 
 if __name__ == '__main__':

@@ -265,6 +265,15 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue(runtime.patch_installer.stopwatch.end_time is None)
         self.assertTrue(runtime.patch_installer.stopwatch.time_taken is None)
         self.assertTrue(runtime.patch_installer.stopwatch.task_details is None)
+        runtime.stop()
+
+    def test_write_installer_perf_logs_catch_exception(self):
+        # Testing the catch Exception in the method write_installer_perf_logs
+        # Exception should be thrown because stop_and_write_telemetry method is called without initializing stopwatch object
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), legacy_mode=True)
+        runtime.patch_installer.write_installer_perf_logs(True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, "")
+        runtime.stop()
+
 
 if __name__ == '__main__':
     unittest.main()
