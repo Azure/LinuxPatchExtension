@@ -23,7 +23,7 @@ class UbuntuProClient:
         self.composite_logger = composite_logger
 
     def install_or_update_pro(self):
-        """install/update pro(ubuntu-advantage-tools) to the latest version"""
+        """install/update pro(ubuntu-advantage-tools) to the latest version only if python3 is already installed."""
         pass
 
     def is_pro_working(self):
