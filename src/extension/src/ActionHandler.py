@@ -238,6 +238,9 @@ class ActionHandler(object):
             # copy all required files from preceding version to current
             self.copy_config_files(preceding_version_path, new_version_config_folder)
 
+            # Delete temp_folder
+            self.ext_env_handler.delete_temp_folder()
+
             self.logger.log("All update actions from extension handler completed.")
             self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
             return Constants.ExitCode.Okay
@@ -293,6 +296,10 @@ class ActionHandler(object):
     def uninstall(self):
         try:
             self.setup(action=Constants.UNINSTALL, log_message="Extension uninstalled")
+
+            # Delete temp_folder
+            self.ext_env_handler.delete_temp_folder()
+
             self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
             return Constants.ExitCode.Okay
 
@@ -340,6 +347,10 @@ class ActionHandler(object):
                                       "\r\n printf \"Auto-assessment was paused by the Azure Linux Patch Extension.\""
                 self.env_layer.file_system.write_with_retry(auto_assess_sh_path, auto_assess_sh_data)
                 self.env_layer.run_command_output("chmod a+x " + auto_assess_sh_path)
+
+                # Clear temp folder
+                self.ext_env_handler.delete_temp_folder_contents()
+
             except Exception as error:
                 self.logger.log_error("Error occurred during auto-assessment disable. [Error={0}]".format(repr(error)))
             # End of temporary auto-assessment disablement
@@ -360,6 +371,10 @@ class ActionHandler(object):
             self.setup(action=Constants.RESET, log_message="Reset triggered on extension, deleting CoreState and ExtState files")
             self.utility.delete_file(self.core_state_handler.dir_path, self.core_state_handler.file, raise_if_not_found=False)
             self.utility.delete_file(self.ext_state_handler.dir_path, self.ext_state_handler.file, raise_if_not_found=False)
+
+            # Clear temp folder
+            self.ext_env_handler.delete_temp_folder_contents()
+
             self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
             return Constants.ExitCode.Okay
 

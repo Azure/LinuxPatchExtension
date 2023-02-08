@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import os
 
 from core.src.bootstrap.Bootstrapper import Bootstrapper
 from core.src.bootstrap.Constants import Constants
@@ -27,7 +28,7 @@ class CoreMain(object):
         composite_logger = bootstrapper.composite_logger
         stdout_file_mirror = bootstrapper.stdout_file_mirror
         telemetry_writer = bootstrapper.telemetry_writer
-        lifecycle_manager = status_handler = None
+        lifecycle_manager = status_handler = execution_config = None
 
         # Init operation statuses
         patch_operation_requested = Constants.UNKNOWN
@@ -58,6 +59,12 @@ class CoreMain(object):
             telemetry_writer.set_operation_id(execution_config.activity_id)
             telemetry_writer.set_task_name(Constants.TelemetryTaskName.AUTO_ASSESSMENT if execution_config.exec_auto_assess_only else Constants.TelemetryTaskName.EXEC)
             patch_operation_requested = execution_config.operation.lower()
+
+            # clean up temp folder before any operation execution begins from Core
+            if os.path.exists(execution_config.temp_folder):
+                composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
+                                           .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
+                bootstrapper.env_layer.file_system.delete_files_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
 
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
@@ -115,6 +122,12 @@ class CoreMain(object):
             composite_logger.log_debug("Completed exception handling.\n")
 
         finally:
+            # clean up temp folder of files created by Core after execution completes
+            if self.is_temp_folder_available(bootstrapper.env_layer, execution_config):
+                composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
+                                           .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
+                bootstrapper.env_layer.file_system.delete_files_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
+
             if lifecycle_manager is not None:
                 lifecycle_manager.update_core_sequence(completed=True)
 
@@ -138,4 +151,11 @@ class CoreMain(object):
         if not configure_patching_successful:
             status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
             composite_logger.log_debug('  -- Persisted failed configure patching substatus.')
+
+    @staticmethod
+    def is_temp_folder_available(env_layer, execution_config):
+        return env_layer is not None \
+               and execution_config is not None \
+               and execution_config.temp_folder is not None \
+               and os.path.exists(execution_config.temp_folder)
 

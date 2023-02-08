@@ -30,14 +30,15 @@ from core.src.bootstrap.Constants import Constants
 
 # Todo: find a different way to import these
 try:
-    import urllib2 as urlreq   #Python 2.x
+    import urllib2 as urlreq   # Python 2.x
 except:
-    import urllib.request as urlreq   #Python 3.x
+    import urllib.request as urlreq   # Python 3.x
 
 try:
-    from StringIO import StringIO ## for Python 2
+    from StringIO import StringIO # for Python 2
 except ImportError:
-    from io import StringIO ## for Python 3
+    from io import StringIO # for Python 3
+
 
 class RuntimeCompositor(object):
     def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE):
@@ -88,6 +89,7 @@ class RuntimeCompositor(object):
 
         # Business logic components
         self.execution_config = self.container.get('execution_config')
+        self.legacy_env_layer_extensions.set_temp_folder_path(self.execution_config.temp_folder)
         self.package_manager = self.container.get('package_manager')
         self.backup_get_current_auto_os_patch_state = None
         self.reconfigure_package_manager()
@@ -101,6 +103,9 @@ class RuntimeCompositor(object):
         self.vm_cloud_type = bootstrapper.configuration_factory.vm_cloud_type
         # Extension handler dependency
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
+
+        # Write file to temp dir
+        self.write_to_file(os.path.join(self.execution_config.temp_folder, "temp1.list"), "test temp file")
 
         # Mock service and timer creation and removal used for Auto Assessment
         self.backup_create_and_set_service_idem = self.configure_patching_processor.auto_assess_service_manager.create_and_set_service_idem

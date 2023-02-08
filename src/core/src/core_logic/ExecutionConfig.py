@@ -44,6 +44,9 @@ class ExecutionConfig(object):
         self.config_folder = self.environment_settings[Constants.EnvSettings.CONFIG_FOLDER]
         self.status_folder = self.environment_settings[Constants.EnvSettings.STATUS_FOLDER]
         self.events_folder = self.environment_settings[Constants.EnvSettings.EVENTS_FOLDER]
+        self.temp_folder = self.environment_settings[Constants.EnvSettings.TEMP_FOLDER]
+        self.__check_and_create_temp_folder_if_not_exists()
+
         self.telemetry_supported = self.environment_settings[Constants.EnvSettings.TELEMETRY_SUPPORTED]
 
         # Config Settings
@@ -162,3 +165,16 @@ class ExecutionConfig(object):
         else:  # bad data
             raise Exception("Invalid duration portion: {0}".format(str(duration_portion)))
         return most_significant_unit, remaining_duration_portion
+
+    def __check_and_create_temp_folder_if_not_exists(self):
+        """Verifies temp folder exists, creates new one if not found"""
+        if self.temp_folder is None:
+            par_dir = os.path.dirname(self.config_folder)
+            if not os.path.exists(par_dir):
+                raise Exception("Parent directory for all extension artifacts such as config folder, status folder, etc. not found at [{0}].".format(repr(par_dir)))
+            self.temp_folder = os.path.join(par_dir, Constants.TEMP_FOLDER_DIR_NAME)
+
+        if not os.path.exists(self.temp_folder):
+            self.composite_logger.log_debug("Temp folder does not exist, creating one from extension core. [Path={0}]".format(str(self.temp_folder)))
+            os.mkdir(self.temp_folder)
+
