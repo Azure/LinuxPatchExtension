@@ -174,7 +174,7 @@ class PatchInstaller(object):
         self.composite_logger.log("packges remained after parallel patching: " + str(packages))
 
         if len(packages) == 0 or maintenance_window_exceeded == True:
-            installed_update_count += self.log_metrics_and_perform_final_reconciliation(packages, package_versions, maintenance_window, package_manager, simulate)
+            installed_update_count += self.log_metrics_and_perform_final_reconciliation(packages, package_versions, maintenance_window, package_manager)
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
 
         for package, version in zip(packages, package_versions):
@@ -273,7 +273,7 @@ class PatchInstaller(object):
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
             installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_update_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
 
-        self.log_metrics_and_perform_final_reconciliation(packages, package_versions, maintenance_window, package_manager, simulate)
+        installed_update_count += self.log_metrics_and_perform_final_reconciliation(packages, package_versions, maintenance_window, package_manager)
 
         return installed_update_count, patch_installation_successful, maintenance_window_exceeded
 
@@ -295,7 +295,7 @@ class PatchInstaller(object):
         self.composite_logger.log(progress_status)
 
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
-        installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)  # final reconciliation
+        installed_update_count = self.perform_status_reconciliation_conditionally(package_manager, True)
 
         if not patch_installation_successful or maintenance_window_exceeded:
             message = "\n\nOperation status was marked as failed because: "
@@ -303,6 +303,8 @@ class PatchInstaller(object):
             message += "[X] maintenance window exceeded " if maintenance_window_exceeded else ""
             self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             self.composite_logger.log_error(message)
+
+        return installed_update_count
 
     def install_patches_in_batches(self, packages, package_versions, maintenance_window, package_manager, simulate=False):
         number_of_batches = int(math.ceil(len(packages) / float(Constants.PARALLEL_PATCHING_BATCH_SIZE)))
