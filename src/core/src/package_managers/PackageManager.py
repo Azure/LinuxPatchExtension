@@ -196,11 +196,6 @@ class PackageManager(object):
 
     def install_update_and_dependencies(self, package_and_dependencies, package_and_dependency_versions, simulate=False):
         """Install a single package along with its dependencies (explicitly)"""
-        install_result = Constants.INSTALLED
-        package_no_longer_required = False
-        code_path = "| Install"
-        start_time = time.time()
-
         if type(package_and_dependencies) is str:
             package_and_dependencies = [package_and_dependencies]
             package_and_dependency_versions = [package_and_dependency_versions]
@@ -213,8 +208,15 @@ class PackageManager(object):
 
         self.composite_logger.log_debug("UPDATING PACKAGE (WITH DEPENDENCIES) USING COMMAND: " + exec_cmd)
         out, code = self.invoke_package_manager_advanced(exec_cmd, raise_on_exception=False)
-        package_size = self.get_package_size(out)
         self.composite_logger.log_debug("\n<PackageInstallOutput>\n" + out + "\n</PackageInstallOutput>")  # wrapping multi-line for readability
+
+        return code, out, exec_cmd
+
+    def get_installation_status(self, code, out, exec_cmd, package, version, simulate=False):
+        install_result = Constants.INSTALLED
+        package_no_longer_required = False
+        code_path = "| Install"
+        start_time = time.time()
 
         # special case of package no longer being required (or maybe even present on the system)
         if code == 1 and self.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.YUM:
@@ -229,22 +231,22 @@ class PackageManager(object):
                 self.composite_logger.log_debug("    - Evidence of package no longer required NOT detected.")
 
         if not package_no_longer_required:
-            if not self.is_package_version_installed(package_and_dependencies[0], package_and_dependency_versions[0]):
-                if code == 0 and self.STR_ONLY_UPGRADES.replace('<PACKAGE>', package_and_dependencies[0]) in out:
+            if not self.is_package_version_installed(package, version):
+                if code == 0 and self.STR_ONLY_UPGRADES.replace('<PACKAGE>', package) in out:
                     # It is premature to fail this package. In the *unlikely* case it never gets picked up, it'll remain NotStarted.
                     # The NotStarted status must not be written again in the calling function (it's not at the time of this writing).
                     code_path += " > Package has no prior version. (no operation; return 'not started')"
                     install_result = Constants.PENDING
-                    self.composite_logger.log_warning(" |- Package " + package_and_dependencies[0] + " (" + package_and_dependency_versions[0] + ") needs to already have an older version installed in order to be upgraded. " +
+                    self.composite_logger.log_warning(" |- Package " + package + " (" + version + ") needs to already have an older version installed in order to be upgraded. " +
                                                    "\n |- Another upgradeable package requiring it as a dependency can cause it to get installed later. No action may be required.\n")
 
-                elif code == 0 and self.STR_OBSOLETED.replace('<PACKAGE>', self.get_composite_package_identifier(package_and_dependencies[0], package_and_dependency_versions[0])) in out:
+                elif code == 0 and self.STR_OBSOLETED.replace('<PACKAGE>', self.get_composite_package_identifier(package, version)) in out:
                     # Package can be obsoleted by another package installed in the run (via dependencies)
                     code_path += " > Package obsoleted. (succeeded)"
                     install_result = Constants.INSTALLED    # close approximation to obsoleted
                     self.composite_logger.log_debug(" - Package was discovered to be obsoleted.")
 
-                elif code == 0 and len(out.split(self.STR_REPLACED)) > 1 and package_and_dependencies[0] in out.split(self.STR_REPLACED)[1]:
+                elif code == 0 and len(out.split(self.STR_REPLACED)) > 1 and package in out.split(self.STR_REPLACED)[1]:
                     code_path += " > Package replaced. (succeeded)"
                     install_result = Constants.INSTALLED    # close approximation to replaced
                     self.composite_logger.log_debug(" - Package was discovered to be replaced by another during its installation.")
@@ -253,12 +255,12 @@ class PackageManager(object):
                     install_result = Constants.FAILED
                     if code != 0:
                         code_path += " > Package NOT installed. (failed)"
-                        self.composite_logger.log_error(" |- Package failed to install: " + package_and_dependencies[0] + " (" + package_and_dependency_versions[0] + "). " +
+                        self.composite_logger.log_error(" |- Package failed to install: " + package + " (" + version + "). " +
                                                      "\n |- Error code: " + str(code) + ". Command used: " + exec_cmd +
                                                      "\n |- Command output: " + out + "\n")
                     else:
                         code_path += " > Package NOT installed but return code: 0. (failed)"
-                        self.composite_logger.log_error(" |- Package appears to have not been installed: " + package_and_dependencies[0] + " (" + package_and_dependency_versions[0] + "). " +
+                        self.composite_logger.log_error(" |- Package appears to have not been installed: " + package + " (" + version + "). " +
                                                      "\n |- Return code: 0. Command used: " + exec_cmd + "\n" +
                                                      "\n |- Command output: " + out + "\n")
             elif code != 0:
@@ -268,10 +270,11 @@ class PackageManager(object):
                 code_path += " > Info, Package installed, zero return. (succeeded)"
 
         if not simulate:
+            package_size = self.get_package_size(out)
             if install_result == Constants.FAILED:
-                error = self.telemetry_writer.write_package_info(package_and_dependencies[0], package_and_dependency_versions[0], package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd, str(out))
+                error = self.telemetry_writer.write_package_info(package, version, package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd, str(out))
             else:
-                error = self.telemetry_writer.write_package_info(package_and_dependencies[0], package_and_dependency_versions[0], package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd)
+                error = self.telemetry_writer.write_package_info(package, version, package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd)
 
             if error is not None:
                 self.composite_logger.log_debug('\nEXCEPTION writing package telemetry: ' + repr(error))
@@ -293,6 +296,11 @@ class PackageManager(object):
 
     @abstractmethod
     def get_dependent_list(self, package_name):
+        """Retrieve available updates. Expect an array being returned"""
+        pass
+
+    @abstractmethod
+    def include_dependencies(self, packages, package_versions):
         """Retrieve available updates. Expect an array being returned"""
         pass
 
