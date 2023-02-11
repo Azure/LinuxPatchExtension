@@ -135,6 +135,13 @@ class PatchInstaller(object):
 
         self.composite_logger.log("{0}".format(Constants.TELEMETRY_COMPATIBLE_MSG))
 
+    def add_arch_dependencies_yum(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+        package_name_without_arch = package_manager.get_product_name_without_arch(package)
+        for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
+            if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies:
+                package_and_dependencies.append(possible_arch_dependency)
+                package_and_dependency_versions.append(possible_arch_dependency_version)
+
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""
         self.composite_logger.log("\n\nGetting available updates...")
@@ -242,11 +249,7 @@ class PatchInstaller(object):
 
             # multilib resolution for yum
             if package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.YUM:
-                package_name_without_arch = package_manager.get_product_name_without_arch(package)
-                for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
-                    if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies:
-                        package_and_dependencies.append(possible_arch_dependency)
-                        package_and_dependency_versions.append(possible_arch_dependency_version)
+                self.add_arch_dependencies_yum(package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # remove duplicates
             package_and_dependencies, package_and_dependency_versions = package_manager.dedupe_update_packages(package_and_dependencies, package_and_dependency_versions)
@@ -413,6 +416,11 @@ class PatchInstaller(object):
                 packages_dependencies_to_install.append(package)
                 version = package_versions[packages.index(package)] if package in packages else Constants.DEFAULT_UNSPECIFIED_VALUE
                 package_dependency_versions.append(version)
+
+            # multilib resolution for yum
+            if package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.YUM:
+                for package in packages_in_batch:
+                    self.add_arch_dependencies_yum(package_manager, package, packages, package_versions, packages_dependencies_to_install, package_dependency_versions)
 
             packages_dependencies_to_install, package_dependency_versions = package_manager.dedupe_update_packages(packages_dependencies_to_install, package_dependency_versions)
 
