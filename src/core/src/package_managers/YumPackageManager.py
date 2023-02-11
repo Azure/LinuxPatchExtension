@@ -342,7 +342,7 @@ class YumPackageManager(PackageManager):
         
         package_and_dependent_packages = self.extract_dependencies(output, True)
 
-        self.composite_logger.log_debug(str(len(package_and_dependent_packages)) + " dependent updates were found")
+        self.composite_logger.log_debug(str(len(package_and_dependent_packages)) + " number of packages and dependencies")
         return package_and_dependent_packages
 
     def get_product_name(self, package_name):
