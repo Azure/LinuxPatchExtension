@@ -323,7 +323,7 @@ class YumPackageManager(PackageManager):
 
         output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_name)
         
-        dependent_updates = self.extract_dependent_packages(output, False, package_name)
+        dependent_updates = self.extract_dependencies(output, False, package_name)
 
         self.composite_logger.log_debug(str(len(dependent_updates)) + " dependent updates were found for package '" + package_name + "'.")
         return dependent_updates
