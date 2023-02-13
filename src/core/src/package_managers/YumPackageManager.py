@@ -281,7 +281,7 @@ class YumPackageManager(PackageManager):
 
         return False
 
-    def extract_dependencies(self, output, include_package):
+    def extract_dependencies(self, output, include_parent_package, parent_package_name):
         # Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
         #
         # Loaded plugins: langpacks, product-id, search-disabled-repos
@@ -311,10 +311,10 @@ class YumPackageManager(PackageManager):
                 self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
                 continue
 
-            package_name = self.get_product_name(updates_line[2])
-            if len(package_name) != 0 and (include_package or package_name != package_name):
-                self.composite_logger.log_debug(" - Dependency detected: " + package_name)
-                packages.append(package_name)
+            dependent_package_name = self.get_product_name(updates_line[2])
+            if len(dependent_package_name) != 0 and (include_parent_package or dependent_package_name != parent_package_name):
+                self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
+                packages.append(dependent_package_name)
 
         return packages
 
@@ -323,7 +323,7 @@ class YumPackageManager(PackageManager):
 
         output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_name)
         
-        dependent_updates = self.extract_dependent_packages(output, False)
+        dependent_updates = self.extract_dependent_packages(output, False, package_name)
 
         self.composite_logger.log_debug(str(len(dependent_updates)) + " dependent updates were found for package '" + package_name + "'.")
         return dependent_updates
@@ -340,7 +340,7 @@ class YumPackageManager(PackageManager):
 
         output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + packageNames)
         
-        package_and_dependent_packages = self.extract_dependencies(output, True)
+        package_and_dependent_packages = self.extract_dependencies(output, True, None)
 
         self.composite_logger.log_debug(str(len(package_and_dependent_packages)) + " number of packages and dependencies")
         return package_and_dependent_packages
