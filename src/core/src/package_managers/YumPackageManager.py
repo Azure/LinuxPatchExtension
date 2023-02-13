@@ -281,7 +281,7 @@ class YumPackageManager(PackageManager):
 
         return False
 
-    def get_dependent_list(self, package_name):
+    def extract_dependencies(self, output, include_parent_package, parent_package_name):
         # Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
         #
         # Loaded plugins: langpacks, product-id, search-disabled-repos
@@ -298,10 +298,7 @@ class YumPackageManager(PackageManager):
         # ---> Package selinux-policy-targeted.noarch 0:3.13.1-102.el7_3.16 will be an update
         # --> Finished Dependency Resolution
 
-        self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + package_name))
-        dependent_updates = []
-
-        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_name)
+        packages = []
         lines = output.strip().split('\n')
 
         for line in lines:
@@ -315,12 +312,38 @@ class YumPackageManager(PackageManager):
                 continue
 
             dependent_package_name = self.get_product_name(updates_line[2])
-            if len(dependent_package_name) != 0 and dependent_package_name != package_name:
+            if len(dependent_package_name) != 0 and (include_parent_package or dependent_package_name != parent_package_name):
                 self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
-                dependent_updates.append(dependent_package_name)
+                packages.append(dependent_package_name)
+
+        return packages
+
+    def get_dependent_list(self, package_name):
+        self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + package_name))
+
+        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_name)
+        
+        dependent_updates = self.extract_dependent_packages(output, False, package_name)
 
         self.composite_logger.log_debug(str(len(dependent_updates)) + " dependent updates were found for package '" + package_name + "'.")
         return dependent_updates
+
+    def include_dependencies(self, packages):
+        """Returns dependent List of packages"""
+        packageNames = ""
+        for index, package in enumerate(packages):
+            if index != 0:
+                packageNames += ' '
+            packageNames += ' ' + package
+
+        self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + packageNames))
+
+        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + packageNames)
+        
+        package_and_dependent_packages = self.extract_dependencies(output, True, None)
+
+        self.composite_logger.log_debug(str(len(package_and_dependent_packages)) + " number of packages and dependencies")
+        return package_and_dependent_packages
 
     def get_product_name(self, package_name):
         """Retrieve product name including arch where present"""
