@@ -41,6 +41,11 @@ class TestEnableCommandHandler(unittest.TestCase):
         # create tempdir which will have all the required files
         self.temp_dir = tempfile.mkdtemp()
         runtime = RuntimeComposer()
+
+        # Mock temp folder setup in ExtEnvHandler
+        self.ext_env_handler_get_temp_folder_backup = ExtEnvHandler.get_temp_folder
+        ExtEnvHandler.get_temp_folder = self.mock_get_temp_folder
+
         self.logger = runtime.logger
         self.telemetry_writer = runtime.telemetry_writer
         self.logger.telemetry_writer = self.telemetry_writer
@@ -48,7 +53,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.env_health_manager = runtime.env_health_manager
         self.json_file_handler = runtime.json_file_handler
         self.runtime_context_handler = RuntimeContextHandler(self.logger)
-        self.ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+        self.ext_env_handler = ExtEnvHandler(self.logger, runtime.env_layer, self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         self.ext_env_handler.telemetry_supported = True
         self.config_folder = self.ext_env_handler.config_folder
         self.ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, self.config_folder)
@@ -65,6 +70,10 @@ class TestEnableCommandHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
         # reseting mocks to their original definition
         ProcessHandler.start_daemon = self.start_daemon_backup
+
+        # reset temp folder mock from ExtEnvHandler
+        ExtEnvHandler.get_temp_folder = self.ext_env_handler_get_temp_folder_backup
+
         self.logger.file_logger.close()
         # delete tempdir
         shutil.rmtree(self.temp_dir)
@@ -74,6 +83,9 @@ class TestEnableCommandHandler(unittest.TestCase):
 
     def mock_patch_complete_time_check_to_return_true(self, time_for_prev_patch_to_complete, core_state_last_heartbeat, core_state_handler):
         return True
+
+    def mock_get_temp_folder(self):
+        return "testTempFolder"
 
     def test_enable_command_first_request(self):
         self.check_if_patch_completes_in_time_backup = RuntimeContextHandler.check_if_patch_completes_in_time
@@ -237,10 +249,12 @@ class TestEnableCommandHandler(unittest.TestCase):
         config_folder_complete_path = os.path.join(dir_path, config_folder)
         status_folder_complete_path = os.path.join(dir_path, status_folder)
         log_folder_complete_path = os.path.join(dir_path, log_folder)
+        temp_folder_complete_path = os.path.join(os.path.dirname(config_folder_complete_path), Constants.TEMP_FOLDER_DIR_NAME)
 
         os.mkdir(config_folder_complete_path)
         os.mkdir(status_folder_complete_path)
         os.mkdir(log_folder_complete_path)
+        os.mkdir(temp_folder_complete_path)
 
         # copying a sample version of the <seqno>.settings file from the helpers folder to the temp directory
         shutil.copy(os.path.join("helpers", "1234.settings"), config_folder_complete_path)
@@ -261,6 +275,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.ext_env_handler.config_folder = config_folder_complete_path
         self.ext_env_handler.status_folder = status_folder_complete_path
         self.ext_env_handler.log_folder = log_folder_complete_path
+        self.ext_env_handler.temp_folder = temp_folder_complete_path
 
         self.enable_command_handler.ext_env_handler = self.ext_env_handler
 
