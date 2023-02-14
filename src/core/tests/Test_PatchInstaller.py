@@ -271,7 +271,7 @@ class TestPatchInstaller(unittest.TestCase):
         # Testing the catch Exception in the method write_installer_perf_logs
         # Exception should be thrown because stop_and_write_telemetry method is called without initializing stopwatch object
         runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), legacy_mode=True)
-        runtime.patch_installer.write_installer_perf_logs(True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, "")
+        self.assertRaises(Exception, runtime.patch_installer.write_installer_perf_logs, True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, "")
         runtime.stop()
 
 

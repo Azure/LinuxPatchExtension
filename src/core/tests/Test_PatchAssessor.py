@@ -171,11 +171,6 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken is None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is None)
 
-    def test_write_assessment_perf_logs_catch_exception(self):
-        # Testing the catch Exception in the method write_assessment_perf_logs
-        # Exception should be thrown because stop_and_write_telemetry method is called without initializing stopwatch object
-        self.runtime.patch_assessor.write_assessment_perf_logs(1, Constants.TaskStatus.SUCCEEDED, "")
-
     def raise_ex(self):
         raise Exception()
 
