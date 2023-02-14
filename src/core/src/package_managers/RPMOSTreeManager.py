@@ -1,4 +1,4 @@
-# Copyright 2020 Microsoft Corporation
+# Copyright 2023 Microsoft Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,86 +14,91 @@
 #
 # Requires Python 2.7+
 
-"""YumPackageManager for Redhat and CentOS"""
-import json
+"""RPMOSTreeManager"""
 import re
+import array
 from core.src.package_managers.RPMManagerBase import RPMManagerBase
 from core.src.bootstrap.Constants import Constants
 
 
-class YumPackageManager(RPMManagerBase):
-    """Implementation of Redhat/CentOS package management operations"""
+class RPMOSTreeManager(RPMManagerBase):
+    """Implementation of RPM-OSTree package management operations on Mariner"""
+
+    class RPMOSTreeDeployment():
+        """ Single representational unit of RPM-OSTree Deployment """
+        def __init__ (self, current = False, path = None, version = None, published_date = None, commit = None, diff = None):
+            self.current = current
+            self.path = path
+            self.version = version
+            self.publish_date = published_date
+            self.commit = commit
+            self.diff = diff
+
+        def parse_deployment_dataset(self, single_deployment_dataset):
+            """ Parse input: * ostree://cbl-mariner:cbl-mariner/1.0/x86_64/base
+                   Version: 1.0 (2022-11-02T02:11:14Z)
+                    Commit: 6893d5052eadfagpjaodifjg834ijgaer9g384hj934yut93543
+                      Diff: 1 upgraded, 1 added """
+            lines = single_deployment_dataset.strip().split("\n")
+            for line in lines:
+                if "ostree://" in line:
+                    if line.startswith("*"):
+                        self.current = True
+                    self.path = line[2:]
+                elif "Version: " in line:
+                    version_split = line.strip().split(" ")
+                    self.version = version_split[1]
+                    self.publish_date = version_split[2].replace("(","").replace(")","")
+                elif "Commit: " in line:
+                    self.commit =  line.strip().split(" ")[1]
+                elif "Diff: " in line:
+                    self.diff = line.replace("Diff: ", "")
+                else:
+                    pass
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
-        super(YumPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
+        super(RPMOSTreeManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         # There is no command as this is a no op.
 
         # Support to get updates and their dependencies
-        self.yum_check = 'sudo yum -q check-update'
-        self.yum_check_security_prerequisite = 'sudo yum -y install yum-plugin-security'
-        self.yum_check_security = 'sudo yum -q --security check-update'
-        self.single_package_check_versions = 'sudo yum list available <PACKAGE-NAME> --showduplicates'
-        self.single_package_check_installed = 'sudo yum list installed <PACKAGE-NAME>'
-        self.single_package_upgrade_simulation_cmd = 'LANG=en_US.UTF8 sudo yum install --assumeno '
+        self.rpm_ot_refresh_repo = "rpm-ostree upgrade --check"
+        self.rpm_ot_check_status = "rpm-ostree status"
+        self.rpm_ot_upgrade = "rpm-ostree upgrade"
+        self.rpm_ot_deploy_commit = "rpm-ostree deploy <commit>"
 
         # Install update
-        self.single_package_upgrade_cmd = 'sudo yum -y install '
-        self.all_but_excluded_upgrade_cmd = 'sudo yum -y update --exclude='
 
         # Package manager exit code(s)
-        self.yum_exitcode_no_applicable_packages = 0
-        self.yum_exitcode_ok = 1
-        self.yum_exitcode_updates_available = 100
-
-
-
-
+        self.rpm_ot_exitcode_ok = 0
 
         # Miscellaneous
-        self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.YUM)
-        self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
-
-        # if an Auto Patching request comes in on a CentOS machine with Security and/or Critical classifications selected, we need to install all patches
-        installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
-        if execution_config.maintenance_run_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
-                and 'CentOS' in str(env_layer.platform.linux_distribution()) \
-                and 'Critical' in installation_included_classifications and 'Security' in installation_included_classifications:
-            self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on CentOS machines")
-            execution_config.included_classifications_list = [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER]
-
-        # Known errors and the corresponding action items
-        self.known_errors_and_fixes = {"SSL peer rejected your certificate as expired": self.fix_ssl_certificate_issue,
-                                       "Error: Cannot retrieve repository metadata (repomd.xml) for repository": self.fix_ssl_certificate_issue,
-                                       "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
-        
-        self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
+        self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.RPM_OSTree)
 
     def refresh_repo(self):
-        pass  # Refresh the repo is no op in YUM
+        """ Refreshing the local cache on upgrades available """
+        return self.invoke_package_manager_advanced(self.rpm_ot_refresh_repo)
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
-        """Get missing updates using the command input"""
-        self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
+        """Get available updates using the command input"""
+        self.composite_logger.log_debug('\nInvoking RPM-OSTree using: ' + command)
         code, out = self.env_layer.run_command_output(command, False, False)
 
-        code, out = self.try_mitigate_issues_if_any(command, code, out)
-
-        if code not in [self.yum_exitcode_ok, self.yum_exitcode_no_applicable_packages, self.yum_exitcode_updates_available]:
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+        if code not in [self.rpm_ot_exitcode_ok]:
+            self.composite_logger.log_warning('[ERROR] RPM-OSTree was invoked using: ' + command + "\n" +
+                                              " - Return code from RPM-OSTree: " + str(code) + "\n" +
+                                              " - Output from RPM-OSTree: \n|\t" + "\n|\t".join(out.splitlines()))
             self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+            error_msg = 'Unexpected return code (' + str(code) + ') from RPM-OSTree on command: ' + command
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             if raise_on_exception:
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more return codes should be added as appropriate
         else:  # verbose diagnostic log
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+            self.composite_logger.log_debug(" - Return code from RPM-OSTree: " + str(code) + "\n" +
+                                            " - Output from RPM-OSTree: \n|\t" + "\n|\t".join(out.splitlines()))
             self.composite_logger.log_verbose("==========================================================================\n\n")
         return out, code
 
@@ -343,47 +348,27 @@ class YumPackageManager(RPMManagerBase):
         return Constants.UNKNOWN_PACKAGE_SIZE
     # endregion
 
-    # region Handling known errors
-    def try_mitigate_issues_if_any(self, command, code, out):
-        """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found """
-        if "Error" in out or "Errno" in out:
-            issue_mitigated = self.check_known_issues_and_attempt_fix(out)
-            if issue_mitigated:
-                self.composite_logger.log_debug('\nPost mitigation, invoking package manager again using: ' + command)
-                code_after_fix_attempt, out_after_fix_attempt = self.env_layer.run_command_output(command, False, False)
-                return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt)
-        return code, out
+    # region auto OS updates
+    def get_current_auto_os_patch_state(self):
+        """ Gets the current auto OS update patch state on the machine """
+        self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
 
-    def check_known_issues_and_attempt_fix(self, output):
-        """ Checks if issue falls into known issues and attempts to mitigate """
-        self.composite_logger.log_debug("Output from package manager containing error: \n|\t" + "\n|\t".join(output.splitlines()))
-        self.composite_logger.log_debug("\nChecking if this is a known error...")
-        for error in self.known_errors_and_fixes:
-            if error in output:
-                self.composite_logger.log_debug("\nFound a match within known errors list, attempting a fix...")
-                self.known_errors_and_fixes[error]()
-                return True
+        current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
 
-        self.composite_logger.log_debug("\nThis is not a known error for the extension and will require manual intervention")
-        return False
+        self.composite_logger.log_debug("Overall Auto OS Patch State based on all auto OS update service states [OverallAutoOSPatchState={0}]".format(str(current_auto_os_patch_state)))
+        return current_auto_os_patch_state
 
-    def fix_ssl_certificate_issue(self):
-        command = self.yum_update_client_package
-        self.composite_logger.log_debug("\nUpdating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
-        code, out = self.env_layer.run_command_output(command, False, False)
-        if code != self.yum_exitcode_no_applicable_packages:
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-        else:
-            self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_debug("==========================================================================\n\n")
-            self.composite_logger.log_debug("\nClient package update complete.")
+    def disable_auto_os_update(self):
+        """ Disables auto OS updates on the machine only if they are enable_on_reboot and logs the default settings the machine comes with """
+        try:
+            self.composite_logger.log("Disabling auto OS updates in all identified services...")
+            self.composite_logger.log_debug("Successfully disabled auto OS updates")
+
+        except Exception as error:
+            self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
+            raise
+
+
+
     # endregion
 

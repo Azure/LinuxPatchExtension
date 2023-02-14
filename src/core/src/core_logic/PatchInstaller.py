@@ -109,8 +109,22 @@ class PatchInstaller(object):
 
         self.composite_logger.log("{0}".format(Constants.TELEMETRY_COMPATIBLE_MSG))
 
+    def install_updates_rpm_ostree(self, maintenance_window, package_manager, simulate=False):
+        installed_update_count = 0
+        patch_installation_successful = True
+        maintenance_window_exceeded = False
+
+        # simple upgrade install
+
+        return installed_update_count, patch_installation_successful, maintenance_window_exceeded
+
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""
+
+        # The paradigm behind RPM OSTree is substantially different from the standard pacakage managers, and the entirety of the behavior is special-cased.
+        if package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.RPM_OSTree):
+            return self.install_updates_rpm_ostree(maintenance_window, package_manager, simulate)
+
         self.composite_logger.log("\n\nGetting available updates...")
         package_manager.refresh_repo()
 

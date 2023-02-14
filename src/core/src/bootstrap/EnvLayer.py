@@ -63,7 +63,14 @@ class EnvLayer(object):
         """ Detects package manager type """
         ret = None
 
-        # choose default - almost surely one will match.
+        # RPM-OSTree support for specific Mariner instances - special casing
+        code, out = self.run_command_output('which rpm-ostree', False, False)
+        if code == 0:
+            code, out = self.run_command_output('cat /etc/os-release', False, False)
+            if code == 0 and "CBL-Mariner" in out:
+                return Constants.RPM_OSTree
+
+        # Pick default core package manager
         for b in ('apt-get', 'yum', 'zypper'):
             code, out = self.run_command_output('which ' + b, False, False)
             if code == 0:
