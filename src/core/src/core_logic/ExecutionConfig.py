@@ -114,7 +114,8 @@ class ExecutionConfig(object):
         value = self.__get_value_from_argv(argv, key)
 
         try:
-            decoded_value = base64.b64decode(value.replace("b\'", ""))
+            decoded_bytes = base64.b64decode(value.replace("b\'", ""))
+            decoded_value = decoded_bytes.decode()
             decoded_json = json.loads(decoded_value)
         except Exception as error:
             self.composite_logger.log_error('Unable to process JSON in core arguments for key: {0}. Details: {1}.'.format(str(key), repr(error)))
