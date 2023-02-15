@@ -18,6 +18,7 @@ import os
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
@@ -34,6 +35,12 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
+
+    def mock_linux_distribution_to_return_ubuntu_20(self):
+        return ['Ubuntu', '20.04', 'focal']
+
+    def mock_is_pro_working_return_true(self):
+        return True
 
     def test_package_manager_no_updates(self):
         """Unit test for aptitude package manager with no updates"""
@@ -348,6 +355,39 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.runtime.write_to_file(package_manager.image_default_patch_mode_file_path, image_default_patch_mode)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
+
+    def test_is_reboot_pending_prerequisite_not_met_should_return_false(self):
+        package_manager = self.container.get('package_manager')
+        package_manager._AptitudePackageManager__pro_client_prereq_met = False
+
+        self.assertTupleEqual((False, False), package_manager.is_reboot_pending())
+
+    def test_is_reboot_pending_prerequisite_met_should_return_true(self):
+        package_manager = self.container.get('package_manager')
+        package_manager._AptitudePackageManager__pro_client_prereq_met = True
+
+        self.assertTrue(True, package_manager.is_reboot_pending()[0])
+
+    def test_is_pro_client_prereq_met_should_return_false_for_unsupported_os_version(self):
+        package_manager = self.container.get('package_manager')
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        backup_package_manager_ubuntu_pro_client_is_pro_working = package_manager.ubuntu_pro_client.is_pro_working
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_20
+        package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
+
+        self.assertFalse(package_manager._AptitudePackageManager__is_pro_client_prereq_met())
+
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
+        package_manager.ubuntu_pro_client.is_pro_working = backup_package_manager_ubuntu_pro_client_is_pro_working
+
+    def test_is_pro_client_prereq_met_should_return_true_for_supported_os_version(self):
+        package_manager = self.container.get('package_manager')
+        backup_package_manager_ubuntu_pro_client_is_pro_working = package_manager.ubuntu_pro_client.is_pro_working
+        package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
+
+        self.assertTrue(package_manager._AptitudePackageManager__is_pro_client_prereq_met())
+
+        package_manager.ubuntu_pro_client.is_pro_working = backup_package_manager_ubuntu_pro_client_is_pro_working
 
 
 if __name__ == '__main__':

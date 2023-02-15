@@ -14,7 +14,7 @@
 #
 # Requires Python 3.5+
 
-"""The is Ubuntu pro client implementation"""
+"""The is Ubuntu Pro Client implementation"""
 
 
 class UbuntuProClient:

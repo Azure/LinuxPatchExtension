@@ -301,5 +301,7 @@ class Constants(object):
         NOT_SELECTED: 6
     }
 
-    # Feature flag for pro.
-    PRO_CLIENT_ENABLED = True
+    # Ubuntu Pro Client constants.
+    class UbuntuProClientSettings(EnumBackport):
+        FEATURE_ENABLED = True,
+        MAX_OS_MAJOR_VERSION_SUPPORTED = 18
