@@ -20,6 +20,7 @@ from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
+from core.src.package_managers import AptitudePackageManager, UbuntuProClient
 
 
 class TestAptitudePackageManager(unittest.TestCase):
@@ -41,6 +42,9 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def mock_is_pro_working_return_true(self):
         return True
+
+    def mock_install_or_update_pro_raise_exception(self):
+        raise Exception
 
     def test_package_manager_no_updates(self):
         """Unit test for aptitude package manager with no updates"""
@@ -388,6 +392,19 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue(package_manager._AptitudePackageManager__is_pro_client_prereq_met())
 
         package_manager.ubuntu_pro_client.is_pro_working = backup_package_manager_ubuntu_pro_client_is_pro_working
+
+    def test_package_manager_instance_created_even_when_exception_thrown_in_pro(self):
+        package_manager = self.container.get('package_manager')
+        execution_config = self.container.get('execution_config')
+        backup_package_manager_ubuntu_pro_client_install_or_update_pro = UbuntuProClient.UbuntuProClient.install_or_update_pro
+        UbuntuProClient.UbuntuProClient.install_or_update_pro = self.mock_install_or_update_pro_raise_exception
+
+        obj = AptitudePackageManager.AptitudePackageManager(package_manager.env_layer, execution_config, package_manager.composite_logger, package_manager.telemetry_writer, package_manager.status_handler)
+
+        self.assertIsNotNone(obj)
+        self.assertIsNotNone(obj.ubuntu_pro_client)
+
+        UbuntuProClient.UbuntuProClient.install_or_update_pro = backup_package_manager_ubuntu_pro_client_install_or_update_pro
 
 
 if __name__ == '__main__':
