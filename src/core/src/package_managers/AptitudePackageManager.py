@@ -373,7 +373,7 @@ class AptitudePackageManager(PackageManager):
         for index, package in enumerate(packages):
             if index != 0:
                 packageNames += ' '
-            packageNames += ' ' + package
+            packageNames += package
 
         cmd = self.single_package_dependency_resolution_template.replace('<PACKAGE-NAME>', packageNames)
 

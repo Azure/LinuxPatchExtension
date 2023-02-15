@@ -59,7 +59,7 @@ class MaintenanceWindow(object):
 
         return remaining_time_in_minutes
 
-    def is_packages_install_time_available(self, remaining_time_in_minutes=None, number_of_packages = 1, reboot_manager=None):
+    def is_package_install_time_available(self, reboot_manager, remaining_time_in_minutes=None, number_of_packages = 1):
         """Check if time still available for package installation"""
         cutoff_time_in_minutes = Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES * number_of_packages
 

@@ -180,7 +180,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for successfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
 
     def test_install_package_failure(self):
         """Unit test for install package failure"""
@@ -192,7 +192,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
 
     def test_install_package_obsoleted(self):
         """Unit test for install package failure"""
@@ -204,7 +204,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('rdma.noarch', '7.3_4.7_rc2-6.el7_3', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('rdma.noarch', '7.3_4.7_rc2-6.el7_3', simulate=True), Constants.INSTALLED)
 
     def test_install_package_replaced(self):
         """Unit test for install package failure"""
@@ -216,7 +216,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('python-rhsm.x86_64', '1.19.10-1.el7_4', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('python-rhsm.x86_64', '1.19.10-1.el7_4', simulate=True), Constants.INSTALLED)
 
     def test_get_product_name(self):
         """Unit test for retrieving product Name"""

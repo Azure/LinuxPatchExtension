@@ -280,6 +280,16 @@ class PackageManager(object):
                 self.composite_logger.log_debug('\nEXCEPTION writing package telemetry: ' + repr(error))
 
         return install_result
+
+    def install_update_and_dependencies_and_get_status(self, package_and_dependencies, package_and_dependency_versions, simulate=False):
+        if type(package_and_dependencies) is str:
+            package_and_dependencies = [package_and_dependencies]
+            package_and_dependency_versions = [package_and_dependency_versions]
+
+        code, out, exec_cmd = self.install_update_and_dependencies(package_and_dependencies, package_and_dependency_versions, simulate)
+        install_result = self.get_installation_status(code, out, exec_cmd, package_and_dependencies[0], package_and_dependency_versions[0], simulate)
+        return install_result
+
     # endregion
 
     # region Package Information

@@ -221,7 +221,7 @@ class PatchInstaller(object):
 
             # maintenance window check
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
-            if maintenance_window.is_packages_install_time_available(remaining_time, 1, self.reboot_manager) is False:
+            if maintenance_window.is_package_install_time_available(self.reboot_manager, remaining_time, 1) is False:
                 error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
                 self.composite_logger.log_error("\n" + error_msg)
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
@@ -259,8 +259,7 @@ class PatchInstaller(object):
             # parent package install (+ dependencies) and parent package result management
             install_result = Constants.FAILED
             for i in range(0, Constants.MAX_INSTALLATION_RETRY_COUNT):
-                code, out, exec_cmd = package_manager.install_update_and_dependencies(package_and_dependencies, package_and_dependency_versions, simulate)
-                install_result = package_manager.get_installation_status(code, out, exec_cmd, package_and_dependencies[0], package_and_dependency_versions[0], simulate)
+                install_result = package_manager.install_update_and_dependencies_and_get_status(package_and_dependencies, package_and_dependency_versions, simulate)
 
                 if install_result != Constants.INSTALLED:
                     if i < Constants.MAX_INSTALLATION_RETRY_COUNT - 1:
@@ -398,7 +397,7 @@ class PatchInstaller(object):
                                                             "Processing batch index: " + str(batch_index) + "\nProcessing packages: " + str(packages_in_batch))
             self.composite_logger.log(progress_status)
 
-            if maintenance_window.is_packages_install_time_available(remaining_time, len(packages_in_batch), self.reboot_manager) is False:
+            if maintenance_window.is_package_install_time_available(self.reboot_manager, remaining_time, len(packages_in_batch)) is False:
                 error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
                 self.composite_logger.log_error("\n" + error_msg)
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)

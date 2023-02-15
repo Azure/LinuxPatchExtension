@@ -541,7 +541,7 @@ class ZypperPackageManager(PackageManager):
         for index, package in enumerate(packages):
             if index != 0:
                 packageNames += ' '
-            packageNames += ' ' + package
+            packageNames += package
 
         self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + packageNames))
 

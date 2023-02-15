@@ -68,7 +68,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         argument_composer.start_time = (datetime.datetime.utcnow() - datetime.timedelta(minutes=39)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer.maximum_duration = "PT1H"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
-        self.assertEqual(runtime.maintenance_window.is_package_install_time_available(), True)
+        self.assertEqual(runtime.maintenance_window.is_package_install_time_available(runtime.reboot_manager), True)
         runtime.stop()
 
     def test_check_available_time_after_duration_complete(self):
@@ -76,7 +76,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         argument_composer.start_time = (datetime.datetime.utcnow() - datetime.timedelta(hours=1, minutes=2)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer.maximum_duration = "PT1H"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
-        self.assertEqual(runtime.maintenance_window.is_package_install_time_available(), False)
+        self.assertEqual(runtime.maintenance_window.is_package_install_time_available(runtime.reboot_manager), False)
         runtime.stop()
 
     def test_get_percentage_maintenance_window_used(self):
