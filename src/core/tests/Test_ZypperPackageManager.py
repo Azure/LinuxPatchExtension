@@ -184,13 +184,13 @@ class TestZypperPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-        self.assertTrue(package_manager.do_processes_require_restart())
+        self.assertTrue(package_manager.is_reboot_pending())
 
         # Restart not required
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-        self.assertFalse(package_manager.do_processes_require_restart())
+        self.assertFalse(package_manager.is_reboot_pending())
 
     def test_get_all_available_versions_of_package(self):
         self.runtime.set_legacy_test_type('HappyPath')

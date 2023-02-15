@@ -62,16 +62,25 @@ class PatchAssessor(object):
             try:
                 if self.lifecycle_manager is not None:
                     self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
+
+                # All updates
                 packages, package_versions = self.package_manager.get_all_updates()
                 self.telemetry_writer.write_event("Full assessment: " + str(packages), Constants.TelemetryEventLevel.Verbose)
                 self.status_handler.set_package_assessment_status(packages, package_versions)
                 if self.lifecycle_manager is not None:
                     self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
                 sec_packages, sec_package_versions = self.package_manager.get_security_updates()
+
+                # Tag security updates
                 self.telemetry_writer.write_event("Security assessment: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
                 self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, "Security")
+
+                # ensure reboot status is set
+                reboot_pending = self.package_manager.is_reboot_pending()
+                self.status_handler.set_reboot_pending(reboot_pending)
+
                 self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-                break
+
             except Exception as error:
                 if i < Constants.MAX_ASSESSMENT_RETRY_COUNT - 1:
                     error_msg = 'Retriable error retrieving available patches: ' + repr(error)
