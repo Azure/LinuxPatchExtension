@@ -75,3 +75,25 @@ class MaintenanceWindow(object):
         else:
             self.composite_logger.log_warning("Time Remaining: " + str(timedelta(seconds=int(remaining_time_in_minutes * 60))) + ", Cutoff time: " + str(timedelta(minutes=cutoff_time_in_minutes)) + " [Out of time!]")
             return False
+
+    def get_percentage_maintenance_window_used(self):
+        """Calculate percentage of maintenance window used"""
+        try:
+            current_time = self.env_layer.datetime.datetime_utcnow()
+            start_time = self.env_layer.datetime.utc_to_standard_datetime(self.start_time)
+            if current_time < start_time:
+                raise Exception("Start time {0} is greater than current time {1}".format(str(start_time), str(current_time)))
+            dur = datetime.datetime.strptime(self.duration, "%H:%M:%S")
+            dura = timedelta(hours=dur.hour, minutes=dur.minute, seconds=dur.second)
+            total_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(dura)
+            elapsed_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(current_time - start_time)
+            percent_maintenance_window_used = (elapsed_time_in_minutes / total_time_in_minutes) * 100
+        except Exception as error:
+            error_msg = "Error calculating percentage of maintenance window used."
+            self.composite_logger.log_error("\n" + error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
+                error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            raise
+
+        return percent_maintenance_window_used
