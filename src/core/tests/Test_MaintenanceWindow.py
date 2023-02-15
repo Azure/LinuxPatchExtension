@@ -79,5 +79,33 @@ class TestMaintenanceWindow(unittest.TestCase):
         self.assertEqual(runtime.maintenance_window.is_package_install_time_available(), False)
         runtime.stop()
 
+    def test_get_percentage_maintenance_window_used(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.start_time = (datetime.datetime.utcnow() - datetime.timedelta(hours=0, minutes=18)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer.maximum_duration = "PT3H"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+        perc_maintenance_window_used = runtime.maintenance_window.get_percentage_maintenance_window_used()
+        # 18 minutes of maintenance window used out of 3 hours (180 minutes). So, it should be 10%.
+        # The value should be slightly greater than 10 as it takes some time to trigger the method get_percentage_maintenance_window_used
+        self.assertGreaterEqual(perc_maintenance_window_used, 10)
+        self.assertLessEqual(perc_maintenance_window_used, 11)
+        runtime.stop()
+
+    def test_get_percentage_maintenance_window_used_Fail(self):
+        argument_composer = ArgumentComposer()
+        # ZeroDivisionError should be thrown as duration is 0
+        argument_composer.maximum_duration = "PT0H"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+        self.assertRaises(Exception, runtime.maintenance_window.get_percentage_maintenance_window_used)
+        runtime.stop()
+
+    def test_get_percentage_maintenance_window_used_start_time_greater_exception(self):
+        argument_composer = ArgumentComposer()
+        # Setting start time 1 hour later than current time
+        argument_composer.start_time = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+        self.assertRaises(Exception, runtime.maintenance_window.get_percentage_maintenance_window_used)
+        runtime.stop()
+
 if __name__ == '__main__':
     unittest.main()
