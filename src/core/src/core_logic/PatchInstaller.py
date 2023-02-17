@@ -189,18 +189,20 @@ class PatchInstaller(object):
         batch_patching_stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
         batch_patching_stopwatch.start()
 
-        installed_update_count, patch_installation_successful, maintenance_window_exceeded = self.install_patches_in_batches(all_packages, packages, package_versions, maintenance_window, package_manager)
+        installed_update_count, patch_installation_successful, maintenance_window_batch_cutoff_reached = self.install_patches_in_batches(all_packages, packages, package_versions, maintenance_window, package_manager)
+
+        batch_patching_stopwatch.stop()
 
         packages, package_versions = self.get_remaining_packages_to_install(package_manager) # These packages should be: (a) Those which were failed while installing in batches and (b) some new packages available in this brief time when batch patching was being done.
 
         batch_processing_perf_log  = {"Installed patches count in batch processing": str(installed_update_count), "number of remaining packages to install": str(len(packages)), 
-                                      Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_installation_successful), Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded)}
+                                      Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_installation_successful), "Stopped batch patching due to not enough remaining time to install in batches": str(maintenance_window_batch_cutoff_reached)}
 
-        batch_patching_stopwatch.stop_and_write_telemetry(str(batch_processing_perf_log))
+        batch_patching_stopwatch.write_telemetry_for_stopwatch(str(batch_processing_perf_log))
 
-        if len(packages) == 0 or maintenance_window_exceeded is True:
-            installed_update_count = self.log_metrics_and_perform_final_reconciliation(package_manager, maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
-            return installed_update_count, patch_installation_successful, maintenance_window_exceeded
+        if len(packages) == 0:
+            installed_update_count = self.log_metrics_and_perform_final_reconciliation(package_manager, maintenance_window, patch_installation_successful, False, installed_update_count)
+            return installed_update_count, patch_installation_successful, False
         else:
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_update_count), str(self.successful_parent_update_count), str(self.failed_parent_update_count), str(installed_update_count - self.successful_parent_update_count),
                                                         "Following packages are not installed in batch patching: " + str(packages))
@@ -351,7 +353,7 @@ class PatchInstaller(object):
         self.composite_logger.log("\nNumber of packages to be updated: " + str(len(packages)) + "\nBatch Size: " + str(Constants.PATCHING_BATCH_SIZE) + "\nNumber of batches: " + str(number_of_batches))
         installed_update_count = 0
         patch_installation_successful = True
-        maintenance_window_exceeded = False
+        maintenance_window_batch_cutoff_reached = False
 
         for batch_index in range(0, number_of_batches):
             per_batch_patching_stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
@@ -394,17 +396,15 @@ class PatchInstaller(object):
 
             # point in time status
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_update_count), str(self.successful_parent_update_count), str(self.failed_parent_update_count), str(installed_update_count - self.successful_parent_update_count),
-                                                            "Processing batch index: " + str(batch_index) + "\nProcessing packages: " + str(packages_in_batch))
+                                                            "Processing batch index: " + str(batch_index) + ", Number of packages: " + str(len(packages_in_batch)) + "\nProcessing packages: " + str(packages_in_batch))
             self.composite_logger.log(progress_status)
 
             if maintenance_window.is_package_install_time_available(self.reboot_manager, remaining_time, len(packages_in_batch)) is False:
-                error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
-                self.composite_logger.log_error("\n" + error_msg)
-                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-                maintenance_window_exceeded = True
-                self.status_handler.set_maintenance_window_exceeded(True)
+                self.composite_logger.log("Stopped installing patches in batches as it is past the maintenance window cutoff time for installing in batches." +
+                                           " Batch Index: {0}, remaining time: {1}, number of packages in batch: {2}".format(batch_index, remaining_time, str(len(packages_in_batch))))
+                maintenance_window_batch_cutoff_reached = True
                 break
-            
+
             packages_and_dependencies = package_manager.include_dependencies(packages_in_batch)
             self.composite_logger.log("Packages including dependencies in the batch installing are: " + str(packages_and_dependencies))
 
@@ -476,7 +476,7 @@ class PatchInstaller(object):
 
             per_batch_patching_stopwatch.stop_and_write_telemetry(str(per_batch_install_perf_log))
 
-        return installed_update_count, patch_installation_successful, maintenance_window_exceeded
+        return installed_update_count, patch_installation_successful, maintenance_window_batch_cutoff_reached
 
     def is_reboot_pending(self):
         """ Checks if there is a pending reboot on the machine. """
