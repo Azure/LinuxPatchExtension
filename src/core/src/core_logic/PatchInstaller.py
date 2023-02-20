@@ -20,6 +20,8 @@ import os
 import time
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.Stopwatch import Stopwatch
+from core.src.package_managers import AptitudePackageManager
+
 
 class PatchInstaller(object):
     """" Wrapper class for a single patch installation operation """
@@ -291,7 +293,26 @@ class PatchInstaller(object):
             pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)
             pending_processes_exists = self.package_manager.do_processes_require_restart()
             self.composite_logger.log_debug(" - Reboot required debug flags: " + str(pending_file_exists) + ", " + str(pending_processes_exists) + ".")
-            return pending_file_exists or pending_processes_exists
+            is_reboot_required = pending_file_exists or pending_processes_exists
+
+            # Use Ubuntu Pro Client api in case of Ubuntu VMs.
+            if self.env_layer.get_package_manager() != Constants.APT:
+                return is_reboot_required
+            else:
+                self.composite_logger.log_debug("package_manager is AptitudePackageManager.")
+                is_pro_api_success, pro_reboot_status = self.package_manager.is_reboot_pending()
+                self.composite_logger.log_debug("is_pro_api_success: {0}, reboot_status {1}".format(is_pro_api_success, pro_reboot_status))
+
+                # Ubuntu Pro Client api failed. return default status.
+                if not is_pro_api_success:
+                    return is_reboot_required
+
+                # Compare Ubuntu Pro Client result and default result. Log if there is mismatch.
+                if is_reboot_required != pro_reboot_status:
+                    self.composite_logger.log_debug("Reboot status mismatch. pro = {0}, default = {1}".format(pro_reboot_status, is_reboot_required))
+
+                # Ubuntu Pro Client result is considered truth even if there is mismatch.
+                return pro_reboot_status
         except Exception as error:
             self.composite_logger.log_error('Error while checking for reboot pending: ' + repr(error))
             return True     # defaults for safety

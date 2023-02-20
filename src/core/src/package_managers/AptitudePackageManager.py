@@ -18,6 +18,7 @@
 import json
 import os
 import re
+import sys
 import uuid
 
 from core.src.package_managers.PackageManager import PackageManager
@@ -71,8 +72,7 @@ class AptitudePackageManager(PackageManager):
             self.__pro_client_prereq_met = False
             self.ubuntu_pro_client = UbuntuProClient(env_layer, composite_logger)
 
-            # Add condition to check if python3 is also installed.
-            if Constants.UbuntuProClientSettings.FEATURE_ENABLED and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED:
+            if Constants.UbuntuProClientSettings.FEATURE_ENABLED and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED and self.__is_minimum_required_python_installed():
                 self.ubuntu_pro_client.install_or_update_pro()
 
             # This flag will be used to determine if Ubuntu Pro Client can be used for querying reboot status or packages list.
@@ -553,11 +553,12 @@ class AptitudePackageManager(PackageManager):
         """check required conditions to use Ubuntu Pro Client"""
         if Constants.UbuntuProClientSettings.FEATURE_ENABLED \
                 and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED \
-                and self.ubuntu_pro_client.is_pro_working():
+                and self.ubuntu_pro_client.is_pro_working()\
+                and self.__is_minimum_required_python_installed():
             return True
         else:
-            # Add other conditions as well for debug, if needed.
-            self.composite_logger.log_debug("Feature_Enabled = {0}, OS Version = {1}".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED))
+            # Log each condition for debug.
+            self.composite_logger.log_debug("Feature_Enabled = {0}, OS Version = {1}, python {2}".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed()))
             return False
 
     def __get_os_major_version(self):
@@ -567,3 +568,7 @@ class AptitudePackageManager(PackageManager):
         os_version = self.env_layer.platform.linux_distribution()[1]
         os_major_version = int(os_version.split('.')[0])
         return os_major_version
+
+    def __is_minimum_required_python_installed(self):
+        """check if python version is at least 3.5"""
+        return sys.version_info >= (3, 5)
