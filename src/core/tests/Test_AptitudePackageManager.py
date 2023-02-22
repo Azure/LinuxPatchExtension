@@ -43,6 +43,9 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_is_pro_working_return_true(self):
         return True
 
+    def mock_minimum_required_python_installed_return_true(self):
+        return True
+
     def mock_install_or_update_pro_raise_exception(self):
         raise Exception
 
@@ -388,10 +391,13 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         backup_package_manager_ubuntu_pro_client_is_pro_working = package_manager.ubuntu_pro_client.is_pro_working
         package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
+        backup_package_manager_is_minimum_required_python_installed = package_manager._AptitudePackageManager__is_minimum_required_python_installed
+        package_manager._AptitudePackageManager__is_minimum_required_python_installed = self.mock_minimum_required_python_installed_return_true
 
         self.assertTrue(package_manager._AptitudePackageManager__is_pro_client_prereq_met())
 
         package_manager.ubuntu_pro_client.is_pro_working = backup_package_manager_ubuntu_pro_client_is_pro_working
+        package_manager._AptitudePackageManager__is_minimum_required_python_installed = backup_package_manager_is_minimum_required_python_installed
 
     def test_package_manager_instance_created_even_when_exception_thrown_in_pro(self):
         package_manager = self.container.get('package_manager')

@@ -22,37 +22,16 @@ from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
-
 class MockVersionResult:
-    def __init__(self, version):
+    def __init__(self, version='27.13.5~18.04.1'):
         self.installed_version = version
 
-class MockRebootRequiredResult:
-    def __init__(self, reboot_required):
-        self.reboot_required = reboot_required
-
-class TestUbuntuProClient(unittest.TestCase):
-    def setUp(self):
-        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
-        self.container = self.runtime.container
-
-    def tearDown(self):
-        self.runtime.stop()
-
     def mock_version(self):
-        return MockVersionResult('27.13.5~18.04.1')
+        return MockVersionResult()
 
     def mock_version_raise_exception(self):
         raise
 
-    def mock_reboot_required_return_yes(self):
-        return MockRebootRequiredResult("yes")
-
-    def mock_reboot_required_return_no(self):
-        return MockRebootRequiredResult("no")
-
-    def mock_reboot_required_raises_exception(self):
-        raise
     def mock_import_uaclient_version_module(self, mock_name, method_name):
         if sys.version_info[0] == 3:
             sys.modules['uaclient.api.u.pro.version.v1'] = types.ModuleType('version_module')
@@ -69,6 +48,30 @@ class TestUbuntuProClient(unittest.TestCase):
             sys.modules['uaclient.api.u.pro.version'] = version_module
             sys.modules['uaclient.api.u.pro.version.v1'] = version_module
 
+    def mock_unimport_uaclient_version_module(self):
+        if sys.version_info[0] == 3:
+            sys.modules['uaclient.api.u.pro.version.v1'] = ''
+        else:
+            sys.modules['uaclient'] = ''
+            sys.modules['uaclient.api'] = ''
+            sys.modules['uaclient.api.u'] = ''
+            sys.modules['uaclient.api.u.pro'] = ''
+            sys.modules['uaclient.api.u.pro.version'] = ''
+            sys.modules['uaclient.api.u.pro.version.v1'] = ''
+
+class MockRebootRequiredResult:
+    def __init__(self, reboot_required="yes"):
+        self.reboot_required = reboot_required
+
+    def mock_reboot_required_return_yes(self):
+        return MockRebootRequiredResult()
+
+    def mock_reboot_required_return_no(self):
+        return MockRebootRequiredResult("no")
+
+    def mock_reboot_required_raises_exception(self):
+        raise
+
     def mock_import_uaclient_reboot_required_module(self, mock_name, method_name):
         if sys.version_info[0] == 3:
             sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'] = types.ModuleType('reboot_module')
@@ -82,9 +85,35 @@ class TestUbuntuProClient(unittest.TestCase):
             sys.modules['uaclient.api'] = reboot_module
             sys.modules['uaclient.api.u'] = reboot_module
             sys.modules['uaclient.api.u.pro'] = reboot_module
+            sys.modules['uaclient.api.u.pro.security'] = reboot_module
             sys.modules['uaclient.api.u.pro.security.status'] = reboot_module
             sys.modules['uaclient.api.u.pro.security.status.reboot_required'] = reboot_module
             sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'] = reboot_module
+
+    def mock_unimport_uaclient_reboot_required_module(self):
+        if sys.version_info[0] == 3:
+            sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'] = ''
+        else:
+            sys.modules['uaclient'] = ''
+            sys.modules['uaclient.api'] = ''
+            sys.modules['uaclient.api.u'] = ''
+            sys.modules['uaclient.api.u.pro'] = ''
+            sys.modules['uaclient.api.u.pro.security'] = ''
+            sys.modules['uaclient.api.u.pro.security.status'] = ''
+            sys.modules['uaclient.api.u.pro.security.status.reboot_required'] = ''
+            sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'] = ''
+
+class TestUbuntuProClient(unittest.TestCase):
+    def setUp(self):
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        self.container = self.runtime.container
+
+    def tearDown(self):
+        self.runtime.stop()
+
+    def mock_run_command_output_raise_exception(self):
+        raise
+
 
     def test_install_or_update_pro_success(self):
         package_manager = self.container.get('package_manager')
@@ -95,39 +124,59 @@ class TestUbuntuProClient(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         self.assertIsNone(package_manager.ubuntu_pro_client.install_or_update_pro())
 
+    def test_install_or_update_pro_exception(self):
+        package_manager = self.container.get('package_manager')
+        package_manager.env_layer.run_command_output = self.mock_run_command_output_raise_exception
+        self.assertIsNone(package_manager.ubuntu_pro_client.install_or_update_pro())
+
     def test_is_pro_working_success(self):
-        self.mock_import_uaclient_version_module('version', 'mock_version')
+        obj = MockVersionResult()
+        obj.mock_import_uaclient_version_module('version', 'mock_version')
+        #self.mock_import_uaclient_version_module('version', 'mock_version')
 
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager.ubuntu_pro_client.is_pro_working())
 
+        obj.mock_unimport_uaclient_version_module()
 
     def test_is_pro_working_failure(self):
-        self.mock_import_uaclient_version_module('version', 'mock_version_raise_exception')
+        obj = MockVersionResult()
+        obj.mock_import_uaclient_version_module('version', 'mock_version_raise_exception')
 
         package_manager = self.container.get('package_manager')
         self.assertFalse(package_manager.ubuntu_pro_client.is_pro_working())
 
+        obj.mock_unimport_uaclient_version_module()
+
     def test_is_reboot_pending_success(self):
-        self.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
+        obj = MockRebootRequiredResult()
+        obj.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
 
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager.ubuntu_pro_client.is_reboot_pending()[0])
         self.assertTrue(package_manager.ubuntu_pro_client.is_reboot_pending()[1])
 
+        obj.mock_unimport_uaclient_reboot_required_module()
+
     def test_is_reboot_pending_failure(self):
-        self.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_no')
+        obj = MockRebootRequiredResult()
+        obj.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_no')
 
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager.ubuntu_pro_client.is_reboot_pending()[0])
         self.assertFalse(package_manager.ubuntu_pro_client.is_reboot_pending()[1])
 
+        obj.mock_unimport_uaclient_reboot_required_module()
+
     def test_is_reboot_pending_exception(self):
-        self.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_raises_exception')
+        obj = MockRebootRequiredResult()
+        obj.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_raises_exception')
 
         package_manager = self.container.get('package_manager')
         self.assertFalse(package_manager.ubuntu_pro_client.is_reboot_pending()[0])
         self.assertFalse(package_manager.ubuntu_pro_client.is_reboot_pending()[1])
+
+        obj.mock_unimport_uaclient_reboot_required_module()
 
     def test_get_security_updates_is_None(self):
         package_manager = self.container.get('package_manager')
