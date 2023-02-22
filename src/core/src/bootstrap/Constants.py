@@ -326,7 +326,5 @@ class Constants(object):
     # Ubuntu Pro Client constants.
     class UbuntuProClientSettings(EnumBackport):
         FEATURE_ENABLED = True,
-        # MINIMUM_PYTHON_MAJOR_VERSION_REQUIRED = 3,
-        # MINIMUM_PYTHON_MINOR_VERSION_REQUIRED = 5,
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
 
