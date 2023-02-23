@@ -18,7 +18,7 @@ import datetime
 import unittest
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
-
+from core.src.bootstrap.Constants import Constants
 
 class TestMaintenanceWindow(unittest.TestCase):
     def setUp(self):
@@ -105,6 +105,21 @@ class TestMaintenanceWindow(unittest.TestCase):
         argument_composer.start_time = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
         self.assertRaises(Exception, runtime.maintenance_window.get_percentage_maintenance_window_used)
+        runtime.stop()
+
+    def test_is_package_install_time_available(self):
+        argument_composer = ArgumentComposer()
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+
+        # Number of packages=1
+        # Time remaining=10 minutes
+        # if reboot_setting = Constants.REBOOT_NEVER, then cutoff time is 5 minutes. So, package install time is available.
+        runtime.reboot_manager.reboot_setting = Constants.REBOOT_NEVER
+        self.assertEqual(True, runtime.maintenance_window.is_package_install_time_available(runtime.reboot_manager, 10, 1))
+
+        # if reboot_setting = Constants.REBOOT_ALWAYS, then cutoff time is (5+15=20 minutes). So, package install time is not available.
+        runtime.reboot_manager.reboot_setting = Constants.REBOOT_ALWAYS
+        self.assertEqual(False, runtime.maintenance_window.is_package_install_time_available(runtime.reboot_manager, 10, 1))
         runtime.stop()
 
 if __name__ == '__main__':

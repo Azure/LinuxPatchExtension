@@ -193,7 +193,11 @@ class PatchInstaller(object):
 
         batch_patching_stopwatch.stop()
 
-        packages, package_versions = self.get_remaining_packages_to_install(package_manager) # These packages should be: (a) Those which were failed while installing in batches and (b) some new packages available in this brief time when batch patching was being done.
+        # Check for updates available to install. After installing patches in batches, there might be still some packages available for installation. These packages should be:
+        # (a) Due to not enough remaining time in maintenance window to install the updates in batch, the batch patching is stopped and hence some updates are not installed in batches
+        # (b) Those which were failed while installing in batches
+        # (c) Some new packages available in this brief time when batch patching was being done
+        packages, package_versions = self.get_remaining_packages_to_install(package_manager)
 
         batch_processing_perf_log  = {"Installed patches count in batch processing": str(installed_update_count), "number of remaining packages to install": str(len(packages)), 
                                       Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_installation_successful), "Stopped batch patching due to not enough remaining time to install in batches": str(maintenance_window_batch_cutoff_reached)}
