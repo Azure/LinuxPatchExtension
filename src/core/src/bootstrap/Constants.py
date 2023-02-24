@@ -102,6 +102,28 @@ class Constants(object):
     # patch versions for healthstore when there is no maintenance run id
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
 
+    # Strings used in perf logs
+    class PerfLogTrackerParams:
+        TASK = "task"
+        TASK_STATUS = "task_status"
+        PACKAGE_MANAGER = "package_manager"
+        NUMBER_OF_TRIALS = "number_of_trials"
+        ERROR_MSG = "error_msg"
+        INSTALLED_PATCH_COUNT = "installed_patch_count"
+        PATCH_OPERATION_SUCCESSFUL = "patch_operation_successful"
+        MAINTENANCE_WINDOW = "maintenance_window"
+        PERC_MAINTENANCE_WINDOW_USED = "perc_maintenance_window_used"
+        MAINTENANCE_WINDOW_EXCEEDED = "maintenance_window_exceeded"
+        START_TIME = "start_time"
+        END_TIME = "end_time"
+        TIME_TAKEN = "time_taken"
+        MACHINE_INFO = "machine_info"
+        MESSAGE = "message"
+
+    class TaskStatus(EnumBackport):
+        SUCCEEDED = "succeeded"
+        FAILED = "failed"
+
     # Patch Modes for Configure Patching
     class PatchModes(EnumBackport):
         IMAGE_DEFAULT = "ImageDefault"
