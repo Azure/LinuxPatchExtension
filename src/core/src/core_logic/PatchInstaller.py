@@ -16,10 +16,10 @@
 
 """ The patch install orchestrator """
 import datetime
+import math
 import os
 import time
 from core.src.bootstrap.Constants import Constants
-import math
 from core.src.core_logic.Stopwatch import Stopwatch
 
 class PatchInstaller(object):
@@ -137,13 +137,6 @@ class PatchInstaller(object):
 
         self.composite_logger.log("{0}".format(Constants.TELEMETRY_COMPATIBLE_MSG))
 
-    def add_arch_dependencies_yum(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
-        package_name_without_arch = package_manager.get_product_name_without_arch(package)
-        for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
-            if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies:
-                package_and_dependencies.append(possible_arch_dependency)
-                package_and_dependency_versions.append(possible_arch_dependency_version)
-
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""
         self.composite_logger.log("\n\nGetting available updates...")
@@ -227,7 +220,7 @@ class PatchInstaller(object):
 
             # maintenance window check
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
-            if maintenance_window.is_package_install_time_available(self.reboot_manager, remaining_time, 1) is False:
+            if maintenance_window.is_package_install_time_available(remaining_time, number_of_packages=1) is False:
                 error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
                 self.composite_logger.log_error("\n" + error_msg)
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
@@ -255,9 +248,7 @@ class PatchInstaller(object):
                 package_and_dependencies.append(dependency)
                 package_and_dependency_versions.append(package_versions[packages.index(dependency)] if dependency in packages else Constants.DEFAULT_UNSPECIFIED_VALUE)
 
-            # multilib resolution for yum
-            if package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.YUM:
-                self.add_arch_dependencies_yum(package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+            package_manager.add_arch_dependencies(package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # remove duplicates
             package_and_dependencies, package_and_dependency_versions = package_manager.dedupe_update_packages(package_and_dependencies, package_and_dependency_versions)
@@ -403,7 +394,7 @@ class PatchInstaller(object):
                                                             "Processing batch index: " + str(batch_index) + ", Number of packages: " + str(len(packages_in_batch)) + "\nProcessing packages: " + str(packages_in_batch))
             self.composite_logger.log(progress_status)
 
-            if maintenance_window.is_package_install_time_available(self.reboot_manager, remaining_time, len(packages_in_batch)) is False:
+            if maintenance_window.is_package_install_time_available(remaining_time, len(packages_in_batch)) is False:
                 self.composite_logger.log("Stopped installing patches in batches as it is past the maintenance window cutoff time for installing in batches." +
                                            " Batch Index: {0}, remaining time: {1}, number of packages in batch: {2}".format(batch_index, remaining_time, str(len(packages_in_batch))))
                 maintenance_window_batch_cutoff_reached = True
@@ -422,10 +413,8 @@ class PatchInstaller(object):
                 version = package_versions[packages.index(package)] if package in packages else Constants.DEFAULT_UNSPECIFIED_VALUE
                 package_dependency_versions.append(version)
 
-            # multilib resolution for yum
-            if package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.YUM:
-                for package in packages_in_batch:
-                    self.add_arch_dependencies_yum(package_manager, package, packages, package_versions, packages_dependencies_to_install, package_dependency_versions)
+            for package in packages_in_batch:
+                package_manager.add_arch_dependencies(package_manager, package, packages, package_versions, packages_dependencies_to_install, package_dependency_versions)
 
             packages_dependencies_to_install, package_dependency_versions = package_manager.dedupe_update_packages(packages_dependencies_to_install, package_dependency_versions)
 

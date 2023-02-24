@@ -941,3 +941,10 @@ class YumPackageManager(PackageManager):
 
         self.composite_logger.log(" - Processes requiring restart (" + str(process_count) + "): [" + process_list_verbose + "<eol>]")
         return process_count != 0  # True if there were any
+
+    def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+        package_name_without_arch = package_manager.get_product_name_without_arch(package)
+        for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
+            if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies:
+                package_and_dependencies.append(possible_arch_dependency)
+                package_and_dependency_versions.append(possible_arch_dependency_version)

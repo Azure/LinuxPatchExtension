@@ -542,3 +542,6 @@ class AptitudePackageManager(PackageManager):
     def do_processes_require_restart(self):
         """Defaulting this for Apt"""
         return False
+
+    def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+        return

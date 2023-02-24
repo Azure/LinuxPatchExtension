@@ -68,7 +68,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         argument_composer.start_time = (datetime.datetime.utcnow() - datetime.timedelta(minutes=39)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer.maximum_duration = "PT1H"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
-        self.assertEqual(runtime.maintenance_window.is_package_install_time_available(runtime.reboot_manager), True)
+        self.assertEqual(runtime.maintenance_window.is_package_install_time_available(), True)
         runtime.stop()
 
     def test_check_available_time_after_duration_complete(self):
@@ -76,7 +76,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         argument_composer.start_time = (datetime.datetime.utcnow() - datetime.timedelta(hours=1, minutes=2)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer.maximum_duration = "PT1H"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
-        self.assertEqual(runtime.maintenance_window.is_package_install_time_available(runtime.reboot_manager), False)
+        self.assertEqual(runtime.maintenance_window.is_package_install_time_available(), False)
         runtime.stop()
 
     def test_get_percentage_maintenance_window_used(self):
@@ -109,17 +109,20 @@ class TestMaintenanceWindow(unittest.TestCase):
 
     def test_is_package_install_time_available(self):
         argument_composer = ArgumentComposer()
+
+        number_of_packages = 1
+        remaining_time_in_minutes = 10
+
+        # if reboot_setting = 'Never', then cutoff time is 5 minutes. So, package install time is available.
+        argument_composer.reboot_setting = 'Never'
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+        self.assertEqual(True, runtime.maintenance_window.is_package_install_time_available(remaining_time_in_minutes, number_of_packages))
+        runtime.stop()
 
-        # Number of packages=1
-        # Time remaining=10 minutes
-        # if reboot_setting = Constants.REBOOT_NEVER, then cutoff time is 5 minutes. So, package install time is available.
-        runtime.reboot_manager.reboot_setting = Constants.REBOOT_NEVER
-        self.assertEqual(True, runtime.maintenance_window.is_package_install_time_available(runtime.reboot_manager, 10, 1))
-
-        # if reboot_setting = Constants.REBOOT_ALWAYS, then cutoff time is (5+15=20 minutes). So, package install time is not available.
-        runtime.reboot_manager.reboot_setting = Constants.REBOOT_ALWAYS
-        self.assertEqual(False, runtime.maintenance_window.is_package_install_time_available(runtime.reboot_manager, 10, 1))
+        # if reboot_setting = 'Always', then cutoff time is (5+15=20 minutes). So, package install time is not available.
+        argument_composer.reboot_setting = 'Always'
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+        self.assertEqual(False, runtime.maintenance_window.is_package_install_time_available(remaining_time_in_minutes, number_of_packages))
         runtime.stop()
 
 if __name__ == '__main__':

@@ -397,3 +397,8 @@ class PackageManager(object):
         """Signals whether processes require a restart due to updates to files"""
         pass
 
+    @abstractmethod
+    def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+        """Add the same package with different architectures from the packages list to package_and_dependencies. Only required for yum. No-op for apt and zypper"""
+        pass
+
