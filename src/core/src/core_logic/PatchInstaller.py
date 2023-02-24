@@ -21,7 +21,6 @@ import time
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.Stopwatch import Stopwatch
 
-
 class PatchInstaller(object):
     """" Wrapper class for a single patch installation operation """
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, lifecycle_manager, package_manager, package_filter, maintenance_window, reboot_manager):
