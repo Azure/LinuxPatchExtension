@@ -20,7 +20,6 @@ import os
 import time
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.Stopwatch import Stopwatch
-from core.src.package_managers import AptitudePackageManager
 
 
 class PatchInstaller(object):

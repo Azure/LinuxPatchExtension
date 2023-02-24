@@ -22,7 +22,22 @@ from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
-class MockVersionResult:
+
+class MockSystemModules:
+    def assign_sys_modules_with_mock_module(self, module_name, mock_module):
+        parts = module_name.split('.')
+        for i in range(len(parts)):
+            sub_module = ".".join(parts[:i + 1])
+            sys.modules[sub_module] = mock_module
+
+    def mock_unimport_module(self, module_name):
+        if sys.version_info[0] == 3:
+            sys.modules[module_name] = ''
+        else:
+            self.assign_sys_modules_with_mock_module(module_name, '')
+
+
+class MockVersionResult(MockSystemModules):
     def __init__(self, version='27.13.5~18.04.1'):
         self.installed_version = version
 
@@ -41,25 +56,13 @@ class MockVersionResult:
             version_module = imp.new_module('version_module')
             mock_method = getattr(self, method_name)
             setattr(version_module, mock_name, mock_method)
-            sys.modules['uaclient'] = version_module
-            sys.modules['uaclient.api'] = version_module
-            sys.modules['uaclient.api.u'] = version_module
-            sys.modules['uaclient.api.u.pro'] = version_module
-            sys.modules['uaclient.api.u.pro.version'] = version_module
-            sys.modules['uaclient.api.u.pro.version.v1'] = version_module
+            self.assign_sys_modules_with_mock_module('uaclient.api.u.pro.version.v1', version_module)
 
     def mock_unimport_uaclient_version_module(self):
-        if sys.version_info[0] == 3:
-            sys.modules['uaclient.api.u.pro.version.v1'] = ''
-        else:
-            sys.modules['uaclient'] = ''
-            sys.modules['uaclient.api'] = ''
-            sys.modules['uaclient.api.u'] = ''
-            sys.modules['uaclient.api.u.pro'] = ''
-            sys.modules['uaclient.api.u.pro.version'] = ''
-            sys.modules['uaclient.api.u.pro.version.v1'] = ''
+        self.mock_unimport_module('uaclient.api.u.pro.version.v1')
 
-class MockRebootRequiredResult:
+
+class MockRebootRequiredResult(MockSystemModules):
     def __init__(self, reboot_required="yes"):
         self.reboot_required = reboot_required
 
@@ -81,27 +84,11 @@ class MockRebootRequiredResult:
             reboot_module = imp.new_module('reboot_module')
             mock_method = getattr(self, method_name)
             setattr(reboot_module, mock_name, mock_method)
-            sys.modules['uaclient'] = reboot_module
-            sys.modules['uaclient.api'] = reboot_module
-            sys.modules['uaclient.api.u'] = reboot_module
-            sys.modules['uaclient.api.u.pro'] = reboot_module
-            sys.modules['uaclient.api.u.pro.security'] = reboot_module
-            sys.modules['uaclient.api.u.pro.security.status'] = reboot_module
-            sys.modules['uaclient.api.u.pro.security.status.reboot_required'] = reboot_module
-            sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'] = reboot_module
+            self.assign_sys_modules_with_mock_module('uaclient.api.u.pro.security.status.reboot_required.v1', reboot_module)
 
     def mock_unimport_uaclient_reboot_required_module(self):
-        if sys.version_info[0] == 3:
-            sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'] = ''
-        else:
-            sys.modules['uaclient'] = ''
-            sys.modules['uaclient.api'] = ''
-            sys.modules['uaclient.api.u'] = ''
-            sys.modules['uaclient.api.u.pro'] = ''
-            sys.modules['uaclient.api.u.pro.security'] = ''
-            sys.modules['uaclient.api.u.pro.security.status'] = ''
-            sys.modules['uaclient.api.u.pro.security.status.reboot_required'] = ''
-            sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'] = ''
+        self.mock_unimport_module('uaclient.api.u.pro.security.status.reboot_required.v1')
+
 
 class TestUbuntuProClient(unittest.TestCase):
     def setUp(self):
@@ -113,7 +100,6 @@ class TestUbuntuProClient(unittest.TestCase):
 
     def mock_run_command_output_raise_exception(self):
         raise
-
 
     def test_install_or_update_pro_success(self):
         package_manager = self.container.get('package_manager')
@@ -132,7 +118,6 @@ class TestUbuntuProClient(unittest.TestCase):
     def test_is_pro_working_success(self):
         obj = MockVersionResult()
         obj.mock_import_uaclient_version_module('version', 'mock_version')
-        #self.mock_import_uaclient_version_module('version', 'mock_version')
 
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager.ubuntu_pro_client.is_pro_working())
