@@ -310,11 +310,6 @@ class PackageManager(object):
         pass
 
     @abstractmethod
-    def include_dependencies(self, packages, package_versions):
-        """Retrieve available updates. Expect an array being returned"""
-        pass
-
-    @abstractmethod
     def get_product_name(self, package_name):
         """Retrieve package name """
         pass

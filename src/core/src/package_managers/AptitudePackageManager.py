@@ -353,19 +353,27 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log_debug("   - Package version specified was determined to NOT be installed.")
         return False
 
-    def get_dependent_list(self, package_name):
-        """Returns dependent List of the package"""
-        cmd = self.single_package_dependency_resolution_template.replace('<PACKAGE-NAME>', package_name)
+    def get_dependent_list(self, packages):
+        """Returns dependent List for the list of packages"""
+        package_names = ""
+        for index, package in enumerate(packages):
+            if index != 0:
+                package_names += ' '
+            package_names += package
+
+        cmd = self.single_package_dependency_resolution_template.replace('<PACKAGE-NAME>', package_names)
 
         self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(cmd))
         output = self.invoke_package_manager(cmd)
 
-        packages, package_versions = self.extract_packages_and_versions(output)
-        if package_name in packages:
-            packages.remove(package_name)
+        dependencies, dependency_versions = self.extract_packages_and_versions(output)
+        
+        for package in packages:
+            if package in dependencies:
+                dependencies.remove(package)
 
-        self.composite_logger.log_debug(str(len(packages)) + " dependent updates were found for package '" + package_name + "'.")
-        return packages
+        self.composite_logger.log_debug(str(len(dependencies)) + " dependent updates were found for packages '" + str(packages) + "'.")
+        return dependencies
 
     def include_dependencies(self, packages):
         """Returns dependent List of packages"""

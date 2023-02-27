@@ -241,17 +241,8 @@ class PatchInstaller(object):
             # include all dependencies (with specified versions) explicitly
             package_and_dependencies = [package]
             package_and_dependency_versions = [version]
-            dependencies = package_manager.get_dependent_list(package)
-            for dependency in dependencies:
-                if dependency not in all_packages:
-                    continue
-                package_and_dependencies.append(dependency)
-                package_and_dependency_versions.append(package_versions[packages.index(dependency)] if dependency in packages else Constants.DEFAULT_UNSPECIFIED_VALUE)
-
-            package_manager.add_arch_dependencies(package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
-
-            # remove duplicates
-            package_and_dependencies, package_and_dependency_versions = package_manager.dedupe_update_packages(package_and_dependencies, package_and_dependency_versions)
+            
+            self.include_dependencies(package_manager, [package], all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # parent package install (+ dependencies) and parent package result management
             install_result = Constants.FAILED
@@ -343,6 +334,23 @@ class PatchInstaller(object):
 
         return installed_update_count
 
+    def include_dependencies(self, package_manager, packages_in_batch, all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+        dependencies = package_manager.get_dependent_list(package_and_dependencies)
+
+        for package in dependencies:
+            if package not in all_packages:
+                continue
+            package_and_dependencies.append(package)
+            version = package_versions[packages.index(package)] if package in packages else Constants.DEFAULT_UNSPECIFIED_VALUE
+            package_and_dependency_versions.append(version)
+
+        for package in packages_in_batch:
+            package_manager.add_arch_dependencies(package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+
+        package_and_dependencies, package_and_dependency_versions = package_manager.dedupe_update_packages(package_and_dependencies, package_and_dependency_versions)
+
+        self.composite_logger.log("Packages including dependencies are: " + str(package_and_dependencies))
+
     def install_patches_in_batches(self, all_packages, packages, package_versions, maintenance_window, package_manager, simulate=False):
         number_of_batches = int(math.ceil(len(packages) / float(Constants.PATCHING_BATCH_SIZE)))
         self.composite_logger.log("\nNumber of packages to be updated: " + str(len(packages)) + "\nBatch Size: " + str(Constants.PATCHING_BATCH_SIZE) + "\nNumber of batches: " + str(number_of_batches))
@@ -363,6 +371,7 @@ class PatchInstaller(object):
             end_index = min(end_index, len(packages) - 1)
 
             packages_in_batch = []
+            package_versions_in_batch = []
             skip_packages = []
             already_installed_packages = []
 
@@ -377,6 +386,7 @@ class PatchInstaller(object):
                     self.successful_parent_update_count += 1
                 else:
                     packages_in_batch.append(packages[index])
+                    package_versions_in_batch.append(package_versions[index])
 
             if len(already_installed_packages) > 0:
                 self.composite_logger.log("Following packages are already installed. Should have got installed as dependent package of some other package " + str(already_installed_packages))
@@ -400,36 +410,23 @@ class PatchInstaller(object):
                 maintenance_window_batch_cutoff_reached = True
                 break
 
-            packages_and_dependencies = package_manager.include_dependencies(packages_in_batch)
-            self.composite_logger.log("Packages including dependencies in the batch installing are: " + str(packages_and_dependencies))
+            package_and_dependencies = packages_in_batch.copy()
+            package_and_dependency_versions = package_versions_in_batch.copy()
 
-            packages_dependencies_to_install = []
-            package_dependency_versions = []
-
-            for package in packages_and_dependencies:
-                if package not in all_packages:
-                    continue
-                packages_dependencies_to_install.append(package)
-                version = package_versions[packages.index(package)] if package in packages else Constants.DEFAULT_UNSPECIFIED_VALUE
-                package_dependency_versions.append(version)
-
-            for package in packages_in_batch:
-                package_manager.add_arch_dependencies(package_manager, package, packages, package_versions, packages_dependencies_to_install, package_dependency_versions)
-
-            packages_dependencies_to_install, package_dependency_versions = package_manager.dedupe_update_packages(packages_dependencies_to_install, package_dependency_versions)
+            self.include_dependencies(package_manager, packages_in_batch, all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             number_of_parent_patches_installed = 0
             number_of_parent_patches_failed = 0
             number_of_dependencies_installed = 0
             number_of_dependencies_failed = 0
 
-            code, out, exec_cmd = package_manager.install_update_and_dependencies(packages_dependencies_to_install, package_dependency_versions, simulate)
+            code, out, exec_cmd = package_manager.install_update_and_dependencies(package_and_dependencies, package_and_dependency_versions, simulate)
 
-            for package,version in zip(packages_dependencies_to_install, package_dependency_versions):
+            for package,version in zip(package_and_dependencies, package_and_dependency_versions):
                 install_result = package_manager.get_installation_status(code, out, exec_cmd, package, version, simulate)
 
                 if install_result == Constants.FAILED:
-                    if (package in packages_in_batch):
+                    if package in packages_in_batch:
                         # parent package
                         self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.FAILED)
                         self.failed_parent_update_count += 1
@@ -440,7 +437,7 @@ class PatchInstaller(object):
                         number_of_dependencies_failed +=1
                 elif install_result == Constants.INSTALLED:
                     self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.INSTALLED)
-                    if (package in packages_in_batch):
+                    if package in packages_in_batch:
                         # parent package
                         self.successful_parent_update_count += 1
                         number_of_parent_patches_installed += 1
@@ -463,7 +460,7 @@ class PatchInstaller(object):
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
             installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_update_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
 
-            per_batch_install_perf_log = {"Packages in batch": str(packages_in_batch), "Package and dependencies to install": str(packages_dependencies_to_install), "Package and dependencies version": str(package_dependency_versions),
+            per_batch_install_perf_log = {"Packages in batch": str(packages_in_batch), "Package and dependencies to install": str(package_and_dependencies), "Package and dependencies version": str(package_and_dependency_versions),
                                       "Number of parent packages installed": str(number_of_parent_patches_installed), "Number of parent packages failed to install": str(number_of_parent_patches_failed),
                                        "Number of dependencies installed": str(number_of_dependencies_installed), "Number of dependencies failed to install": str(number_of_dependencies_failed)}
 
@@ -562,7 +559,7 @@ class PatchInstaller(object):
                 excluded_package_versions.append(package_version)
                 continue
 
-            dependency_list = package_manager.get_dependent_list(package)
+            dependency_list = package_manager.get_dependent_list([package])
             if dependency_list and self.package_filter.check_for_exclusion(dependency_list):
                 self.composite_logger.log_debug(" - Exclusion list match on dependency list for package '{0}': {1}".format(str(package), str(dependency_list)))
                 excluded_packages.append(package)  # one of the package's dependencies are excluded, so exclude the package

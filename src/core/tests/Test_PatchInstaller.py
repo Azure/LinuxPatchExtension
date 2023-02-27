@@ -29,6 +29,9 @@ class TestPatchInstaller(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def mock_get_remaining_packages_to_install(package_manager2, abc):
+        return [], []
+
     def test_yum_install_updates_maintenance_window_exceeded(self):
         current_time = datetime.datetime.utcnow()
         td = datetime.timedelta(hours=1, minutes=2)
@@ -50,6 +53,30 @@ class TestPatchInstaller(unittest.TestCase):
         td = datetime.timedelta(hours=0, minutes=20)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        # Path change
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
+        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
+        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
+        self.assertEqual(2, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_yum_install_success_not_enough_time_for_batch_patching(self):
+        # total packages to install is 2, reboot_setting is 'Never', so cutoff time for batch = 2*5 = 10
+        # window size is 60 minutes, let time remain = 9 minutes so that not enough time to install in batch
+        # So td = 60-9 = 51
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=51)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.reboot_setting = 'Never'
         argument_composer.maximum_duration = 'PT1H'
         argument_composer.start_time = job_start_time
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
@@ -93,6 +120,25 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue(maintenance_window_exceeded)
         runtime.stop()
 
+    def test_zypper_install_success_not_enough_time_for_batch_patching(self):
+        # total packages to install is 2, reboot_setting is 'Never', so cutoff time for batch = 2*5 = 10
+        # window size is 60 minutes, let time remain = 9 minutes so that not enough time to install in batch
+        # So td = 60-9 = 51
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=51)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        # Path change
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        self.assertEqual(2, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
     def test_zypper_install_success(self):
         current_time = datetime.datetime.utcnow()
         td = datetime.timedelta(hours=0, minutes=20)
@@ -103,7 +149,11 @@ class TestPatchInstaller(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         # Path change
         runtime.set_legacy_test_type('SuccessInstallPath')
+        # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
+        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
+        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         self.assertEqual(2, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
@@ -151,8 +201,123 @@ class TestPatchInstaller(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         # Path change
         runtime.set_legacy_test_type('SuccessInstallPath')
+        # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
+        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
+        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
+        self.assertEqual(3, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_apt_install_success_not_enough_time_for_batch_patching(self):
+        # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
+        # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
+        # So td = 60-14 = 46
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=46)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('SuccessInstallPath')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         self.assertEqual(3, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_dependency_installed_successfully(self):
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('DependencyInstallSuccessfully')
+        # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
+        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
+        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
+        self.assertEqual(4, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_dependency_install_failed(self):
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('DependencyInstallFailed')
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        self.assertEqual(2, installed_update_count)
+        self.assertFalse(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_not_enough_time_for_batch_patching_dependency_installed_successfully(self):
+        # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
+        # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
+        # So td = 60-14 = 46
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=46)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.reboot_setting = 'Never'
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('DependencyInstallSuccessfully')
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        self.assertEqual(4, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_not_enough_time_for_batch_patching_dependency_install_failed(self):
+        # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
+        # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
+        # So td = 60-14 = 46
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=46)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.reboot_setting = 'Never'
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('DependencyInstallFailed')
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        self.assertEqual(2, installed_update_count)
+        self.assertFalse(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_skip_package_version_UA_ESM_REQUIRED(self):
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('UA_ESM_REQUIRED')
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        self.assertEqual(0, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()

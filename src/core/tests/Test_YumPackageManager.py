@@ -114,13 +114,13 @@ class TestYumPackageManager(unittest.TestCase):
 
         # test for get_dependent_list
         # legacy_test_type ='HappyPath'
-        dependent_list = package_manager.get_dependent_list("selinux-policy.noarch")
+        dependent_list = package_manager.get_dependent_list(["selinux-policy.noarch"])
         self.assertIsNotNone(dependent_list)
         self.assertEqual(len(dependent_list), 1)
         self.assertEqual(dependent_list[0], "selinux-policy-targeted.noarch")
 
         # test for get_dependent_list with 'install' instead of update
-        dependent_list = package_manager.get_dependent_list("kmod-kvdo.x86_64")
+        dependent_list = package_manager.get_dependent_list(["kmod-kvdo.x86_64"])
         self.assertIsNotNone(dependent_list)
         self.assertEqual(len(dependent_list), 1)
         self.assertEqual(dependent_list[0], "kernel.x86_64")
@@ -164,7 +164,7 @@ class TestYumPackageManager(unittest.TestCase):
         # test for get_dependent_list
         # legacy_test_type ='Exception Path'
         try:
-            package_manager.get_dependent_list("man")
+            package_manager.get_dependent_list(["man"])
         except Exception as exception:
             self.assertTrue(str(exception))
         else:

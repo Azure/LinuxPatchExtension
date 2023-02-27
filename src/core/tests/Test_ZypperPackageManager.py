@@ -146,7 +146,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # test for get_dependent_list
         # legacy_test_type ='Happy Path'
-        dependent_list = package_manager.get_dependent_list("man")
+        dependent_list = package_manager.get_dependent_list(["man"])
         self.assertIsNotNone(dependent_list)
         self.assertEqual(len(dependent_list), 16)
 
@@ -172,7 +172,7 @@ class TestZypperPackageManager(unittest.TestCase):
         # test for get_dependent_list
         # legacy_test_type ='Exception Path'
         try:
-            package_manager.get_dependent_list("man")
+            package_manager.get_dependent_list(["man"])
         except Exception as exception:
             self.assertTrue(str(exception))
         else:
