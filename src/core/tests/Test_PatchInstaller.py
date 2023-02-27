@@ -315,7 +315,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer.start_time = job_start_time
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         # Path change
-        runtime.set_legacy_test_type('UA_ESM_REQUIRED')
+        runtime.set_legacy_test_type('UA_ESM_Required')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         self.assertEqual(0, installed_update_count)
         self.assertTrue(update_run_successful)
