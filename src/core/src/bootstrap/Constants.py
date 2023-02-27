@@ -107,7 +107,7 @@ class Constants(object):
         TASK = "task"
         TASK_STATUS = "task_status"
         PACKAGE_MANAGER = "package_manager"
-        NUMBER_OF_TRIALS = "number_of_trials"
+        RETRY_COUNT = "retry_count"
         ERROR_MSG = "error_msg"
         INSTALLED_PATCH_COUNT = "installed_patch_count"
         PATCH_OPERATION_SUCCESSFUL = "patch_operation_successful"

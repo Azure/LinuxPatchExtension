@@ -33,7 +33,7 @@ class PatchInstaller(object):
         self.lifecycle_manager = lifecycle_manager
 
         self.package_manager = package_manager
-        self.package_manager_name = self.package_manager.__class__.__name__
+        self.package_manager_name = self.package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY)
         self.package_filter = package_filter
         self.maintenance_window = maintenance_window
         self.reboot_manager = reboot_manager
@@ -106,7 +106,7 @@ class PatchInstaller(object):
 
         return overall_patch_installation_successful
 
-    def write_installer_perf_logs(self, patch_operation_successful, installed_patch_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, task_status, error_msg):
+    def write_installer_perf_logs(self, patch_operation_successful, installed_patch_count, retry_count, maintenance_window, maintenance_window_exceeded, task_status, error_msg):
         perc_maintenance_window_used = -1
 
         try:
@@ -116,7 +116,7 @@ class PatchInstaller(object):
 
         patch_installation_perf_log = {Constants.PerfLogTrackerParams.TASK: Constants.INSTALLATION, Constants.PerfLogTrackerParams.TASK_STATUS: str(task_status), Constants.PerfLogTrackerParams.ERROR_MSG: error_msg,
                                        Constants.PerfLogTrackerParams.PACKAGE_MANAGER: self.package_manager_name, Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_operation_successful),
-                                       Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT: str(installed_patch_count), Constants.PerfLogTrackerParams.NUMBER_OF_TRIALS: str(number_of_rounds),
+                                       Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT: str(installed_patch_count), Constants.PerfLogTrackerParams.RETRY_COUNT: str(retry_count),
                                        Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW: str(maintenance_window.duration), Constants.PerfLogTrackerParams.PERC_MAINTENANCE_WINDOW_USED: str(perc_maintenance_window_used),
                                        Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded)}
         self.stopwatch.stop_and_write_telemetry(str(patch_installation_perf_log))
