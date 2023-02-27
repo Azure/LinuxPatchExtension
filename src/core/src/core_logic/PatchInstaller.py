@@ -410,8 +410,8 @@ class PatchInstaller(object):
                 maintenance_window_batch_cutoff_reached = True
                 break
 
-            package_and_dependencies = packages_in_batch.copy()
-            package_and_dependency_versions = package_versions_in_batch.copy()
+            package_and_dependencies = list(packages_in_batch)
+            package_and_dependency_versions = list(package_versions_in_batch)
 
             self.include_dependencies(package_manager, packages_in_batch, all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 

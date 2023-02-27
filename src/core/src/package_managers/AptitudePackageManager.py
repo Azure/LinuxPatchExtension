@@ -375,24 +375,6 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log_debug(str(len(dependencies)) + " dependent updates were found for packages '" + str(packages) + "'.")
         return dependencies
 
-    def include_dependencies(self, packages):
-        """Returns dependent List of packages"""
-        packageNames = ""
-        for index, package in enumerate(packages):
-            if index != 0:
-                packageNames += ' '
-            packageNames += package
-
-        cmd = self.single_package_dependency_resolution_template.replace('<PACKAGE-NAME>', packageNames)
-
-        self.composite_logger.log_debug("\nUsing following command to resolve the dependencies: " + str(cmd))
-        output = self.invoke_package_manager(cmd)
-
-        package_and_dependencies, package_and_dependency_versions = self.extract_packages_and_versions(output)
-
-        self.composite_logger.log_debug(str(len(package_and_dependencies)) + " packages dependent found")
-        return package_and_dependencies
-
     def get_product_name(self, package_name):
         """Retrieve product name """
         return package_name

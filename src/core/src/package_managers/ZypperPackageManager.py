@@ -541,23 +541,6 @@ class ZypperPackageManager(PackageManager):
         self.composite_logger.log_debug(str(len(dependencies)) + " dependent updates were found for packages '" + str(packages) + "'.")
         return dependencies
 
-    def include_dependencies(self, packages):
-        """Returns dependent List of packages"""
-        packageNames = ""
-        for index, package in enumerate(packages):
-            if index != 0:
-                packageNames += ' '
-            packageNames += package
-
-        self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + packageNames))
-
-        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + packageNames)
-        
-        package_and_dependent_packages = self.extract_dependencies(output, True, None)
-
-        self.composite_logger.log_debug(str(len(package_and_dependent_packages)) + " number of packages and dependencies")
-        return package_and_dependent_packages
-
     def get_product_name(self, package_name):
         """Retrieve product name """
         return package_name
