@@ -1070,7 +1070,36 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("dist-upgrade") > -1:
                         code = 0
                         output = "Inst git-man [1:2.17.1-1ubuntu0.15] (UA_ESM_Required Ubuntu:18.04/bionic-updates, " \
-                                 "Ubuntu:18.04/bionic-security [all])" \
+                                 "Ubuntu:18.04/bionic-security [all])"
+            elif self.legacy_test_type == 'ArchDependency':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("check-update") > -1:
+                        code = 100
+                        output = "\n" + \
+                                 "selinux-policy.noarch                                              " + \
+                                 "3.13.1-102.el7_3.16                                      " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n" + \
+                                 "selinux-policy-targeted.noarch                                     " + \
+                                 "3.13.1-102.el7_3.16                                      " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n" + \
+                                 "libgcc.i686                                      " + \
+                                 "4.8.5-28.el7                                      " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n" + \
+                                 "libgcc.x86_64                                                " + \
+                                 "4.8.5-28.el7                           " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n"
+                    elif cmd.find("list installed") > -1:
+                        code = 0
+                        package = cmd.replace('sudo yum list installed ', '')
+                        whitelisted_versions = [
+                            '3.13.1-102.el7_3.16', '4.8.5-28.el7']  # any list of versions you want to work for *any* package
+                        output = "Loaded plugins: product-id, search-disabled-repos, subscription-manager\n" + \
+                                 "Installed Packages\n"
+                        template = "<PACKAGE>                                                                                     <VERSION>                                                                                      @anaconda/7.3\n"
+                        for version in whitelisted_versions:
+                            entry = template.replace('<PACKAGE>', package)
+                            entry = entry.replace('<VERSION>', version)
+                            output += entry
 
             major_version = self.get_python_major_version()
             if major_version == 2:

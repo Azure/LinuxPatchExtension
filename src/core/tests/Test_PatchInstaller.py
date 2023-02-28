@@ -322,6 +322,50 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
+    def test_dependent_package_excluded(self):
+        # exclusion list contains grub-efi-amd64-bin
+        # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
+        # so, out of 4 packages, only 2 packages are installed and 2 are excluded
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.patches_to_exclude = ["grub-efi-amd64-bin"]
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('DependencyInstallSuccessfully')
+        # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
+        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
+        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
+        self.assertEqual(2, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_arch_dependency_install_success(self):
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        # Path change
+        runtime.set_legacy_test_type('ArchDependency')
+        # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
+        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
+        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
+        self.assertEqual(4, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
     def test_healthstore_writes(self):
         self.healthstore_writes_helper("HealthStoreId", None, expected_patch_version="HealthStoreId")
         self.healthstore_writes_helper("HealthStoreId", "MaintenanceRunId", expected_patch_version="HealthStoreId")
