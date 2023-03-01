@@ -285,36 +285,6 @@ class PatchInstaller(object):
 
         return installed_update_count, patch_installation_successful, maintenance_window_exceeded
 
-    # def is_reboot_pending(self):
-    #     """ Checks if there is a pending reboot on the machine. """
-    #     try:
-    #         pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)
-    #         pending_processes_exists = self.package_manager.do_processes_require_restart()
-    #         self.composite_logger.log_debug(" - Reboot required debug flags: " + str(pending_file_exists) + ", " + str(pending_processes_exists) + ".")
-    #         is_reboot_required = pending_file_exists or pending_processes_exists
-    #
-    #         # Use Ubuntu Pro Client api in case of Ubuntu VMs.
-    #         if self.env_layer.get_package_manager() != Constants.APT:
-    #             return is_reboot_required
-    #         else:
-    #             self.composite_logger.log_debug("package_manager is AptitudePackageManager.")
-    #             is_pro_api_success, pro_reboot_status = self.package_manager.is_reboot_pending()
-    #             self.composite_logger.log_debug("is_pro_api_success: {0}, reboot_status {1}".format(is_pro_api_success, pro_reboot_status))
-    #
-    #             # Ubuntu Pro Client api failed. return default status.
-    #             if not is_pro_api_success:
-    #                 return is_reboot_required
-    #
-    #             # Compare Ubuntu Pro Client result and default result. Log if there is mismatch.
-    #             if is_reboot_required != pro_reboot_status:
-    #                 self.composite_logger.log_debug("Reboot status mismatch. pro = {0}, default = {1}".format(pro_reboot_status, is_reboot_required))
-    #
-    #             # Ubuntu Pro Client result is considered truth even if there is mismatch.
-    #             return pro_reboot_status
-    #     except Exception as error:
-    #         self.composite_logger.log_error('Error while checking for reboot pending: ' + repr(error))
-    #         return True     # defaults for safety
-
     def mark_installation_completed(self):
         """ Marks Installation operation as completed by updating the status of PatchInstallationSummary as success and patch metadata to be sent to healthstore.
         This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as completed only after the implicit (2nd) assessment operation """

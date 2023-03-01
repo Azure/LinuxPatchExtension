@@ -25,12 +25,19 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 class MockSystemModules:
     def assign_sys_modules_with_mock_module(self, module_name, mock_module):
+        # In this function, we are mocking the pro module. In Python 2, a module is checked before loading the submodule.
+        # But Python3, sys.modules support the check for full string in one go (like a dictionary).
+        # e.g., for module 'uaclient.api.u.pro.version.v1', in python 2, we need to mock import uaclient, uaclient.api, ... until the full string.
+        # for python 3, only mocking the full string will suffice.
+        # So, this function will be used when python2 is used to mock all the submodules.
         parts = module_name.split('.')
         for i in range(len(parts)):
             sub_module = ".".join(parts[:i + 1])
             sys.modules[sub_module] = mock_module
 
     def mock_unimport_module(self, module_name):
+        # For unimport, in python3, it's just resetting the "module_name" value in the sys.modules dictionary to empty.
+        # For python2, just resetting the first level will do. But for safety, we reset the whole submodules too.
         if sys.version_info[0] == 3:
             sys.modules[module_name] = ''
         else:
