@@ -98,7 +98,7 @@ class TestUbuntuProClient(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
-    def mock_run_command_output_raise_exception(self):
+    def mock_run_command_output_raise_exception(self, cmd="", output=False, chk_err=False):
         raise
 
     def test_install_or_update_pro_success(self):
