@@ -346,6 +346,29 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
+    def test_dependent_package_excluded_and_not_enough_time_for_batch_patching(self):
+        # exclusion list contains grub-efi-amd64-bin
+        # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
+        # so, out of 4 packages, only 2 packages are installed and 2 are excluded.
+        # total packages to install is 2, reboot_setting is 'Never', so cutoff time for batch = 2*5 = 10
+        # window size is 60 minutes, let time remain = 9 minutes so that not enough time to install in batch
+        # So td = 60-9 = 51
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.patches_to_exclude = ["grub-efi-amd64-bin"]
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('DependencyInstallSuccessfully')
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        self.assertEqual(2, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
     def test_arch_dependency_install_success(self):
         current_time = datetime.datetime.utcnow()
         td = datetime.timedelta(hours=0, minutes=20)
@@ -364,6 +387,39 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertEqual(4, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_no_updates_to_install(self):
+        # Verify that if there are no updates available then also install_updates method runs successfully
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        # Path change. There is no path as NoUpdatesToInstall so the command to get available updates will return empty string
+        runtime.set_legacy_test_type('NoUpdatesToInstall')
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        self.assertEqual(0, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+    def test_get_remaining_packages_to_install(self):
+        argument_composer = ArgumentComposer()
+        # including 3 packages. excluding 1 package.
+        # But grub-efi-amd64-signed is dependent on grub-efi-amd64-bin so grub-efi-amd64-signed is also excluded
+        argument_composer.patches_to_include = ["git-man", "git", "grub-efi-amd64-signed"]
+        argument_composer.patches_to_exclude = ["grub-efi-amd64-bin"]
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change.
+        runtime.set_legacy_test_type('DependencyInstallSuccessfully')
+        packages, packages_versions = runtime.patch_installer.get_remaining_packages_to_install(runtime.package_manager)
+        self.assertTrue(len(packages) == 2)
+        self.assertTrue(len(packages_versions) == 2)
+        self.assertTrue( "git-man" in packages)
+        self.assertTrue( "git" in packages)
         runtime.stop()
 
     def test_healthstore_writes(self):
