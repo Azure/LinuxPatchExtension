@@ -583,6 +583,18 @@ class TestYumPackageManager(unittest.TestCase):
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
 
+    def test_is_reboot_pending_return_true_when_exception_raised(self):
+        package_manager = self.container.get('package_manager')
+        backup_do_process_require_restart = package_manager.do_processes_require_restart
+        package_manager.do_processes_require_restart = self.mock_do_processes_require_restart_raise_exception
+
+        self.assertTrue(package_manager.is_reboot_pending())
+
+        package_manager.do_processes_require_restart = backup_do_process_require_restart
+
+    def mock_do_processes_require_restart_raise_exception(self):
+        raise
+
 
 if __name__ == '__main__':
     unittest.main()

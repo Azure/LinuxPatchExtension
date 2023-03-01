@@ -635,6 +635,17 @@ class TestZypperPackageManager(unittest.TestCase):
         package_manager.invoke_package_manager(cmd)
         self.assertTrue(package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False))
 
+    def test_is_reboot_pending_return_true_when_exception_raised(self):
+        package_manager = self.container.get('package_manager')
+        backup_do_process_require_restart = package_manager.do_processes_require_restart
+        package_manager.do_processes_require_restart = self.mock_do_processes_require_restart_raise_exception
+
+        self.assertTrue(package_manager.is_reboot_pending())
+
+        package_manager.do_processes_require_restart = backup_do_process_require_restart
+
+    def mock_do_processes_require_restart_raise_exception(self):
+        raise
 
 if __name__ == '__main__':
     unittest.main()
