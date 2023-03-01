@@ -278,37 +278,5 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertRaises(Exception, runtime.patch_installer.write_installer_perf_logs, True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, "")
         runtime.stop()
 
-    def mock_is_reboot_pending_returns_True(self):
-        return True, True
-
-    def test_is_reboot_pending_pro_client_success(self):
-        version_mock = MockVersionResult()
-        version_mock.mock_import_uaclient_version_module('version', 'mock_version')
-        reboot_mock = MockRebootRequiredResult()
-        reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_no')
-        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
-        backup_AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
-        self.assertFalse(runtime.package_manager.is_reboot_pending())
-
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_AptitudePackageManager__pro_client_prereq_met
-        version_mock.mock_unimport_uaclient_version_module()
-        reboot_mock.mock_unimport_uaclient_reboot_required_module()
-
-    def test_is_reboot_pending_test_mismatch(self):
-        version_mock = MockVersionResult()
-        version_mock.mock_import_uaclient_version_module('version', 'mock_version')
-        reboot_mock = MockRebootRequiredResult()
-        reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
-        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
-        backup_package_manager_is_reboot_pending = runtime.package_manager.is_reboot_pending
-        runtime.package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_True
-
-        self.assertTrue(runtime.package_manager.is_reboot_pending())
-
-        runtime.package_manager.is_reboot_pending = backup_package_manager_is_reboot_pending
-        version_mock.mock_unimport_uaclient_version_module()
-        reboot_mock.mock_unimport_uaclient_reboot_required_module()
-
 if __name__ == '__main__':
     unittest.main()

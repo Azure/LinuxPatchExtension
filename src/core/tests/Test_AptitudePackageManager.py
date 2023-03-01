@@ -17,6 +17,7 @@ import json
 import os
 import unittest
 from core.src.bootstrap.Constants import Constants
+from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequiredResult
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -47,6 +48,9 @@ class TestAptitudePackageManager(unittest.TestCase):
         return True
 
     def mock_install_or_update_pro_raise_exception(self):
+        raise Exception
+
+    def mock_is_reboot_pending_raise_exception(self):
         raise Exception
 
     def test_package_manager_no_updates(self):
@@ -412,6 +416,56 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         UbuntuProClient.UbuntuProClient.install_or_update_pro = backup_package_manager_ubuntu_pro_client_install_or_update_pro
 
+    def mock_is_reboot_pending_returns_True(self):
+        return True, True
+
+    def test_is_reboot_pending_pro_client_success(self):
+        version_mock = MockVersionResult()
+        version_mock.mock_import_uaclient_version_module('version', 'mock_version')
+        reboot_mock = MockRebootRequiredResult()
+        reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_no')
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        backup_AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+        self.assertFalse(runtime.package_manager.is_reboot_pending())
+
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_AptitudePackageManager__pro_client_prereq_met
+        version_mock.mock_unimport_uaclient_version_module()
+        reboot_mock.mock_unimport_uaclient_reboot_required_module()
+
+    def test_is_reboot_pending_test_mismatch(self):
+        version_mock = MockVersionResult()
+        version_mock.mock_import_uaclient_version_module('version', 'mock_version')
+        reboot_mock = MockRebootRequiredResult()
+        reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        backup_package_manager_is_reboot_pending = runtime.package_manager.is_reboot_pending
+        runtime.package_manager.ubuntu_pro_client.is_reboot_pending = self.mock_is_reboot_pending_returns_True
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+
+        # test should return true as we fall back to Ubuntu Pro Client api`s result.
+        self.assertTrue(runtime.package_manager.is_reboot_pending())
+
+        runtime.package_manager.is_reboot_pending = backup_package_manager_is_reboot_pending
+        version_mock.mock_unimport_uaclient_version_module()
+        reboot_mock.mock_unimport_uaclient_reboot_required_module()
+
+    def test_is_reboot_pending_test_raises_exception(self):
+        version_mock = MockVersionResult()
+        version_mock.mock_import_uaclient_version_module('version', 'mock_version')
+        reboot_mock = MockRebootRequiredResult()
+        reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        backup_package_manager_is_reboot_pending = runtime.package_manager.is_reboot_pending
+        runtime.package_manager.ubuntu_pro_client.is_reboot_pending = self.mock_is_reboot_pending_raise_exception
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+
+        # test returns true because, we return True if there is exception.
+        self.assertTrue(runtime.package_manager.is_reboot_pending())
+
+        runtime.package_manager.is_reboot_pending = backup_package_manager_is_reboot_pending
+        version_mock.mock_unimport_uaclient_version_module()
+        reboot_mock.mock_unimport_uaclient_reboot_required_module()
 
 if __name__ == '__main__':
     unittest.main()

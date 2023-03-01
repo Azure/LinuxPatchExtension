@@ -588,9 +588,11 @@ class AptitudePackageManager(PackageManager):
                 and self.__is_minimum_required_python_installed():
             self.ubuntu_pro_client.install_or_update_pro()
             self.__pro_client_prereq_met = self.__is_pro_client_prereq_met()
+            return True
         else:
             # Log each condition for debug.
             self.composite_logger.log_debug("Feature_Enabled = {0}, OS Version = {1}, python {2}".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed()))
+            return False
 
     def __get_os_major_version(self):
         """get the OS major version"""
