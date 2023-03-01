@@ -367,13 +367,13 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         package_manager._AptitudePackageManager__pro_client_prereq_met = False
 
-        self.assertTupleEqual((False, False), package_manager.is_reboot_pending())
+        self.assertFalse(package_manager.is_reboot_pending())
 
     def test_is_reboot_pending_prerequisite_met_should_return_true(self):
         package_manager = self.container.get('package_manager')
         package_manager._AptitudePackageManager__pro_client_prereq_met = True
 
-        self.assertTrue(True, package_manager.is_reboot_pending()[0])
+        self.assertTrue(True, package_manager.is_reboot_pending())
 
     def test_is_pro_client_prereq_met_should_return_false_for_unsupported_os_version(self):
         package_manager = self.container.get('package_manager')

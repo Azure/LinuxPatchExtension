@@ -289,7 +289,7 @@ class TestPatchInstaller(unittest.TestCase):
         runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
         backup_AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
         runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
-        self.assertFalse(runtime.patch_installer.is_reboot_pending())
+        self.assertFalse(runtime.package_manager.is_reboot_pending())
 
         runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_AptitudePackageManager__pro_client_prereq_met
         version_mock.mock_unimport_uaclient_version_module()
@@ -304,7 +304,7 @@ class TestPatchInstaller(unittest.TestCase):
         backup_package_manager_is_reboot_pending = runtime.package_manager.is_reboot_pending
         runtime.package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_True
 
-        self.assertTrue(runtime.patch_installer.is_reboot_pending())
+        self.assertTrue(runtime.package_manager.is_reboot_pending())
 
         runtime.package_manager.is_reboot_pending = backup_package_manager_is_reboot_pending
         version_mock.mock_unimport_uaclient_version_module()

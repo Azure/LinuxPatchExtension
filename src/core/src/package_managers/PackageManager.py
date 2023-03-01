@@ -48,6 +48,9 @@ class PackageManager(object):
         self.STR_OBSOLETED = "Package <PACKAGE> is obsoleted"
         self.STR_REPLACED = "\nReplaced:\n"
 
+        # Primarily for debian-based but generalizing for back-compat on customer-driven scenarios
+        self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
+
     __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
 
     @abstractmethod
@@ -373,6 +376,11 @@ class PackageManager(object):
         return True
 
     # endregion
+
+    @abstractmethod
+    def is_reboot_pending(self):
+        """ Checks if there is a pending reboot on the machine. """
+        pass
 
     @abstractmethod
     def do_processes_require_restart(self):

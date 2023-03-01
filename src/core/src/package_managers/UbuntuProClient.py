@@ -30,10 +30,13 @@ class UbuntuProClient:
             code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_install_cmd, False, False)
             if code == 0:
                 self.composite_logger.log_debug("Ubuntu Pro Client installation successful. " + output)
+                return True
             else:
                 self.composite_logger.log_debug("Ubuntu Pro Client installation failed. " + output)
+                return False
         except Exception as error:
             self.composite_logger.log_debug("Exception in installing Ubuntu Pro Client installation " + repr(error))
+            return False
 
     def is_pro_working(self):
         """check if pro version api returns the version without any errors/warnings."""

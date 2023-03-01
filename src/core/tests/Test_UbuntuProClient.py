@@ -103,17 +103,17 @@ class TestUbuntuProClient(unittest.TestCase):
 
     def test_install_or_update_pro_success(self):
         package_manager = self.container.get('package_manager')
-        self.assertIsNone(package_manager.ubuntu_pro_client.install_or_update_pro())
+        self.assertTrue(package_manager.ubuntu_pro_client.install_or_update_pro())
 
     def test_install_or_update_pro_failure(self):
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
-        self.assertIsNone(package_manager.ubuntu_pro_client.install_or_update_pro())
+        self.assertFalse(package_manager.ubuntu_pro_client.install_or_update_pro())
 
     def test_install_or_update_pro_exception(self):
         package_manager = self.container.get('package_manager')
         package_manager.env_layer.run_command_output = self.mock_run_command_output_raise_exception
-        self.assertIsNone(package_manager.ubuntu_pro_client.install_or_update_pro())
+        self.assertFalse(package_manager.ubuntu_pro_client.install_or_update_pro())
 
     def test_is_pro_working_success(self):
         obj = MockVersionResult()
