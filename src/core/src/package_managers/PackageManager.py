@@ -173,7 +173,7 @@ class PackageManager(object):
 
     # region Install Update
     def get_install_command(self, cmd, packages, package_versions):
-        """ Composes the install command for one or more packages with versions"""
+        """ Composes the installation command for one or more packages with versions"""
         composite_cmd = cmd
         for index, package in enumerate(packages):
             if index != 0:

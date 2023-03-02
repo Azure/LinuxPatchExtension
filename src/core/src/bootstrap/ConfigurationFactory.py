@@ -14,7 +14,7 @@
 #
 # Requires Python 2.7+
 
-""" Configure factory. This module populates configuration based on package manager and environment, e.g. TEST/DEV/PROD"""
+""" Configuration Factory. This module populates configuration based on package manager and environment, e.g. TEST/DEV/PROD"""
 from __future__ import print_function
 import os
 import time
@@ -37,16 +37,15 @@ from core.src.local_loggers.FileLogger import FileLogger
 from core.src.local_loggers.CompositeLogger import CompositeLogger
 
 from core.src.package_managers.AptitudePackageManager import AptitudePackageManager
+from core.src.package_managers.RPMOSTreeManager import RPMOSTreeManager
 from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
 
-from core.src.service_interfaces.LifecycleManager import LifecycleManager
 from core.src.service_interfaces.LifecycleManagerAzure import LifecycleManagerAzure
 from core.src.service_interfaces.LifecycleManagerArc import LifecycleManagerArc                                                      
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 
-# Todo: find a different way to import these
 try:
     import urllib2 as urlreq   #Python 2.x
 except:
@@ -69,14 +68,17 @@ class ConfigurationFactory(object):
 
         self.configurations = {
             'apt_prod_config':    self.new_prod_configuration(Constants.APT, AptitudePackageManager),
+            'rpm_ostree_prod_config' : self.new_prod_configuration(Constants.RPM_OSTree, RPMOSTreeManager),
             'yum_prod_config':    self.new_prod_configuration(Constants.YUM, YumPackageManager),
             'zypper_prod_config': self.new_prod_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_dev_config':     self.new_dev_configuration(Constants.APT, AptitudePackageManager),
+            'rpm_ostree_dev_config' : self.new_dev_configuration(Constants.RPM_OSTree, RPMOSTreeManager),
             'yum_dev_config':     self.new_dev_configuration(Constants.YUM, YumPackageManager),
             'zypper_dev_config':  self.new_dev_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_test_config':    self.new_test_configuration(Constants.APT, AptitudePackageManager),
+            'rpm_ostree_test_config' : self.new_test_configuration(Constants.RPM_OSTree, RPMOSTreeManager),
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
             'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
         }
@@ -112,7 +114,7 @@ class ConfigurationFactory(object):
             print ("Error: Environment configuration not supported - " + str(env))
             return None
 
-        if str(package_manager_name) not in [Constants.APT, Constants.YUM, Constants.ZYPPER]:
+        if str(package_manager_name) not in [Constants.APT, Constants.RPM_OSTree, Constants.YUM, Constants.ZYPPER]:
             print ("Error: Package manager configuration not supported - " + str(package_manager_name))
             return None
 

@@ -180,6 +180,7 @@ class Constants(object):
     # Package Managers
     APT = 'apt'
     YUM = 'yum'
+    RPM_OSTree = 'rpm_ostree'
     ZYPPER = 'zypper'
 
     # Package Statuses
