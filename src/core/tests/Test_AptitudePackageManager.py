@@ -467,5 +467,15 @@ class TestAptitudePackageManager(unittest.TestCase):
         version_mock.mock_unimport_uaclient_version_module()
         reboot_mock.mock_unimport_uaclient_reboot_required_module()
 
+    def test_check_pro_client_prerequisites_should_return_false(self):
+        package_manager = self.container.get('package_manager')
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_focal
+        package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
+
+        self.assertFalse(package_manager.check_pro_client_prerequisites())
+
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
+
 if __name__ == '__main__':
     unittest.main()
