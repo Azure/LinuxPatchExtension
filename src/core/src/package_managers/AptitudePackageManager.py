@@ -68,13 +68,11 @@ class AptitudePackageManager(PackageManager):
         self.ESM_MARKER = "The following packages could receive security updates with UA Infra: ESM service enabled:"
 
         # Ubuntu Pro Client pre-requisite checks.
-        try:
-            # This flag will be used to determine if Ubuntu Pro Client can be used for querying reboot status or get packages list.
-            self.__pro_client_prereq_met = False
-            self.ubuntu_pro_client = UbuntuProClient(env_layer, composite_logger)
-            self.check_pro_client_prerequisites()
-        except Exception as error:
-            self.composite_logger.log_debug("Ubuntu Pro Client pre-requisite check failed. + " + repr(error))
+
+        # This flag will be used to determine if Ubuntu Pro Client can be used for querying reboot status or get packages list.
+        self.__pro_client_prereq_met = False
+        self.ubuntu_pro_client = UbuntuProClient(env_layer, composite_logger)
+        self.check_pro_client_prerequisites()
 
     def refresh_repo(self):
         self.composite_logger.log("\nRefreshing local repo...")
@@ -583,15 +581,19 @@ class AptitudePackageManager(PackageManager):
             return False
 
     def check_pro_client_prerequisites(self):
-        if Constants.UbuntuProClientSettings.FEATURE_ENABLED \
-                and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED \
-                and self.__is_minimum_required_python_installed():
-            self.ubuntu_pro_client.install_or_update_pro()
-            self.__pro_client_prereq_met = self.__is_pro_client_prereq_met()
-            return True
-        else:
-            # Log each condition for debug.
-            self.composite_logger.log_debug("Feature_Enabled = {0}, OS Version = {1}, python {2}".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed()))
+        try:
+            if Constants.UbuntuProClientSettings.FEATURE_ENABLED \
+                    and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED \
+                    and self.__is_minimum_required_python_installed():
+                self.ubuntu_pro_client.install_or_update_pro()
+                self.__pro_client_prereq_met = self.__is_pro_client_prereq_met()
+                return True
+            else:
+                # Log each condition for debug.
+                self.composite_logger.log_debug("Feature_Enabled = {0}, OS Version = {1}, python {2}".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed()))
+                return False
+        except Exception as error:
+            self.composite_logger.log_debug("Ubuntu Pro Client pre-requisite check failed. + " + repr(error))
             return False
 
     def __get_os_major_version(self):

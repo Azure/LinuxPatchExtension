@@ -18,7 +18,6 @@ import datetime
 import json
 import unittest
 from core.src.bootstrap.Constants import Constants
-from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequiredResult
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 from core.src.core_logic.Stopwatch import Stopwatch
