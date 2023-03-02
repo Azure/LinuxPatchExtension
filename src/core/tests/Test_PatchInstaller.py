@@ -306,6 +306,85 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
+    def test_include_dependency_apt(self):
+        # all_packages contains: git-man, git, grub-efi-amd64-signed and grub-efi-amd64-bin
+        # All the classifications selected and hence all packages to install
+        # Batch contains packages git-man, git and grub-efi-amd64-signed
+        # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin so include_dependencies should add grub-efi-amd64-bin in package_and_dependencies
+        argument_composer = ArgumentComposer()
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('DependencyInstallFailed')
+        all_packages, all_packages_version = runtime.patch_installer.get_remaining_packages_to_install(runtime.package_manager)
+        packages = list(all_packages)
+        package_versions = list(all_packages_version)
+        packages_in_batch = packages[0:3]
+        package_versions_in_batch = package_versions[0:3]
+        package_and_dependencies = list(packages_in_batch)
+        package_and_dependency_versions = list(package_versions_in_batch)
+        self.assertEqual(3, len(package_and_dependencies))
+        self.assertEqual(3, len(package_and_dependency_versions))
+        self.assertTrue("git-man" in package_and_dependencies)
+        self.assertTrue("git" in package_and_dependencies)
+        self.assertTrue("grub-efi-amd64-signed" in package_and_dependencies)
+        self.assertTrue("grub-efi-amd64-bin" not in package_and_dependencies)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        self.assertEqual(4, len(package_and_dependencies))
+        self.assertEqual(4, len(package_and_dependency_versions))
+        self.assertTrue("git-man" in package_and_dependencies)
+        self.assertTrue("git" in package_and_dependencies)
+        self.assertTrue("grub-efi-amd64-signed" in package_and_dependencies)
+        self.assertTrue("grub-efi-amd64-bin" in package_and_dependencies)
+        runtime.stop()
+
+    def test_include_dependency_yum(self):
+        # all_packages contains: selinux-policy.noarch, selinux-policy-targeted.noarch, libgcc.i686, tar.x86_64 and tcpdump.x86_64
+        # All the classifications selected and hence all packages to install
+        # Batch contains the package selinux-policy.noarch
+        # selinux-policy.noarch is dependent on selinux-policy-targeted.noarch so include_dependencies should add selinux-policy-targeted.noarch in package_and_dependencies
+        argument_composer = ArgumentComposer()
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        # Path change
+        runtime.set_legacy_test_type('HappyPath')
+        all_packages, all_packages_version = runtime.patch_installer.get_remaining_packages_to_install(runtime.package_manager)
+        packages = list(all_packages)
+        package_versions = list(all_packages_version)
+        packages_in_batch = ["selinux-policy.noarch"]
+        package_versions_in_batch = ["3.13.1-102.el7_3.16"]
+        package_and_dependencies = list(packages_in_batch)
+        package_and_dependency_versions = list(package_versions_in_batch)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        self.assertEqual(2, len(package_and_dependencies))
+        self.assertEqual(2, len(package_and_dependency_versions))
+        self.assertTrue(package_and_dependencies[0] == "selinux-policy.noarch")
+        self.assertTrue(package_and_dependency_versions[0] == "3.13.1-102.el7_3.16")
+        self.assertTrue(package_and_dependencies[1] == "selinux-policy-targeted.noarch")
+        self.assertTrue(package_and_dependency_versions[1] == "3.13.1-102.el7_3.16")
+        runtime.stop()
+
+    def test_include_dependency_zypper(self):
+        # all_packages contains: kernel-default, libgcc and libgoa-1_0-0
+        # All the classifications selected and hence all packages to install
+        # Batch contains the package libgcc
+        # libgcc is not dependent on any package so include_dependencies should not add any package in package_and_dependencies
+        argument_composer = ArgumentComposer()
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        # Path change
+        runtime.set_legacy_test_type('HappyPath')
+        all_packages, all_packages_version = runtime.patch_installer.get_remaining_packages_to_install(runtime.package_manager)
+        packages = list(all_packages)
+        package_versions = list(all_packages_version)
+        packages_in_batch = ["libgcc"]
+        package_versions_in_batch = ["5.60.7-8.1"]
+        package_and_dependencies = list(packages_in_batch)
+        package_and_dependency_versions = list(package_versions_in_batch)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        self.assertEqual(1, len(package_and_dependencies))
+        self.assertEqual(1, len(package_and_dependency_versions))
+        self.assertTrue(package_and_dependencies[0] == "libgcc")
+        self.assertTrue(package_and_dependency_versions[0] == "5.60.7-8.1")
+        runtime.stop()
+
     def test_skip_package_version_UA_ESM_REQUIRED(self):
         current_time = datetime.datetime.utcnow()
         td = datetime.timedelta(hours=0, minutes=20)
@@ -354,7 +433,7 @@ class TestPatchInstaller(unittest.TestCase):
         # window size is 60 minutes, let time remain = 9 minutes so that not enough time to install in batch
         # So td = 60-9 = 51
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=20)
+        td = datetime.timedelta(hours=0, minutes=51)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.patches_to_exclude = ["grub-efi-amd64-bin"]
