@@ -539,18 +539,15 @@ class AptitudePackageManager(PackageManager):
         try:
             pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)
             pending_processes_exists = self.do_processes_require_restart()
-            self.composite_logger.log_debug(" - Reboot required debug flags: " + str(pending_file_exists) + ", " + str(
-                pending_processes_exists) + ".")
+            self.composite_logger.log_debug(" - Reboot required debug flags: " + str(pending_file_exists) + ", " + str(pending_processes_exists) + ".")
             is_reboot_required = pending_file_exists or pending_processes_exists
 
-            # Use Ubuntu Pro Client api in case of Ubuntu VMs.
+            # Use Ubuntu Pro Client api if available.
             if not self.__pro_client_prereq_met:
-                self.composite_logger.log_debug("Ubuntu Pro Client pre-requisite not met.")
                 return is_reboot_required
 
             is_pro_api_success, pro_reboot_status = self.ubuntu_pro_client.is_reboot_pending()
-            self.composite_logger.log_debug(
-                "is_pro_api_success: {0}, reboot_status {1}".format(is_pro_api_success, pro_reboot_status))
+            self.composite_logger.log_debug("Ubuntu Pro Client reboot status check completed. [Successful={0}][RebootStatus={1}]".format(is_pro_api_success, pro_reboot_status))
 
             # Ubuntu Pro Client api failed. return default status.
             if not is_pro_api_success:
@@ -558,9 +555,7 @@ class AptitudePackageManager(PackageManager):
 
             # Compare Ubuntu Pro Client result and default result. Log if there is mismatch.
             if is_reboot_required != pro_reboot_status:
-                self.composite_logger.log_debug(
-                    "Reboot status mismatch. pro = {0}, default = {1}".format(pro_reboot_status,
-                                                                              is_reboot_required))
+                self.composite_logger.log_debug("Reboot status mismatch. [ProClient={0}][Default={1}]".format(pro_reboot_status, is_reboot_required))
 
             # Ubuntu Pro Client result is considered truth even if there is mismatch.
             return pro_reboot_status
@@ -568,25 +563,13 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_error('Error while checking for reboot pending: ' + repr(error))
             return True  # defaults for safety
 
-    def __is_pro_client_prereq_met(self):
-        """check required conditions to use Ubuntu Pro Client"""
-        if Constants.UbuntuProClientSettings.FEATURE_ENABLED \
-                and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED \
-                and self.__is_minimum_required_python_installed() \
-                and self.ubuntu_pro_client.is_pro_working():
-            return True
-        else:
-            # Log each condition for debug.
-            self.composite_logger.log_debug("Feature_Enabled = {0}, OS Version = {1}, python {2}".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed()))
-            return False
-
     def check_pro_client_prerequisites(self):
         try:
             if Constants.UbuntuProClientSettings.FEATURE_ENABLED \
                     and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED \
                     and self.__is_minimum_required_python_installed():
                 self.ubuntu_pro_client.install_or_update_pro()
-                self.__pro_client_prereq_met = self.__is_pro_client_prereq_met()
+                self.__pro_client_prereq_met = self.ubuntu_pro_client.is_pro_working()
                 return True
             else:
                 # Log each condition for debug.

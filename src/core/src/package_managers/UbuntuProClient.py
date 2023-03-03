@@ -29,10 +29,10 @@ class UbuntuProClient:
             # Install Ubuntu Pro Client.
             code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_install_cmd, False, False)
             if code == 0:
-                self.composite_logger.log_debug("Ubuntu Pro Client installation successful. " + output)
+                self.composite_logger.log_debug("Ubuntu Pro Client installation successful.")
                 return True
             else:
-                self.composite_logger.log_debug("Ubuntu Pro Client installation failed. " + output)
+                self.composite_logger.log_debug("Ubuntu Pro Client installation failed.")
                 return False
         except Exception as error:
             self.composite_logger.log_debug("Exception in installing Ubuntu Pro Client installation " + repr(error))
@@ -41,7 +41,6 @@ class UbuntuProClient:
     def is_pro_working(self):
         """check if pro version api returns the version without any errors/warnings."""
         try:
-            self.composite_logger.log_debug("Ubuntu Pro Client try importing.")
             from uaclient.api.u.pro.version.v1 import version
             version_result = version()
             self.composite_logger.log_debug("Ubuntu Pro Client version: " + version_result.installed_version)
@@ -65,7 +64,6 @@ class UbuntuProClient:
         try:
             from uaclient.api.u.pro.security.status.reboot_required.v1 import reboot_required
             result = reboot_required()
-            self.composite_logger.log_debug("Ubuntu Pro Client api reboot status = {0}".format(result.reboot_required))
 
             # Check if the reboot_required is yes. the values "yes-kernel-livepatches-applied"/"no" are considered as reboot not required.
             if result.reboot_required == "yes":

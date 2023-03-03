@@ -386,7 +386,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_focal
         package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
 
-        self.assertFalse(package_manager._AptitudePackageManager__is_pro_client_prereq_met())
+        self.assertFalse(package_manager.check_pro_client_prerequisites())
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
         package_manager.ubuntu_pro_client.is_pro_working = backup_package_manager_ubuntu_pro_client_is_pro_working
@@ -398,7 +398,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         backup_package_manager_is_minimum_required_python_installed = package_manager._AptitudePackageManager__is_minimum_required_python_installed
         package_manager._AptitudePackageManager__is_minimum_required_python_installed = self.mock_minimum_required_python_installed_return_true
 
-        self.assertTrue(package_manager._AptitudePackageManager__is_pro_client_prereq_met())
+        self.assertTrue(package_manager.check_pro_client_prerequisites())
 
         package_manager.ubuntu_pro_client.is_pro_working = backup_package_manager_ubuntu_pro_client_is_pro_working
         package_manager._AptitudePackageManager__is_minimum_required_python_installed = backup_package_manager_is_minimum_required_python_installed
