@@ -571,7 +571,7 @@ class AptitudePackageManager(PackageManager):
                 return True
             else:
                 # Log each condition for debug.
-                self.composite_logger.log_debug("Feature_Enabled = {0}, OS Version = {1}, python {2}".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed()))
+                self.composite_logger.log_debug("ProClientPreReq checks:[IsFeatureEnabled={0}][IsOSVersionCompatible={1}][IsPythonCompatible={2}]".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed()))
                 return False
         except Exception as error:
             self.composite_logger.log_debug("Ubuntu Pro Client pre-requisite check failed. + " + repr(error))
