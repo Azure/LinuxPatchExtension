@@ -29,7 +29,7 @@ class TestPatchInstaller(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def mock_get_remaining_packages_to_install(package_manager2, abc):
+    def mock_get_remaining_packages_to_install(self, package_manager):
         return [], []
 
     def test_yum_install_updates_maintenance_window_exceeded(self):
@@ -62,10 +62,10 @@ class TestPatchInstaller(unittest.TestCase):
         backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
         runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         self.assertEqual(2, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_yum_install_success_not_enough_time_for_batch_patching(self):
@@ -153,10 +153,10 @@ class TestPatchInstaller(unittest.TestCase):
         backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
         runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         self.assertEqual(2, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_zypper_install_fail(self):
@@ -205,10 +205,10 @@ class TestPatchInstaller(unittest.TestCase):
         backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
         runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         self.assertEqual(3, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_apt_install_success_not_enough_time_for_batch_patching(self):
@@ -244,10 +244,10 @@ class TestPatchInstaller(unittest.TestCase):
         backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
         runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         self.assertEqual(4, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_dependency_install_failed(self):
@@ -419,10 +419,10 @@ class TestPatchInstaller(unittest.TestCase):
         backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
         runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         self.assertEqual(2, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_dependent_package_excluded_and_not_enough_time_for_batch_patching(self):
@@ -462,10 +462,10 @@ class TestPatchInstaller(unittest.TestCase):
         backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
         runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         self.assertEqual(4, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
+        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_no_updates_to_install(self):

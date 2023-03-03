@@ -538,7 +538,7 @@ class ZypperPackageManager(PackageManager):
 
         output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_names)
         dependencies = self.extract_dependencies(output, packages)
-        self.composite_logger.log_debug(str(len(dependencies)) + " dependent updates were found for packages '" + str(packages) + "'.")
+        self.composite_logger.log_debug(str(len(dependencies)) + " dependent packages were found for packages '" + str(packages) + "'.")
         return dependencies
 
     def get_product_name(self, package_name):
