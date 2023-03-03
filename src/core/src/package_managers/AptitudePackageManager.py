@@ -565,9 +565,7 @@ class AptitudePackageManager(PackageManager):
 
     def check_pro_client_prerequisites(self):
         try:
-            if Constants.UbuntuProClientSettings.FEATURE_ENABLED \
-                    and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED \
-                    and self.__is_minimum_required_python_installed():
+            if Constants.UbuntuProClientSettings.FEATURE_ENABLED and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED and self.__is_minimum_required_python_installed():
                 self.ubuntu_pro_client.install_or_update_pro()
                 self.__pro_client_prereq_met = self.ubuntu_pro_client.is_pro_working()
                 return True
