@@ -119,8 +119,13 @@ class TestUbuntuProClient(unittest.TestCase):
 
     def test_install_or_update_pro_exception(self):
         package_manager = self.container.get('package_manager')
+        backup_run_command_output = package_manager.env_layer.run_command_output
         package_manager.env_layer.run_command_output = self.mock_run_command_output_raise_exception
+
         self.assertFalse(package_manager.ubuntu_pro_client.install_or_update_pro())
+
+        package_manager.env_layer.run_command_output = backup_run_command_output
+
 
     def test_is_pro_working_success(self):
         obj = MockVersionResult()
