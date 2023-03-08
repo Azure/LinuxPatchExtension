@@ -68,9 +68,7 @@ class AptitudePackageManager(PackageManager):
         self.ESM_MARKER = "The following packages could receive security updates with UA Infra: ESM service enabled:"
 
         # Ubuntu Pro Client pre-requisite checks.
-
-        # This flag will be used to determine if Ubuntu Pro Client can be used for querying reboot status or get packages list.
-        self.__pro_client_prereq_met = False
+        self.__pro_client_prereq_met = False  # This flag will be used to determine if Ubuntu Pro Client can be used for querying reboot status or get packages list.
         self.ubuntu_pro_client = UbuntuProClient(env_layer, composite_logger)
         self.check_pro_client_prerequisites()
 
