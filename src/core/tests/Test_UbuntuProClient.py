@@ -106,7 +106,7 @@ class TestUbuntuProClient(unittest.TestCase):
         self.runtime.stop()
 
     def mock_run_command_output_raise_exception(self, cmd="", output=False, chk_err=False):
-        raise
+        raise Exception
 
     def test_install_or_update_pro_success(self):
         package_manager = self.container.get('package_manager')

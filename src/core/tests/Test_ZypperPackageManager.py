@@ -645,7 +645,7 @@ class TestZypperPackageManager(unittest.TestCase):
         package_manager.do_processes_require_restart = backup_do_process_require_restart
 
     def mock_do_processes_require_restart_raise_exception(self):
-        raise
+        raise Exception
 
 if __name__ == '__main__':
     unittest.main()
