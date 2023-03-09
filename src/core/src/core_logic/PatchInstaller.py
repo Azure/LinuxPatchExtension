@@ -43,9 +43,9 @@ class PatchInstaller(object):
         self.last_still_needed_package_versions = None
         self.progress_template = "[Time available: {0} | A: {1}, S: {2}, F: {3} | D: {4}]\t {5}"
 
-        self.attempted_parent_update_count = 0
-        self.successful_parent_update_count = 0
-        self.failed_parent_update_count = 0
+        self.attempted_parent_package_install_count = 0
+        self.successful_parent_package_install_count = 0
+        self.failed_parent_package_install_count = 0
 
         # Constants
         self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
@@ -168,7 +168,6 @@ class PatchInstaller(object):
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
         # We will see this as packages going from NotSelected --> Installed. We could remove them preemptively from not_included_packages, but we're explicitly choosing not to.
 
-        self.composite_logger.log("\n\nInstalling patches in sequence...")
         self.composite_logger.log("[Progress Legend: (A)ttempted, (S)ucceeded, (F)ailed, (D)ependencies est.* (Important: Dependencies are excluded in all other counts)]")
         installed_update_count = 0  # includes dependencies
 
@@ -186,14 +185,14 @@ class PatchInstaller(object):
 
         stopwatch_for_batch_install_process.stop()
 
-        # Check for packages available to install. After installing packages in batches, there might be still some packages available for installation. These packages should be:
-        # (a) Due to not enough remaining time in maintenance window to install the packages in batch, installing packages in batch is stopped and hence some packages are not installed in batches
-        # (b) Those which were failed while installing in batches
-        # (c) Some new packages available in this brief time when installation in batches was being done
+        # Check for packages available and install them in batches. Some packages may not be installed due to:
+        # (a) Not enough time remaining in maintenance window
+        # (b) Failure during package installation
+        # (c) New packages added during the brief time batch installation was in progress
         packages, package_versions = self.get_remaining_packages_to_install(package_manager)
 
-        batch_processing_perf_log  = {"Installed packages count in batch processing": str(installed_update_count), "number of remaining packages to install": str(len(packages)), 
-                                      Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_installation_successful), "Stopped installation in batch due to not enough remaining time to install in batches": str(maintenance_window_batch_cutoff_reached)}
+        batch_processing_perf_log  = {Constants.PerfLogTrackerParams.TASK: "Installation of packages in batches", "Installed packages count in batch processing": str(installed_update_count), "number of remaining packages to install": str(len(packages)), 
+                                      Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_installation_successful), "Is installation in batches stopped due to not enough remaining time to install in batches": str(maintenance_window_batch_cutoff_reached)}
 
         stopwatch_for_batch_install_process.write_telemetry_for_stopwatch(str(batch_processing_perf_log))
 
@@ -201,15 +200,15 @@ class PatchInstaller(object):
             installed_update_count = self.log_metrics_and_perform_final_reconciliation(package_manager, maintenance_window, patch_installation_successful, False, installed_update_count)
             return installed_update_count, patch_installation_successful, False
         else:
-            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_update_count), str(self.successful_parent_update_count), str(self.failed_parent_update_count), str(installed_update_count - self.successful_parent_update_count),
+            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                         "Following packages are not installed in batch installation: " + str(packages))
             self.composite_logger.log(progress_status)
 
         for package, version in zip(packages, package_versions):
             if package not in self.last_still_needed_packages:
                 self.composite_logger.log("The following package is already installed, it should have been installed as dependent package of some other package: " + package)
-                self.attempted_parent_update_count += 1
-                self.successful_parent_update_count += 1
+                self.attempted_parent_package_install_count += 1
+                self.successful_parent_package_install_count += 1
                 continue
 
             single_package_install_stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
@@ -229,7 +228,7 @@ class PatchInstaller(object):
                 break
 
             # point in time status
-            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_update_count), str(self.successful_parent_update_count), str(self.failed_parent_update_count), str(installed_update_count - self.successful_parent_update_count),
+            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                             "Processing package: " + str(package) + " (" + str(version) + ")")
             if version == Constants.UA_ESM_REQUIRED:
                 progress_status += "[Skipping - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]"
@@ -262,17 +261,17 @@ class PatchInstaller(object):
 
             if install_result == Constants.FAILED:
                 self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.FAILED)
-                self.failed_parent_update_count += 1
+                self.failed_parent_package_install_count += 1
                 patch_installation_successful = False
             elif install_result == Constants.INSTALLED:
                 self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.INSTALLED)
-                self.successful_parent_update_count += 1
+                self.successful_parent_package_install_count += 1
                 if package in self.last_still_needed_packages:
                     index = self.last_still_needed_packages.index(package)
                     self.last_still_needed_packages.pop(index)
                     self.last_still_needed_package_versions.pop(index)
                     installed_update_count += 1
-            self.attempted_parent_update_count += 1
+            self.attempted_parent_package_install_count += 1
 
             number_of_dependencies_installed = 0
             number_of_dependencies_failed = 0
@@ -296,10 +295,11 @@ class PatchInstaller(object):
                     number_of_dependencies_failed += 1
 
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
-            installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_update_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
+            installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_package_install_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
 
-            package_install_perf_log = {"Package Name": package, "Package version": version, "Package and dependencies": str(package_and_dependencies), "Package and dependency versions": str(package_and_dependency_versions),
-                                        "Package install result": str(install_result), "Number of dependencies installed": str(number_of_dependencies_installed), "Number of dependencies failed to install": str(number_of_dependencies_failed)}
+            package_install_perf_log = {Constants.PerfLogTrackerParams.TASK: "Installation of a package", "Package Name": package, "Package version": version, "Package and dependencies": str(package_and_dependencies), 
+                                        "Package and dependency versions": str(package_and_dependency_versions), "Package install result": str(install_result),
+                                        "Number of dependencies installed": str(number_of_dependencies_installed), "Number of dependencies failed to install": str(number_of_dependencies_failed)}
 
             single_package_install_stopwatch.stop_and_write_telemetry(str(package_install_perf_log))
 
@@ -322,7 +322,7 @@ class PatchInstaller(object):
     def log_metrics_and_perform_final_reconciliation(self, package_manager, maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count):
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
-        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_update_count), str(self.successful_parent_update_count), str(self.failed_parent_update_count), str(installed_update_count - self.successful_parent_update_count),
+        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                         "Completed processing packages!")
         self.composite_logger.log(progress_status)
 
@@ -354,7 +354,7 @@ class PatchInstaller(object):
 
     def install_packages_in_batches(self, all_packages, packages, package_versions, maintenance_window, package_manager, simulate=False):
         number_of_batches = int(math.ceil(len(packages) / float(Constants.MAX_BATCH_SIZE_FOR_PACKAGES)))
-        self.composite_logger.log("\nNumber of packages to be installed: " + str(len(packages)) + "\nBatch Size: " + str(Constants.MAX_BATCH_SIZE_FOR_PACKAGES) + "\nNumber of batches: " + str(number_of_batches))
+        self.composite_logger.log("\nDividing package install in batches. \nNumber of packages to be installed: " + str(len(packages)) + "\nBatch Size: " + str(Constants.MAX_BATCH_SIZE_FOR_PACKAGES) + "\nNumber of batches: " + str(number_of_batches))
         installed_update_count = 0
         patch_installation_successful = True
         maintenance_window_batch_cutoff_reached = False
@@ -383,8 +383,8 @@ class PatchInstaller(object):
                 elif packages[index] not in self.last_still_needed_packages:
                     # Should have got installed as dependent package of some other package. Package installation status should also have been set.
                     already_installed_packages.append(package)
-                    self.attempted_parent_update_count += 1
-                    self.successful_parent_update_count += 1
+                    self.attempted_parent_package_install_count += 1
+                    self.successful_parent_package_install_count += 1
                 else:
                     packages_in_batch.append(packages[index])
                     package_versions_in_batch.append(package_versions[index])
@@ -401,7 +401,7 @@ class PatchInstaller(object):
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
 
             # point in time status
-            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_update_count), str(self.successful_parent_update_count), str(self.failed_parent_update_count), str(installed_update_count - self.successful_parent_update_count),
+            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                             "Processing batch index: " + str(batch_index) + ", Number of packages: " + str(len(packages_in_batch)) + "\nProcessing packages: " + str(packages_in_batch))
             self.composite_logger.log(progress_status)
 
@@ -431,7 +431,7 @@ class PatchInstaller(object):
                     if package in packages_in_batch:
                         # parent package
                         self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.FAILED)
-                        self.failed_parent_update_count += 1
+                        self.failed_parent_package_install_count += 1
                         patch_installation_successful = False
                         parent_packages_failed_in_batch_count += 1
                     else:
@@ -441,7 +441,7 @@ class PatchInstaller(object):
                     self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.INSTALLED)
                     if package in packages_in_batch:
                         # parent package
-                        self.successful_parent_update_count += 1
+                        self.successful_parent_package_install_count += 1
                         parent_packages_installed_in_batch_count += 1
                     else:
                         # dependent package
@@ -454,17 +454,18 @@ class PatchInstaller(object):
                         installed_update_count += 1
 
                 if (package in packages_in_batch):
-                    self.attempted_parent_update_count += 1
+                    self.attempted_parent_package_install_count += 1
 
             # Update reboot pending status in status_handler
             self.status_handler.set_reboot_pending(self.is_reboot_pending())
 
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
-            installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_update_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
+            installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_package_install_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
 
-            per_batch_install_perf_log = {"Packages in batch": str(packages_in_batch), "Package and dependencies to install": str(package_and_dependencies), "Package and dependencies version": str(package_and_dependency_versions),
-                                          "Number of parent packages installed": str(parent_packages_installed_in_batch_count), "Number of parent packages failed to install": str(parent_packages_failed_in_batch_count),
-                                          "Number of dependencies installed": str(number_of_dependencies_installed), "Number of dependencies failed to install": str(number_of_dependencies_failed)}
+            per_batch_install_perf_log = {Constants.PerfLogTrackerParams.TASK: "Installation of a batch of packages", "Packages in batch": str(packages_in_batch), "Package and dependencies to install": str(package_and_dependencies),
+                                          "Package and dependencies version": str(package_and_dependency_versions), "Number of parent packages installed": str(parent_packages_installed_in_batch_count),
+                                          "Number of parent packages failed to install": str(parent_packages_failed_in_batch_count), "Number of dependencies installed": str(number_of_dependencies_installed),
+                                          "Number of dependencies failed to install": str(number_of_dependencies_failed)}
 
             per_batch_installation_stopwatch.stop_and_write_telemetry(str(per_batch_install_perf_log))
 
