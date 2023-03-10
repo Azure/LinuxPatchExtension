@@ -53,6 +53,12 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_do_processes_require_restart_raises_exception(self):
         raise Exception
 
+    def mock_is_reboot_pending_returns_True(self):
+        return True, True
+
+    def mock_is_reboot_pending_returns_False(self):
+        return False, False
+
     def test_package_manager_no_updates(self):
         """Unit test for aptitude package manager with no updates"""
         self.runtime.set_legacy_test_type('SadPath')
@@ -415,12 +421,6 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertIsNotNone(obj.ubuntu_pro_client)
 
         UbuntuProClient.UbuntuProClient.install_or_update_pro = backup_package_manager_ubuntu_pro_client_install_or_update_pro
-
-    def mock_is_reboot_pending_returns_True(self):
-        return True, True
-
-    def mock_is_reboot_pending_returns_False(self):
-        return False, False
 
     def test_is_reboot_pending_pro_client_success(self):
         version_mock = MockVersionResult()
