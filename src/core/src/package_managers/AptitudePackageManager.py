@@ -545,6 +545,7 @@ class AptitudePackageManager(PackageManager):
         try:
             default_pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)
             default_pending_processes_exists = self.do_processes_require_restart()
+            reported_reboot_status = default_pending_file_exists or default_pending_processes_exists
         except Exception as error:
             default_exception = repr(error)
             reported_reboot_status = True  # defaults for safety
@@ -555,8 +556,6 @@ class AptitudePackageManager(PackageManager):
 
         if ubuntu_pro_client_check_success:  # Prefer Ubuntu Pro Client reboot status.
             reported_reboot_status = ubuntu_pro_client_reboot_status
-        elif default_exception is None:   # if there is no exception in the default query, check default way to get reboot required.
-            reported_reboot_status = default_pending_file_exists or default_pending_processes_exists
 
         self.composite_logger.log_debug("Reboot required advanced debug flags:[DefaultPendingFileExists={0}][DefaultPendingProcessesExists={1}][UbuntuProClientCheckSuccessful={2}][UbuntuProClientRebootStatus={3}][ReportedRebootStatus={4}][DefaultException={5}]".format(default_pending_file_exists, default_pending_processes_exists, ubuntu_pro_client_check_success, ubuntu_pro_client_reboot_status, reported_reboot_status, default_exception))
         return reported_reboot_status
