@@ -71,6 +71,8 @@ class PatchAssessor(object):
 
                 # All updates
                 retry_count = retry_count + 1
+                
+                # All updates
                 packages, package_versions = self.package_manager.get_all_updates()
                 self.telemetry_writer.write_event("Full assessment: " + str(packages), Constants.TelemetryEventLevel.Verbose)
                 self.status_handler.set_package_assessment_status(packages, package_versions)
