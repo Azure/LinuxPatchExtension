@@ -41,14 +41,9 @@ class ConfigurePatchingProcessor(object):
         try:
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
             self.__raise_if_telemetry_unsupported()
-            self.composite_logger.log('\nStarting configure patching...')
+            self.composite_logger.log("\nStarting configure patching... [MachineId: " + self.env_layer.platform.node() +"][ActivityId: " + self.execution_config.activity_id +"][StartTime: " + self.execution_config.start_time +"]")
 
             self.__report_consolidated_configure_patch_status(status=Constants.STATUS_TRANSITIONING)
-            self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
-            self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
-            self.composite_logger.log("Operation request time: " + self.execution_config.start_time)
-
-            # do not change the order of execution below
             self.__try_set_patch_mode()
             self.__try_set_auto_assessment_mode()
 
@@ -114,7 +109,7 @@ class ConfigurePatchingProcessor(object):
             self.composite_logger.log_debug("Completed processing automatic assessment mode configuration.")
         except Exception as error:
             self.composite_logger.log_error("Error while processing automatic assessment mode configuration. [Error={0}]".format(repr(error)))
-            self.__report_consolidated_configure_patch_status(status=Constants.STATUS_ERROR, error=error)   # this needs to be error to capture it in the auto-assessment data set
+            self.__report_consolidated_configure_patch_status(status=Constants.STATUS_TRANSITIONING, error=error)
             self.configure_patching_successful &= False
 
         # revert operation back to parent

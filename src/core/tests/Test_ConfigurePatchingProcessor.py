@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import datetime
 import json
 import os
 import re
@@ -21,7 +20,6 @@ import unittest
 from core.src.CoreMain import CoreMain
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
-from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
@@ -78,6 +76,11 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         # stop test runtime
         runtime.stop()
+
+    #region Mocks
+    def mock_package_manager_get_current_auto_os_patch_state_returns_unknown(self):
+        return Constants.AutomaticOSPatchStates.UNKNOWN
+    #endregion Mocks
 
     def test_operation_success_for_installation_request_with_configure_patching(self):
         argument_composer = ArgumentComposer()
@@ -172,6 +175,34 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        runtime.stop()
+
+    def test_patch_mode_set_failure_for_configure_patching(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.set_legacy_test_type('HappyPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # mock swap
+        backup_package_manager_get_current_auto_os_patch_state = runtime.package_manager.get_current_auto_os_patch_state
+        runtime.package_manager.get_current_auto_os_patch_state = self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+
+        #restore
+        runtime.package_manager.get_current_auto_os_patch_state = backup_package_manager_get_current_auto_os_patch_state
+
         runtime.stop()
 
     def test_configure_patching_with_assessment_mode_by_platform(self):
