@@ -728,7 +728,7 @@ class StatusHandler(object):
                 if self.__try_add_error(self.__configure_patching_errors, error_detail):
                     self.__configure_patching_top_level_error_count += 1
 
-            # retain previously set status, code, patchMode and M for configure patching substatus
+            # retain previously set status, code, patchMode and assessmentMode for configure patching substatus
             if self.__configure_patching_substatus_json is not None:
                 automatic_os_patch_state = json.loads(self.__configure_patching_substatus_json["formattedMessage"]["message"])["automaticOSPatchState"]
                 auto_assessment_status = self.__json_try_get_key_value(self.__configure_patching_substatus_json["formattedMessage"]["message"],"autoAssessmentStatus","{}")
