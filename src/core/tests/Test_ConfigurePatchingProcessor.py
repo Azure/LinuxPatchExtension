@@ -203,14 +203,16 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
 
         # check status file for configure patching patch state
-        self.assertEqual(len(substatus_file_data), 1)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.ENABLED)  # no change is made on Auto OS updates for patch mode 'ImageDefault'
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
         # check status file for configure patching assessment state
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
 
         # stop test runtime
@@ -246,14 +248,16 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         # check status file for configure patching patch state
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
-        self.assertEqual(len(substatus_file_data), 1)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled on patch mode 'AutomaticByPlatform'
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
         # check status file for configure patching assessment state
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
 
         # stop test runtime
