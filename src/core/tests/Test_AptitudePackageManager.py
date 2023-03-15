@@ -380,10 +380,14 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertFalse(package_manager.is_reboot_pending())
 
     def test_is_reboot_pending_prerequisite_met_should_return_true(self):
+        reboot_mock = MockRebootRequiredResult()
+        reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
         package_manager = self.container.get('package_manager')
         package_manager._AptitudePackageManager__pro_client_prereq_met = True
 
-        self.assertTrue(True, package_manager.is_reboot_pending())
+        self.assertTrue(package_manager.is_reboot_pending())
+
+        reboot_mock.mock_unimport_uaclient_reboot_required_module()
 
     def test_is_pro_client_prereq_met_should_return_false_for_unsupported_os_version(self):
         package_manager = self.container.get('package_manager')
