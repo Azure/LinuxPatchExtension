@@ -542,8 +542,6 @@ class LegacyEnvLayerExtensions():
                 elif self.legacy_package_manager_name is Constants.APT:
                     if cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
                         code = 1
-                    else:
-                        output = ''
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("microcode_ctl") > -1:
                         code = 1

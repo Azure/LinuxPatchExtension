@@ -67,6 +67,9 @@ class TestZypperPackageManager(unittest.TestCase):
     def mock_write_with_retry_assert_is_5(self, file_path_or_handle, data, mode='a+'):
         self.assertNotEqual(data.find("ZYPP_LOCK_TIMEOUT=5"), -1)
 
+    def mock_do_processes_require_restart_raise_exception(self):
+        raise Exception
+
     def test_package_manager_no_updates(self):
         """Unit test for zypper package manager with no updates"""
         # Path change
@@ -644,8 +647,6 @@ class TestZypperPackageManager(unittest.TestCase):
 
         package_manager.do_processes_require_restart = backup_do_process_require_restart
 
-    def mock_do_processes_require_restart_raise_exception(self):
-        raise Exception
 
 if __name__ == '__main__':
     unittest.main()
