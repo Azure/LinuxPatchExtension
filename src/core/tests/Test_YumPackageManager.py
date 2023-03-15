@@ -29,8 +29,13 @@ class TestYumPackageManager(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
+    #region Mocks
+    def mock_do_processes_require_restart(self):
+        raise Exception
+
     def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
+    #endregion Mocks
 
     def test_package_manager_no_updates(self):
         """Unit test for yum package manager with no updates"""
@@ -67,13 +72,22 @@ class TestYumPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-        self.assertTrue(package_manager.do_processes_require_restart())
+        self.assertTrue(package_manager.is_reboot_pending())
 
         # Restart not required
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-        self.assertFalse(package_manager.do_processes_require_restart())
+        self.assertFalse(package_manager.is_reboot_pending())
+
+        # Fake exception
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        backup_do_processes_require_restart = package_manager.do_processes_require_restart
+        package_manager.do_processes_require_restart = self.mock_do_processes_require_restart
+        self.assertTrue(package_manager.is_reboot_pending())    # returns true because the safe default if a failure occurs is 'true'
+        package_manager.do_processes_require_restart = backup_do_processes_require_restart
 
     def test_package_manager(self):
         """Unit test for yum package manager"""

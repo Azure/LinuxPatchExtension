@@ -42,9 +42,6 @@ class PatchInstaller(object):
         self.last_still_needed_package_versions = None
         self.progress_template = "[Time available: {0} | A: {1}, S: {2}, F: {3} | D: {4}]\t {5}"
 
-        # Constants
-        self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
-
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
         self.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -64,7 +61,7 @@ class PatchInstaller(object):
         reboot_manager = self.reboot_manager
 
         # Early reboot if reboot is allowed by settings and required by the machine
-        reboot_pending = self.is_reboot_pending()
+        reboot_pending = self.package_manager.is_reboot_pending()
         self.status_handler.set_reboot_pending(reboot_pending)
         if reboot_pending:
             if reboot_manager.is_setting(Constants.REBOOT_NEVER):
@@ -233,7 +230,7 @@ class PatchInstaller(object):
                         self.composite_logger.log_warning("Retrying installation of package. [Package={0}]".format(package_manager.get_product_name(package_and_dependencies[0])))
 
             # Update reboot pending status in status_handler
-            self.status_handler.set_reboot_pending(self.is_reboot_pending())
+            self.status_handler.set_reboot_pending(self.package_manager.is_reboot_pending())
 
             if install_result == Constants.FAILED:
                 self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.FAILED)
@@ -284,17 +281,6 @@ class PatchInstaller(object):
             self.composite_logger.log_error(message)
 
         return installed_update_count, patch_installation_successful, maintenance_window_exceeded
-
-    def is_reboot_pending(self):
-        """ Checks if there is a pending reboot on the machine. """
-        try:
-            pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)
-            pending_processes_exists = self.package_manager.do_processes_require_restart()
-            self.composite_logger.log_debug(" - Reboot required debug flags: " + str(pending_file_exists) + ", " + str(pending_processes_exists) + ".")
-            return pending_file_exists or pending_processes_exists
-        except Exception as error:
-            self.composite_logger.log_error('Error while checking for reboot pending: ' + repr(error))
-            return True     # defaults for safety
 
     def mark_installation_completed(self):
         """ Marks Installation operation as completed by updating the status of PatchInstallationSummary as success and patch metadata to be sent to healthstore.

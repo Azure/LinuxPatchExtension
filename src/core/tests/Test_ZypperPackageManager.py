@@ -31,6 +31,7 @@ class TestZypperPackageManager(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
+    #region Mocks
     def mock_read_with_retry_has_zypper_lock_var_5(self, file_path_or_handle, raise_if_not_found=True):
         return "ZYPP_LOCK_TIMEOUT=5"
 
@@ -66,6 +67,10 @@ class TestZypperPackageManager(unittest.TestCase):
 
     def mock_write_with_retry_assert_is_5(self, file_path_or_handle, data, mode='a+'):
         self.assertNotEqual(data.find("ZYPP_LOCK_TIMEOUT=5"), -1)
+
+    def mock_do_processes_require_restart(self):
+        raise Exception
+    #endregion Mocks
 
     def test_package_manager_no_updates(self):
         """Unit test for zypper package manager with no updates"""
@@ -179,18 +184,26 @@ class TestZypperPackageManager(unittest.TestCase):
             self.assertFalse(1 != 2, 'Exception did not occur and test failed.')
 
     def test_do_processes_require_restart(self):
-
         # Restart required
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-        self.assertTrue(package_manager.do_processes_require_restart())
+        self.assertTrue(package_manager.is_reboot_pending())
 
         # Restart not required
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-        self.assertFalse(package_manager.do_processes_require_restart())
+        self.assertFalse(package_manager.is_reboot_pending())
+
+        # Fake exception
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        backup_do_processes_require_restart = package_manager.do_processes_require_restart
+        package_manager.do_processes_require_restart = self.mock_do_processes_require_restart
+        self.assertTrue(package_manager.is_reboot_pending())    # returns true because the safe default if a failure occurs is 'true'
+        package_manager.do_processes_require_restart = backup_do_processes_require_restart
 
     def test_get_all_available_versions_of_package(self):
         self.runtime.set_legacy_test_type('HappyPath')
