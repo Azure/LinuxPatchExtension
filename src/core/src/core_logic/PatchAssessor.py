@@ -77,6 +77,11 @@ class PatchAssessor(object):
                 sec_packages, sec_package_versions = self.package_manager.get_security_updates()
                 self.telemetry_writer.write_event("Security assessment: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
                 self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, "Security")
+                if self.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.APT:
+                    security_esm_update_query_success, security_esm_updates, security_esm_updates_versions = self.package_manager.get_security_esm_updates()
+                if security_esm_update_query_success:
+                    self.self.telemetry_writer.write_event("Security-ESM assessment: " + str(security_esm_updates), Constants.TelemetryEventLevel.Verbose)
+                    self.status_handler.set_package_assessment_status(security_esm_updates, security_esm_updates_versions, "Security-ESM")
                 self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
                 break
             except Exception as error:

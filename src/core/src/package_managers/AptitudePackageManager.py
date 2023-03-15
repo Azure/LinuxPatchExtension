@@ -73,6 +73,9 @@ class AptitudePackageManager(PackageManager):
         self.__pro_client_prereq_met = False
         self.ubuntu_pro_client = UbuntuProClient(env_layer, composite_logger)
         self.check_pro_client_prerequisites()
+        
+        self.ubuntu_pro_client_all_updates_cached = []
+        self.ubuntu_pro_client_all_updates_versions_cached = []
 
     def refresh_repo(self):
         self.composite_logger.log("\nRefreshing local repo...")
@@ -133,20 +136,45 @@ class AptitudePackageManager(PackageManager):
     # region Classification-based (incl. All) update check
     def get_all_updates(self, cached=False):
         """Get all missing updates"""
+        all_updates = []
+        all_updates_versions = []
+        ubuntu_pro_client_all_updates_query_success = False
+
         self.composite_logger.log_debug("\nDiscovering all packages...")
-        if cached and not len(self.all_updates_cached) == 0:
-            self.composite_logger.log_debug(" - Returning cached package data.")
-            return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
+        # use Ubuntu Pro Client cached list when the conditions are met.
+        if self.__pro_client_prereq_met and not len(self.ubuntu_pro_client_all_updates_cached) == 0:
+            all_updates = self.ubuntu_pro_client_all_updates_cached
+            all_updates_versions = self.ubuntu_pro_client_all_updates_versions_cached
+
+        if not self.__pro_client_prereq_met and not len(self.all_updates_cached) == 0:
+            all_updates = self.all_updates_cached
+            all_updates_versions = self.all_update_versions_cached
+
+        self.composite_logger.log_debug("Get all updates : [Cached={0}][PackagesCount={1}]]".format(cached, len(all_updates)))
+        if cached and not len(all_updates) == 0:
+            return all_updates, all_updates_versions
 
         cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '')
         out = self.invoke_package_manager(cmd)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
 
-        self.composite_logger.log_debug("Discovered " + str(len(self.all_updates_cached)) + " package entries.")
-        return self.all_updates_cached, self.all_update_versions_cached
+        if self.__pro_client_prereq_met:
+            ubuntu_pro_client_all_updates_query_success, self.ubuntu_pro_client_all_updates_cached, self.ubuntu_pro_client_all_updates_versions_cached = self.ubuntu_pro_client.get_all_updates()
+
+        self.composite_logger.log_debug("Get all updates : [DefaultAllPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientAllPackagesCount={2}]".format(len(self.all_updates_cached), ubuntu_pro_client_all_updates_query_success, len(self.ubuntu_pro_client_all_updates_cached)))
+
+        diff_updates = set(self.all_updates_cached) - set(self.ubuntu_pro_client_all_updates_cached)
+        self.composite_logger.log_debug("Get all updates : {0}".format(diff_updates))
+
+        if ubuntu_pro_client_all_updates_query_success:
+            return self.ubuntu_pro_client_all_updates_cached, self.ubuntu_pro_client_all_updates_versions_cached
+        else:
+            return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
         """Get missing security updates"""
+        ubuntu_pro_client_security_updates_query_success = False
+
         self.composite_logger.log("\nDiscovering 'security' packages...")
         code, out = self.env_layer.run_command_output(self.prep_security_sources_list_cmd, False, False)
         if code != 0:
@@ -159,11 +187,34 @@ class AptitudePackageManager(PackageManager):
         out = self.invoke_package_manager(cmd)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
 
-        self.composite_logger.log("Discovered " + str(len(security_packages)) + " 'security' package entries.")
-        return security_packages, security_package_versions
+        if self.__pro_client_prereq_met:
+            ubuntu_pro_client_security_updates_query_success, ubuntu_pro_client_security_packages, ubuntu_pro_client_security_package_versions = self.ubuntu_pro_client.get_security_updates()
+
+        self.composite_logger.log_debug("Get Security Updates : [DefaultSecurityPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientSecurityPackagesCount={2}]".format(len(security_packages), ubuntu_pro_client_security_updates_query_success, len(ubuntu_pro_client_security_packages)))
+
+        if ubuntu_pro_client_security_updates_query_success:
+            return ubuntu_pro_client_security_packages, ubuntu_pro_client_security_package_versions
+        else:
+            return security_packages, security_package_versions
+
+    def get_security_esm_updates(self):
+        """Get missing security-esm updates."""
+        ubuntu_pro_client_security_esm_updates_query_success = False
+        ubuntu_pro_client_security_esm_packages = []
+        ubuntu_pro_client_security_package_esm_versions = []
+
+        if self.__pro_client_prereq_met:
+            ubuntu_pro_client_security_esm_updates_query_success, ubuntu_pro_client_security_esm_packages, ubuntu_pro_client_security_package_esm_versions = self.ubuntu_pro_client.get_security_esm_updates()
+
+        self.composite_logger.log_debug("Get Security ESM updates : [UbuntuProClientQuerySuccess={0}][UbuntuProClientSecurityEsmPackagesCount={1}]".format(ubuntu_pro_client_security_esm_updates_query_success, ubuntu_pro_client_security_esm_packages, ubuntu_pro_client_security_package_esm_versions))
+        return ubuntu_pro_client_security_esm_updates_query_success, ubuntu_pro_client_security_esm_packages, ubuntu_pro_client_security_package_esm_versions
 
     def get_other_updates(self):
         """Get missing other updates"""
+        ubuntu_pro_client_other_updates_query_success = False
+        ubuntu_pro_client_other_packages = []
+        ubuntu_pro_client_other_package_versions = []
+
         self.composite_logger.log("\nDiscovering 'other' packages...")
         other_packages = []
         other_package_versions = []
@@ -176,9 +227,16 @@ class AptitudePackageManager(PackageManager):
                 other_packages.append(package)
                 other_package_versions.append(all_package_versions[index])
 
-        self.composite_logger.log("Discovered " + str(len(other_packages)) + " 'other' package entries.")
+        if self.__pro_client_prereq_met:
+            ubuntu_pro_client_other_updates_query_success, ubuntu_pro_client_other_packages, ubuntu_pro_client_other_package_versions = self.ubuntu_pro_client.get_other_updates()
+
+        self.composite_logger.log_debug("Get Other updates : [DefaultOtherPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientOtherPackagesCount={2}]".format(len(other_packages), ubuntu_pro_client_other_updates_query_success, len(ubuntu_pro_client_other_packages)))
+
+        if ubuntu_pro_client_other_updates_query_success:
+            return ubuntu_pro_client_other_packages, ubuntu_pro_client_other_package_versions
         return other_packages, other_package_versions
-    # endregion
+    
+    #endregion
 
     # region Output Parser(s)
     def extract_packages_and_versions(self, output):

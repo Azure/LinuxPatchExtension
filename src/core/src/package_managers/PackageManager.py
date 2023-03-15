@@ -87,7 +87,12 @@ class PackageManager(object):
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         if package_filter.is_msft_critsec_classification_only():
-            return self.get_security_updates()
+            security_esm_packages = []
+            security_esm_packages_version = []
+            if self.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.APT:
+                query_success, security_esm_packages, security_esm_packages_version = self.get_security_esm_updates()
+            security_packages, security_packages_version = self.get_security_updates()
+            return security_packages + security_esm_packages, security_packages_version + security_esm_packages_version
         elif package_filter.is_msft_other_classification_only():
             return self.get_other_updates()
         elif package_filter.is_msft_all_classification_included():

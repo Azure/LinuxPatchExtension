@@ -416,8 +416,7 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         UbuntuProClient.UbuntuProClient.install_or_update_pro = backup_package_manager_ubuntu_pro_client_install_or_update_pro
 
-    def mock_is_reboot_pending_returns_True(self):
-        return True, True
+
 
     def test_is_reboot_pending_pro_client_success(self):
         version_mock = MockVersionResult()
