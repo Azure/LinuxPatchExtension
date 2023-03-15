@@ -29,7 +29,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # self.argument_composer = ArgumentComposer().get_composed_arguments()
         # self.runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.ZYPPER)
         # self.container = self.runtime.container
-        pass
+        self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count = 0
 
     def tearDown(self):
         # self.runtime.stop()
@@ -79,7 +79,11 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
     #region Mocks
     def mock_package_manager_get_current_auto_os_patch_state_returns_unknown(self):
-        return Constants.AutomaticOSPatchStates.UNKNOWN
+        if self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count == 0:
+            self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count = 1
+            return Constants.AutomaticOSPatchStates.DISABLED
+        else:
+            return Constants.AutomaticOSPatchStates.UNKNOWN
     #endregion Mocks
 
     def test_operation_success_for_installation_request_with_configure_patching(self):
@@ -200,7 +204,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
         #restore
         runtime.package_manager.get_current_auto_os_patch_state = backup_package_manager_get_current_auto_os_patch_state
