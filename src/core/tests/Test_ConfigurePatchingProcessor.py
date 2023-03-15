@@ -29,7 +29,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # self.argument_composer = ArgumentComposer().get_composed_arguments()
         # self.runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.ZYPPER)
         # self.container = self.runtime.container
-        self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count = 0
+        self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count = 0  # used to vary behavior of the mock
 
     def tearDown(self):
         # self.runtime.stop()
