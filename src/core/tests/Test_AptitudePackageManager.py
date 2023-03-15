@@ -29,11 +29,16 @@ class TestAptitudePackageManager(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
+    #region Mocks
     def mock_read_with_retry_raise_exception(self):
         raise Exception
 
     def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
+
+    def mock_os_path_isfile_raise_exception(self, file):
+        raise Exception
+    #endregion Mocks
 
     def test_package_manager_no_updates(self):
         """Unit test for aptitude package manager with no updates"""
@@ -121,6 +126,23 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
         self.assertTrue(error_msg in str(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]))
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+
+    def test_reboot_always_runs_only_once_if_no_reboot_is_required(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.reboot_setting = 'IfRequired'
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        reboot_manager = runtime.reboot_manager
+
+        # mock swap
+        backup_os_path_isfile = os.path.isfile
+        os.path.isfile = self.mock_os_path_isfile_raise_exception
+
+        # reboot will happen due to exception in evaluating if it is required (defaults to true)
+        runtime.status_handler.is_reboot_pending = False
+        self.assertEqual(runtime.package_manager.is_reboot_pending(), True)
+
+        # restore
+        os.path.isfile = backup_os_path_isfile
 
     def test_install_package_only_upgrades(self):
         self.runtime.set_legacy_test_type('FailInstallPath')

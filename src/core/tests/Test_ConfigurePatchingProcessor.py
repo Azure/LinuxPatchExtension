@@ -184,11 +184,13 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
         runtime.set_legacy_test_type('HappyPath')
-        CoreMain(argument_composer.get_composed_arguments())
 
         # mock swap
         backup_package_manager_get_current_auto_os_patch_state = runtime.package_manager.get_current_auto_os_patch_state
         runtime.package_manager.get_current_auto_os_patch_state = self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown
+
+        # Execute main
+        CoreMain(argument_composer.get_composed_arguments())
 
         # check telemetry events
         self.__check_telemetry_events(runtime)
