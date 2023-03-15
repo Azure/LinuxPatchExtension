@@ -53,9 +53,6 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_do_processes_require_restart_raises_exception(self):
         raise Exception
 
-    def mock_is_reboot_pending_returns_True(self):
-        return True, True
-
     def mock_is_reboot_pending_returns_False(self):
         return False, False
 
