@@ -383,6 +383,6 @@ class PackageManager(object):
 
     @abstractmethod
     def do_processes_require_restart(self):
-        """Signals whether processes require a restart due to updates to files"""
+        """ Signals whether processes require a restart due to updates to files """
         pass
 
