@@ -187,18 +187,26 @@ class TestZypperPackageManager(unittest.TestCase):
             self.assertFalse(1 != 2, 'Exception did not occur and test failed.')
 
     def test_do_processes_require_restart(self):
-
         # Restart required
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-        self.assertTrue(package_manager.do_processes_require_restart())
+        self.assertTrue(package_manager.is_reboot_pending())
 
         # Restart not required
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-        self.assertFalse(package_manager.do_processes_require_restart())
+        self.assertFalse(package_manager.is_reboot_pending())
+
+        # Fake exception
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        backup_do_processes_require_restart = package_manager.do_processes_require_restart
+        package_manager.do_processes_require_restart = self.mock_do_processes_require_restart
+        self.assertTrue(package_manager.is_reboot_pending())    # returns true because the safe default if a failure occurs is 'true'
+        package_manager.do_processes_require_restart = backup_do_processes_require_restart
 
     def test_get_all_available_versions_of_package(self):
         self.runtime.set_legacy_test_type('HappyPath')
@@ -642,6 +650,15 @@ class TestZypperPackageManager(unittest.TestCase):
         cmd = "sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security"
         package_manager.invoke_package_manager(cmd)
         self.assertTrue(package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False))
+
+    def test_is_reboot_pending_return_true_when_exception_raised(self):
+        package_manager = self.container.get('package_manager')
+        backup_do_process_require_restart = package_manager.do_processes_require_restart
+        package_manager.do_processes_require_restart = self.mock_do_processes_require_restart_raise_exception
+
+        self.assertTrue(package_manager.is_reboot_pending())
+
+        package_manager.do_processes_require_restart = backup_do_process_require_restart
 
 
 if __name__ == '__main__':
