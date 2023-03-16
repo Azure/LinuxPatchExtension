@@ -42,9 +42,6 @@ class PatchInstaller(object):
         self.last_still_needed_package_versions = None
         self.progress_template = "[Time available: {0} | A: {1}, S: {2}, F: {3} | D: {4}]\t {5}"
 
-        # Constants
-        self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
-
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
         self.status_handler.set_current_operation(Constants.INSTALLATION)

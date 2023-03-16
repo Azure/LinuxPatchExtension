@@ -795,3 +795,4 @@ class ZypperPackageManager(PackageManager):
 
         self.composite_logger.log(" - Processes requiring restart (" + str(process_count) + "): [" + process_list_verbose + "<eol>]")
         return process_count != 0  # True if there were any
+    # endregion Reboot Management

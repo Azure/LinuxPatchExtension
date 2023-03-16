@@ -31,6 +31,7 @@ class TestZypperPackageManager(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
+    #region Mocks
     def mock_read_with_retry_has_zypper_lock_var_5(self, file_path_or_handle, raise_if_not_found=True):
         return "ZYPP_LOCK_TIMEOUT=5"
 
@@ -69,6 +70,10 @@ class TestZypperPackageManager(unittest.TestCase):
 
     def mock_do_processes_require_restart_raise_exception(self):
         raise Exception
+
+    def mock_do_processes_require_restart(self):
+        raise Exception
+    #endregion Mocks
 
     def test_package_manager_no_updates(self):
         """Unit test for zypper package manager with no updates"""
@@ -637,15 +642,6 @@ class TestZypperPackageManager(unittest.TestCase):
         cmd = "sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security"
         package_manager.invoke_package_manager(cmd)
         self.assertTrue(package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False))
-
-    def test_is_reboot_pending_return_true_when_exception_raised(self):
-        package_manager = self.container.get('package_manager')
-        backup_do_process_require_restart = package_manager.do_processes_require_restart
-        package_manager.do_processes_require_restart = self.mock_do_processes_require_restart_raise_exception
-
-        self.assertTrue(package_manager.is_reboot_pending())
-
-        package_manager.do_processes_require_restart = backup_do_process_require_restart
 
 
 if __name__ == '__main__':

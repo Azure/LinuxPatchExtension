@@ -779,7 +779,6 @@ class YumPackageManager(PackageManager):
             if not patch_configuration_sub_setting_found_in_file:
                 updated_patch_configuration_sub_setting += patch_configuration_sub_setting_to_update + "\n"
 
-            # ToDo: This adds some whitespace at the beginning of the first line in the settings file which is auto adjusted in the file later, so shouldn't have any issues right now. strip()/lstrip() on the string, does not work, will have to test accross versions and identify the impact
             self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path, '{0}'.format(updated_patch_configuration_sub_setting.lstrip()), mode='w+')
         except Exception as error:
             error_msg = "Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error))
@@ -812,7 +811,6 @@ class YumPackageManager(PackageManager):
         else:
             self.composite_logger.log_debug("Auto OS update service is NOT installed on the machine")
             return False
-
     # endregion
 
     # region Handling known errors
@@ -931,3 +929,4 @@ class YumPackageManager(PackageManager):
 
         self.composite_logger.log(" - Processes requiring restart (" + str(process_count) + "): [" + process_list_verbose + "<eol>]")
         return process_count != 0  # True if there were any
+    # endregion Reboot Management

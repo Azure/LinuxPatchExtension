@@ -374,7 +374,6 @@ class PackageManager(object):
     def check_known_issues_and_attempt_fix(self, output):
         """ Checks if issue falls into known issues and attempts to mitigate """
         return True
-
     # endregion
 
     @abstractmethod
