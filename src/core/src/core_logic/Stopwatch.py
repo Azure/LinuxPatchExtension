@@ -51,7 +51,7 @@ class Stopwatch(object):
         self.time_taken = None
         self.task_details = None
 
-    # Create new end_time even if end_time is already set
+    # Stop the stopwatch and set end_time. Create new end_time even if end_time is already set
     def stop(self):
         if self.end_time is not None:
             self.composite_logger.log_debug(str(Stopwatch.StopwatchException.STOPPED_ALREADY))
@@ -62,13 +62,13 @@ class Stopwatch(object):
 
         self.time_taken = self.env_layer.datetime.total_minutes_from_time_delta(self.end_time - self.start_time)
 
-    # Create new end_time even if end_time is already set
+    # Stop the stopwatch, set end_time and write details in telemetry. Create new end_time even if end_time is already set
     def stop_and_write_telemetry(self, message):
         self.stop()
         self.set_task_details(message)
         self.composite_logger.log("Stopwatch details: " + str(self.task_details))
 
-    # Use the existing end_time if it is already set otherwise set new end_time
+    # Write stopwatch details in telemetry. Use the existing end_time if it is already set otherwise set new end_time
     def write_telemetry_for_stopwatch(self, message):
         if self.end_time is None:
             self.composite_logger.log_debug(str(Stopwatch.StopwatchException.NOT_STOPPED))

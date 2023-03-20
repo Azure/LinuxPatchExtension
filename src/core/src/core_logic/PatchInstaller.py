@@ -198,7 +198,7 @@ class PatchInstaller(object):
 
         if len(packages) == 0:
             installed_update_count = self.log_metrics_and_perform_final_reconciliation(package_manager, maintenance_window, patch_installation_successful, False, installed_update_count)
-            return installed_update_count, patch_installation_successful, False
+            return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                         "Following packages are not installed in batch installation: " + str(packages))
@@ -219,7 +219,7 @@ class PatchInstaller(object):
 
             # maintenance window check
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
-            if maintenance_window.is_package_install_time_available(remaining_time, number_of_packages=1) is False:
+            if maintenance_window.is_package_install_time_available(remaining_time, number_of_packages_in_batch=1) is False:
                 error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
                 self.composite_logger.log_error("\n" + error_msg)
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
@@ -453,8 +453,7 @@ class PatchInstaller(object):
                         self.last_still_needed_package_versions.pop(index)
                         installed_update_count += 1
 
-                if (package in packages_in_batch):
-                    self.attempted_parent_package_install_count += 1
+            self.attempted_parent_package_install_count += len(packages_in_batch)
 
             # Update reboot pending status in status_handler
             self.status_handler.set_reboot_pending(self.is_reboot_pending())
