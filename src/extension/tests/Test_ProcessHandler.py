@@ -16,9 +16,9 @@
 
 import os
 import subprocess
+import sys
 import unittest
 from extension.src.Constants import Constants
-from extension.src.EnvLayer import EnvLayer
 from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
 from extension.src.file_handlers.ExtConfigSettingsHandler import ExtConfigSettingsHandler
 from extension.src.file_handlers.ExtEnvHandler import ExtEnvHandler
@@ -53,10 +53,7 @@ class TestProcessHandler(unittest.TestCase):
         raise OSError
 
     def mock_run_command_output_for_python(self, cmd, no_output=False, chk_err=False):
-        return 0, "/usr/bin/python"
-
-    def mock_run_command_output_for_python3(self, cmd, no_output=False, chk_err=False):
-        return 0, "/usr/bin/python3"
+        return 0, sys.executable
 
     def mock_run_command_output_for_python_not_found(self, cmd, no_output=False, chk_err=False):
         return 1, "which: no python in test"
@@ -135,23 +132,19 @@ class TestProcessHandler(unittest.TestCase):
 
     def test_get_python_cmd(self):
         # setting mocks
-        run_command_output_backup = EnvLayer.run_command_output
+        run_command_output_backup = self.env_layer.run_command_output
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
 
         # testing for 'python' command
-        EnvLayer.run_command_output = self.mock_run_command_output_for_python
-        self.assertEqual(process_handler.get_python_cmd(), "python")
-
-        # testing for 'python3' command
-        EnvLayer.run_command_output = self.mock_run_command_output_for_python3
-        self.assertEqual(process_handler.get_python_cmd(), "python3")
+        self.env_layer.run_command_output = self.mock_run_command_output_for_python
+        self.assertEqual(process_handler.get_python_cmd(), sys.executable)
 
         # testing when python is not found on machine
-        EnvLayer.run_command_output = self.mock_run_command_output_for_python_not_found
+        self.env_layer.run_command_output = self.mock_run_command_output_for_python_not_found
         self.assertEqual(process_handler.get_python_cmd(), Constants.PYTHON_NOT_FOUND)
 
         # resetting mocks
-        EnvLayer.run_command_output = run_command_output_backup
+        self.env_layer.run_command_output = run_command_output_backup
 
     def test_start_daemon(self):
         # setting mocks
