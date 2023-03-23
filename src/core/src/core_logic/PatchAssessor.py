@@ -138,8 +138,10 @@ class PatchAssessor(object):
             self.composite_logger.log_warning("No valid last start information available for auto-assessment.")
             return True
 
-        # get minimum elapsed time required
-        min_elapsed_seconds_required = self.convert_iso8601_duration_to_total_seconds(Constants.MIN_AUTO_ASSESSMENT_INTERVAL)
+        # get minimum elapsed time required - difference between max allowed (passed down) and a safe buffer to prevent exceeding that
+        maximum_assessment_interval_in_seconds = self.convert_iso8601_duration_to_total_seconds(self.execution_config.maximum_assessment_interval)
+        maximum_assessment_interval_buffer_in_seconds = self.convert_iso8601_duration_to_total_seconds(Constants.AUTO_ASSESSMENT_INTERVAL_BUFFER)
+        minimum_elapsed_time_required_in_seconds = maximum_assessment_interval_in_seconds - maximum_assessment_interval_buffer_in_seconds
 
         # check if required duration has passed
         elapsed_time_in_seconds = self.__get_seconds_since_epoch() - last_start_in_seconds_since_epoch
@@ -147,7 +149,7 @@ class PatchAssessor(object):
             self.composite_logger.log_warning("Anomaly detected in system time now or during the last assessment run. Assessment will run anyway.")
             return True
         else:
-            return elapsed_time_in_seconds >= min_elapsed_seconds_required
+            return elapsed_time_in_seconds >= minimum_elapsed_time_required_in_seconds
 
     def read_assessment_state(self):
         """ Reads the assessment state file. """
