@@ -35,6 +35,7 @@ class ConfigurePatchingProcessor(object):
         self.current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
         self.current_auto_assessment_state = Constants.AutoAssessmentStates.UNKNOWN
         self.configure_patching_successful = True
+        self.configure_patching_exception_error = None
 
     def start_configure_patching(self):
         """ Start configure patching """
@@ -47,15 +48,27 @@ class ConfigurePatchingProcessor(object):
             self.__try_set_patch_mode()
             self.__try_set_auto_assessment_mode()
 
-            overall_status = Constants.STATUS_SUCCESS if self.configure_patching_successful else Constants.STATUS_ERROR
-            self.__report_consolidated_configure_patch_status(status=overall_status)
+            # If the tracked operation is Configure patching, we cannot write a final status until assessment has also written a final status (mitigation for a CRP bug)
+            if self.execution_config.operation.lower() != Constants.CONFIGURE_PATCHING.lower():
+                self.set_configure_patching_final_overall_status()
         except Exception as error:
             self.current_auto_assessment_state = Constants.AutoAssessmentStates.ERROR
-            self.__report_consolidated_configure_patch_status(status=Constants.STATUS_ERROR, error=error)
+            self.configure_patching_exception_error = error
+            # If the tracked operation is Configure patching, we cannot write a final status until assessment has also written a final status (mitigation for a CRP bug)
+            if self.execution_config.operation != Constants.CONFIGURE_PATCHING.lower():
+                self.__report_consolidated_configure_patch_status(status=Constants.STATUS_ERROR, error=self.configure_patching_exception_error)
             self.configure_patching_successful &= False
 
         self.composite_logger.log("\nConfigure patching completed.\n")
         return self.configure_patching_successful
+
+    def set_configure_patching_final_overall_status(self):
+        """ Writes the final overall status after any pre-requisite operation is also in a terminal state - currently this is only assessment """
+        overall_status = Constants.STATUS_SUCCESS if self.configure_patching_successful else Constants.STATUS_ERROR
+        if self.configure_patching_exception_error is None:
+            self.__report_consolidated_configure_patch_status(status=overall_status)
+        else:
+            self.__report_consolidated_configure_patch_status(status=overall_status, error=self.configure_patching_exception_error)
 
     def __try_set_patch_mode(self):
         """ Set the patch mode for the VM """

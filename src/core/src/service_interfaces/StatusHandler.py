@@ -323,8 +323,9 @@ class StatusHandler(object):
             else:
                 other_patch_count += 1
 
-        # discern started by
-        started_by = Constants.PatchAssessmentSummaryStartedBy.PLATFORM if self.execution_config.exec_auto_assess_only else Constants.PatchAssessmentSummaryStartedBy.USER
+        # discern started by - either pure auto-assessment or assessment data being included with configure patching with assessmentMode set to AutomaticByPlatform
+        include_assessment_with_configure_patching = (self.execution_config.operation == Constants.CONFIGURE_PATCHING and self.execution_config.assessment_mode == Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM)
+        started_by = Constants.PatchAssessmentSummaryStartedBy.PLATFORM if (self.execution_config.exec_auto_assess_only or include_assessment_with_configure_patching) else Constants.PatchAssessmentSummaryStartedBy.USER
 
         # Compose sub-status message
         substatus_message = {
