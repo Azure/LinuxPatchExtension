@@ -328,4 +328,4 @@ class Constants(object):
         FEATURE_ENABLED = True,
         MINIMUM_PYTHON_VERSION_REQUIRED = (3, 5)
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
-
+        MINIMUM_CLIENT_VERSION = "27.13.6"

@@ -16,7 +16,7 @@
 
 """This is the Ubuntu Pro Client implementation"""
 import json
-
+from core.src.bootstrap.Constants import Constants
 
 class UbuntuProClient:
     def __init__(self, env_layer, composite_logger):
@@ -44,15 +44,21 @@ class UbuntuProClient:
 
     def is_pro_working(self):
         """check if pro version api returns the version without any errors/warnings."""
+        is_pro_working_result = False
+        is_pro_working_exception = None
+        installed_version = None
         try:
             from uaclient.api.u.pro.version.v1 import version
+            from distutils.version import LooseVersion
             version_result = version()
-            self.composite_logger.log_debug("Ubuntu Pro Client version: " + version_result.installed_version)
-            return True
-
+            installed_version = version_result.installed_version
+            self.composite_logger.log_debug("Ubuntu Pro Client version: " + installed_version)
+            if LooseVersion(installed_version) >= LooseVersion(Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION):
+                is_pro_working_result = True
         except Exception as error:
-            self.composite_logger.log_debug("Exception in querying pro version api " + repr(error))
-            return False
+            is_pro_working_exception = repr(error)
+        self.composite_logger.log_debug("Ubuntu Pro Client version query : [Version={0}][Result={1}][Error={2}]".format(installed_version, is_pro_working_result, is_pro_working_exception))
+        return is_pro_working_result
 
     def extract_packages_and_versions(self, updates):
         extracted_updates = []

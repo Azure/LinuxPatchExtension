@@ -174,6 +174,8 @@ class AptitudePackageManager(PackageManager):
     def get_security_updates(self):
         """Get missing security updates"""
         ubuntu_pro_client_security_updates_query_success = False
+        ubuntu_pro_client_security_packages = []
+        ubuntu_pro_client_security_package_versions = []
 
         self.composite_logger.log("\nDiscovering 'security' packages...")
         code, out = self.env_layer.run_command_output(self.prep_security_sources_list_cmd, False, False)
@@ -206,7 +208,7 @@ class AptitudePackageManager(PackageManager):
         if self.__pro_client_prereq_met:
             ubuntu_pro_client_security_esm_updates_query_success, ubuntu_pro_client_security_esm_packages, ubuntu_pro_client_security_package_esm_versions = self.ubuntu_pro_client.get_security_esm_updates()
 
-        self.composite_logger.log_debug("Get Security ESM updates : [UbuntuProClientQuerySuccess={0}][UbuntuProClientSecurityEsmPackagesCount={1}]".format(ubuntu_pro_client_security_esm_updates_query_success, ubuntu_pro_client_security_esm_packages, ubuntu_pro_client_security_package_esm_versions))
+        self.composite_logger.log_debug("Get Security ESM updates : [UbuntuProClientQuerySuccess={0}][UbuntuProClientSecurityEsmPackagesCount={1}]".format(ubuntu_pro_client_security_esm_updates_query_success, len(ubuntu_pro_client_security_esm_packages)))
         return ubuntu_pro_client_security_esm_updates_query_success, ubuntu_pro_client_security_esm_packages, ubuntu_pro_client_security_package_esm_versions
 
     def get_other_updates(self):
