@@ -155,8 +155,9 @@ class Constants(object):
 
     # To separately preserve assessment + auto-assessment state information
     ASSESSMENT_STATE_FILE = "AssessmentState.json"
-    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"
-    MIN_AUTO_ASSESSMENT_INTERVAL = "PT6H"   # do not perform auto-assessment if the last assessment happened less than this time interval ago
+    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"           # maximum time assessment is expected to take
+    AUTO_ASSESSMENT_CRON_INTERVAL = "PT1H"              # wake up to check for persistent assessment information this frequently
+    AUTO_ASSESSMENT_INTERVAL_BUFFER = "PT1H"            # allow for an hour's buffer from max interval passed down (PT6H) to keep within "max" SLA
 
     # wait time after status updates
     WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS = 20

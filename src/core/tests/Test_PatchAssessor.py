@@ -123,13 +123,13 @@ class TestPatchAssessor(unittest.TestCase):
 
         # It has been minimum delay time since last run
         assessment_state = self.runtime.patch_assessor.read_assessment_state()
-        min_auto_assess_interval_in_seconds = self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds(Constants.MIN_AUTO_ASSESSMENT_INTERVAL)
+        min_auto_assess_interval_in_seconds = self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds(self.runtime.execution_config.maximum_assessment_interval)
         assessment_state["lastStartInSecondsSinceEpoch"] -= min_auto_assess_interval_in_seconds
         with open(self.runtime.patch_assessor.assessment_state_file_path, 'w+') as file_handle:
             file_handle.write(json.dumps({"assessmentState": assessment_state}))
         self.assertTrue(self.runtime.patch_assessor.should_auto_assessment_run())
 
-        # Time is in future, so run assessment and correct anomaly
+        # Time is in the future, so run assessment and correct anomaly
         self.runtime.patch_assessor.write_assessment_state()
         assessment_state["lastStartInSecondsSinceEpoch"] += 5000000
         with open(self.runtime.patch_assessor.assessment_state_file_path, 'w+') as file_handle:
