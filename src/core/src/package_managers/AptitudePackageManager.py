@@ -72,6 +72,9 @@ class AptitudePackageManager(PackageManager):
         self.ubuntu_pro_client = UbuntuProClient(env_layer, composite_logger)
         self.check_pro_client_prerequisites()
 
+        self.ubuntu_pro_client_all_updates_cached = []
+        self.ubuntu_pro_client_all_updates_versions_cached = []
+
     def refresh_repo(self):
         self.composite_logger.log("\nRefreshing local repo...")
         self.invoke_package_manager(self.repo_refresh)
@@ -131,17 +134,43 @@ class AptitudePackageManager(PackageManager):
     # region Classification-based (incl. All) update check
     def get_all_updates(self, cached=False):
         """Get all missing updates"""
-        self.composite_logger.log_debug("\nDiscovering all packages...")
-        if cached and not len(self.all_updates_cached) == 0:
-            self.composite_logger.log_debug(" - Returning cached package data.")
-            return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
+        all_updates = []
+        all_updates_versions = []
+        ubuntu_pro_client_all_updates_query_success = False
 
+        self.composite_logger.log_debug("\nDiscovering all packages...")
+        # use Ubuntu Pro Client cached list when the conditions are met.
+        if self.__pro_client_prereq_met and not len(self.ubuntu_pro_client_all_updates_cached) == 0:
+            all_updates = self.ubuntu_pro_client_all_updates_cached
+            all_updates_versions = self.ubuntu_pro_client_all_updates_versions_cached
+
+        elif not self.__pro_client_prereq_met and not len(self.all_updates_cached) == 0:
+            all_updates = self.all_updates_cached
+            all_updates_versions = self.all_update_versions_cached
+
+        self.composite_logger.log_debug("Get all updates : [Cached={0}][PackagesCount={1}]]".format(cached, len(all_updates)))
+        if cached and not len(all_updates) == 0:
+            return all_updates, all_updates_versions
+
+        # when cached is False, query both default way and using Ubuntu Pro Client.
         cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '')
         out = self.invoke_package_manager(cmd)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
 
-        self.composite_logger.log_debug("Discovered " + str(len(self.all_updates_cached)) + " package entries.")
-        return self.all_updates_cached, self.all_update_versions_cached
+        if self.__pro_client_prereq_met:
+            ubuntu_pro_client_all_updates_query_success, self.ubuntu_pro_client_all_updates_cached, self.ubuntu_pro_client_all_updates_versions_cached = self.ubuntu_pro_client.get_all_updates()
+
+        self.composite_logger.log_debug("Get all updates : [DefaultAllPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientAllPackagesCount={2}]".format(len(self.all_updates_cached), ubuntu_pro_client_all_updates_query_success, len(self.ubuntu_pro_client_all_updates_cached)))
+
+        # Get the list of updates that are present in only one of the two lists.
+        different_updates = list(set(self.all_updates_cached) - set(self.ubuntu_pro_client_all_updates_cached)) + list(set(self.ubuntu_pro_client_all_updates_cached) - set(self.all_updates_cached))
+        self.composite_logger.log_debug("Get all updates : [DifferentUpdatesCount={0}][Updates={1}]".format(len(different_updates), different_updates))
+
+        # Prefer Ubuntu Pro Client output when available.
+        if ubuntu_pro_client_all_updates_query_success:
+            return self.ubuntu_pro_client_all_updates_cached, self.ubuntu_pro_client_all_updates_versions_cached
+        else:
+            return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
         """Get missing security updates"""
