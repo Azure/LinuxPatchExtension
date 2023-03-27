@@ -155,11 +155,11 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time <= self.runtime.patch_assessor.stopwatch.end_time)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken >= 0)
-        task_info = "'{0}': '{1}'".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.ASSESSMENT))
+        task_info = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.ASSESSMENT))
         self.assertTrue(task_info in str(self.runtime.patch_assessor.stopwatch.task_details))
-        task_status = "'{0}': '{1}'".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
+        task_status = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
         self.assertTrue(task_status in str(self.runtime.patch_assessor.stopwatch.task_details))
-        err_msg = "'{0}': ''".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
+        err_msg = "{0}=".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
         self.assertTrue(err_msg in str(self.runtime.patch_assessor.stopwatch.task_details))
 
 

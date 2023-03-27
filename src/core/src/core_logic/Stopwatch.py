@@ -40,7 +40,7 @@ class Stopwatch(object):
         if self.start_time is not None and self.end_time is None:
             self.stop()
             self.set_task_details("")
-            self.composite_logger.log("Stopwatch details before instance is destroyed: " + str(self.task_details))
+            self.composite_logger.log("Stopwatch details before instance is destroyed: " + self.task_details)
 
     def start(self):
         if self.start_time is not None:
@@ -63,8 +63,8 @@ class Stopwatch(object):
     def stop_and_write_telemetry(self, message):
         self.stop()
         self.set_task_details(message)
-        self.composite_logger.log("Stopwatch details: " + str(self.task_details))
+        self.composite_logger.log("Stopwatch details: " + self.task_details)
 
     def set_task_details(self, message):
-        self.task_details = {Constants.PerfLogTrackerParams.START_TIME: str(self.start_time), Constants.PerfLogTrackerParams.END_TIME: str(self.end_time), Constants.PerfLogTrackerParams.TIME_TAKEN: str(self.time_taken),
-                             Constants.PerfLogTrackerParams.MACHINE_INFO: self.telemetry_writer.machine_info, Constants.PerfLogTrackerParams.MESSAGE: str(message)}
+        self.task_details = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}]".format(Constants.PerfLogTrackerParams.MESSAGE, str(message), Constants.PerfLogTrackerParams.TIME_TAKEN, str(self.time_taken), 
+                                                                          Constants.PerfLogTrackerParams.START_TIME, str(self.start_time), Constants.PerfLogTrackerParams.END_TIME, str(self.end_time))

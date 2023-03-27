@@ -249,11 +249,11 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue(runtime.patch_installer.stopwatch.task_details is not None)
         self.assertTrue(runtime.patch_installer.stopwatch.start_time <= runtime.patch_installer.stopwatch.end_time)
         self.assertTrue(runtime.patch_installer.stopwatch.time_taken >= 0)
-        task_info = "'{0}': '{1}'".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.INSTALLATION))
+        task_info = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.INSTALLATION))
         self.assertTrue(task_info in str(runtime.patch_installer.stopwatch.task_details))
-        task_status = "'{0}': '{1}'".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
+        task_status = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
         self.assertTrue(task_status in str(runtime.patch_installer.stopwatch.task_details))
-        err_msg = "'{0}': ''".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
+        err_msg = "{0}=".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
         self.assertTrue(err_msg in str(runtime.patch_installer.stopwatch.task_details))
         runtime.stop()
 
@@ -270,11 +270,11 @@ class TestPatchInstaller(unittest.TestCase):
     def test_write_installer_perf_logs_catch_exception(self):
         # Testing the catch Exception in the method write_installer_perf_logs
         # ZeroDivisionError Exception should be thrown by the function get_percentage_maintenance_window_used because denominator will be zero if maximum_duration is zero
-        # This will cover the catch exception code but another exception will be thrown later due to calling stop_and_write_telemetry without initializing stopwatch
+        # This will cover the catch exception code
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = "PT0H"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True)
-        self.assertRaises(Exception, runtime.patch_installer.write_installer_perf_logs, True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, "")
+        runtime.patch_installer.write_installer_perf_logs(True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, "")
         runtime.stop()
 
 
