@@ -274,7 +274,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = "PT0H"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True)
-        runtime.patch_installer.write_installer_perf_logs(True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, "")
+        self.assertTrue(runtime.patch_installer.write_installer_perf_logs(True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, ""))
         runtime.stop()
 
 

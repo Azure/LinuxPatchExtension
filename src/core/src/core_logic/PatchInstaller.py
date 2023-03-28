@@ -118,6 +118,7 @@ class PatchInstaller(object):
                                        Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW, str(maintenance_window.duration), Constants.PerfLogTrackerParams.PERC_MAINTENANCE_WINDOW_USED, str(perc_maintenance_window_used),
                                        Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED, str(maintenance_window_exceeded), Constants.PerfLogTrackerParams.MACHINE_INFO, self.telemetry_writer.machine_info)
         self.stopwatch.stop_and_write_telemetry(patch_installation_perf_log)
+        return True
 
     def raise_if_telemetry_unsupported(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
