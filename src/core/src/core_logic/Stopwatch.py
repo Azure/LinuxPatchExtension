@@ -67,4 +67,4 @@ class Stopwatch(object):
 
     def set_task_details(self, message):
         self.task_details = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}]".format(Constants.PerfLogTrackerParams.MESSAGE, str(message), Constants.PerfLogTrackerParams.TIME_TAKEN, str(self.time_taken), 
-                                                                          Constants.PerfLogTrackerParams.START_TIME, str(self.start_time), Constants.PerfLogTrackerParams.END_TIME, str(self.end_time))
+                             Constants.PerfLogTrackerParams.START_TIME, str(self.start_time), Constants.PerfLogTrackerParams.END_TIME, str(self.end_time))
