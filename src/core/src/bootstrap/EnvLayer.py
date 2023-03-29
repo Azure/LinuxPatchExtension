@@ -498,6 +498,10 @@ class EnvLayer(object):
             return ((time_delta.microseconds + (time_delta.seconds + time_delta.days * 24 * 3600) * 10 ** 6) / 10.0 ** 6) / 60
 
         @staticmethod
+        def total_seconds_from_time_delta(time_delta):
+            return (time_delta.microseconds + (time_delta.seconds + time_delta.days * 24 * 3600) * 10 ** 6) / 10.0 ** 6
+
+        @staticmethod
         def utc_to_standard_datetime(utc_datetime):
             """ Converts string of format '"%Y-%m-%dT%H:%M:%SZ"' to datetime object """
             return datetime.datetime.strptime(utc_datetime.split(".")[0], "%Y-%m-%dT%H:%M:%S")

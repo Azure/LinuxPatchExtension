@@ -31,7 +31,7 @@ class Stopwatch(object):
         self.composite_logger = composite_logger
         self.start_time = None
         self.end_time = None
-        self.time_taken = None
+        self.time_taken_in_secs = None
         self.task_details = None
 
     def __del__(self):
@@ -47,7 +47,7 @@ class Stopwatch(object):
             self.composite_logger.log_debug(str(Stopwatch.StopwatchException.STARTED_ALREADY))
         self.start_time = self.env_layer.datetime.datetime_utcnow()
         self.end_time = None
-        self.time_taken = None
+        self.time_taken_in_secs = None
         self.task_details = None
 
     def stop(self):
@@ -58,7 +58,10 @@ class Stopwatch(object):
             self.composite_logger.log_debug(str(Stopwatch.StopwatchException.NOT_STARTED))
             self.start_time = self.end_time
 
-        self.time_taken = self.env_layer.datetime.total_minutes_from_time_delta(self.end_time - self.start_time)
+        self.time_taken_in_secs = self.env_layer.datetime.total_seconds_from_time_delta(self.end_time - self.start_time)
+
+        # Rounding off to one digit after decimal e.g. 14.574372666666667 will become 14.6
+        self.time_taken_in_secs = round(self.time_taken_in_secs, 1)
 
     def stop_and_write_telemetry(self, message):
         self.stop()
@@ -66,5 +69,5 @@ class Stopwatch(object):
         self.composite_logger.log("Stopwatch details: " + self.task_details)
 
     def set_task_details(self, message):
-        self.task_details = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}]".format(Constants.PerfLogTrackerParams.MESSAGE, str(message), Constants.PerfLogTrackerParams.TIME_TAKEN, str(self.time_taken), 
+        self.task_details = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}]".format(Constants.PerfLogTrackerParams.MESSAGE, str(message), Constants.PerfLogTrackerParams.TIME_TAKEN_IN_SECS, str(self.time_taken_in_secs), 
                              Constants.PerfLogTrackerParams.START_TIME, str(self.start_time), Constants.PerfLogTrackerParams.END_TIME, str(self.end_time))
