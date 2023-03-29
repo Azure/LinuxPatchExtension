@@ -267,7 +267,7 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue(runtime.patch_installer.stopwatch.task_details is None)
         runtime.stop()
 
-    def write_installer_perf_logs_runs_successfully_if_exception_in_get_percentage_maintenance_window_used(self):
+    def test_write_installer_perf_logs_runs_successfully_if_exception_in_get_percentage_maintenance_window_used(self):
         # Testing the catch Exception in the method write_installer_perf_logs
         # ZeroDivisionError Exception should be thrown by the function get_percentage_maintenance_window_used because denominator will be zero if maximum_duration is zero
         # This will cover the catch exception code
