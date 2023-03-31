@@ -37,6 +37,7 @@ class PatchAssessor(object):
         self.package_manager = package_manager
         self.package_manager_name = self.package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY)
         self.assessment_state_file_path = os.path.join(self.execution_config.config_folder, Constants.ASSESSMENT_STATE_FILE)
+        self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
     def start_assessment(self):
         """ Start a patch assessment """
@@ -51,7 +52,6 @@ class PatchAssessor(object):
         self.composite_logger.log('\nStarting patch assessment...')
         self.write_assessment_state()   # success / failure does not matter, only that an attempt started
 
-        self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
         self.stopwatch.start()
 
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
@@ -111,10 +111,11 @@ class PatchAssessor(object):
         return True
 
     def write_assessment_perf_logs(self, retry_count, task_status, error_msg):
-        assessment_perf_log = {Constants.PerfLogTrackerParams.TASK: Constants.ASSESSMENT, Constants.PerfLogTrackerParams.TASK_STATUS: str(task_status),
-                               Constants.PerfLogTrackerParams.ERROR_MSG: error_msg, Constants.PerfLogTrackerParams.PACKAGE_MANAGER: self.package_manager_name,
-                               Constants.PerfLogTrackerParams.RETRY_COUNT: str(retry_count)}
-        self.stopwatch.stop_and_write_telemetry(str(assessment_perf_log))
+        assessment_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}]".format(
+                               Constants.PerfLogTrackerParams.TASK, Constants.ASSESSMENT, Constants.PerfLogTrackerParams.TASK_STATUS, str(task_status),
+                               Constants.PerfLogTrackerParams.ERROR_MSG, error_msg, Constants.PerfLogTrackerParams.PACKAGE_MANAGER, self.package_manager_name,
+                               Constants.PerfLogTrackerParams.RETRY_COUNT, str(retry_count), Constants.PerfLogTrackerParams.MACHINE_INFO, self.telemetry_writer.machine_info)
+        self.stopwatch.stop_and_write_telemetry(assessment_perf_log)
 
     def raise_if_telemetry_unsupported(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
