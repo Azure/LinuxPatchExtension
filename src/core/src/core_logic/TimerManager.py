@@ -47,7 +47,7 @@ class TimerManager(SystemctlManager):
         """ Idempotent creation and setting of the timer associated with the service the class is instantiated with """
         self.get_timer_status()
         self.remove_timer()
-        interval_unix_timespan = self.__convert_iso8601_interval_to_unix_timespan(self.execution_config.maximum_assessment_interval)
+        interval_unix_timespan = self.__convert_iso8601_interval_to_unix_timespan(Constants.AUTO_ASSESSMENT_CRON_INTERVAL)
         self.create_timer_unit_file(Constants.AUTO_ASSESSMENT_SERVICE_DESC, interval_unix_timespan)
         self.systemctl_daemon_reload()
         self.enable_timer()
