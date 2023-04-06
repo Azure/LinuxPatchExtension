@@ -205,6 +205,7 @@ class Constants(object):
         UNCLASSIFIED = 'Unclassified'
         CRITICAL = 'Critical'
         SECURITY = 'Security'
+        SECURITY_ESM = 'Security-ESM'
         OTHER = 'Other'
 
     PKG_MGR_SETTING_FILTER_CRITSEC_ONLY = 'FilterCritSecOnly'
@@ -310,9 +311,10 @@ class Constants(object):
     # This ordering ensures that the most important information is preserved in the case of patch object truncation
     PackageClassificationOrderInStatusReporting = {
         PackageClassification.SECURITY: 1,
-        PackageClassification.CRITICAL: 2,
-        PackageClassification.OTHER: 3,
-        PackageClassification.UNCLASSIFIED: 4
+        PackageClassification.SECURITY_ESM: 2,
+        PackageClassification.CRITICAL: 3,
+        PackageClassification.OTHER: 4,
+        PackageClassification.UNCLASSIFIED: 5
     }
 
     PatchStateOrderInStatusReporting = {
