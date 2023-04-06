@@ -87,7 +87,61 @@ class UbuntuProClient:
         return extracted_updates, extracted_updates_versions
 
     def get_security_updates(self):
-        pass
+        """query Ubuntu Pro Client to get security updates."""
+        security_updates_query_success = False
+        security_updates = []
+        security_updates_versions = []
+        security_updates_exception = None
+
+        try:
+            code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_query_updates_cmd, False, False)
+            if code == 0:
+                self.ubuntu_pro_client_cmd_output = json.loads(output)["data"]["attributes"]["updates"]
+
+            security_updates_query_success = True
+            security_criteria_string = ["standard-security"]
+            filtered_security_updates = [update for update in self.ubuntu_pro_client_cmd_output if
+                                         update["provided_by"] in security_criteria_string]
+
+            self.composite_logger.log_debug(
+                "Ubuntu Pro Client get security updates : [SecurityUpdatesCount={0}]".format(
+                    len(filtered_security_updates)))
+            security_updates, security_updates_versions = self.extract_packages_and_versions(filtered_security_updates)
+        except Exception as error:
+            security_updates_exception = repr(error)
+
+        self.composite_logger.log_debug(
+            "Ubuntu Pro Client get security updates : [error={0}]".format(security_updates_exception))
+        return security_updates_query_success, security_updates, security_updates_versions
+
+    def get_security_esm_updates(self):
+        """query Ubuntu Pro Client to get security-esm updates."""
+        security_esm_updates_query_success = False
+        security_esm_updates = []
+        security_esm_updates_versions = []
+        security_esm_updates_exception = None
+
+        try:
+            code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_query_updates_cmd, False, False)
+            if code == 0:
+                self.ubuntu_pro_client_cmd_output = json.loads(output)["data"]["attributes"]["updates"]
+
+            security_esm_updates_query_success = True
+            security_esm_criteria_strings = ["esm-infra", "esm-apps"]
+            filtered_security_esm_updates = [update for update in self.ubuntu_pro_client_cmd_output if
+                                             update["provided_by"] in security_esm_criteria_strings]
+
+            self.composite_logger.log_debug(
+                "Ubuntu Pro Client get security-esm updates : [SecurityEsmUpdatesCount={0}]".format(
+                    len(filtered_security_esm_updates)))
+            security_esm_updates, security_esm_updates_versions = self.extract_packages_and_versions(
+                filtered_security_esm_updates)
+        except Exception as error:
+            security_esm_updates_exception = repr(error)
+
+        self.composite_logger.log_debug(
+            "Ubuntu Pro Client get security-esm updates : [error={0}]".format(security_esm_updates_exception))
+        return security_esm_updates_query_success, security_esm_updates, security_esm_updates_versions
 
     def get_all_updates(self):
         """query Ubuntu Pro Client to get all updates."""
