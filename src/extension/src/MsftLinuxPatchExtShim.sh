@@ -36,7 +36,7 @@ function find_python(){
     local python_exec_command=$1
 
     # Check if there is python defined.
-    for p in python3 python python2 /usr/libexec/platform-python; do
+    for p in python3 /usr/share/oem/python/bin/python3 python python2 /usr/libexec/platform-python /usr/share/oem/python/bin/python; do
         if command -v "${p}" ; then
             eval ${python_exec_command}=${p}
             return
