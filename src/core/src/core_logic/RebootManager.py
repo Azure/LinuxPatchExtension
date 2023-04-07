@@ -95,7 +95,7 @@ class RebootManager(object):
         if self.package_manager.force_reboot:
             self.composite_logger.log("A reboot is pending as the package manager required it.")
 
-        # return if never
+        # return false if never
         if self.reboot_setting == Constants.REBOOT_NEVER:
             if reboot_pending:
                 self.composite_logger.log_warning(' - There is a reboot pending, but reboot is blocked, as per patch installation configuration. (' + str(Constants.REBOOT_NEVER) + ')')

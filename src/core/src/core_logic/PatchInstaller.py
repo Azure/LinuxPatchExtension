@@ -288,9 +288,13 @@ class PatchInstaller(object):
         """ Marks Installation operation as completed by updating the status of PatchInstallationSummary as success and patch metadata to be sent to healthstore.
         This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as completed only after the implicit (2nd) assessment operation """
         self.status_handler.set_current_operation(Constants.INSTALLATION)  # Required for status handler to log errors, that occur during marking installation completed, in installation substatus
-        self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
-        # Update patch metadata in status for auto patching request, to be reported to healthStore
+        # RebootNever is selected and pending, set status warning else success
+        if self.reboot_manager.reboot_setting == Constants.REBOOT_NEVER and self.reboot_manager.is_reboot_pending():
+            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
+        else:
+            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+
         # When available, HealthStoreId always takes precedence over the 'overriden' Maintenance Run Id that is being re-purposed for other reasons
         # In the future, maintenance run id will be completely deprecated for health store reporting.
         patch_version_raw = self.execution_config.health_store_id if self.execution_config.health_store_id is not None else self.execution_config.maintenance_run_id
