@@ -90,8 +90,7 @@ class RebootManager(object):
     def start_reboot_if_required_and_time_available(self, current_time_available):
         """ Starts a reboot if required. Happens only at the end of the run if required. """
         self.composite_logger.log("\nReboot Management")
-        reboot_pending = False if not self.status_handler else self.status_handler.is_reboot_pending
-        reboot_pending = self.package_manager.force_reboot or reboot_pending
+        reboot_pending = self.is_reboot_pending()
 
         if self.package_manager.force_reboot:
             self.composite_logger.log("A reboot is pending as the package manager required it.")
@@ -127,3 +126,6 @@ class RebootManager(object):
                 self.status_handler.add_error_to_status("Reboot Management" + str(error_msg), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                 self.maintenance_window_exceeded_flag = True
                 return False
+
+    def is_reboot_pending(self):
+        return self.package_manager.force_reboot or (self.status_handler and self.status_handler.is_reboot_pending)
