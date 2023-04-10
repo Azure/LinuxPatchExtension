@@ -44,20 +44,17 @@ class PatchAssessor(object):
         self.raise_if_telemetry_unsupported()
 
         if self.execution_config.exec_auto_assess_only and not self.should_auto_assessment_run():
-            self.composite_logger.log("\nAutomatic patch assessment not required at this time.\n")
+            self.composite_logger.log("\nSkipping automatic patch assessment... [ShouldAutoAssessmentRun=False]\n")
             self.lifecycle_manager.lifecycle_status_check()
             return True
 
-        self.composite_logger.log('\nStarting patch assessment...')
+        self.composite_logger.log("\nStarting patch assessment... [MachineId: " + self.env_layer.platform.node() +"][ActivityId: " + self.execution_config.activity_id +"][StartTime: " + self.execution_config.start_time +"]")
         self.write_assessment_state()   # success / failure does not matter, only that an attempt started
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
         self.stopwatch.start()
 
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
-        self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
-        self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
-        self.composite_logger.log("Operation request time: " + self.execution_config.start_time)
 
         self.composite_logger.log("\n\nGetting available patches...")
         self.package_manager.refresh_repo()
@@ -89,6 +86,7 @@ class PatchAssessor(object):
                 self.status_handler.set_reboot_pending(reboot_pending)
 
                 self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+                break   # avoid retries for success
 
             except Exception as error:
                 if i < Constants.MAX_ASSESSMENT_RETRY_COUNT - 1:

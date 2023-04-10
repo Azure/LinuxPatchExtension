@@ -40,9 +40,9 @@ class ConfigurePatchingProcessor(object):
     def start_configure_patching(self):
         """ Start configure patching """
         try:
+            self.composite_logger.log("\nStarting configure patching... [MachineId: " + self.env_layer.platform.node() +"][ActivityId: " + self.execution_config.activity_id +"][StartTime: " + self.execution_config.start_time +"]")
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
             self.__raise_if_telemetry_unsupported()
-            self.composite_logger.log("\nStarting configure patching... [MachineId: " + self.env_layer.platform.node() +"][ActivityId: " + self.execution_config.activity_id +"][StartTime: " + self.execution_config.start_time +"]")
 
             self.__report_consolidated_configure_patch_status(status=Constants.STATUS_TRANSITIONING)
             self.__try_set_patch_mode()
@@ -85,14 +85,12 @@ class ConfigurePatchingProcessor(object):
 
             if self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM and self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.UNKNOWN:
                 # NOTE: only sending details in error objects for customer visibility on why patch state is unknown, overall configurepatching status will remain successful
-                self.__report_consolidated_configure_patch_status(status=Constants.STATUS_TRANSITIONING, error="Could not disable one or more automatic OS update services. Please check if they are configured correctly")
-            else:
-                self.__report_consolidated_configure_patch_status()
+                self.configure_patching_exception_error = "Could not disable one or more automatic OS update services. Please check if they are configured correctly"
 
             self.composite_logger.log_debug("Completed processing patch mode configuration.")
         except Exception as error:
             self.composite_logger.log_error("Error while processing patch mode configuration. [Error={0}]".format(repr(error)))
-            self.__report_consolidated_configure_patch_status(status=Constants.STATUS_TRANSITIONING, error=error)   # this needs to be transitioning to keep goal-seeking running
+            self.configure_patching_exception_error = error
             self.configure_patching_successful &= False
 
     def __try_set_auto_assessment_mode(self):
@@ -121,6 +119,7 @@ class ConfigurePatchingProcessor(object):
             self.__report_consolidated_configure_patch_status()
             self.composite_logger.log_debug("Completed processing automatic assessment mode configuration.")
         except Exception as error:
+            # deliberately not setting self.configure_patching_exception_error here as it does not feed into the parent object. Not a bug, if you're thinking about it.
             self.composite_logger.log_error("Error while processing automatic assessment mode configuration. [Error={0}]".format(repr(error)))
             self.__report_consolidated_configure_patch_status(status=Constants.STATUS_TRANSITIONING, error=error)
             self.configure_patching_successful &= False
