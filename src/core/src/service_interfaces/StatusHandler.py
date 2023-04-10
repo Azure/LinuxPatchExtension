@@ -156,11 +156,10 @@ class StatusHandler(object):
     def set_package_install_status(self, package_names, package_versions, status="Pending", classification=None):
         """ Externally available method to set installation status for one or more packages of the **SAME classification and status** """
         self.composite_logger.log_debug("Setting package installation status in bulk. [Count={0}]".format(str(len(package_names))))
-
         package_names, package_versions = self.validate_packages_being_installed(package_names, package_versions)
+        package_install_status_summary = ""
 
         for package_name, package_version in zip(package_names, package_versions):
-            self.composite_logger.log_debug("Logging progress [Package: " + package_name + "; Status: " + status + "]")
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
             for i in range(0, len(self.__installation_packages)):
@@ -182,6 +181,9 @@ class StatusHandler(object):
                 }
                 self.__installation_packages.append(record)
 
+            package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
+
+        self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
@@ -205,14 +207,17 @@ class StatusHandler(object):
         self.validate_packages_being_installed(package_names, package_versions)
 
         self.composite_logger.log_debug("Setting package installation classification in bulk. [Count={0}]".format(str(len(package_names))))
+        package_classification_summary = ""
         for package_name, package_version in zip(package_names, package_versions):
-            self.composite_logger.log_debug("Logging progress [Package: " + package_name + "; Package Version: " + package_version + "]")
+            classification_matching_package_found = False
             patch_id = self.__get_patch_id(package_name, package_version)
             for i in range(0, len(self.__installation_packages)):
                 if patch_id == self.__installation_packages[i]['patchId']:
-                    self.composite_logger.log_debug("Setting classification for package: [Package={0}] [Classification={1}]".format(str(package_name), str(classification)))
+                    classification_matching_package_found = True
                     self.__installation_packages[i]['classifications'] = [classification]
+            package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
+        self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 

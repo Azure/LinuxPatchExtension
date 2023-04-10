@@ -131,6 +131,16 @@ class ProcessHandler(object):
             self.logger.log_error("Unable to stage auto-assess shim. [Error={0}]".format(str(error)))
 
     def get_python_cmd(self):
+        # auto-discover what is already being used by extension
+        python_path = os.path.realpath(sys.executable)
+        code, out = self.env_layer.run_command_output("which " + python_path, False, False)
+        if code == 0 and python_path in str(out):
+            self.logger.log_debug("Python path discovered. [Path={0}][RealPath={1}]".format(str(python_path), str(sys.executable)))
+            return python_path
+        else:
+            self.logger.log_debug("Default python path discovery failed. [Code={0}][Out={1}]".format(str(code), str(out)))
+
+        # nothing below this is really necessary and is only there as a fallback for safety initially -----------------
         command_to_check_for_python = "which python"
         command_to_check_for_python3 = "which python3"
         command_to_use_for_python = "python"

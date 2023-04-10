@@ -151,15 +151,15 @@ class TestPatchAssessor(unittest.TestCase):
         self.runtime.patch_assessor.start_assessment()
         self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is not None)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken is not None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken_in_secs is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time <= self.runtime.patch_assessor.stopwatch.end_time)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken >= 0)
-        task_info = "'{0}': '{1}'".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.ASSESSMENT))
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken_in_secs >= 0)
+        task_info = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.ASSESSMENT))
         self.assertTrue(task_info in str(self.runtime.patch_assessor.stopwatch.task_details))
-        task_status = "'{0}': '{1}'".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
+        task_status = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
         self.assertTrue(task_status in str(self.runtime.patch_assessor.stopwatch.task_details))
-        err_msg = "'{0}': ''".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
+        err_msg = "{0}=".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
         self.assertTrue(err_msg in str(self.runtime.patch_assessor.stopwatch.task_details))
 
 
@@ -168,7 +168,7 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is None)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken is None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken_in_secs is None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is None)
 
     def raise_ex(self):
