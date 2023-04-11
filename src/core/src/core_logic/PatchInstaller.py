@@ -190,13 +190,14 @@ class PatchInstaller(object):
         # (c) New packages added during the brief time batch installation was in progress
         packages, package_versions = self.get_remaining_packages_to_install(package_manager)
 
-        batch_processing_perf_log  = {Constants.PerfLogTrackerParams.TASK: "Installation of packages in batches", "Installed packages count in batch processing": str(installed_update_count), "number of remaining packages to install": str(len(packages)), 
-                                      Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_installation_successful), "Is installation in batches stopped due to not enough remaining time to install in batches": str(maintenance_window_batch_cutoff_reached)}
+        batch_processing_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesInBatches", "InstalledPackagesCountInBatchProcessing",
+                                    str(installed_update_count), "RemainingPackagesToInstall", str(len(packages)), Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_installation_successful), 
+                                    "IsMaintenanceWindowBatchCutoffReached", str(maintenance_window_batch_cutoff_reached))
 
         stopwatch_for_batch_install_process.write_telemetry_for_stopwatch(str(batch_processing_perf_log))
 
         if len(packages) == 0:
-            installed_update_count = self.log_metrics_and_perform_final_reconciliation(package_manager, maintenance_window, patch_installation_successful, False, installed_update_count)
+            installed_update_count = self.log_metrics_and_perform_final_reconciliation(package_manager, maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
@@ -296,9 +297,9 @@ class PatchInstaller(object):
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
             installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_package_install_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
 
-            package_install_perf_log = {Constants.PerfLogTrackerParams.TASK: "Installation of a package", "Package Name": package, "Package version": version, "Package and dependencies": str(package_and_dependencies), 
-                                        "Package and dependency versions": str(package_and_dependency_versions), "Package install result": str(install_result),
-                                        "Number of dependencies installed": str(number_of_dependencies_installed), "Number of dependencies failed to install": str(number_of_dependencies_failed)}
+            package_install_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackage",
+                                       "PackageName", package, "PackageVersion", version, "PackageAndDependencies", str(package_and_dependencies),"PackageAndDependencyVersions", str(package_and_dependency_versions),
+                                       "PackageInstallResult", str(install_result), "NumberOfDependenciesInstalled", str(number_of_dependencies_installed), "NumberOfDependenciesFailed", str(number_of_dependencies_failed))
 
             single_package_install_stopwatch.stop_and_write_telemetry(str(package_install_perf_log))
 
@@ -381,7 +382,7 @@ class PatchInstaller(object):
                     self.status_handler.set_package_install_status(package_manager.get_product_name(packages[index]), str(package_versions[index]), Constants.NOT_SELECTED)
                 elif packages[index] not in self.last_still_needed_packages:
                     # Should have got installed as dependent package of some other package. Package installation status should also have been set.
-                    already_installed_packages.append(package)
+                    already_installed_packages.append(packages[index])
                     self.attempted_parent_package_install_count += 1
                     self.successful_parent_package_install_count += 1
                 else:
@@ -460,10 +461,10 @@ class PatchInstaller(object):
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
             installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_package_install_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
 
-            per_batch_install_perf_log = {Constants.PerfLogTrackerParams.TASK: "Installation of a batch of packages", "Packages in batch": str(packages_in_batch), "Package and dependencies to install": str(package_and_dependencies),
-                                          "Package and dependencies version": str(package_and_dependency_versions), "Number of parent packages installed": str(parent_packages_installed_in_batch_count),
-                                          "Number of parent packages failed to install": str(parent_packages_failed_in_batch_count), "Number of dependencies installed": str(number_of_dependencies_installed),
-                                          "Number of dependencies failed to install": str(number_of_dependencies_failed)}
+            per_batch_install_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallBatchOfPackages",
+                                         "PackagesInBatch", str(packages_in_batch), "PackageAndDependencies", str(package_and_dependencies), "PackageAndDependencyVersions", str(package_and_dependency_versions),
+                                         "NumberOfParentPackagesInstalled", str(parent_packages_installed_in_batch_count), "NumberOfParentPackagesFailed", str(parent_packages_failed_in_batch_count),
+                                         "NumberOfDependenciesInstalled", str(number_of_dependencies_installed), "NumberOfDependenciesFailed", str(number_of_dependencies_failed))
 
             per_batch_installation_stopwatch.stop_and_write_telemetry(str(per_batch_install_perf_log))
 
