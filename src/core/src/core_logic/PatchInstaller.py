@@ -455,7 +455,7 @@ class PatchInstaller(object):
             self.attempted_parent_package_install_count += len(packages_in_batch)
 
             # Update reboot pending status in status_handler
-            self.status_handler.set_reboot_pending(self.is_reboot_pending())
+            self.status_handler.set_reboot_pending(self.package_manager.is_reboot_pending())
 
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
             installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_package_install_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
