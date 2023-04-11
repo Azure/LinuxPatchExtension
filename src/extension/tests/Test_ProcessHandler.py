@@ -16,6 +16,7 @@
 
 import os
 import subprocess
+import sys
 import unittest
 from extension.src.Constants import Constants
 from extension.src.EnvLayer import EnvLayer
@@ -51,6 +52,9 @@ class TestProcessHandler(unittest.TestCase):
 
     def mock_os_kill_to_raise_exception(self, pid, sig):
         raise OSError
+
+    def mock_run_command_output_for_python_sys(self, cmd, no_output=False, chk_err=False):
+        return 0, sys.executable
 
     def mock_run_command_output_for_python(self, cmd, no_output=False, chk_err=False):
         return 0, "/usr/bin/python"
@@ -137,6 +141,10 @@ class TestProcessHandler(unittest.TestCase):
         # setting mocks
         run_command_output_backup = EnvLayer.run_command_output
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
+
+        # testing for 'python' command
+        EnvLayer.run_command_output = self.mock_run_command_output_for_python_sys
+        self.assertEqual(process_handler.get_python_cmd(), sys.executable)
 
         # testing for 'python' command
         EnvLayer.run_command_output = self.mock_run_command_output_for_python

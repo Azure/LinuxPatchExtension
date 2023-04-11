@@ -17,8 +17,11 @@ import json
 import os
 import unittest
 from core.src.bootstrap.Constants import Constants
+from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequiredResult
 from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
+from core.src.package_managers import AptitudePackageManager, UbuntuProClient
 
 
 class TestAptitudePackageManager(unittest.TestCase):
@@ -29,11 +32,34 @@ class TestAptitudePackageManager(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
+    #region Mocks
     def mock_read_with_retry_raise_exception(self):
         raise Exception
 
     def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
+
+    def mock_linux_distribution_to_return_ubuntu_focal(self):
+        return ['Ubuntu', '20.04', 'focal']
+
+    def mock_is_pro_working_return_true(self):
+        return True
+
+    def mock_minimum_required_python_installed_return_true(self):
+        return True
+
+    def mock_install_or_update_pro_raise_exception(self):
+        raise Exception
+
+    def mock_do_processes_require_restart_raises_exception(self):
+        raise Exception
+
+    def mock_is_reboot_pending_returns_False(self):
+        return False, False
+
+    def mock_os_path_isfile_raise_exception(self, file):
+        raise Exception
+    #endregion Mocks
 
     def test_package_manager_no_updates(self):
         """Unit test for aptitude package manager with no updates"""
@@ -121,6 +147,23 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
         self.assertTrue(error_msg in str(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]))
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+
+    def test_reboot_always_runs_only_once_if_no_reboot_is_required(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.reboot_setting = 'IfRequired'
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        reboot_manager = runtime.reboot_manager
+
+        # mock swap
+        backup_os_path_isfile = os.path.isfile
+        os.path.isfile = self.mock_os_path_isfile_raise_exception
+
+        # reboot will happen due to exception in evaluating if it is required (defaults to true)
+        runtime.status_handler.is_reboot_pending = False
+        self.assertEqual(runtime.package_manager.is_reboot_pending(), True)
+
+        # restore
+        os.path.isfile = backup_os_path_isfile
 
     def test_install_package_only_upgrades(self):
         self.runtime.set_legacy_test_type('FailInstallPath')
@@ -348,6 +391,111 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.runtime.write_to_file(package_manager.image_default_patch_mode_file_path, image_default_patch_mode)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
+
+    def test_is_reboot_pending_prerequisite_not_met_should_return_false(self):
+        package_manager = self.container.get('package_manager')
+        package_manager._AptitudePackageManager__pro_client_prereq_met = False
+
+        self.assertFalse(package_manager.is_reboot_pending())
+
+    def test_is_reboot_pending_prerequisite_met_should_return_true(self):
+        reboot_mock = MockRebootRequiredResult()
+        reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
+        package_manager = self.container.get('package_manager')
+        package_manager._AptitudePackageManager__pro_client_prereq_met = True
+
+        self.assertTrue(package_manager.is_reboot_pending())
+
+        reboot_mock.mock_unimport_uaclient_reboot_required_module()
+
+    def test_is_pro_client_prereq_met_should_return_false_for_unsupported_os_version(self):
+        package_manager = self.container.get('package_manager')
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        backup_package_manager_ubuntu_pro_client_is_pro_working = package_manager.ubuntu_pro_client.is_pro_working
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_focal
+        package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
+
+        self.assertFalse(package_manager.check_pro_client_prerequisites())
+
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
+        package_manager.ubuntu_pro_client.is_pro_working = backup_package_manager_ubuntu_pro_client_is_pro_working
+
+    def test_is_pro_client_prereq_met_should_return_true_for_supported_os_version(self):
+        package_manager = self.container.get('package_manager')
+        backup_package_manager_ubuntu_pro_client_is_pro_working = package_manager.ubuntu_pro_client.is_pro_working
+        package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
+        backup_package_manager_is_minimum_required_python_installed = package_manager._AptitudePackageManager__is_minimum_required_python_installed
+        package_manager._AptitudePackageManager__is_minimum_required_python_installed = self.mock_minimum_required_python_installed_return_true
+
+        self.assertTrue(package_manager.check_pro_client_prerequisites())
+
+        package_manager.ubuntu_pro_client.is_pro_working = backup_package_manager_ubuntu_pro_client_is_pro_working
+        package_manager._AptitudePackageManager__is_minimum_required_python_installed = backup_package_manager_is_minimum_required_python_installed
+
+    def test_package_manager_instance_created_even_when_exception_thrown_in_pro(self):
+        package_manager = self.container.get('package_manager')
+        execution_config = self.container.get('execution_config')
+        backup_package_manager_ubuntu_pro_client_install_or_update_pro = UbuntuProClient.UbuntuProClient.install_or_update_pro
+        UbuntuProClient.UbuntuProClient.install_or_update_pro = self.mock_install_or_update_pro_raise_exception
+
+        obj = AptitudePackageManager.AptitudePackageManager(package_manager.env_layer, execution_config, package_manager.composite_logger, package_manager.telemetry_writer, package_manager.status_handler)
+
+        self.assertIsNotNone(obj)
+        self.assertIsNotNone(obj.ubuntu_pro_client)
+
+        UbuntuProClient.UbuntuProClient.install_or_update_pro = backup_package_manager_ubuntu_pro_client_install_or_update_pro
+
+    def test_is_reboot_pending_pro_client_success(self):
+        reboot_mock = MockRebootRequiredResult()
+        reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_no')
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        backup_AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+        self.assertFalse(runtime.package_manager.is_reboot_pending())
+
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_AptitudePackageManager__pro_client_prereq_met
+        reboot_mock.mock_unimport_uaclient_reboot_required_module()
+
+    def test_is_reboot_pending_test_mismatch(self):
+        reboot_mock = MockRebootRequiredResult()
+        reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        backup__AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+
+        # test should return true as we fall back to Ubuntu Pro Client api`s result.
+        self.assertTrue(runtime.package_manager.is_reboot_pending())
+
+        reboot_mock.mock_unimport_uaclient_reboot_required_module()
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup__AptitudePackageManager__pro_client_prereq_met
+
+    def test_is_reboot_pending_test_raises_exception(self):
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        backup_package_manager_do_processes_require_restart = runtime.package_manager.do_processes_require_restart
+        runtime.package_manager.do_processes_require_restart = self.mock_do_processes_require_restart_raises_exception
+        backup_package_manager_is_reboot_pending = runtime.package_manager.ubuntu_pro_client.is_reboot_pending
+        runtime.package_manager.ubuntu_pro_client.is_reboot_pending = self.mock_is_reboot_pending_returns_False
+        backup__AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+
+        # test returns true because, we return True if there is exception.
+        self.assertTrue(runtime.package_manager.is_reboot_pending())
+
+        runtime.package_manager.do_processes_require_restart = backup_package_manager_do_processes_require_restart
+        runtime.package_manager.ubuntu_pro_client.is_reboot_pending = backup_package_manager_is_reboot_pending
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup__AptitudePackageManager__pro_client_prereq_met
+
+    def test_check_pro_client_prerequisites_should_return_false(self):
+        package_manager = self.container.get('package_manager')
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_focal
+        backup_ubuntu_pro_client_is_pro_working = package_manager.ubuntu_pro_client.is_pro_working
+        package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
+
+        self.assertFalse(package_manager.check_pro_client_prerequisites())
+
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
+        package_manager.ubuntu_pro_client.is_pro_working = backup_ubuntu_pro_client_is_pro_working
 
 
 if __name__ == '__main__':

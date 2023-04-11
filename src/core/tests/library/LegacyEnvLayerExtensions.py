@@ -530,6 +530,8 @@ class LegacyEnvLayerExtensions():
                         self.write_to_file(os.path.join(self.temp_folder_path, "temp2.list"), "test temp file 2")
                         code = 0
                         output = "tmp file created"
+                    elif cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
+                        code = 0
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -538,7 +540,8 @@ class LegacyEnvLayerExtensions():
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz\n" + \
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz"
                 elif self.legacy_package_manager_name is Constants.APT:
-                    output = ''
+                    if cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
+                        code = 1
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("microcode_ctl") > -1:
                         code = 1

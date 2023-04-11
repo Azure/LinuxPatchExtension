@@ -96,4 +96,6 @@ class MaintenanceWindow(object):
                 error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             raise
 
+        # Rounding off to one digit after decimal e.g. 14.514372666666667 will become 14.5
+        percent_maintenance_window_used = round(percent_maintenance_window_used, 1)
         return percent_maintenance_window_used

@@ -156,11 +156,10 @@ class StatusHandler(object):
     def set_package_install_status(self, package_names, package_versions, status="Pending", classification=None):
         """ Externally available method to set installation status for one or more packages of the **SAME classification and status** """
         self.composite_logger.log_debug("Setting package installation status in bulk. [Count={0}]".format(str(len(package_names))))
-
         package_names, package_versions = self.validate_packages_being_installed(package_names, package_versions)
+        package_install_status_summary = ""
 
         for package_name, package_version in zip(package_names, package_versions):
-            self.composite_logger.log_debug("Logging progress [Package: " + package_name + "; Status: " + status + "]")
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
             for i in range(0, len(self.__installation_packages)):
@@ -182,6 +181,9 @@ class StatusHandler(object):
                 }
                 self.__installation_packages.append(record)
 
+            package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
+
+        self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
@@ -205,14 +207,17 @@ class StatusHandler(object):
         self.validate_packages_being_installed(package_names, package_versions)
 
         self.composite_logger.log_debug("Setting package installation classification in bulk. [Count={0}]".format(str(len(package_names))))
+        package_classification_summary = ""
         for package_name, package_version in zip(package_names, package_versions):
-            self.composite_logger.log_debug("Logging progress [Package: " + package_name + "; Package Version: " + package_version + "]")
+            classification_matching_package_found = False
             patch_id = self.__get_patch_id(package_name, package_version)
             for i in range(0, len(self.__installation_packages)):
                 if patch_id == self.__installation_packages[i]['patchId']:
-                    self.composite_logger.log_debug("Setting classification for package: [Package={0}] [Classification={1}]".format(str(package_name), str(classification)))
+                    classification_matching_package_found = True
                     self.__installation_packages[i]['classifications'] = [classification]
+            package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
+        self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
@@ -323,8 +328,9 @@ class StatusHandler(object):
             else:
                 other_patch_count += 1
 
-        # discern started by
-        started_by = Constants.PatchAssessmentSummaryStartedBy.PLATFORM if self.execution_config.exec_auto_assess_only else Constants.PatchAssessmentSummaryStartedBy.USER
+        # discern started by - either pure auto-assessment or assessment data being included with configure patching with assessmentMode set to AutomaticByPlatform
+        include_assessment_with_configure_patching = (self.execution_config.operation == Constants.CONFIGURE_PATCHING and self.execution_config.assessment_mode == Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM)
+        started_by = Constants.PatchAssessmentSummaryStartedBy.PLATFORM if (self.execution_config.exec_auto_assess_only or include_assessment_with_configure_patching) else Constants.PatchAssessmentSummaryStartedBy.USER
 
         # Compose sub-status message
         substatus_message = {
@@ -728,7 +734,7 @@ class StatusHandler(object):
                 if self.__try_add_error(self.__configure_patching_errors, error_detail):
                     self.__configure_patching_top_level_error_count += 1
 
-            # retain previously set status, code, patchMode and M for configure patching substatus
+            # retain previously set status, code, patchMode and assessmentMode for configure patching substatus
             if self.__configure_patching_substatus_json is not None:
                 automatic_os_patch_state = json.loads(self.__configure_patching_substatus_json["formattedMessage"]["message"])["automaticOSPatchState"]
                 auto_assessment_status = self.__json_try_get_key_value(self.__configure_patching_substatus_json["formattedMessage"]["message"],"autoAssessmentStatus","{}")

@@ -34,7 +34,7 @@ class PatchInstaller(object):
         self.lifecycle_manager = lifecycle_manager
 
         self.package_manager = package_manager
-        self.package_manager_name = self.package_manager.__class__.__name__
+        self.package_manager_name = self.package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY)
         self.package_filter = package_filter
         self.maintenance_window = maintenance_window
         self.reboot_manager = reboot_manager
@@ -46,9 +46,7 @@ class PatchInstaller(object):
         self.attempted_parent_package_install_count = 0
         self.successful_parent_package_install_count = 0
         self.failed_parent_package_install_count = 0
-
-        # Constants
-        self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
+        self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
@@ -57,7 +55,6 @@ class PatchInstaller(object):
 
         self.composite_logger.log('\nStarting patch installation...')
 
-        self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
         self.stopwatch.start()
 
         self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
@@ -69,7 +66,7 @@ class PatchInstaller(object):
         reboot_manager = self.reboot_manager
 
         # Early reboot if reboot is allowed by settings and required by the machine
-        reboot_pending = self.is_reboot_pending()
+        reboot_pending = self.package_manager.is_reboot_pending()
         self.status_handler.set_reboot_pending(reboot_pending)
         if reboot_pending:
             if reboot_manager.is_setting(Constants.REBOOT_NEVER):
@@ -111,7 +108,7 @@ class PatchInstaller(object):
 
         return overall_patch_installation_successful
 
-    def write_installer_perf_logs(self, patch_operation_successful, installed_patch_count, number_of_rounds, maintenance_window, maintenance_window_exceeded, task_status, error_msg):
+    def write_installer_perf_logs(self, patch_operation_successful, installed_patch_count, retry_count, maintenance_window, maintenance_window_exceeded, task_status, error_msg):
         perc_maintenance_window_used = -1
 
         try:
@@ -119,12 +116,14 @@ class PatchInstaller(object):
         except Exception as error:
             self.composite_logger.log_debug("Error in writing patch installation performance logs. Error is: " + repr(error))
 
-        patch_installation_perf_log = {Constants.PerfLogTrackerParams.TASK: Constants.INSTALLATION, Constants.PerfLogTrackerParams.TASK_STATUS: str(task_status), Constants.PerfLogTrackerParams.ERROR_MSG: error_msg,
-                                       Constants.PerfLogTrackerParams.PACKAGE_MANAGER: self.package_manager_name, Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL: str(patch_operation_successful),
-                                       Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT: str(installed_patch_count), Constants.PerfLogTrackerParams.NUMBER_OF_TRIALS: str(number_of_rounds),
-                                       Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW: str(maintenance_window.duration), Constants.PerfLogTrackerParams.PERC_MAINTENANCE_WINDOW_USED: str(perc_maintenance_window_used),
-                                       Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED: str(maintenance_window_exceeded)}
-        self.stopwatch.stop_and_write_telemetry(str(patch_installation_perf_log))
+        patch_installation_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}][{16}={17}][{18}={19}][{20}={21}]".format(
+                                       Constants.PerfLogTrackerParams.TASK, Constants.INSTALLATION, Constants.PerfLogTrackerParams.TASK_STATUS, str(task_status), Constants.PerfLogTrackerParams.ERROR_MSG, error_msg,
+                                       Constants.PerfLogTrackerParams.PACKAGE_MANAGER, self.package_manager_name, Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_operation_successful),
+                                       Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT, str(installed_patch_count), Constants.PerfLogTrackerParams.RETRY_COUNT, str(retry_count),
+                                       Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW, str(maintenance_window.duration), Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_USED_PERCENT, str(perc_maintenance_window_used),
+                                       Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED, str(maintenance_window_exceeded), Constants.PerfLogTrackerParams.MACHINE_INFO, self.telemetry_writer.machine_info)
+        self.stopwatch.stop_and_write_telemetry(patch_installation_perf_log)
+        return True
 
     def raise_if_telemetry_unsupported(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
@@ -257,7 +256,7 @@ class PatchInstaller(object):
                     break
 
             # Update reboot pending status in status_handler
-            self.status_handler.set_reboot_pending(self.is_reboot_pending())
+            self.status_handler.set_reboot_pending(self.package_manager.is_reboot_pending())
 
             if install_result == Constants.FAILED:
                 self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.FAILED)
@@ -469,17 +468,6 @@ class PatchInstaller(object):
             per_batch_installation_stopwatch.stop_and_write_telemetry(str(per_batch_install_perf_log))
 
         return installed_update_count, patch_installation_successful, maintenance_window_batch_cutoff_reached
-
-    def is_reboot_pending(self):
-        """ Checks if there is a pending reboot on the machine. """
-        try:
-            pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)
-            pending_processes_exists = self.package_manager.do_processes_require_restart()
-            self.composite_logger.log_debug(" - Reboot required debug flags: " + str(pending_file_exists) + ", " + str(pending_processes_exists) + ".")
-            return pending_file_exists or pending_processes_exists
-        except Exception as error:
-            self.composite_logger.log_error('Error while checking for reboot pending: ' + repr(error))
-            return True     # defaults for safety
 
     def mark_installation_completed(self):
         """ Marks Installation operation as completed by updating the status of PatchInstallationSummary as success and patch metadata to be sent to healthstore.
