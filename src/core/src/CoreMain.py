@@ -75,9 +75,15 @@ class CoreMain(object):
                 configure_patching_successful = configure_patching_processor.start_configure_patching()
 
             # Assessment happens for all operations. If the goal seeking tracked operation is CP, then its final status can only be written after assessment reaches a terminal state
-            patch_assessment_successful = patch_assessor.start_assessment()
+            assessment_exception_error = None
+            try:
+                patch_assessment_successful = patch_assessor.start_assessment()
+            except Exception as error:
+                assessment_exception_error = error
             if not execution_config.exec_auto_assess_only and patch_operation_requested == Constants.CONFIGURE_PATCHING.lower():
-                configure_patching_processor.set_configure_patching_final_overall_status()
+                configure_patching_processor.set_configure_patching_final_overall_status()  # guarantee configure patching status write prior to throwing on any catastrophic assessment error
+            if assessment_exception_error is not None:
+                raise assessment_exception_error
 
             # Patching + additional assessment occurs if the operation is 'Installation' and not Auto Assessment. Need to check both since operation_requested from prev run is preserved in Auto Assessment
             if not execution_config.exec_auto_assess_only and patch_operation_requested == Constants.INSTALLATION.lower():
