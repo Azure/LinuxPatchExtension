@@ -33,7 +33,7 @@ class TelemetryWriter(object):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.__operation_id = str(datetime.datetime.utcnow())
-        self.__task_name_watermark = "." + str(datetime.datetime.utcnow().hour) + "." + str(datetime.datetime.utcnow().minute) + "." + str(datetime.datetime.utcnow().second) + "." + str(os.getpid())
+        self.__task_name_watermark = "_" + str(datetime.datetime.utcnow().hour) + ":" + str(datetime.datetime.utcnow().minute) + ":" + str(datetime.datetime.utcnow().second) + "_" + str(os.getpid())
         self.__task_name = Constants.TelemetryTaskName.STARTUP + self.__task_name_watermark
         self.events_folder_path = None
         self.__telemetry_event_counter = 1  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
@@ -46,7 +46,8 @@ class TelemetryWriter(object):
         self.__is_telemetry_supported = telemetry_supported and self.events_folder_path is not None
 
         self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
-        self.set_machine_config_info()
+        self.machine_info = None
+        self.set_and_write_machine_config_info()
 
     def write_config_info(self, config_info, config_type='unknown'):
         # Configuration info
@@ -74,15 +75,12 @@ class TelemetryWriter(object):
                 self.write_event(message, Constants.TelemetryEventLevel.Informational)
 
     # Composed payload
-    def set_machine_config_info(self):
+    def set_and_write_machine_config_info(self):
         # Machine info - sent only once at the start of the run
-        self.machine_info = {
-            'platform_name': str(self.env_layer.platform.linux_distribution()[0]),
-            'platform_version': str(self.env_layer.platform.linux_distribution()[1]),
-            'machine_cpu': self.get_machine_processor(),
-            'machine_arch': str(self.env_layer.platform.machine()),
-            'disk_type': self.get_disk_type()
-        }
+        self.machine_info = "[PlatformName={0}][PlatformVersion={1}][MachineCpu={2}][MachineArch={3}][DiskType={4}]".format(
+                             str(self.env_layer.platform.linux_distribution()[0]), str(self.env_layer.platform.linux_distribution()[1]),
+                             self.get_machine_processor(), str(self.env_layer.platform.machine()), self.get_disk_type())
+        self.write_event("Machine info is: {0}".format(self.machine_info), Constants.TelemetryEventLevel.Informational)
 
     def write_execution_error(self, cmd, code, output):
         # Expected to log any errors from a cmd execution, including package manager execution errors
@@ -170,6 +168,10 @@ class TelemetryWriter(object):
             self.__throttle_telemetry_writes_if_required(is_event_file_throttling_needed)
 
             self.__delete_older_events_if_dir_size_limit_not_met()
+
+            # use established task name if the input is defaulted
+            if task_name == Constants.TelemetryTaskName.UNKNOWN:
+                task_name = self.__task_name
 
             event = self.__new_event_json(event_level, message, task_name)
             if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARS:
