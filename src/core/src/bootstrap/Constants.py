@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.45"
+    EXT_VERSION = "1.6.46"
 
     # Runtime environments
     TEST = 'Test'
