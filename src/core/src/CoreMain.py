@@ -79,7 +79,9 @@ class CoreMain(object):
             try:
                 patch_assessment_successful = patch_assessor.start_assessment()
             except Exception as error:
-                assessment_exception_error = error
+                assessment_exception_error = error  # hold this until configure patching is closed out
+
+            # close out configure patching if needed & then raise any 'uncontrolled' assessment exception if it occurred
             if not execution_config.exec_auto_assess_only and patch_operation_requested == Constants.CONFIGURE_PATCHING.lower():
                 configure_patching_processor.set_configure_patching_final_overall_status()  # guarantee configure patching status write prior to throwing on any catastrophic assessment error
             if assessment_exception_error is not None:
