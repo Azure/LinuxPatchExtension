@@ -74,10 +74,18 @@ class CoreMain(object):
             if not execution_config.exec_auto_assess_only:
                 configure_patching_successful = configure_patching_processor.start_configure_patching()
 
-            # Assessment happens for an Auto Assessment request or for all Non Auto Assessment operations, except for ConfigurePatching iff AssessmentMode is set to AutomaticByPlatform
-            include_assessment_with_configure_patching = (patch_operation_requested == Constants.CONFIGURE_PATCHING.lower() and execution_config.assessment_mode == Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM)
-            if execution_config.exec_auto_assess_only or patch_operation_requested != Constants.CONFIGURE_PATCHING.lower() or include_assessment_with_configure_patching:
+            # Assessment happens for all operations. If the goal seeking tracked operation is CP, then its final status can only be written after assessment reaches a terminal state
+            assessment_exception_error = None
+            try:
                 patch_assessment_successful = patch_assessor.start_assessment()
+            except Exception as error:
+                assessment_exception_error = error  # hold this until configure patching is closed out
+
+            # close out configure patching if needed & then raise any 'uncontrolled' assessment exception if it occurred
+            if not execution_config.exec_auto_assess_only and patch_operation_requested == Constants.CONFIGURE_PATCHING.lower():
+                configure_patching_processor.set_configure_patching_final_overall_status()  # guarantee configure patching status write prior to throwing on any catastrophic assessment error
+            if assessment_exception_error is not None:
+                raise assessment_exception_error
 
             # Patching + additional assessment occurs if the operation is 'Installation' and not Auto Assessment. Need to check both since operation_requested from prev run is preserved in Auto Assessment
             if not execution_config.exec_auto_assess_only and patch_operation_requested == Constants.INSTALLATION.lower():

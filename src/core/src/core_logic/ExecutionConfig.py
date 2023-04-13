@@ -27,12 +27,11 @@ class ExecutionConfig(object):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.execution_parameters = eval(execution_parameters)
-        self.composite_logger.log_debug(" - Input parameters... [InputParameters={0}]".format(str(execution_parameters)))
         # Environment details
         self.global_exclusion_list = str(Constants.GLOBAL_EXCLUSION_LIST) if Constants.GLOBAL_EXCLUSION_LIST else None
 
         # Decoded input parameters
-        self.composite_logger.log_debug(" - Decoding input parameters...")
+        self.composite_logger.log_debug(" - Decoding input parameters...[InputParameters={0}]".format(str(execution_parameters)))
         self.sequence_number = self.__get_value_from_argv(self.execution_parameters, Constants.ARG_SEQUENCE_NUMBER)
         self.environment_settings = self.__get_decoded_json_from_argv(self.execution_parameters, Constants.ARG_ENVIRONMENT_SETTINGS)
         self.config_settings = self.__get_decoded_json_from_argv(self.execution_parameters, Constants.ARG_CONFIG_SETTINGS)
@@ -74,11 +73,11 @@ class ExecutionConfig(object):
             self.included_classifications_list = ['Critical'] + self.included_classifications_list
 
         # Derived Settings
-        self.composite_logger.log_debug(" - Establishing data publishing paths...")
         self.log_file_path = os.path.join(self.log_folder, str(self.sequence_number) + ".core.log")
-        self.composite_logger.log_debug("  -- Core log: " + str(self.log_file_path))
         self.status_file_path = os.path.join(self.status_folder, str(self.sequence_number) + ".status")
-        self.composite_logger.log_debug("  -- Status file: " + str(self.status_file_path))
+        self.include_assessment_with_configure_patching = (self.operation == Constants.CONFIGURE_PATCHING and self.assessment_mode == Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM)
+        self.composite_logger.log_debug(" - Derived execution-config settings. [CoreLog={0}][StatusFile={1}][IncludeAssessmentWithConfigurePatching={2}]"
+                                        .format(str(self.log_file_path), str(self.status_file_path), self.include_assessment_with_configure_patching))
 
         # Auto assessment overrides
         if self.exec_auto_assess_only:
@@ -87,7 +86,6 @@ class ExecutionConfig(object):
             self.composite_logger.log_debug("Not executing in auto-assessment mode.")
 
     def __transform_execution_config_for_auto_assessment(self):
-        self.composite_logger.log_debug("Setting execution configuration values for auto assessment.")
         self.activity_id = str(uuid.uuid4())
         self.included_classifications_list = self.included_package_name_mask_list = self.excluded_package_name_mask_list = []
         self.maintenance_run_id = None
@@ -95,6 +93,7 @@ class ExecutionConfig(object):
         self.duration = Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION
         self.reboot_setting = Constants.REBOOT_NEVER
         self.patch_mode = None
+        self.composite_logger.log_debug("Setting execution configuration values for auto assessment. [GeneratedActivityId={0}][StartTime={1}]".format(self.activity_id, str(self.start_time)))
 
     @staticmethod
     def __get_value_from_argv(argv, key, default_value=Constants.DEFAULT_UNSPECIFIED_VALUE):
@@ -140,7 +139,7 @@ class ExecutionConfig(object):
         """
             Supports only a subset of the spec as applicable to patch management.
             No non-default period (Y,M,W,D) is supported. Time is supported (H,M,S).
-            Can throw exceptions - expected to handled as appropriate in calling code.
+            Can throw exceptions - expected to be handled as appropriate in calling code.
         """
         remaining = str(duration)
         if 'PT' not in remaining:
