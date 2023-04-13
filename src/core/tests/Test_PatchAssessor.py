@@ -167,9 +167,9 @@ class TestPatchAssessor(unittest.TestCase):
         self.runtime.set_legacy_test_type('UnalignedPath')
         self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is not None)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is None)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken_in_secs is None)
-        self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is not None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken_in_secs is not None)
+        self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is not None)
 
     def raise_ex(self):
         raise Exception()
