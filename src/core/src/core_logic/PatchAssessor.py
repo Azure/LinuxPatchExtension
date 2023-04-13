@@ -53,16 +53,15 @@ class PatchAssessor(object):
         self.write_assessment_state()   # success / failure does not matter, only that an attempt started
 
         self.stopwatch.start()
-
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
-
-        self.composite_logger.log("\n\nGetting available patches...")
-        self.package_manager.refresh_repo()
-        self.status_handler.reset_assessment_data()
         retry_count = 0
 
         for i in range(0, Constants.MAX_ASSESSMENT_RETRY_COUNT):
             try:
+                self.composite_logger.log("\n\nGetting available patches...")
+                self.package_manager.refresh_repo()
+                self.status_handler.reset_assessment_data()
+
                 if self.lifecycle_manager is not None:
                     self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
 
