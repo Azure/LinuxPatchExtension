@@ -18,7 +18,6 @@ import datetime
 import unittest
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
-from core.src.bootstrap.Constants import Constants
 
 class TestMaintenanceWindow(unittest.TestCase):
     def setUp(self):

@@ -20,7 +20,6 @@ import unittest
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
-from core.src.core_logic.Stopwatch import Stopwatch
 
 class TestPatchInstaller(unittest.TestCase):
     def setUp(self):
