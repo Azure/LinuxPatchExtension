@@ -16,6 +16,7 @@
 
 import os
 import subprocess
+import sys
 import unittest
 from extension.src.Constants import Constants
 from extension.src.EnvLayer import EnvLayer
@@ -51,6 +52,9 @@ class TestProcessHandler(unittest.TestCase):
 
     def mock_os_kill_to_raise_exception(self, pid, sig):
         raise OSError
+
+    def mock_run_command_output_for_python_sys(self, cmd, no_output=False, chk_err=False):
+        return 0, sys.executable
 
     def mock_run_command_output_for_python(self, cmd, no_output=False, chk_err=False):
         return 0, "/usr/bin/python"
@@ -88,6 +92,9 @@ class TestProcessHandler(unittest.TestCase):
     def mock_process_poll_return_Not_None(self):
         return 0
 
+    def mock_get_temp_folder(self):
+        return "testTempFolder"
+
     def test_get_public_config_settings(self):
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
         seq_no = "1234"
@@ -100,12 +107,19 @@ class TestProcessHandler(unittest.TestCase):
         self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.patch_mode), "AutomaticByPlatform")
 
     def test_get_env_settings(self):
+        # Mock temp folder setup in ExtEnvHandler
+        ext_env_handler_get_temp_folder_backup = ExtEnvHandler.get_temp_folder
+        ExtEnvHandler.get_temp_folder = self.mock_get_temp_folder
+
         handler_env_file_path = os.path.join(os.path.pardir, "tests", "helpers")
-        ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=handler_env_file_path)
+        ext_env_handler = ExtEnvHandler(self.logger, self.env_layer, self.json_file_handler, handler_env_file_path=handler_env_file_path)
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
         env_settings = process_handler.get_env_settings(ext_env_handler)
         self.assertTrue(env_settings is not None)
         self.assertEqual(env_settings.get(Constants.EnvSettingsFields.log_folder), "mockLog")
+
+        # reset temp folder mock from ExtEnvHandler
+        ExtEnvHandler.get_temp_folder = ext_env_handler_get_temp_folder_backup
 
     def test_kill_process(self):
         # setting mocks
@@ -129,6 +143,10 @@ class TestProcessHandler(unittest.TestCase):
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
 
         # testing for 'python' command
+        EnvLayer.run_command_output = self.mock_run_command_output_for_python_sys
+        self.assertEqual(process_handler.get_python_cmd(), sys.executable)
+
+        # testing for 'python' command
         EnvLayer.run_command_output = self.mock_run_command_output_for_python
         self.assertEqual(process_handler.get_python_cmd(), "python")
 
@@ -148,13 +166,15 @@ class TestProcessHandler(unittest.TestCase):
         get_python_cmd_backup = ProcessHandler.get_python_cmd
         ProcessHandler.get_python_cmd = self.mock_get_python_cmd
         subprocess_popen_backup = subprocess.Popen
+        ext_env_handler_get_temp_folder_backup = ExtEnvHandler.get_temp_folder
+        ExtEnvHandler.get_temp_folder = self.mock_get_temp_folder
 
         # Initializing config env
         ext_config_settings_handler = ExtConfigSettingsHandler(self.logger, self.json_file_handler, os.path.join(os.path.pardir, "tests", "helpers"))
         seq_no = "1234"
         config_settings = ext_config_settings_handler.read_file(seq_no)
         handler_env_file_path = os.path.join(os.path.pardir, "tests", "helpers")
-        ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=handler_env_file_path)
+        ext_env_handler = ExtEnvHandler(self.logger, self.env_layer, self.json_file_handler, handler_env_file_path=handler_env_file_path)
 
         # process was not launched
         subprocess.Popen = self.mock_subprocess_popen_process_not_launched
@@ -184,6 +204,7 @@ class TestProcessHandler(unittest.TestCase):
         ProcessHandler.get_python_cmd = get_python_cmd_backup
         subprocess.Popen = subprocess_popen_backup
         process_handler.env_layer.run_command_output = run_command_output_backup
+        ExtEnvHandler.get_temp_folder = ext_env_handler_get_temp_folder_backup
 
 
 if __name__ == '__main__':

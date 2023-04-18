@@ -49,7 +49,7 @@ def main(argv):
         utility = Utility(logger)
         runtime_context_handler = RuntimeContextHandler(logger)
         json_file_handler = JsonFileHandler(logger)
-        ext_env_handler = ExtEnvHandler(json_file_handler)
+        ext_env_handler = ExtEnvHandler(logger, env_layer, json_file_handler)
         env_health_manager = EnvHealthManager(env_layer)
         if ext_env_handler.handler_environment_json is not None and ext_env_handler.config_folder is not None:
             config_folder = ext_env_handler.config_folder

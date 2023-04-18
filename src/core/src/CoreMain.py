@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import os
 
 from core.src.bootstrap.Bootstrapper import Bootstrapper
 from core.src.bootstrap.Constants import Constants
@@ -27,7 +28,7 @@ class CoreMain(object):
         composite_logger = bootstrapper.composite_logger
         stdout_file_mirror = bootstrapper.stdout_file_mirror
         telemetry_writer = bootstrapper.telemetry_writer
-        lifecycle_manager = status_handler = None
+        lifecycle_manager = status_handler = execution_config = None
 
         # Init operation statuses
         patch_operation_requested = Constants.UNKNOWN
@@ -59,6 +60,12 @@ class CoreMain(object):
             telemetry_writer.set_task_name(Constants.TelemetryTaskName.AUTO_ASSESSMENT if execution_config.exec_auto_assess_only else Constants.TelemetryTaskName.EXEC)
             patch_operation_requested = execution_config.operation.lower()
 
+            # clean up temp folder before any operation execution begins from Core
+            if os.path.exists(execution_config.temp_folder):
+                composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
+                                           .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
+                bootstrapper.env_layer.file_system.delete_files_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
+
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
             configure_patching_processor = container.get('configure_patching_processor')
@@ -67,9 +74,18 @@ class CoreMain(object):
             if not execution_config.exec_auto_assess_only:
                 configure_patching_successful = configure_patching_processor.start_configure_patching()
 
-            # Assessment happens for an Auto Assessment request or for Non Auto Assessment operations, if the operation requested is not Configure Patching
-            if execution_config.exec_auto_assess_only or patch_operation_requested != Constants.CONFIGURE_PATCHING.lower():
+            # Assessment happens for all operations. If the goal seeking tracked operation is CP, then its final status can only be written after assessment reaches a terminal state
+            assessment_exception_error = None
+            try:
                 patch_assessment_successful = patch_assessor.start_assessment()
+            except Exception as error:
+                assessment_exception_error = error  # hold this until configure patching is closed out
+
+            # close out configure patching if needed & then raise any 'uncontrolled' assessment exception if it occurred
+            if not execution_config.exec_auto_assess_only and patch_operation_requested == Constants.CONFIGURE_PATCHING.lower():
+                configure_patching_processor.set_configure_patching_final_overall_status()  # guarantee configure patching status write prior to throwing on any catastrophic assessment error
+            if assessment_exception_error is not None:
+                raise assessment_exception_error
 
             # Patching + additional assessment occurs if the operation is 'Installation' and not Auto Assessment. Need to check both since operation_requested from prev run is preserved in Auto Assessment
             if not execution_config.exec_auto_assess_only and patch_operation_requested == Constants.INSTALLATION.lower():
@@ -115,6 +131,12 @@ class CoreMain(object):
             composite_logger.log_debug("Completed exception handling.\n")
 
         finally:
+            # clean up temp folder of files created by Core after execution completes
+            if self.is_temp_folder_available(bootstrapper.env_layer, execution_config):
+                composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
+                                           .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
+                bootstrapper.env_layer.file_system.delete_files_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
+
             if lifecycle_manager is not None:
                 lifecycle_manager.update_core_sequence(completed=True)
 
@@ -138,4 +160,11 @@ class CoreMain(object):
         if not configure_patching_successful:
             status_handler.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
             composite_logger.log_debug('  -- Persisted failed configure patching substatus.')
+
+    @staticmethod
+    def is_temp_folder_available(env_layer, execution_config):
+        return env_layer is not None \
+               and execution_config is not None \
+               and execution_config.temp_folder is not None \
+               and os.path.exists(execution_config.temp_folder)
 

@@ -30,28 +30,38 @@ class TestInstallCommandHandler(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         runtime = RuntimeComposer()
         self.logger = runtime.logger
+        self.env_layer = runtime.env_layer
         self.telemetry_writer = runtime.telemetry_writer
         self.logger.telemetry_writer = self.telemetry_writer
         self.json_file_handler = runtime.json_file_handler
         self.get_json_file_content_backup = self.json_file_handler.get_json_file_content
         self.json_file_handler.get_json_file_content = self.mock_get_json_file_content_to_return_none
 
+        # Mock temp folder setup in ExtEnvHandler
+        self.ext_env_handler_get_temp_folder_backup = ExtEnvHandler.get_temp_folder
+        ExtEnvHandler.get_temp_folder = self.mock_get_temp_folder
+
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
-        # reseting mocks
+        # resetting mocks
         self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
+        # reset temp folder mock from ExtEnvHandler
+        ExtEnvHandler.get_temp_folder = self.ext_env_handler_get_temp_folder_backup
 
     def mock_get_json_file_content_to_return_none(self, file_name, dir_path, raise_if_not_found=False):
         return None
 
+    def mock_get_temp_folder(self):
+        return "testTempFolder"
+
     def test_validate_os_type_is_linux(self):
-        ext_env_handler = ExtEnvHandler(self.json_file_handler)
+        ext_env_handler = ExtEnvHandler(self.logger, self.env_layer, self.json_file_handler)
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
         sys.platform = 'linux'
         self.assertTrue(install_command_handler.validate_os_type())
 
     def test_validate_os_type_not_linux(self):
-        ext_env_handler = ExtEnvHandler(self.json_file_handler)
+        ext_env_handler = ExtEnvHandler(self.logger, self.env_layer, self.json_file_handler)
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
         sys.platform = 'win32'
         self.assertRaises(Exception, install_command_handler.validate_os_type)
@@ -60,7 +70,7 @@ class TestInstallCommandHandler(unittest.TestCase):
         config_type = 'handlerEnvironment'
 
         # file has no content
-        ext_env_handler = ExtEnvHandler(self.json_file_handler)
+        ext_env_handler = ExtEnvHandler(self.logger, self.env_layer, self.json_file_handler)
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
         self.assertRaises(Exception, install_command_handler.validate_environment)
 
@@ -79,7 +89,7 @@ class TestInstallCommandHandler(unittest.TestCase):
         # Validating HandlerEnvironment.json file
         # reseting mock to original func def
         self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
-        ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+        ext_env_handler = ExtEnvHandler(self.logger, self.env_layer, self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
         install_command_handler.validate_environment()
 
@@ -98,7 +108,7 @@ class TestInstallCommandHandler(unittest.TestCase):
         sys.platform = 'linux'
         # reseting mock to original func def
         self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
-        ext_env_handler = ExtEnvHandler(self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
+        ext_env_handler = ExtEnvHandler(self.logger, self.env_layer, self.json_file_handler, handler_env_file_path=os.path.join(os.path.pardir, "tests", "helpers"))
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
         self.assertEqual(install_command_handler.execute_handler_action(), Constants.ExitCode.Okay)
 

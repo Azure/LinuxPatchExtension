@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import os
 import sys
 from core.src.bootstrap.Constants import Constants
 
@@ -22,6 +22,7 @@ class LegacyEnvLayerExtensions():
     def __init__(self, package_manager_name):
         self.legacy_package_manager_name = package_manager_name
         self.legacy_test_type = "HappyPath"
+        self.temp_folder_path = ""
 
     class LegacyPlatform(object):
         def linux_distribution(self):
@@ -42,6 +43,9 @@ class LegacyEnvLayerExtensions():
     def get_package_manager(self):
         """return passed in package manager name"""
         return self.legacy_package_manager_name
+
+    def set_temp_folder_path(self, temp_folder_path):
+        self.temp_folder_path = temp_folder_path
 
     @staticmethod
     def get_python_major_version():
@@ -522,6 +526,12 @@ class LegacyEnvLayerExtensions():
                         output = "      bash | 4.3-14ubuntu1.3 | http://us.archive.ubuntu.com/ubuntu xenial-updates/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1.2 | http://security.ubuntu.com/ubuntu xenial-security/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1 | http://us.archive.ubuntu.com/ubuntu xenial/main amd64 Packages"
+                    elif cmd.find('sudo grep security /etc/apt/sources.list >') > -1:
+                        self.write_to_file(os.path.join(self.temp_folder_path, "temp2.list"), "test temp file 2")
+                        code = 0
+                        output = "tmp file created"
+                    elif cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
+                        code = 0
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -530,7 +540,8 @@ class LegacyEnvLayerExtensions():
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz\n" + \
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz"
                 elif self.legacy_package_manager_name is Constants.APT:
-                    output = ''
+                    if cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
+                        code = 1
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("microcode_ctl") > -1:
                         code = 1
@@ -953,8 +964,6 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = "Error: Cannot retrieve repository metadata (repomd.xml) for repository: addons. Please verify its path and try again"
 
-
-
             major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
@@ -962,3 +971,8 @@ class LegacyEnvLayerExtensions():
                 return code, output.encode('ascii', 'ignore').decode('ascii', 'ignore')
             else:
                 raise Exception("Unknown version of python encountered.")
+
+    @staticmethod
+    def write_to_file(path, data):
+        with open(path, "w+") as file_handle:
+            file_handle.write(data)

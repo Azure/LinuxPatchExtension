@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.41"
+    EXT_VERSION = "1.6.46"
 
     # Runtime environments
     TEST = 'Test'
@@ -59,6 +59,7 @@ class Constants(object):
         CONFIG_FOLDER = "configFolder"
         STATUS_FOLDER = "statusFolder"
         EVENTS_FOLDER = "eventsFolder"
+        TEMP_FOLDER = "tempFolder"
         TELEMETRY_SUPPORTED = "telemetrySupported"
 
     class ConfigSettings(EnumBackport):
@@ -76,6 +77,9 @@ class Constants(object):
         PATCH_MODE = 'patchMode'
         ASSESSMENT_MODE = 'assessmentMode'
         MAXIMUM_ASSESSMENT_INTERVAL = 'maximumAssessmentInterval'
+
+    TEMP_FOLDER_DIR_NAME = "tmp"
+    TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list"]
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
@@ -98,6 +102,28 @@ class Constants(object):
 
     # patch versions for healthstore when there is no maintenance run id
     PATCH_VERSION_UNKNOWN = "UNKNOWN"
+
+    # Strings used in perf logs
+    class PerfLogTrackerParams:
+        TASK = "Task"
+        TASK_STATUS = "TaskStatus"
+        PACKAGE_MANAGER = "PackageManager"
+        RETRY_COUNT = "RetryCount"
+        ERROR_MSG = "ErrorMsg"
+        INSTALLED_PATCH_COUNT = "InstalledPatchCount"
+        PATCH_OPERATION_SUCCESSFUL = "PatchOperationSuccessful"
+        MAINTENANCE_WINDOW = "MaintenanceWindow"
+        MAINTENANCE_WINDOW_USED_PERCENT = "MaintenanceWindowUsedPercent"
+        MAINTENANCE_WINDOW_EXCEEDED = "MaintenanceWindowExceeded"
+        START_TIME = "StartTime"
+        END_TIME = "EndTime"
+        TIME_TAKEN_IN_SECS = "TimeTakenInSecs"
+        MACHINE_INFO = "MachineInfo"
+        MESSAGE = "Message"
+
+    class TaskStatus(EnumBackport):
+        SUCCEEDED = "succeeded"
+        FAILED = "failed"
 
     # Patch Modes for Configure Patching
     class PatchModes(EnumBackport):
@@ -130,8 +156,9 @@ class Constants(object):
 
     # To separately preserve assessment + auto-assessment state information
     ASSESSMENT_STATE_FILE = "AssessmentState.json"
-    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"
-    MIN_AUTO_ASSESSMENT_INTERVAL = "PT6H"   # do not perform auto-assessment if the last assessment happened less than this time interval ago
+    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"           # maximum time assessment is expected to take
+    AUTO_ASSESSMENT_CRON_INTERVAL = "PT1H"              # wake up to check for persistent assessment information this frequently
+    AUTO_ASSESSMENT_INTERVAL_BUFFER = "PT1H"            # allow for an hour's buffer from max interval passed down (PT6H) to keep within "max" SLA
 
     # wait time after status updates
     WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS = 20
@@ -297,4 +324,10 @@ class Constants(object):
         EXCLUDED: 5,
         NOT_SELECTED: 6
     }
+
+    # Ubuntu Pro Client constants.
+    class UbuntuProClientSettings(EnumBackport):
+        FEATURE_ENABLED = True
+        MINIMUM_PYTHON_VERSION_REQUIRED = (3, 5)  # using tuple as we can compare this with sys.version_info. The comparison will happen in the same order. Major version checked first. Followed by Minor version.
+        MAX_OS_MAJOR_VERSION_SUPPORTED = 18
 

@@ -18,8 +18,12 @@
 import json
 import os
 import re
+import sys
+import uuid
+
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
+from core.src.package_managers.UbuntuProClient import UbuntuProClient
 
 
 class AptitudePackageManager(PackageManager):
@@ -28,12 +32,14 @@ class AptitudePackageManager(PackageManager):
     # For more details, try `man apt-get` on any Debian/Ubuntu based box.
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         super(AptitudePackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
+
+        security_list_guid = str(uuid.uuid4())
         # Repo refresh
         self.repo_refresh = 'sudo apt-get -q update'
 
         # Support to get updates and their dependencies
-        self.security_sources_list = '/tmp/az-update-security.list'
-        self.prep_security_sources_list_cmd = 'sudo grep security /etc/apt/sources.list > ' + self.security_sources_list
+        self.security_sources_list = os.path.join(execution_config.temp_folder, 'msft-patch-security-{0}.list'.format(security_list_guid))
+        self.prep_security_sources_list_cmd = 'sudo grep security /etc/apt/sources.list > ' + os.path.normpath(self.security_sources_list)
         self.dist_upgrade_simulation_cmd_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
         self.single_package_check_versions = 'apt-cache madison <PACKAGE-NAME>'
         self.single_package_apt_cache_show = 'apt-cache show <PACKAGE-NAME>'
@@ -61,6 +67,11 @@ class AptitudePackageManager(PackageManager):
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.APT)
         self.STR_DPKG_WAS_INTERRUPTED = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
         self.ESM_MARKER = "The following packages could receive security updates with UA Infra: ESM service enabled:"
+
+        # Ubuntu Pro Client pre-requisite checks.
+        self.__pro_client_prereq_met = False  # This flag will be used to determine if Ubuntu Pro Client can be used for querying reboot status or get packages list.
+        self.ubuntu_pro_client = UbuntuProClient(env_layer, composite_logger)
+        self.check_pro_client_prerequisites()
 
     def refresh_repo(self):
         self.composite_logger.log("\nRefreshing local repo...")
@@ -141,6 +152,9 @@ class AptitudePackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(self.prep_security_sources_list_cmd, False, False)
         if code != 0:
             self.composite_logger.log_warning(" - SLP:: Return code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+            error_msg = 'Unexpected return code (' + str(code) + ') from command: ' + self.prep_security_sources_list_cmd
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '-oDir::Etc::Sourcelist=' + self.security_sources_list)
         out = self.invoke_package_manager(cmd)
@@ -543,7 +557,6 @@ class AptitudePackageManager(PackageManager):
             if not patch_configuration_sub_setting_found_in_file:
                 updated_patch_configuration_sub_setting += patch_configuration_sub_setting_to_update + "\n"
 
-            #ToDo: This adds some whitespace at the beginning of the first line in the settings file which is auto adjusted in the file later, so shouldn't have any issues right now. strip()/lstrip() on the string, does not work, will have to test accross versions and identify the impact
             self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path, '{0}'.format(updated_patch_configuration_sub_setting.lstrip()), mode='w+')
         except Exception as error:
             error_msg = "Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error))
@@ -552,6 +565,60 @@ class AptitudePackageManager(PackageManager):
             raise
     # endregion
 
+    # region Reboot Management
     def do_processes_require_restart(self):
-        """Defaulting this for Apt"""
+        """ Fulfilling base class contract """
         return False
+    # endregion Reboot Management
+
+    def is_reboot_pending(self):
+        """ Checks if there is a pending reboot on the machine. """
+        ubuntu_pro_client_check_success = False
+        ubuntu_pro_client_reboot_status = False
+        reported_reboot_status = False
+        default_exception = None
+        default_pending_file_exists = False
+        default_pending_processes_exists = False
+
+        # Default reboot check.
+        try:
+            default_pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)
+            default_pending_processes_exists = self.do_processes_require_restart()
+            reported_reboot_status = default_pending_file_exists or default_pending_processes_exists
+        except Exception as error:
+            default_exception = repr(error)
+            reported_reboot_status = True  # defaults for safety
+
+        # Ubuntu Pro Client reboot check.
+        if self.__pro_client_prereq_met:
+            ubuntu_pro_client_check_success, ubuntu_pro_client_reboot_status = self.ubuntu_pro_client.is_reboot_pending()
+
+        if ubuntu_pro_client_check_success:  # Prefer Ubuntu Pro Client reboot status.
+            reported_reboot_status = ubuntu_pro_client_reboot_status
+
+        self.composite_logger.log_debug("Reboot required advanced debug flags:[DefaultPendingFileExists={0}][DefaultPendingProcessesExists={1}][UbuntuProClientCheckSuccessful={2}][UbuntuProClientRebootStatus={3}][ReportedRebootStatus={4}][DefaultException={5}]".format(default_pending_file_exists, default_pending_processes_exists, ubuntu_pro_client_check_success, ubuntu_pro_client_reboot_status, reported_reboot_status, default_exception))
+        return reported_reboot_status
+
+    def check_pro_client_prerequisites(self):
+        exception_error = None
+        try:
+            if Constants.UbuntuProClientSettings.FEATURE_ENABLED and self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED and self.__is_minimum_required_python_installed():
+                self.ubuntu_pro_client.install_or_update_pro()
+                self.__pro_client_prereq_met = self.ubuntu_pro_client.is_pro_working()
+        except Exception as error:
+            exception_error = repr(error)
+
+        self.composite_logger.log_debug("Ubuntu Pro Client pre-requisite checks:[IsFeatureEnabled={0}][IsOSVersionCompatible={1}][IsPythonCompatible={2}][Error={3}]".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed(), exception_error))
+        return self.__pro_client_prereq_met
+
+    def __get_os_major_version(self):
+        """get the OS major version"""
+        # Sample output for linux_distribution():
+        # ['Ubuntu', '20.04', 'focal']
+        os_version = self.env_layer.platform.linux_distribution()[1]
+        os_major_version = int(os_version.split('.')[0])
+        return os_major_version
+
+    def __is_minimum_required_python_installed(self):
+        """check if python version is at least 3.5"""
+        return sys.version_info >= Constants.UbuntuProClientSettings.MINIMUM_PYTHON_VERSION_REQUIRED

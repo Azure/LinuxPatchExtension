@@ -31,14 +31,22 @@ class ArgumentComposer(object):
         self.__TESTS_FOLDER = "tests"
         self.__SCRATCH_FOLDER = "scratch"
         self.__ARG_TEMPLATE = "{0} {1} {2} {3} \'{4}\' {5} \'{6}\' {7} {8}"
+        self.__CONFIG_FOLDER = "config"
+        self.__STATUS_FOLDER = "status"
+        self.__LOG_FOLDER = "log"
         self.__EVENTS_FOLDER = "events"
+        self.__TEMP_FOLDER = "tmp"
 
         # sequence number
         self.sequence_number = 1
 
         # environment settings
-        self.__log_folder = self.__config_folder = self.__status_folder = self.__get_scratch_folder()
-        self.events_folder = self.__get_events_folder(self.__log_folder)
+        scratch_folder = self.__get_scratch_folder()
+        self.__log_folder = self.__get_custom_folder(scratch_folder, self.__LOG_FOLDER)
+        self.__config_folder = self.__get_custom_folder(scratch_folder, self.__CONFIG_FOLDER)
+        self.__status_folder = self.__get_custom_folder(scratch_folder, self.__STATUS_FOLDER)
+        self.events_folder = self.__get_custom_folder(self.__log_folder, self.__EVENTS_FOLDER)
+        self.temp_folder = self.__get_custom_folder(scratch_folder, self.__TEMP_FOLDER)
 
         # config settings
         self.operation = Constants.INSTALLATION
@@ -68,6 +76,7 @@ class ArgumentComposer(object):
             "configFolder": self.__config_folder,
             "statusFolder": self.__status_folder,
             "eventsFolder": self.events_folder,
+            "tempFolder": self.temp_folder,
             "telemetrySupported": True
         }
 
@@ -113,14 +122,15 @@ class ArgumentComposer(object):
             os.mkdir(scratch_folder)
         return scratch_folder
 
-    def __get_events_folder(self, scratch_folder):
-        """ Returns a predetermined events folder and guarantees it exists and is empty. """
-        events_folder = os.path.join(scratch_folder, self.__EVENTS_FOLDER)
-        if os.path.exists(events_folder):
-            shutil.rmtree(events_folder, ignore_errors=True)
-        if not os.path.exists(events_folder):
-            os.mkdir(events_folder)
-        return events_folder
+    @staticmethod
+    def __get_custom_folder(par_dir, custom_folder_name):
+        """ Returns a predetermined custom folder, and guarantees it exists and is empty. """
+        custom_folder = os.path.join(par_dir, custom_folder_name)
+        if os.path.exists(custom_folder):
+            shutil.rmtree(custom_folder, ignore_errors=True)
+        if not os.path.exists(custom_folder):
+            os.mkdir(custom_folder)
+        return custom_folder
 
     def __try_get_tests_folder(self, path=os.getcwd()):
         """ Returns the current working directory if there's no folder with tests in its name in the absolute path

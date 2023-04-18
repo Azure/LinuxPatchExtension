@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import datetime
 import json
 import os
 import re
@@ -21,7 +20,6 @@ import unittest
 from core.src.CoreMain import CoreMain
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
-from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
@@ -31,7 +29,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # self.argument_composer = ArgumentComposer().get_composed_arguments()
         # self.runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.ZYPPER)
         # self.container = self.runtime.container
-        pass
+        self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count = 0  # used to vary behavior of the mock
 
     def tearDown(self):
         # self.runtime.stop()
@@ -64,20 +62,32 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
 
-        # check status file for configure patching patch state
+        # check status file for configure patching patch state (and including for 'Platform' initiated assessment data)
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
-        self.assertEqual(len(substatus_file_data), 1)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertTrue(message["startedBy"], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)
 
         # check status file for configure patching assessment state
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.DISABLED)
 
         # stop test runtime
         runtime.stop()
+
+    #region Mocks
+    def mock_package_manager_get_current_auto_os_patch_state_returns_unknown(self):
+        if self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count == 0:
+            self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count = 1
+            return Constants.AutomaticOSPatchStates.DISABLED
+        else:
+            return Constants.AutomaticOSPatchStates.UNKNOWN
+    #endregion Mocks
 
     def test_operation_success_for_installation_request_with_configure_patching(self):
         argument_composer = ArgumentComposer()
@@ -169,9 +179,44 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEqual(len(substatus_file_data), 1)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)   # assessment is now part of the CP flow
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        runtime.stop()
+
+    def test_patch_mode_set_failure_for_configure_patching(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
+        argument_composer.assessment_mode = "LetsThrowAnException"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.set_legacy_test_type('HappyPath')
+
+        # mock swap
+        backup_package_manager_get_current_auto_os_patch_state = runtime.package_manager.get_current_auto_os_patch_state
+        runtime.package_manager.get_current_auto_os_patch_state = self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown
+
+        # Execute main
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)   # assessment is now part of the CP flow
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+
+        #restore
+        runtime.package_manager.get_current_auto_os_patch_state = backup_package_manager_get_current_auto_os_patch_state
+
         runtime.stop()
 
     def test_configure_patching_with_assessment_mode_by_platform(self):
@@ -203,14 +248,16 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
 
         # check status file for configure patching patch state
-        self.assertEqual(len(substatus_file_data), 1)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.ENABLED)  # no change is made on Auto OS updates for patch mode 'ImageDefault'
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
         # check status file for configure patching assessment state
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
 
         # stop test runtime
@@ -246,14 +293,16 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         # check status file for configure patching patch state
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
-        self.assertEqual(len(substatus_file_data), 1)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled on patch mode 'AutomaticByPlatform'
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
         # check status file for configure patching assessment state
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
 
         # stop test runtime
