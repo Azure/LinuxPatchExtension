@@ -81,8 +81,8 @@ class UbuntuProClient:
         extracted_updates_versions = []
 
         for update in updates:
-            extracted_updates.append(update["package"])
-            extracted_updates_versions.append(update["version"])
+            extracted_updates.append(update.package)
+            extracted_updates_versions.append(update.version)
 
         return extracted_updates, extracted_updates_versions
 
@@ -94,24 +94,18 @@ class UbuntuProClient:
         security_updates_exception = None
 
         try:
-            code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_query_updates_cmd, False, False)
-            if code == 0:
-                self.ubuntu_pro_client_cmd_output = json.loads(output)["data"]["attributes"]["updates"]
+            ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
 
             security_updates_query_success = True
             security_criteria_string = ["standard-security"]
-            filtered_security_updates = [update for update in self.ubuntu_pro_client_cmd_output if
-                                         update["provided_by"] in security_criteria_string]
+            filtered_security_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in security_criteria_string]
 
-            self.composite_logger.log_debug(
-                "Ubuntu Pro Client get security updates : [SecurityUpdatesCount={0}]".format(
-                    len(filtered_security_updates)))
+            self.composite_logger.log_debug("Ubuntu Pro Client get security updates : [SecurityUpdatesCount={0}]".format(len(filtered_security_updates)))
             security_updates, security_updates_versions = self.extract_packages_and_versions(filtered_security_updates)
         except Exception as error:
             security_updates_exception = repr(error)
 
-        self.composite_logger.log_debug(
-            "Ubuntu Pro Client get security updates : [error={0}]".format(security_updates_exception))
+        self.composite_logger.log_debug("Ubuntu Pro Client get security updates : [error={0}]".format(security_updates_exception))
         return security_updates_query_success, security_updates, security_updates_versions
 
     def get_security_esm_updates(self):
@@ -122,20 +116,14 @@ class UbuntuProClient:
         security_esm_updates_exception = None
 
         try:
-            code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_query_updates_cmd, False, False)
-            if code == 0:
-                self.ubuntu_pro_client_cmd_output = json.loads(output)["data"]["attributes"]["updates"]
+            ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
 
             security_esm_updates_query_success = True
             security_esm_criteria_strings = ["esm-infra", "esm-apps"]
-            filtered_security_esm_updates = [update for update in self.ubuntu_pro_client_cmd_output if
-                                             update["provided_by"] in security_esm_criteria_strings]
+            filtered_security_esm_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in security_esm_criteria_strings]
 
-            self.composite_logger.log_debug(
-                "Ubuntu Pro Client get security-esm updates : [SecurityEsmUpdatesCount={0}]".format(
-                    len(filtered_security_esm_updates)))
-            security_esm_updates, security_esm_updates_versions = self.extract_packages_and_versions(
-                filtered_security_esm_updates)
+            self.composite_logger.log_debug("Ubuntu Pro Client get security-esm updates : [SecurityEsmUpdatesCount={0}]".format(len(filtered_security_esm_updates)))
+            security_esm_updates, security_esm_updates_versions = self.extract_packages_and_versions(filtered_security_esm_updates)
         except Exception as error:
             security_esm_updates_exception = repr(error)
 
@@ -149,26 +137,21 @@ class UbuntuProClient:
         all_updates = []
         all_updates_versions = []
         all_update_exception = None
-        ubuntu_pro_client_cmd_output = None
 
         try:
-            # This is bug in pro client. This will be reverted once the bug is fixed. For now using command to fetch updates instead of api.
-            # if self.updates_result is None:
-            #     self.composite_logger.log_debug("Ubuntu Pro Client : [result None]")
-            #     from uaclient.api.u.pro.packages.updates.v1 import updates
-            #     self.updates_result = updates()
-
-            code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_query_updates_cmd, False, False)
-            if code == 0:
-                ubuntu_pro_client_cmd_output = json.loads(output)["data"]["attributes"]["updates"]
+            ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
 
             all_updates_query_success = True
-            all_updates, all_updates_versions = self.extract_packages_and_versions(ubuntu_pro_client_cmd_output)
+            all_updates, all_updates_versions = self.extract_packages_and_versions(ubuntu_pro_client_updates)
         except Exception as error:
             all_update_exception = repr(error)
 
         self.composite_logger.log_debug("Ubuntu Pro Client get all updates: [AllUpdatesCount={0}][error={1}]".format(len(all_updates), all_update_exception))
         return all_updates_query_success, all_updates, all_updates_versions
+
+    def get_ubuntu_pro_client_updates(self):
+        from uaclient.api.u.pro.packages.updates.v1 import updates
+        return updates().updates
 
     def get_other_updates(self):
         pass
