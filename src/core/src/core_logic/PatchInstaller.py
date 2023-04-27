@@ -159,6 +159,12 @@ class PatchInstaller(object):
         self.telemetry_writer.write_event("Security packages out of the final package list: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
         self.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, classification="Security")
 
+        if package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.APT:
+            security_esm_update_query_success, security_esm_updates, security_esm_updates_versions = self.package_manager.get_security_esm_updates()
+            if security_esm_update_query_success:
+                self.telemetry_writer.write_event("Security-ESM packages out of the final package list: " + str(security_esm_updates), Constants.TelemetryEventLevel.Verbose)
+                self.status_handler.set_package_install_status_classification(security_esm_updates, security_esm_updates_versions, classification="Security-ESM")
+
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
         # We will see this as packages going from NotSelected --> Installed. We could remove them preemptively from not_included_packages, but we're explicitly choosing not to.
 

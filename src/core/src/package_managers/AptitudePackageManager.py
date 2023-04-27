@@ -148,8 +148,9 @@ class AptitudePackageManager(PackageManager):
             all_updates = self.all_updates_cached
             all_updates_versions = self.all_update_versions_cached
 
-        self.composite_logger.log_debug("Get all updates : [Cached={0}][PackagesCount={1}]]".format(cached, len(all_updates)))
+
         if cached and not len(all_updates) == 0:
+            self.composite_logger.log_debug("Get all updates : [Cached={0}][PackagesCount={1}]]".format(cached, len(all_updates)))
             return all_updates, all_updates_versions
 
         # when cached is False, query both default way and using Ubuntu Pro Client.
@@ -214,10 +215,13 @@ class AptitudePackageManager(PackageManager):
 
     def get_other_updates(self):
         """Get missing other updates"""
-        self.composite_logger.log("\nDiscovering 'other' packages...")
+        ubuntu_pro_client_other_updates_query_success = False
+        ubuntu_pro_client_other_packages = []
+        ubuntu_pro_client_other_package_versions = []
         other_packages = []
         other_package_versions = []
 
+        self.composite_logger.log("\nDiscovering 'other' packages...")
         all_packages, all_package_versions = self.get_all_updates(True)
         security_packages, security_package_versions = self.get_security_updates()
 
@@ -226,8 +230,15 @@ class AptitudePackageManager(PackageManager):
                 other_packages.append(package)
                 other_package_versions.append(all_package_versions[index])
 
-        self.composite_logger.log("Discovered " + str(len(other_packages)) + " 'other' package entries.")
-        return other_packages, other_package_versions
+        if self.__pro_client_prereq_met:
+            ubuntu_pro_client_other_updates_query_success, ubuntu_pro_client_other_packages, ubuntu_pro_client_other_package_versions = self.ubuntu_pro_client.get_other_updates()
+
+        self.composite_logger.log_debug("Get Other Updates : [DefaultOtherPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientOtherPackagesCount={2}]".format(len(other_packages), ubuntu_pro_client_other_updates_query_success, len(ubuntu_pro_client_other_packages)))
+
+        if ubuntu_pro_client_other_updates_query_success:
+            return ubuntu_pro_client_other_packages, ubuntu_pro_client_other_package_versions
+        else:
+            return other_packages, other_package_versions
     # endregion
 
     # region Output Parser(s)

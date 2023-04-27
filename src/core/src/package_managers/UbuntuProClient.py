@@ -24,9 +24,9 @@ class UbuntuProClient:
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.ubuntu_pro_client_install_cmd = 'sudo apt-get install ubuntu-advantage-tools -y'
-        self.ubuntu_pro_client_query_updates_cmd = 'pro api u.pro.packages.updates.v1'
         self.ubuntu_pro_client_security_status_cmd = 'pro security-status --format=json'
-        self.updates_result = None
+        self.security_esm_criteria_strings = ["esm-infra", "esm-apps"]
+        self.ubuntu_pro_client_is_attached = False
 
     def install_or_update_pro(self):
         """install/update pro(ubuntu-advantage-tools) to the latest version"""
@@ -56,24 +56,23 @@ class UbuntuProClient:
             is_minimum_ubuntu_pro_version_installed = LooseVersion(ubuntu_pro_client_version) >= LooseVersion(Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION)
             if ubuntu_pro_client_version is not None and is_minimum_ubuntu_pro_version_installed:
                 is_ubuntu_pro_client_working = True
-                self.log_ubuntu_pro_client_attached()
+                self.ubuntu_pro_client_is_attached = self.log_ubuntu_pro_client_attached()
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
 
-        self.composite_logger.log_debug("Is Ubuntu Pro Client working debug flags: [Success={0}][UbuntuProClientVersion={1}][UbuntuProClientMinimumVersionInstalled={2}][Error={3}]".format(is_ubuntu_pro_client_working, ubuntu_pro_client_version, is_minimum_ubuntu_pro_version_installed, ubuntu_pro_client_exception))
+        self.composite_logger.log_debug("Is Ubuntu Pro Client working debug flags: [Success={0}][UbuntuProClientVersion={1}][UbuntuProClientMinimumVersionInstalled={2}][IsAttached={3}][Error={4}]".format(is_ubuntu_pro_client_working, ubuntu_pro_client_version, is_minimum_ubuntu_pro_version_installed, self.ubuntu_pro_client_is_attached, ubuntu_pro_client_exception))
         return is_ubuntu_pro_client_working
 
     def log_ubuntu_pro_client_attached(self):
         """log the attachment status of the machine."""
         ubuntu_pro_client_is_attached = False
-        ubuntu_pro_client_exception = None
         try:
             code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_security_status_cmd, False, False)
             if code == 0:
                 ubuntu_pro_client_is_attached = json.loads(output)['summary']['ua']['attached']
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
-        self.composite_logger.log_debug("Ubuntu Pro Client Attached status [IsAttached={0}][Exception={1}]".format(ubuntu_pro_client_is_attached, ubuntu_pro_client_exception))
+            self.composite_logger.log_debug("Ubuntu Pro Client Attached Exception: [Exception={1}]".format(ubuntu_pro_client_exception))
         return ubuntu_pro_client_is_attached
 
     def extract_packages_and_versions(self, updates):
@@ -82,8 +81,10 @@ class UbuntuProClient:
 
         for update in updates:
             extracted_updates.append(update.package)
-            extracted_updates_versions.append(update.version)
-
+            if not self.ubuntu_pro_client_is_attached and update.provided_by in self.security_esm_criteria_strings:
+                extracted_updates_versions.append(Constants.UA_ESM_REQUIRED)
+            else:
+                extracted_updates_versions.append(update.version)
         return extracted_updates, extracted_updates_versions
 
     def get_security_updates(self):
@@ -92,20 +93,16 @@ class UbuntuProClient:
         security_updates = []
         security_updates_versions = []
         security_updates_exception = None
-
         try:
             ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
-
             security_updates_query_success = True
             security_criteria_string = ["standard-security"]
             filtered_security_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in security_criteria_string]
-
-            self.composite_logger.log_debug("Ubuntu Pro Client get security updates : [SecurityUpdatesCount={0}]".format(len(filtered_security_updates)))
             security_updates, security_updates_versions = self.extract_packages_and_versions(filtered_security_updates)
         except Exception as error:
             security_updates_exception = repr(error)
 
-        self.composite_logger.log_debug("Ubuntu Pro Client get security updates : [error={0}]".format(security_updates_exception))
+        self.composite_logger.log_debug("Ubuntu Pro Client get security updates : [SecurityUpdatesCount={0}][error={1}]".format(len(security_updates), security_updates_exception))
         return security_updates_query_success, security_updates, security_updates_versions
 
     def get_security_esm_updates(self):
@@ -114,21 +111,15 @@ class UbuntuProClient:
         security_esm_updates = []
         security_esm_updates_versions = []
         security_esm_updates_exception = None
-
         try:
             ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
-
             security_esm_updates_query_success = True
-            security_esm_criteria_strings = ["esm-infra", "esm-apps"]
-            filtered_security_esm_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in security_esm_criteria_strings]
-
-            self.composite_logger.log_debug("Ubuntu Pro Client get security-esm updates : [SecurityEsmUpdatesCount={0}]".format(len(filtered_security_esm_updates)))
+            filtered_security_esm_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in self.security_esm_criteria_strings]
             security_esm_updates, security_esm_updates_versions = self.extract_packages_and_versions(filtered_security_esm_updates)
         except Exception as error:
             security_esm_updates_exception = repr(error)
 
-        self.composite_logger.log_debug(
-            "Ubuntu Pro Client get security-esm updates : [error={0}]".format(security_esm_updates_exception))
+        self.composite_logger.log_debug("Ubuntu Pro Client get security-esm updates : [SecurityEsmUpdatesCount={0}][error={1}]".format(len(security_esm_updates),security_esm_updates_exception))
         return security_esm_updates_query_success, security_esm_updates, security_esm_updates_versions
 
     def get_all_updates(self):
@@ -137,10 +128,8 @@ class UbuntuProClient:
         all_updates = []
         all_updates_versions = []
         all_update_exception = None
-
         try:
             ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
-
             all_updates_query_success = True
             all_updates, all_updates_versions = self.extract_packages_and_versions(ubuntu_pro_client_updates)
         except Exception as error:
@@ -154,7 +143,22 @@ class UbuntuProClient:
         return updates().updates
 
     def get_other_updates(self):
-        pass
+        """query Ubuntu Pro Client to get other updates."""
+        other_updates_query_success = False
+        other_updates = []
+        other_updates_versions = []
+        other_update_exception = None
+        try:
+            ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
+            other_updates_query_success = True
+            other_criteria_strings = ["standard-updates"]
+            filtered_other_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in other_criteria_strings]
+            other_updates, other_updates_versions = self.extract_packages_and_versions(filtered_other_updates)
+        except Exception as error:
+            other_update_exception = repr(error)
+
+        self.composite_logger.log_debug("Ubuntu Pro Client get other updates: [OtherUpdatesCount={0}][error = {1}]".format(len(other_updates), other_update_exception))
+        return other_updates_query_success, other_updates, other_updates_versions
 
     def is_reboot_pending(self):
         """query pro api to get the reboot status"""
