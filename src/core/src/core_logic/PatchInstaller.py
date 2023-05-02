@@ -174,6 +174,7 @@ class PatchInstaller(object):
         successful_parent_update_count = 0
         failed_parent_update_count = 0
         installed_update_count = 0  # includes dependencies
+        failed_updates_for_esm_required_count = 0
 
         patch_installation_successful = True
         maintenance_window_exceeded = False
@@ -203,7 +204,8 @@ class PatchInstaller(object):
             if version == Constants.UA_ESM_REQUIRED:
                 progress_status += "[Skipping - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]"
                 self.composite_logger.log(progress_status)
-                self.status_handler.set_package_install_status(package_manager.get_product_name(package), str(version), Constants.NOT_SELECTED)     # may be changed to Failed in the future
+                self.status_handler.set_package_install_status(package_manager.get_product_name(package), str(version), Constants.FAILED)
+                failed_updates_for_esm_required_count += 1
                 continue
             self.composite_logger.log(progress_status)
 
@@ -280,6 +282,11 @@ class PatchInstaller(object):
 
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)  # final reconciliation
+
+        if failed_updates_for_esm_required_count > 0:
+            self.status_handler.add_error_to_status("{0} patches are skipped as they require ubuntu pro subscription".format(failed_updates_for_esm_required_count), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
+            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+            self.telemetry_writer.write_event("Install Patches[FailedPatchesForESMRequired={0}]".format(failed_updates_for_esm_required_count), Constants.TelemetryEventLevel.Warning)
 
         if not patch_installation_successful or maintenance_window_exceeded:
             message = "\n\nOperation status was marked as failed because: "
