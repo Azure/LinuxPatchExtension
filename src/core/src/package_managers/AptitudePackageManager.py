@@ -636,6 +636,16 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log_debug("Ubuntu Pro Client pre-requisite checks:[IsFeatureEnabled={0}][IsOSVersionCompatible={1}][IsPythonCompatible={2}][Error={3}]".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed(), exception_error))
         return self.__pro_client_prereq_met
 
+    def set_security_esm_package_status(self, operation):
+        """Set the security-ESM classification for the esm packages."""
+        security_esm_update_query_success, security_esm_updates, security_esm_updates_versions = self.get_security_esm_updates()
+        if security_esm_update_query_success:
+            self.telemetry_writer.write_event("set Security-ESM package status:[Operation={0}][Updates={1}]".format(operation, str(security_esm_updates)), Constants.TelemetryEventLevel.Verbose)
+            if operation == Constants.ASSESSMENT:
+                self.status_handler.set_package_assessment_status(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
+            elif operation == Constants.INSTALLATION:
+                self.status_handler.set_package_install_status_classification(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
+
     def __get_os_major_version(self):
         """get the OS major version"""
         # Sample output for linux_distribution():

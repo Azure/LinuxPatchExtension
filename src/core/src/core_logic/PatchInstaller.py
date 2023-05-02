@@ -159,11 +159,8 @@ class PatchInstaller(object):
         self.telemetry_writer.write_event("Security packages out of the final package list: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
         self.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, classification="Security")
 
-        if package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.APT:
-            security_esm_update_query_success, security_esm_updates, security_esm_updates_versions = self.package_manager.get_security_esm_updates()
-            if security_esm_update_query_success:
-                self.telemetry_writer.write_event("Security-ESM packages out of the final package list: " + str(security_esm_updates), Constants.TelemetryEventLevel.Verbose)
-                self.status_handler.set_package_install_status_classification(security_esm_updates, security_esm_updates_versions, classification="Security-ESM")
+        # Set the security-esm package status.
+        package_manager.set_security_esm_package_status(Constants.INSTALLATION)
 
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
         # We will see this as packages going from NotSelected --> Installed. We could remove them preemptively from not_included_packages, but we're explicitly choosing not to.
@@ -284,7 +281,7 @@ class PatchInstaller(object):
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)  # final reconciliation
 
         if failed_updates_for_esm_required_count > 0:
-            self.status_handler.add_error_to_status("{0} patches are skipped as they require ubuntu pro subscription".format(failed_updates_for_esm_required_count), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
+            self.status_handler.add_error_to_status("{0} patch(es) skipped as ubuntu pro subscription is required".format(failed_updates_for_esm_required_count), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
             self.telemetry_writer.write_event("Install Patches[FailedPatchesForESMRequired={0}]".format(failed_updates_for_esm_required_count), Constants.TelemetryEventLevel.Warning)
 

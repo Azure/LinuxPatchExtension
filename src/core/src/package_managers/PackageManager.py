@@ -386,3 +386,7 @@ class PackageManager(object):
         """ Signals whether processes require a restart due to updates to files """
         pass
 
+    @abstractmethod
+    def set_security_esm_package_status(self, operation):
+        pass
+

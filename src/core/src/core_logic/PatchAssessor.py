@@ -82,13 +82,10 @@ class PatchAssessor(object):
 
                 # Tag security updates
                 self.telemetry_writer.write_event("Security assessment: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
-                self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, "Security")
+                self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, Constants.PackageClassification.SECURITY)
 
-                if self.package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.APT:
-                    security_esm_update_query_success, security_esm_updates, security_esm_updates_versions = self.package_manager.get_security_esm_updates()
-                    if security_esm_update_query_success:
-                        self.telemetry_writer.write_event("Security-ESM assessment: " + str(security_esm_updates), Constants.TelemetryEventLevel.Verbose)
-                        self.status_handler.set_package_assessment_status(security_esm_updates, security_esm_updates_versions, "Security-ESM")
+                # Set the security-esm packages in status.
+                self.package_manager.set_security_esm_package_status(Constants.ASSESSMENT)
 
                 # ensure reboot status is set
                 reboot_pending = self.package_manager.is_reboot_pending()

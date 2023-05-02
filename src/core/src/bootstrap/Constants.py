@@ -311,9 +311,9 @@ class Constants(object):
     # Package / Patch State Ordering Constants
     # This ordering ensures that the most important information is preserved in the case of patch object truncation
     PackageClassificationOrderInStatusReporting = {
-        PackageClassification.SECURITY: 1,
-        PackageClassification.SECURITY_ESM: 2,
-        PackageClassification.CRITICAL: 3,
+        PackageClassification.CRITICAL: 1,
+        PackageClassification.SECURITY: 2,
+        PackageClassification.SECURITY_ESM: 3,
         PackageClassification.OTHER: 4,
         PackageClassification.UNCLASSIFIED: 5
     }
@@ -333,3 +333,4 @@ class Constants(object):
         MINIMUM_PYTHON_VERSION_REQUIRED = (3, 5)  # using tuple as we can compare this with sys.version_info. The comparison will happen in the same order. Major version checked first. Followed by Minor version.
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
         MINIMUM_CLIENT_VERSION = "27.14.4"
+
