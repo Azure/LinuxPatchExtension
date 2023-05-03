@@ -281,8 +281,8 @@ class PatchInstaller(object):
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)  # final reconciliation
 
         if failed_updates_for_esm_required_count > 0:
-            self.status_handler.add_error_to_status("{0} patch(es) skipped as ubuntu pro subscription is required".format(failed_updates_for_esm_required_count), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
-            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+            self.status_handler.add_error_to_status("{0} patch(es) require Ubuntu Pro Subscription to be patched".format(failed_updates_for_esm_required_count), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
+            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
             self.telemetry_writer.write_event("Install Patches[FailedPatchesForESMRequired={0}]".format(failed_updates_for_esm_required_count), Constants.TelemetryEventLevel.Warning)
 
         if not patch_installation_successful or maintenance_window_exceeded:

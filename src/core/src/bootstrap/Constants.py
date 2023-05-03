@@ -333,4 +333,3 @@ class Constants(object):
         MINIMUM_PYTHON_VERSION_REQUIRED = (3, 5)  # using tuple as we can compare this with sys.version_info. The comparison will happen in the same order. Major version checked first. Followed by Minor version.
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
         MINIMUM_CLIENT_VERSION = "27.14.4"
-

@@ -639,10 +639,13 @@ class AptitudePackageManager(PackageManager):
     def set_security_esm_package_status(self, operation):
         """Set the security-ESM classification for the esm packages."""
         security_esm_update_query_success, security_esm_updates, security_esm_updates_versions = self.get_security_esm_updates()
-        if security_esm_update_query_success:
+        if self.__pro_client_prereq_met and security_esm_update_query_success and len(security_esm_updates) > 0:
             self.telemetry_writer.write_event("set Security-ESM package status:[Operation={0}][Updates={1}]".format(operation, str(security_esm_updates)), Constants.TelemetryEventLevel.Verbose)
             if operation == Constants.ASSESSMENT:
                 self.status_handler.set_package_assessment_status(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
+                # If the Ubuntu Pro Client is not attached, set the error with the code UA_ESM_REQUIRED. This will be used in portal to mark the VM as unattached to pro.
+                if self.ubuntu_pro_client.ubuntu_pro_client_is_attached:
+                    self.status_handler.add_error_to_status("{0} patch(es) require Ubuntu Pro Subscription to be patched".format(len(security_esm_updates)), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
             elif operation == Constants.INSTALLATION:
                 self.status_handler.set_package_install_status_classification(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
 
