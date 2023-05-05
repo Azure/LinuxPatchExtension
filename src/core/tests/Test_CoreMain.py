@@ -431,7 +431,7 @@ class TestCoreMain(unittest.TestCase):
         classifications_to_include = ["Security", "Critical"]
         argument_composer.maintenance_run_id = str(maintenance_run_id)
         argument_composer.classifications_to_include = classifications_to_include
-        argument_composer.reboot_setting = 'Reboot'
+        argument_composer.reboot_setting = 'Always'
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         runtime.set_legacy_test_type("HappyPath")
         CoreMain(argument_composer.get_composed_arguments())
@@ -469,8 +469,10 @@ class TestCoreMain(unittest.TestCase):
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
 
-    def test_install_all_packages_for_centos_autopatching_warning(self):
-        """Unit test for auto patching request on CentOS, should install all patches irrespective of classification"""
+    def test_install_all_packages_for_centos_autopatching_as_warning_with_never_reboot(self):
+        """Unit test for auto patching request on CentOS, should install all patches irrespective of classification,
+            installation status is set to warning when reboot_setting is never_reboot
+        """
 
         backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_centos
@@ -528,7 +530,7 @@ class TestCoreMain(unittest.TestCase):
         classifications_to_include = ["Security", "Critical"]
         argument_composer.maintenance_run_id = str(maintenance_run_id)
         argument_composer.classifications_to_include = classifications_to_include
-        argument_composer.reboot_setting = 'Reboot'
+        argument_composer.reboot_setting = 'Always'
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         runtime.set_legacy_test_type("HappyPath")
         CoreMain(argument_composer.get_composed_arguments())
@@ -572,8 +574,10 @@ class TestCoreMain(unittest.TestCase):
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
 
-    def test_install_only_critical_and_security_packages_for_redhat_autopatching_warning(self):
-        """Unit test for auto patching request on Redhat, should install only critical and security patches"""
+    def test_install_only_critical_and_security_packages_for_redhat_autopatching_warning_with_never_reboot(self):
+        """Unit test for auto patching request on Redhat, should install only critical and security patches,
+            installation status is set to warning when reboot_setting is never_reboot
+        """
 
         backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_redhat

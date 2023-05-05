@@ -295,6 +295,7 @@ class PatchInstaller(object):
         else:
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
+        # Update patch metadata in status for auto patching request, to be reported to healthStore
         # When available, HealthStoreId always takes precedence over the 'overriden' Maintenance Run Id that is being re-purposed for other reasons
         # In the future, maintenance run id will be completely deprecated for health store reporting.
         patch_version_raw = self.execution_config.health_store_id if self.execution_config.health_store_id is not None else self.execution_config.maintenance_run_id
