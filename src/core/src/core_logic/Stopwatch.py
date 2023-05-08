@@ -60,10 +60,7 @@ class Stopwatch(object):
             self.composite_logger.log_debug(str(Stopwatch.StopwatchException.NOT_STARTED))
             self.start_time = self.end_time
 
-        self.time_taken_in_secs = self.env_layer.datetime.total_seconds_from_time_delta(self.end_time - self.start_time)
-
-        # Rounding off to one digit after decimal e.g. 14.574372666666667 will become 14.6
-        self.time_taken_in_secs = round(self.time_taken_in_secs, 1)
+        self.time_taken_in_secs = self.env_layer.datetime.total_seconds_from_time_delta_round_to_one_decimal_digit(self.end_time - self.start_time)
 
     # Stop the stopwatch, set end_time and write details in telemetry. Create new end_time even if end_time is already set
     def stop_and_write_telemetry(self, message):
@@ -79,7 +76,7 @@ class Stopwatch(object):
         if self.start_time is None:
             self.composite_logger.log_debug(str(Stopwatch.StopwatchException.NOT_STARTED))
             self.start_time = self.end_time
-        self.time_taken = self.env_layer.datetime.total_minutes_from_time_delta(self.end_time - self.start_time)
+        self.time_taken_in_secs = self.env_layer.datetime.total_seconds_from_time_delta_round_to_one_decimal_digit(self.end_time - self.start_time)
         self.set_task_details(message)
         self.composite_logger.log("Stopwatch details: " + str(self.task_details))
 

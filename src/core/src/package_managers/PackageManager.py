@@ -198,7 +198,19 @@ class PackageManager(object):
         pass
 
     def install_update_and_dependencies(self, package_and_dependencies, package_and_dependency_versions, simulate=False):
-        """Install a single package along with its dependencies (explicitly)"""
+        """
+        Install a list of packages along with dependencies (explicitly)
+        
+        Parameters:
+        package_and_dependencies (List of strings): List of packages along with dependencies to install
+        package_and_dependency_versions (List of strings): Versions of the packages in the list package_and_dependencies
+        simulate (bool): Whether this function call is from test run.
+        
+        Returns:
+        code (int): Output code of the command run to install packages
+        out (string): Output string of the command run to install packages
+        exec_cmd (string): Command used to install packages
+        """
         if type(package_and_dependencies) is str:
             package_and_dependencies = [package_and_dependencies]
             package_and_dependency_versions = [package_and_dependency_versions]
@@ -216,6 +228,20 @@ class PackageManager(object):
         return code, out, exec_cmd
 
     def get_installation_status(self, code, out, exec_cmd, package, version, simulate=False):
+        """
+        Returns result of the package installation
+        
+        Parameters:
+        code (int): Output code of the command run to install packages.
+        out (string): Output string of the command run to install packages.
+        exec_cmd (string): Command used to install packages.
+        package (string): Package name.
+        version (string): Package version.
+        simulate (bool): Whether this function call is from test run.
+        
+        Returns:
+        install_result (string): Package installation result
+        """
         install_result = Constants.INSTALLED
         package_no_longer_required = False
         code_path = "| Install"
@@ -285,6 +311,16 @@ class PackageManager(object):
         return install_result
 
     def install_update_and_dependencies_and_get_status(self, package_and_dependencies, package_and_dependency_versions, simulate=False):
+        """
+        Install a single package along with its dependencies (explicitly) and return the installation status
+        Parameters:
+        package_and_dependencies (List of strings): List of packages along with dependencies to install
+        package_and_dependency_versions (List of strings): Versions of the packages in the list package_and_dependencies
+        simulate (bool): Whether this function call is from test run.
+        
+        Returns:
+        install_result (string): Package installation result
+        """
         if type(package_and_dependencies) is str:
             package_and_dependencies = [package_and_dependencies]
             package_and_dependency_versions = [package_and_dependency_versions]
@@ -401,6 +437,18 @@ class PackageManager(object):
 
     @abstractmethod
     def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
-        """Add the same package with different architectures from the packages list to package_and_dependencies. Only required for yum. No-op for apt and zypper"""
+        """
+        Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
+        Only required for yum. No-op for apt and zypper.
+        
+        Parameters:
+        package_manager (PackageManager): Package manager used.
+        package (string): Input package for which same package name but different architecture need to be added in the list package_and_dependencies.
+        packages (List of strings): List of all packages selected by user to install.
+        package_versions (List of strings): Versions of packages in packages list.
+        package_and_dependencies (List of strings): List of packages along with dependencies. This function adds packages with same name as input parameter package 
+                                                    but different architecture in this list.
+        package_and_dependency_versions (List of strings): Versions of packages in package_and_dependencies.
+        """
         pass
 

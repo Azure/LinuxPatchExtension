@@ -136,10 +136,10 @@ class TestStopwatch(unittest.TestCase):
         stopwatch.write_telemetry_for_stopwatch("test")
         self.assertTrue(stopwatch.start_time is not None)
         self.assertTrue(stopwatch.end_time is not None)
-        self.assertTrue(stopwatch.time_taken is not None)
+        self.assertTrue(stopwatch.time_taken_in_secs is not None)
         self.assertTrue(stopwatch.task_details is not None)
         self.assertTrue(stopwatch.start_time <= stopwatch.end_time)
-        self.assertTrue(stopwatch.time_taken >= 0)
+        self.assertTrue(stopwatch.time_taken_in_secs >= 0)
 
 
 if __name__ == '__main__':

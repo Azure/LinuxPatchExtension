@@ -28,9 +28,6 @@ class TestPatchInstaller(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def mock_get_remaining_packages_to_install(self, package_manager):
-        return [], []
-
     def test_yum_install_updates_maintenance_window_exceeded(self):
         current_time = datetime.datetime.utcnow()
         td = datetime.timedelta(hours=1, minutes=2)
@@ -58,13 +55,10 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('SuccessInstallPath')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
-        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
-        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         self.assertEqual(2, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_yum_install_success_not_enough_time_for_batch_patching(self):
@@ -149,13 +143,10 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('SuccessInstallPath')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
-        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
-        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         self.assertEqual(2, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_zypper_install_fail(self):
@@ -201,13 +192,10 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('SuccessInstallPath')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
-        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
-        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         self.assertEqual(3, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_apt_install_success_not_enough_time_for_batch_patching(self):
@@ -240,13 +228,10 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
-        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
-        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         self.assertEqual(4, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_dependency_install_failed(self):
@@ -314,7 +299,7 @@ class TestPatchInstaller(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         # Path change
         runtime.set_legacy_test_type('DependencyInstallFailed')
-        all_packages, all_packages_version = runtime.patch_installer.get_remaining_packages_to_install(runtime.package_manager)
+        all_packages, all_packages_version = runtime.package_manager.get_available_updates(runtime.package_filter)
         packages = list(all_packages)
         package_versions = list(all_packages_version)
         packages_in_batch = packages[0:3]
@@ -327,7 +312,7 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue("git" in package_and_dependencies)
         self.assertTrue("grub-efi-amd64-signed" in package_and_dependencies)
         self.assertTrue("grub-efi-amd64-bin" not in package_and_dependencies)
-        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
         self.assertEqual(4, len(package_and_dependencies))
         self.assertEqual(4, len(package_and_dependency_versions))
         self.assertTrue("git-man" in package_and_dependencies)
@@ -345,14 +330,14 @@ class TestPatchInstaller(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         # Path change
         runtime.set_legacy_test_type('HappyPath')
-        all_packages, all_packages_version = runtime.patch_installer.get_remaining_packages_to_install(runtime.package_manager)
+        all_packages, all_packages_version = runtime.package_manager.get_available_updates(runtime.package_filter)
         packages = list(all_packages)
         package_versions = list(all_packages_version)
         packages_in_batch = ["selinux-policy.noarch"]
         package_versions_in_batch = ["3.13.1-102.el7_3.16"]
         package_and_dependencies = list(packages_in_batch)
         package_and_dependency_versions = list(package_versions_in_batch)
-        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
         self.assertEqual(2, len(package_and_dependencies))
         self.assertEqual(2, len(package_and_dependency_versions))
         self.assertTrue(package_and_dependencies[0] == "selinux-policy.noarch")
@@ -370,14 +355,14 @@ class TestPatchInstaller(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         # Path change
         runtime.set_legacy_test_type('HappyPath')
-        all_packages, all_packages_version = runtime.patch_installer.get_remaining_packages_to_install(runtime.package_manager)
+        all_packages, all_packages_version = runtime.package_manager.get_available_updates(runtime.package_filter)
         packages = list(all_packages)
         package_versions = list(all_packages_version)
         packages_in_batch = ["libgcc"]
         package_versions_in_batch = ["5.60.7-8.1"]
         package_and_dependencies = list(packages_in_batch)
         package_and_dependency_versions = list(package_versions_in_batch)
-        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
         self.assertEqual(1, len(package_and_dependencies))
         self.assertEqual(1, len(package_and_dependency_versions))
         self.assertTrue(package_and_dependencies[0] == "libgcc")
@@ -415,13 +400,10 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
-        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
-        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         self.assertEqual(2, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_dependent_package_excluded_and_not_enough_time_for_batch_patching(self):
@@ -458,13 +440,10 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('ArchDependency')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
-        backup_get_remaining_packages_to_install = runtime.patch_installer.get_remaining_packages_to_install
-        runtime.patch_installer.get_remaining_packages_to_install = self.mock_get_remaining_packages_to_install
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         self.assertEqual(4, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
-        runtime.patch_installer.get_remaining_packages_to_install = backup_get_remaining_packages_to_install
         runtime.stop()
 
     def test_no_updates_to_install(self):
@@ -482,22 +461,6 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertEqual(0, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
-        runtime.stop()
-
-    def test_get_remaining_packages_to_install(self):
-        argument_composer = ArgumentComposer()
-        # including 3 packages. excluding 1 package.
-        # But grub-efi-amd64-signed is dependent on grub-efi-amd64-bin so grub-efi-amd64-signed is also excluded
-        argument_composer.patches_to_include = ["git-man", "git", "grub-efi-amd64-signed"]
-        argument_composer.patches_to_exclude = ["grub-efi-amd64-bin"]
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
-        # Path change.
-        runtime.set_legacy_test_type('DependencyInstallSuccessfully')
-        packages, packages_versions = runtime.patch_installer.get_remaining_packages_to_install(runtime.package_manager)
-        self.assertTrue(len(packages) == 2)
-        self.assertTrue(len(packages_versions) == 2)
-        self.assertTrue( "git-man" in packages)
-        self.assertTrue( "git" in packages)
         runtime.stop()
 
     def test_healthstore_writes(self):
