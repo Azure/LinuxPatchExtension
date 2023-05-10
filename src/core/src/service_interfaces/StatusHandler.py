@@ -315,7 +315,7 @@ class StatusHandler(object):
         # Update status complete on disk
         self.__write_status_complete_file()
 
-        # Write truncated status on disk
+        # Write truncated status on disk, apply truncation logic here
         status_json_payload = self.__read_status_file_raw_data(self.status_complete_file_path)
         # print('what is status json_payload', status_json_payload)
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path,
@@ -372,7 +372,7 @@ class StatusHandler(object):
         # Update complete status on disk
         self.__write_status_complete_file()
 
-        # Write truncated status on disk
+        # Write truncated status on disk, apply truncation logic here
         status_json_payload = self.__read_status_file_raw_data(self.status_complete_file_path)
         # print('what is status json_payload', status_json_payload)
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path,
@@ -441,7 +441,7 @@ class StatusHandler(object):
         # Update status complete on disk
         self.__write_status_complete_file()
 
-        # Write truncated status on disk
+        # Write truncated status on disk, apply truncation logic here
         status_json_payload = self.__read_status_file_raw_data(self.status_complete_file_path)
         # print('what is status json_payload', status_json_payload)
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path,
@@ -481,7 +481,7 @@ class StatusHandler(object):
         # Update status complete on disk
         self.__write_status_complete_file()
 
-        # Write truncated status on disk
+        # Write truncated status on disk, apply truncation logic here
         status_json_payload = self.__read_status_file_raw_data(self.status_complete_file_path)
         # print('what is status json_payload', status_json_payload)
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path,
@@ -821,6 +821,18 @@ class StatusHandler(object):
                     self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
                     raise
         return status_file_data_raw
+
+    def __get_latest_status_complete_file(self, file_path):
+        """ Get the latest status complete file and remove other .complete.status files"""
+        list_of_files = glob.glob(file_path + '\\' + '*.complete.status')
+        latest_file = max(list_of_files,
+                          key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
+
+        for file in list_of_files:
+            if file != latest_file:
+                self.env_layer.file_system.delete_files_from_dir(file, '*.complete.status')
+
+        return latest_file
 
     def __get_latest_file_kb_size(self, latest_file):
         """ Get the file kb size in two decimal places of the latest status complete file"""
