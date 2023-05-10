@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import time
+import glob
 from core.src.bootstrap.Constants import Constants
 
 
@@ -31,6 +32,7 @@ class StatusHandler(object):
         self.execution_config = execution_config
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
+        self.status_complete_file_path = self.execution_config.status_complete_file_path
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
         self.vm_cloud_type = vm_cloud_type
@@ -310,8 +312,16 @@ class StatusHandler(object):
         # Wrap assessment summary into assessment substatus
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update status complete on disk
+        self.__write_status_complete_file()
+
+        # Write truncated status on disk
+        status_json_payload = self.__read_status_file_raw_data(self.status_complete_file_path)
+        # print('what is status json_payload', status_json_payload)
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path,
+                                                                    '[{0}]'.format(json.dumps(status_json_payload)),
+                                                                    mode='w+')
+
 
     def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
@@ -359,8 +369,15 @@ class StatusHandler(object):
         # Wrap deployment summary into installation substatus
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update complete status on disk
+        self.__write_status_complete_file()
+
+        # Write truncated status on disk
+        status_json_payload = self.__read_status_file_raw_data(self.status_complete_file_path)
+        # print('what is status json_payload', status_json_payload)
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path,
+                                                                    '[{0}]'.format(json.dumps(status_json_payload)),
+                                                                    mode='w+')
 
     def __new_installation_summary_json(self, installation_packages_json):
         """ Called by: set_installation_substatus_json
@@ -421,8 +438,15 @@ class StatusHandler(object):
         # Wrap healthstore summary into healthstore substatus
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update status complete on disk
+        self.__write_status_complete_file()
+
+        # Write truncated status on disk
+        status_json_payload = self.__read_status_file_raw_data(self.status_complete_file_path)
+        # print('what is status json_payload', status_json_payload)
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path,
+                                                                    '[{0}]'.format(json.dumps(status_json_payload)),
+                                                                    mode='w+')
 
         # wait period required in cases where we need to ensure HealthStore reads the status from GA
         if wait_after_update:
@@ -454,8 +478,15 @@ class StatusHandler(object):
         # Wrap configure patching summary into configure patching substatus
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update status complete on disk
+        self.__write_status_complete_file()
+
+        # Write truncated status on disk
+        status_json_payload = self.__read_status_file_raw_data(self.status_complete_file_path)
+        # print('what is status json_payload', status_json_payload)
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path,
+                                                                    '[{0}]'.format(json.dumps(status_json_payload)),
+                                                                    mode='w+')
 
     def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
@@ -558,16 +589,7 @@ class StatusHandler(object):
             return
 
         # Read the status file - raise exception on persistent failure
-        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
-            try:
-                with self.env_layer.file_system.open(self.status_file_path, 'r') as file_handle:
-                    status_file_data_raw = json.load(file_handle)[0]    # structure is array of 1
-            except Exception as error:
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    time.sleep(i + 1)
-                else:
-                    self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
-                    raise
+        status_file_data_raw = self.__read_status_file_raw_data(self.status_file_path)
 
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
         try:
@@ -623,7 +645,7 @@ class StatusHandler(object):
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
-    def __write_status_file(self):
+    def __write_status_complete_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
             This is usually the final call to compose and persist after an in-memory data update in a specialized method.
 
@@ -671,11 +693,13 @@ class StatusHandler(object):
             status_file_payload['status']['substatus'].append(self.__metadata_for_healthstore_substatus_json)
         if self.__configure_patching_substatus_json is not None:
             status_file_payload['status']['substatus'].append(self.__configure_patching_substatus_json)
-        if os.path.isdir(self.status_file_path):
+        if os.path.isdir(self.status_complete_file_path):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
-            shutil.rmtree(self.status_file_path)
+            shutil.rmtree(self.status_complete_file_path)
 
-        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+        # Write status complete file <seq.no>.complete
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_complete_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+
     # endregion
 
     # region - Error objects
@@ -782,4 +806,26 @@ class StatusHandler(object):
             "details": errors_by_operation,
             "message": message
         }
+    # endregion
+
+    # region - Patch Truncation
+    def __read_status_file_raw_data(self, file_path):
+        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
+            try:
+                with self.env_layer.file_system.open(file_path, 'r') as file_handle:
+                    status_file_data_raw = json.load(file_handle)[0]    # structure is array of 1
+            except Exception as error:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    time.sleep(i + 1)
+                else:
+                    self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
+                    raise
+        return status_file_data_raw
+
+    def __get_latest_file_kb_size(self, latest_file):
+        """ Get the file kb size in two decimal places of the latest status complete file"""
+        if latest_file is None:
+            raise Exception("Error: File is not found.")
+        file_kb_size = round(os.path.getsize(latest_file) / 1024, 2)
+        return file_kb_size
     # endregion
