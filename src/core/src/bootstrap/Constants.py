@@ -309,8 +309,8 @@ class Constants(object):
     # Package / Patch State Ordering Constants
     # This ordering ensures that the most important information is preserved in the case of patch object truncation
     PackageClassificationOrderInStatusReporting = {
-        PackageClassification.SECURITY: 1,
-        PackageClassification.CRITICAL: 2,
+        PackageClassification.CRITICAL: 1,
+        PackageClassification.SECURITY: 2,
         PackageClassification.OTHER: 3,
         PackageClassification.UNCLASSIFIED: 4
     }
