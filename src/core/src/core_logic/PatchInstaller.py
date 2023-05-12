@@ -411,8 +411,13 @@ class PatchInstaller(object):
         patch_installation_successful = True
         maintenance_window_batch_cutoff_reached = False
 
+        # remaining_packages are the packages which are not attempted to install due to there is not enough remaining time in maintenance window to install packages in batches.
+        # These packages will be attempted in sequential installation if there is enough time in maintenance window to install package sequentially.
         remaining_packages = []
         remaining_package_versions = []
+        
+        # failed_packages are the packages which are failed to install in batch patching. These packages will be attempted again in sequential patching if there is 
+        # enough time remaining in maintenance window.
         failed_packages = []
         failed_package_versions = []
 
@@ -457,11 +462,6 @@ class PatchInstaller(object):
 
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
 
-            # point in time status
-            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
-                                                            "Processing batch index: " + str(batch_index) + ", Number of packages: " + str(len(packages_in_batch)) + "\nProcessing packages: " + str(packages_in_batch))
-            self.composite_logger.log(progress_status)
-
             if maintenance_window.is_package_install_time_available(remaining_time, len(packages_in_batch)) is False:
                 self.composite_logger.log("Stopped installing packages in batches as it is past the maintenance window cutoff time for installing in batches." +
                                            " Batch Index: {0}, remaining time: {1}, number of packages in batch: {2}".format(batch_index, remaining_time, str(len(packages_in_batch))))
@@ -469,6 +469,11 @@ class PatchInstaller(object):
                 remaining_packages = packages[begin_index:]
                 remaining_package_versions = package_versions[begin_index:]
                 break
+
+            # point in time status
+            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
+                                                            "Processing batch index: " + str(batch_index) + ", Number of packages: " + str(len(packages_in_batch)) + "\nProcessing packages: " + str(packages_in_batch))
+            self.composite_logger.log(progress_status)
 
             # package_and_dependencies initially conains only packages in batch. The dependencies are added in the list by method include_dependencies
             package_and_dependencies = list(packages_in_batch)
@@ -531,6 +536,12 @@ class PatchInstaller(object):
 
         # Performing reconciliation at the end to get accurate number of installed packages through this function.
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
+
+        # not_attempted_and_failed_packages is the list of packages including two kind of packages:
+        # (a) Not attempted due to not enough time in maintenance window to install packages in batches.
+        # (b) Failed to install in batch patching.
+        # These packages are attempted in the sequential patching if there is enough time remaining in maintenance window. The non attempted packages are in
+        # the front of the list than failed packages and hence non attempated packages are attempted first in sequential patching than the failed packages.
         not_attempted_and_failed_packages = remaining_packages + failed_packages
         not_attempted_and_failed_package_versions = remaining_package_versions + failed_package_versions
         return installed_update_count, patch_installation_successful, maintenance_window_batch_cutoff_reached, not_attempted_and_failed_packages, not_attempted_and_failed_package_versions
