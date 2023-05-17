@@ -65,6 +65,15 @@ class TestRebootManager(unittest.TestCase):
         self.assertEqual(reboot_manager.start_reboot_if_required_and_time_available(20), False)
         runtime.stop()
 
+    def test_reboot_pending_with_reboot_setting_as_never(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.reboot_setting = 'Never'
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        reboot_manager = runtime.reboot_manager
+        runtime.package_manager.force_reboot = True
+        self.assertEqual(reboot_manager.start_reboot_if_required_and_time_available(20), False)
+        runtime.stop()
+
     def test_reboot_always_time_available(self):
         reboot_setting_in_api = 'Always'
         argument_composer = ArgumentComposer()
