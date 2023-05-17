@@ -861,13 +861,13 @@ class YumPackageManager(PackageManager):
     def is_reboot_pending(self):
         """ Checks if there is a pending reboot on the machine. """
         try:
-            pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)     # not intended for yum, but supporting as back-compat
+            pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)  # not intended for yum, but supporting as back-compat
             pending_processes_exist = self.do_processes_require_restart()
             self.composite_logger.log_debug(" - Reboot required debug flags (yum): " + str(pending_file_exists) + ", " + str(pending_processes_exist) + ".")
             return pending_file_exists or pending_processes_exist
         except Exception as error:
             self.composite_logger.log_error('Error while checking for reboot pending (yum): ' + repr(error))
-            return True     # defaults for safety
+            return True  # defaults for safety
 
     def do_processes_require_restart(self):
         """Signals whether processes require a restart due to updates"""

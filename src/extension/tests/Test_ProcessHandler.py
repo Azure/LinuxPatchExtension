@@ -52,6 +52,9 @@ class TestProcessHandler(unittest.TestCase):
     def mock_os_kill_to_raise_exception(self, pid, sig):
         raise OSError
 
+    def mock_run_command_output_for_python_sys(self, cmd, no_output=False, chk_err=False):
+        return 0, sys.executable
+
     def mock_run_command_output_for_python(self, cmd, no_output=False, chk_err=False):
         return 0, sys.executable
 

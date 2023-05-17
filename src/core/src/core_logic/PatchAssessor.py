@@ -37,6 +37,7 @@ class PatchAssessor(object):
         self.package_manager = package_manager
         self.package_manager_name = self.package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY)
         self.assessment_state_file_path = os.path.join(self.execution_config.config_folder, Constants.ASSESSMENT_STATE_FILE)
+        self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
     def start_assessment(self):
         """ Start a patch assessment """
@@ -44,28 +45,23 @@ class PatchAssessor(object):
         self.raise_if_telemetry_unsupported()
 
         if self.execution_config.exec_auto_assess_only and not self.should_auto_assessment_run():
-            self.composite_logger.log("\nAutomatic patch assessment not required at this time.\n")
+            self.composite_logger.log("\nSkipping automatic patch assessment... [ShouldAutoAssessmentRun=False]\n")
             self.lifecycle_manager.lifecycle_status_check()
             return True
 
-        self.composite_logger.log('\nStarting patch assessment...')
+        self.composite_logger.log("\nStarting patch assessment... [MachineId: " + self.env_layer.platform.node() +"][ActivityId: " + self.execution_config.activity_id +"][StartTime: " + self.execution_config.start_time +"]")
         self.write_assessment_state()   # success / failure does not matter, only that an attempt started
 
-        self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
         self.stopwatch.start()
-
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
-        self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
-        self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
-        self.composite_logger.log("Operation request time: " + self.execution_config.start_time)
-
-        self.composite_logger.log("\n\nGetting available patches...")
-        self.package_manager.refresh_repo()
-        self.status_handler.reset_assessment_data()
         retry_count = 0
 
         for i in range(0, Constants.MAX_ASSESSMENT_RETRY_COUNT):
             try:
+                self.composite_logger.log("\n\nGetting available patches...")
+                self.package_manager.refresh_repo()
+                self.status_handler.reset_assessment_data()
+
                 if self.lifecycle_manager is not None:
                     self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
 
@@ -89,6 +85,7 @@ class PatchAssessor(object):
                 self.status_handler.set_reboot_pending(reboot_pending)
 
                 self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+                break   # avoid retries for success
 
             except Exception as error:
                 if i < Constants.MAX_ASSESSMENT_RETRY_COUNT - 1:
@@ -111,10 +108,11 @@ class PatchAssessor(object):
         return True
 
     def write_assessment_perf_logs(self, retry_count, task_status, error_msg):
-        assessment_perf_log = {Constants.PerfLogTrackerParams.TASK: Constants.ASSESSMENT, Constants.PerfLogTrackerParams.TASK_STATUS: str(task_status),
-                               Constants.PerfLogTrackerParams.ERROR_MSG: error_msg, Constants.PerfLogTrackerParams.PACKAGE_MANAGER: self.package_manager_name,
-                               Constants.PerfLogTrackerParams.RETRY_COUNT: str(retry_count)}
-        self.stopwatch.stop_and_write_telemetry(str(assessment_perf_log))
+        assessment_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}]".format(
+                               Constants.PerfLogTrackerParams.TASK, Constants.ASSESSMENT, Constants.PerfLogTrackerParams.TASK_STATUS, str(task_status),
+                               Constants.PerfLogTrackerParams.ERROR_MSG, error_msg, Constants.PerfLogTrackerParams.PACKAGE_MANAGER, self.package_manager_name,
+                               Constants.PerfLogTrackerParams.RETRY_COUNT, str(retry_count), Constants.PerfLogTrackerParams.MACHINE_INFO, self.telemetry_writer.machine_info)
+        self.stopwatch.stop_and_write_telemetry(assessment_perf_log)
 
     def raise_if_telemetry_unsupported(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
@@ -138,8 +136,10 @@ class PatchAssessor(object):
             self.composite_logger.log_warning("No valid last start information available for auto-assessment.")
             return True
 
-        # get minimum elapsed time required
-        min_elapsed_seconds_required = self.convert_iso8601_duration_to_total_seconds(Constants.MIN_AUTO_ASSESSMENT_INTERVAL)
+        # get minimum elapsed time required - difference between max allowed (passed down) and a safe buffer to prevent exceeding that
+        maximum_assessment_interval_in_seconds = self.convert_iso8601_duration_to_total_seconds(self.execution_config.maximum_assessment_interval)
+        maximum_assessment_interval_buffer_in_seconds = self.convert_iso8601_duration_to_total_seconds(Constants.AUTO_ASSESSMENT_INTERVAL_BUFFER)
+        minimum_elapsed_time_required_in_seconds = maximum_assessment_interval_in_seconds - maximum_assessment_interval_buffer_in_seconds
 
         # check if required duration has passed
         elapsed_time_in_seconds = self.__get_seconds_since_epoch() - last_start_in_seconds_since_epoch
@@ -147,7 +147,7 @@ class PatchAssessor(object):
             self.composite_logger.log_warning("Anomaly detected in system time now or during the last assessment run. Assessment will run anyway.")
             return True
         else:
-            return elapsed_time_in_seconds >= min_elapsed_seconds_required
+            return elapsed_time_in_seconds >= minimum_elapsed_time_required_in_seconds
 
     def read_assessment_state(self):
         """ Reads the assessment state file. """

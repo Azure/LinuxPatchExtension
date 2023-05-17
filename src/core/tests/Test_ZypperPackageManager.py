@@ -68,6 +68,9 @@ class TestZypperPackageManager(unittest.TestCase):
     def mock_write_with_retry_assert_is_5(self, file_path_or_handle, data, mode='a+'):
         self.assertNotEqual(data.find("ZYPP_LOCK_TIMEOUT=5"), -1)
 
+    def mock_do_processes_require_restart_raise_exception(self):
+        raise Exception
+
     def mock_do_processes_require_restart(self):
         raise Exception
     #endregion Mocks
@@ -647,6 +650,15 @@ class TestZypperPackageManager(unittest.TestCase):
         cmd = "sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security"
         package_manager.invoke_package_manager(cmd)
         self.assertTrue(package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False))
+
+    def test_is_reboot_pending_return_true_when_exception_raised(self):
+        package_manager = self.container.get('package_manager')
+        backup_do_process_require_restart = package_manager.do_processes_require_restart
+        package_manager.do_processes_require_restart = self.mock_do_processes_require_restart_raise_exception
+
+        self.assertTrue(package_manager.is_reboot_pending())
+
+        package_manager.do_processes_require_restart = backup_do_process_require_restart
 
 
 if __name__ == '__main__':
