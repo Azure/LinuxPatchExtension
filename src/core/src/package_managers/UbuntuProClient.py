@@ -72,7 +72,7 @@ class UbuntuProClient:
                 ubuntu_pro_client_is_attached = json.loads(output)['summary']['ua']['attached']
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
-            self.composite_logger.log_debug("Ubuntu Pro Client Attached Exception: [Exception={1}]".format(ubuntu_pro_client_exception))
+            self.composite_logger.log_debug("Ubuntu Pro Client Attached Exception: [Exception={0}]".format(ubuntu_pro_client_exception))
         return ubuntu_pro_client_is_attached
 
     def extract_packages_and_versions(self, updates):

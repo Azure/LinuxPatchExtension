@@ -532,6 +532,9 @@ class LegacyEnvLayerExtensions():
                         output = "tmp file created"
                     elif cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
                         code = 0
+                    elif cmd.find('pro security-status --format=json') > -1:
+                        code = 0
+                        output = "{\"summary\":{\"ua\":{\"attached\":true}}}"
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -542,6 +545,9 @@ class LegacyEnvLayerExtensions():
                 elif self.legacy_package_manager_name is Constants.APT:
                     if cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
                         code = 1
+                    elif cmd.find('pro security-status --format=json') > -1:
+                        code = 0
+                        output = "{\"summary\":{\"ua\":{\"attached\":false}}}"
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("microcode_ctl") > -1:
                         code = 1
