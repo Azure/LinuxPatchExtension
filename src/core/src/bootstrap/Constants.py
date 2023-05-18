@@ -265,6 +265,7 @@ class Constants(object):
         OPERATION_FAILED = "OPERATION_FAILED"
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
+        UA_ESM_REQUIRED = "UA_ESM_REQUIRED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
@@ -332,4 +333,5 @@ class Constants(object):
         FEATURE_ENABLED = True
         MINIMUM_PYTHON_VERSION_REQUIRED = (3, 5)  # using tuple as we can compare this with sys.version_info. The comparison will happen in the same order. Major version checked first. Followed by Minor version.
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
+        MINIMUM_CLIENT_VERSION = "27.14.4"
 
