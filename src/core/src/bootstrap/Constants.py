@@ -205,6 +205,7 @@ class Constants(object):
         UNCLASSIFIED = 'Unclassified'
         CRITICAL = 'Critical'
         SECURITY = 'Security'
+        SECURITY_ESM = 'Security-ESM'
         OTHER = 'Other'
 
     PKG_MGR_SETTING_FILTER_CRITSEC_ONLY = 'FilterCritSecOnly'
