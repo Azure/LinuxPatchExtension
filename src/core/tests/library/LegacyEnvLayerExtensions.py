@@ -969,6 +969,146 @@ class LegacyEnvLayerExtensions():
                     else:
                         code = 0
                         output = "Error: Cannot retrieve repository metadata (repomd.xml) for repository: addons. Please verify its path and try again"
+            elif self.legacy_test_type == 'DependencyInstallSuccessfully':
+                if self.legacy_package_manager_name is Constants.APT:
+                    # Total 4 packages: git-man, git, grub-efi-amd64-signed and grub-efi-amd64-bin
+                    # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin
+                    # All packages installs successfully
+                    if cmd.find("dist-upgrade") > -1:
+                        code = 0
+                        output = "Inst git-man [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-security [all])" \
+                                 "Inst git [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-security [amd64])" \
+                                 "Inst grub-efi-amd64-signed [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst grub-efi-amd64-bin [2.06-2ubuntu14] " \
+                                 "(2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])"
+                    elif cmd.find("apt-get -y --only-upgrade true -s install git-man git grub-efi-amd64-signed") > -1:
+                        code = 0
+                        output = "Inst git-man [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-security [all])" \
+                                 "Inst git [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-security [amd64])" \
+                                 "Inst grub-efi-amd64-signed [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst grub-efi-amd64-bin [2.06-2ubuntu14] " \
+                                 "(2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])"
+                    elif cmd.find("apt-get -y --only-upgrade true -s install grub-efi-amd64-signed") > -1:
+                        code = 0
+                        output = "Inst grub-efi-amd64-signed [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst grub-efi-amd64-bin [2.06-2ubuntu14] " \
+                                 "(2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])"
+                    elif cmd.find("sudo apt list --installed git-man") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "git-man/bionic-updates,bionic-security,now 1:2.17.1-1ubuntu0.16 all [installed,automatic]"
+                    elif cmd.find("sudo apt list --installed git") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "git/bionic-updates,bionic-security,now 1:2.17.1-1ubuntu0.16 amd64 [installed,automatic]"
+                    elif cmd.find("sudo apt list --installed grub-efi-amd64-signed") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "grub-efi-amd64-signed/bionic-updates,now 1.187.3~18.04.1+2.06-2ubuntu14.1 amd64 [installed]"
+                    elif cmd.find("sudo apt list --installed grub-efi-amd64-bin") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "grub-efi-amd64-bin/bionic-updates,now 2.06-2ubuntu14.1 amd64 [installed]"
+                    elif cmd.find("simulate-install") > -1 or cmd.find(
+                            "apt-get -y --only-upgrade true -s install") > -1 or cmd.find(
+                        "LANG=en_US.UTF8 sudo yum install --assumeno") > -1 or cmd.find(
+                        "sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run") > -1:
+                        code = 0
+                        output = "Package sucessfully installed!"
+            elif self.legacy_test_type == 'DependencyInstallFailed':
+                if self.legacy_package_manager_name is Constants.APT:
+                    # Total 4 packages: git-man, git, grub-efi-amd64-signed and grub-efi-amd64-bin
+                    # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin
+                    # Installation of grub-efi-amd64-bin fails and as grub-efi-amd64-signed is dependent, it also failed 
+                    # Rest all packages install successfully
+                    if cmd.find("dist-upgrade") > -1:
+                        code = 0
+                        output = "Inst git-man [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-security [all])" \
+                                 "Inst git [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-security [amd64])" \
+                                 "Inst grub-efi-amd64-signed [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst grub-efi-amd64-bin [2.06-2ubuntu14] " \
+                                 "(2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])"
+                    elif cmd.find("apt-get -y --only-upgrade true -s install git-man git grub-efi-amd64-signed") > -1:
+                        code = 0
+                        output = "Inst git-man [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-security [all])" \
+                                 "Inst git [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-security [amd64])" \
+                                 "Inst grub-efi-amd64-signed [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst grub-efi-amd64-bin [2.06-2ubuntu14] " \
+                                 "(2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])"
+                    elif cmd.find("apt-get -y --only-upgrade true -s install grub-efi-amd64-signed") > -1:
+                        code = 0
+                        output = "Inst grub-efi-amd64-signed [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst grub-efi-amd64-bin [2.06-2ubuntu14] " \
+                                 "(2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])"
+                    elif cmd.find("sudo apt list --installed git-man") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "git-man/bionic-updates,bionic-security,now 1:2.17.1-1ubuntu0.16 all [installed,automatic]"
+                    elif cmd.find("sudo apt list --installed git") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "git/bionic-updates,bionic-security,now 1:2.17.1-1ubuntu0.16 amd64 [installed,automatic]"
+                    elif cmd.find("sudo apt list --installed grub-efi-amd64-signed") > -1:
+                        code = 0
+                        output = "Listing... Done\n"
+                    elif cmd.find("sudo apt list --installed grub-efi-amd64-bin") > -1:
+                        code = 0
+                        output = "Listing... Done\n"
+                    elif cmd.find("simulate-install") > -1 or cmd.find(
+                            "apt-get -y --only-upgrade true -s install") > -1 or cmd.find(
+                        "LANG=en_US.UTF8 sudo yum install --assumeno") > -1 or cmd.find(
+                        "sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run") > -1:
+                        code = 0
+                        output = "Package sucessfully installed!"
+            elif self.legacy_test_type == 'UA_ESM_Required':
+                if self.legacy_package_manager_name is Constants.APT:
+                    if cmd.find("dist-upgrade") > -1:
+                        code = 0
+                        output = "Inst git-man [1:2.17.1-1ubuntu0.15] (UA_ESM_Required Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-security [all])"
+            elif self.legacy_test_type == 'ArchDependency':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("check-update") > -1:
+                        code = 100
+                        output = "\n" + \
+                                 "selinux-policy.noarch                                              " + \
+                                 "3.13.1-102.el7_3.16                                      " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n" + \
+                                 "selinux-policy-targeted.noarch                                     " + \
+                                 "3.13.1-102.el7_3.16                                      " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n" + \
+                                 "libgcc.i686                                      " + \
+                                 "4.8.5-28.el7                                      " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n" + \
+                                 "libgcc.x86_64                                                " + \
+                                 "4.8.5-28.el7                           " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n"
+                    elif cmd.find("list installed") > -1:
+                        code = 0
+                        package = cmd.replace('sudo yum list installed ', '')
+                        whitelisted_versions = [
+                            '3.13.1-102.el7_3.16', '4.8.5-28.el7']  # any list of versions you want to work for *any* package
+                        output = "Loaded plugins: product-id, search-disabled-repos, subscription-manager\n" + \
+                                 "Installed Packages\n"
+                        template = "<PACKAGE>                                                                                     <VERSION>                                                                                      @anaconda/7.3\n"
+                        for version in whitelisted_versions:
+                            entry = template.replace('<PACKAGE>', package)
+                            entry = entry.replace('<VERSION>', version)
+                            output += entry
 
             major_version = self.get_python_major_version()
             if major_version == 2:

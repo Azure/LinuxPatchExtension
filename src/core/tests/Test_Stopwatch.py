@@ -130,8 +130,16 @@ class TestStopwatch(unittest.TestCase):
         self.assertTrue(start_time1 == start_time2)
         self.assertTrue(end_time1 <= end_time2)
         self.assertTrue(time_taken1 <= time_taken2)
-        
 
+    def test_write_telemetry_for_stopwatch(self):
+        stopwatch = Stopwatch(self.runtime.env_layer, self.runtime.telemetry_writer, self.runtime.composite_logger)
+        stopwatch.write_telemetry_for_stopwatch("test")
+        self.assertTrue(stopwatch.start_time is not None)
+        self.assertTrue(stopwatch.end_time is not None)
+        self.assertTrue(stopwatch.time_taken_in_secs is not None)
+        self.assertTrue(stopwatch.task_details is not None)
+        self.assertTrue(stopwatch.start_time <= stopwatch.end_time)
+        self.assertTrue(stopwatch.time_taken_in_secs >= 0)
 
 
 if __name__ == '__main__':
