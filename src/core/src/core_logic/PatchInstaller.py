@@ -16,6 +16,7 @@
 
 """ The patch install orchestrator """
 import datetime
+import math
 import os
 import time
 from core.src.bootstrap.Constants import Constants
@@ -41,6 +42,10 @@ class PatchInstaller(object):
         self.last_still_needed_packages = None  # Used for 'Installed' status records
         self.last_still_needed_package_versions = None
         self.progress_template = "[Time available: {0} | A: {1}, S: {2}, F: {3} | D: {4}]\t {5}"
+
+        self.attempted_parent_package_install_count = 0
+        self.successful_parent_package_install_count = 0
+        self.failed_parent_package_install_count = 0
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
     def start_installation(self, simulate=False):
@@ -162,28 +167,66 @@ class PatchInstaller(object):
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
         # We will see this as packages going from NotSelected --> Installed. We could remove them preemptively from not_included_packages, but we're explicitly choosing not to.
 
-        self.composite_logger.log("\n\nInstalling patches in sequence...")
         self.composite_logger.log("[Progress Legend: (A)ttempted, (S)ucceeded, (F)ailed, (D)ependencies est.* (Important: Dependencies are excluded in all other counts)]")
-        attempted_parent_update_count = 0
-        successful_parent_update_count = 0
-        failed_parent_update_count = 0
         installed_update_count = 0  # includes dependencies
 
         patch_installation_successful = True
         maintenance_window_exceeded = False
         all_packages, all_package_versions = package_manager.get_all_updates(True)  # cached is fine
         self.telemetry_writer.write_event("All available packages list: " + str(all_packages), Constants.TelemetryEventLevel.Verbose)
-        self.last_still_needed_packages = all_packages
-        self.last_still_needed_package_versions = all_package_versions
+        self.last_still_needed_packages = list(all_packages)
+        self.last_still_needed_package_versions = list(all_package_versions)
+
+        stopwatch_for_batch_install_process = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
+        stopwatch_for_batch_install_process.start()
+
+        # Check for packages available and install them in batches. Some packages may not be installed due to:
+        # (a) Not enough time remaining in maintenance window
+        # (b) Failure during package installation
+        installed_update_count, patch_installation_successful, maintenance_window_batch_cutoff_reached, packages, package_versions = self.install_packages_in_batches(
+            all_packages, all_package_versions, packages, package_versions, maintenance_window, package_manager)
+
+        stopwatch_for_batch_install_process.stop()
+
+        install_update_count_in_batch_patching = installed_update_count
+        attempted_parent_package_install_count_in_batch_patching = self.attempted_parent_package_install_count
+        successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
+        failed_parent_package_install_count_in_batch_patching = self.failed_parent_package_install_count
+        batch_processing_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesInBatches", 
+                                    "InstalledPackagesCountInBatchProcessing", str(install_update_count_in_batch_patching), "AttemptedParentPackageInstallCount", attempted_parent_package_install_count_in_batch_patching,
+                                    "SuccessfulParentPackageInstallCount", successful_parent_package_install_count_in_batch_patching, "FailedParentPackageInstallCount", failed_parent_package_install_count_in_batch_patching,
+                                    "RemainingPackagesToInstall", str(len(packages)), Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_installation_successful), 
+                                    "IsMaintenanceWindowBatchCutoffReached", str(maintenance_window_batch_cutoff_reached))
+
+        stopwatch_for_batch_install_process.write_telemetry_for_stopwatch(str(batch_processing_perf_log))
+
+        if len(packages) == 0:
+            self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
+            return installed_update_count, patch_installation_successful, maintenance_window_exceeded
+        else:
+            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
+                                                        "Following packages are not attempted or failed in batch installation: " + str(packages))
+            self.composite_logger.log(progress_status)
+
+        stopwatch_for_sequential_install_process = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
+        stopwatch_for_sequential_install_process.start()
 
         for package, version in zip(packages, package_versions):
+            if package not in self.last_still_needed_packages:
+                self.composite_logger.log("The following package is already installed, it could have been installed as dependent package of some other package: " + package)
+                self.attempted_parent_package_install_count += 1
+                self.successful_parent_package_install_count += 1
+                continue
+
+            single_package_install_stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
+            single_package_install_stopwatch.start()
             # Extension state check
             if self.lifecycle_manager is not None:
                 self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
 
             # maintenance window check
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
-            if maintenance_window.is_package_install_time_available(remaining_time) is False:
+            if maintenance_window.is_package_install_time_available(remaining_time, number_of_packages_in_batch=1) is False:
                 error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
                 self.composite_logger.log_error("\n" + error_msg)
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
@@ -192,7 +235,7 @@ class PatchInstaller(object):
                 break
 
             # point in time status
-            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(attempted_parent_update_count), str(successful_parent_update_count), str(failed_parent_update_count), str(installed_update_count - successful_parent_update_count),
+            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                             "Processing package: " + str(package) + " (" + str(version) + ")")
             if version == Constants.UA_ESM_REQUIRED:
                 progress_status += "[Skipping - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]"
@@ -202,52 +245,43 @@ class PatchInstaller(object):
             self.composite_logger.log(progress_status)
 
             # include all dependencies (with specified versions) explicitly
+            # package_and_dependencies initially conains only one package. The dependencies are added in the list by method include_dependencies
             package_and_dependencies = [package]
             package_and_dependency_versions = [version]
-            dependencies = package_manager.get_dependent_list(package)
-            for dependency in dependencies:
-                if dependency not in all_packages:
-                    continue
-                package_and_dependencies.append(dependency)
-                package_and_dependency_versions.append(package_versions[packages.index(dependency)] if dependency in packages else Constants.DEFAULT_UNSPECIFIED_VALUE)
-
-            # multilib resolution for yum
-            if package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.YUM:
-                package_name_without_arch = package_manager.get_product_name_without_arch(package)
-                for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
-                    if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies:
-                        package_and_dependencies.append(possible_arch_dependency)
-                        package_and_dependency_versions.append(possible_arch_dependency_version)
-
-            # remove duplicates
-            package_and_dependencies, package_and_dependency_versions = package_manager.dedupe_update_packages(package_and_dependencies, package_and_dependency_versions)
+            
+            self.include_dependencies(package_manager, [package], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # parent package install (+ dependencies) and parent package result management
             install_result = Constants.FAILED
             for i in range(0, Constants.MAX_INSTALLATION_RETRY_COUNT):
-                install_result = package_manager.install_update_and_dependencies(package_and_dependencies, package_and_dependency_versions, simulate)
+                install_result = package_manager.install_update_and_dependencies_and_get_status(package_and_dependencies, package_and_dependency_versions, simulate)
+
                 if install_result != Constants.INSTALLED:
                     if i < Constants.MAX_INSTALLATION_RETRY_COUNT - 1:
                         time.sleep(i + 1)
                         self.composite_logger.log_warning("Retrying installation of package. [Package={0}]".format(package_manager.get_product_name(package_and_dependencies[0])))
+                else:
+                    break
 
             # Update reboot pending status in status_handler
             self.status_handler.set_reboot_pending(self.package_manager.is_reboot_pending())
 
             if install_result == Constants.FAILED:
                 self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.FAILED)
-                failed_parent_update_count += 1
+                self.failed_parent_package_install_count += 1
                 patch_installation_successful = False
             elif install_result == Constants.INSTALLED:
                 self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.INSTALLED)
-                successful_parent_update_count += 1
+                self.successful_parent_package_install_count += 1
                 if package in self.last_still_needed_packages:
                     index = self.last_still_needed_packages.index(package)
                     self.last_still_needed_packages.pop(index)
                     self.last_still_needed_package_versions.pop(index)
                     installed_update_count += 1
-            attempted_parent_update_count += 1
+            self.attempted_parent_package_install_count += 1
 
+            number_of_dependencies_installed = 0
+            number_of_dependencies_failed = 0
             # dependency package result management
             for dependency, dependency_version in zip(package_and_dependencies, package_and_dependency_versions):
                 if dependency not in self.last_still_needed_packages or dependency == package:
@@ -260,20 +294,53 @@ class PatchInstaller(object):
                     self.last_still_needed_packages.pop(index)
                     self.last_still_needed_package_versions.pop(index)
                     installed_update_count += 1
+                    number_of_dependencies_installed += 1
                 else:
                     # status is not logged by design here, in case you were wondering if that's a bug
                     message = " - [Info] Dependency appears to have failed to install (note: it *may* be retried): " + str(dependency) + "(" + str(dependency_version) + ")"
                     self.composite_logger.log_debug(message)
+                    number_of_dependencies_failed += 1
 
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
-            installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(attempted_parent_update_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
+            installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_package_install_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
 
-        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(attempted_parent_update_count), str(successful_parent_update_count), str(failed_parent_update_count), str(installed_update_count - successful_parent_update_count),
-                                                        "Completed processing packages!")
-        self.composite_logger.log(progress_status)
+            package_install_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackage",
+                                       "PackageName", package, "PackageVersion", version, "PackageAndDependencies", str(package_and_dependencies),"PackageAndDependencyVersions", str(package_and_dependency_versions),
+                                       "PackageInstallResult", str(install_result), "NumberOfDependenciesInstalled", str(number_of_dependencies_installed), "NumberOfDependenciesFailed", str(number_of_dependencies_failed))
+
+            single_package_install_stopwatch.stop_and_write_telemetry(str(package_install_perf_log))
 
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
-        installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)  # final reconciliation
+        installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
+        self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
+
+        install_update_count_in_sequential_patching = installed_update_count - install_update_count_in_batch_patching
+        attempted_parent_package_install_count_in_sequential_patching = self.attempted_parent_package_install_count - attempted_parent_package_install_count_in_batch_patching
+        successful_parent_package_install_count_in_sequential_patching = self.successful_parent_package_install_count - successful_parent_package_install_count_in_batch_patching
+        failed_parent_package_install_count_in_sequential_patching = self.failed_parent_package_install_count - failed_parent_package_install_count_in_batch_patching
+
+        sequential_processing_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesSequentially", "InstalledPackagesCountInSequentialProcessing",
+                                         install_update_count_in_sequential_patching, "AttemptedParentPackageInstallCount", attempted_parent_package_install_count_in_sequential_patching,
+                                         "SuccessfulParentPackageInstallCount", successful_parent_package_install_count_in_sequential_patching, "FailedParentPackageInstallCount", 
+                                         failed_parent_package_install_count_in_sequential_patching)
+
+        stopwatch_for_sequential_install_process.stop_and_write_telemetry(sequential_processing_perf_log)
+
+        return installed_update_count, patch_installation_successful, maintenance_window_exceeded
+
+    def log_final_metrics(self, maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count):
+        """
+        logs the final metrics.
+        
+        Parameters:
+        maintenance_window (MaintenanceWindow): Maintenance window for the job.
+        patch_installation_successful (bool): Whether patch installation succeeded.
+        maintenance_window_exceeded (bool): Whether maintenance window exceeded.
+        installed_update_count (int): Number of updates installed.
+        """
+        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
+                                                        "Completed processing packages!")
+        self.composite_logger.log(progress_status)
 
         if not patch_installation_successful or maintenance_window_exceeded:
             message = "\n\nOperation status was marked as failed because: "
@@ -282,7 +349,202 @@ class PatchInstaller(object):
             self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             self.composite_logger.log_error(message)
 
-        return installed_update_count, patch_installation_successful, maintenance_window_exceeded
+    def include_dependencies(self, package_manager, packages_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+        """
+        Add dependent packages in the list of packages to install i.e. package_and_dependencies.
+        
+        Parameters:
+        package_manager (PackageManager): Package manager used.
+        packages_in_batch (List of strings): List of packages to be installed in the current batch.
+        all_packages (List of strings): List of all available packages to install.
+        all_package_versions (List of strings): Versions of packages in all_packages.
+        packages (List of strings): List of all packages selected by user to install.
+        package_versions (List of strings): Versions of packages in packages list.
+        package_and_dependencies (List of strings): List of packages selected by user along with packages they are dependent on. The input package_and_dependencies 
+                                                    does not contain dependent packages. The dependent packages are added in the list in this function.
+        package_and_dependency_versions (List of strings): Versions of packages in package_and_dependencies. Input list does not contain versions of the dependent packages.
+                                                           The version of dependent packages are added in the list in this function.
+        """
+        dependencies = package_manager.get_dependent_list(package_and_dependencies)
+
+        for dependency in dependencies:
+            if dependency not in all_packages:
+                continue
+            package_and_dependencies.append(dependency)
+            version = all_package_versions[all_packages.index(dependency)] if dependency in all_packages else Constants.DEFAULT_UNSPECIFIED_VALUE
+            package_and_dependency_versions.append(version)
+
+        for package in packages_in_batch:
+            package_manager.add_arch_dependencies(package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+
+        package_and_dependencies, package_and_dependency_versions = package_manager.dedupe_update_packages(package_and_dependencies, package_and_dependency_versions)
+
+        self.composite_logger.log("Packages including dependencies are: " + str(package_and_dependencies))
+
+    def install_packages_in_batches(self, all_packages, all_package_versions, packages, package_versions, maintenance_window, package_manager, simulate=False):
+        """
+        Install packages in batches.
+        
+        Parameters:
+        
+        all_packages (List of strings): List of all available packages to install.
+        all_package_versions (List of strings): Versions of the packages in the list all_packages.
+        packages (List of strings): List of all packages selected by user to install.
+        package_versions (List of strings): Versions of packages in the list packages.
+        maintenance_window (MaintenanceWindow): Maintenance window for the job.
+        package_manager (PackageManager): Package manager used.
+        simulate (bool): Whether this function is called from a test run.
+        
+        Returns:
+        installed_update_count (int): Number of packages installed through installing packages in batches.
+        patch_installation_successful (bool): Whether package installation succeeded for all attempted packages.
+        maintenance_window_batch_cutoff_reached (bool): Whether process of installing packages in batches stopped due to not enough time in maintenance window
+                                                        to install packages in batch.
+        not_attempted_and_failed_packages (List of strings): List of packages which are (a) Not attempted due to not enough time in maintenance window to install in batch. 
+                                                             (b) Failed to install in batch patching.
+        not_attempted_and_failed_package_versions (List of strings): Versions of packages in the list not_attempted_and_failed_packages.
+        
+        """
+        number_of_batches = int(math.ceil(len(packages) / float(Constants.MAX_BATCH_SIZE_FOR_PACKAGES)))
+        self.composite_logger.log("\nDividing package install in batches. \nNumber of packages to be installed: " + str(len(packages)) + "\nBatch Size: " + str(Constants.MAX_BATCH_SIZE_FOR_PACKAGES) + "\nNumber of batches: " + str(number_of_batches))
+        installed_update_count = 0
+        patch_installation_successful = True
+        maintenance_window_batch_cutoff_reached = False
+
+        # remaining_packages are the packages which are not attempted to install due to there is not enough remaining time in maintenance window to install packages in batches.
+        # These packages will be attempted in sequential installation if there is enough time in maintenance window to install package sequentially.
+        remaining_packages = []
+        remaining_package_versions = []
+        
+        # failed_packages are the packages which are failed to install in batch patching. These packages will be attempted again in sequential patching if there is 
+        # enough time remaining in maintenance window.
+        failed_packages = []
+        failed_package_versions = []
+
+        for batch_index in range(0, number_of_batches):
+            per_batch_installation_stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
+            per_batch_installation_stopwatch.start()
+
+            # Extension state check
+            if self.lifecycle_manager is not None:
+                self.lifecycle_manager.lifecycle_status_check()
+
+            begin_index = batch_index * Constants.MAX_BATCH_SIZE_FOR_PACKAGES
+            end_index = begin_index + Constants.MAX_BATCH_SIZE_FOR_PACKAGES - 1
+            end_index = min(end_index, len(packages) - 1)
+
+            packages_in_batch = []
+            package_versions_in_batch = []
+            skip_packages = []
+            already_installed_packages = []
+
+            for index in range(begin_index, end_index + 1):
+                if package_versions[index] == Constants.UA_ESM_REQUIRED:
+                    skip_packages.append(packages[index])
+                    self.status_handler.set_package_install_status(package_manager.get_product_name(packages[index]), str(package_versions[index]), Constants.NOT_SELECTED)
+                elif packages[index] not in self.last_still_needed_packages:
+                    # Could have got installed as dependent package of some other package. Package installation status could also have been set.
+                    already_installed_packages.append(packages[index])
+                    self.attempted_parent_package_install_count += 1
+                    self.successful_parent_package_install_count += 1
+                else:
+                    packages_in_batch.append(packages[index])
+                    package_versions_in_batch.append(package_versions[index])
+
+            if len(already_installed_packages) > 0:
+                self.composite_logger.log("Following packages are already installed. Could have got installed as dependent package of some other package " + str(already_installed_packages))
+
+            if len(skip_packages) > 0:
+                self.composite_logger.log("[Skipping packages " + str(skip_packages) + " - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]")
+
+            if len(packages_in_batch) == 0:
+                continue
+
+            remaining_time = maintenance_window.get_remaining_time_in_minutes()
+
+            if maintenance_window.is_package_install_time_available(remaining_time, len(packages_in_batch)) is False:
+                self.composite_logger.log("Stopped installing packages in batches as it is past the maintenance window cutoff time for installing in batches." +
+                                           " Batch Index: {0}, remaining time: {1}, number of packages in batch: {2}".format(batch_index, remaining_time, str(len(packages_in_batch))))
+                maintenance_window_batch_cutoff_reached = True
+                remaining_packages = packages[begin_index:]
+                remaining_package_versions = package_versions[begin_index:]
+                break
+
+            # point in time status
+            progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
+                                                            "Processing batch index: " + str(batch_index) + ", Number of packages: " + str(len(packages_in_batch)) + "\nProcessing packages: " + str(packages_in_batch))
+            self.composite_logger.log(progress_status)
+
+            # package_and_dependencies initially conains only packages in batch. The dependencies are added in the list by method include_dependencies
+            package_and_dependencies = list(packages_in_batch)
+            package_and_dependency_versions = list(package_versions_in_batch)
+
+            self.include_dependencies(package_manager, packages_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+
+            parent_packages_installed_in_batch_count = 0
+            parent_packages_failed_in_batch_count = 0
+            number_of_dependencies_installed = 0
+            number_of_dependencies_failed = 0
+
+            code, out, exec_cmd = package_manager.install_update_and_dependencies(package_and_dependencies, package_and_dependency_versions, simulate)
+
+            for package,version in zip(package_and_dependencies, package_and_dependency_versions):
+                install_result = package_manager.get_installation_status(code, out, exec_cmd, package, version, simulate)
+
+                if install_result == Constants.FAILED:
+                    if package in packages_in_batch:
+                        # parent package
+                        self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.FAILED)
+                        self.failed_parent_package_install_count += 1
+                        patch_installation_successful = False
+                        parent_packages_failed_in_batch_count += 1
+                        failed_packages.append(package)
+                        failed_package_versions.append(version)
+                    else:
+                        # dependent package
+                        number_of_dependencies_failed +=1
+                elif install_result == Constants.INSTALLED:
+                    self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.INSTALLED)
+                    if package in packages_in_batch:
+                        # parent package
+                        self.successful_parent_package_install_count += 1
+                        parent_packages_installed_in_batch_count += 1
+                    else:
+                        # dependent package
+                        number_of_dependencies_installed += 1
+
+                    if package in self.last_still_needed_packages:
+                        index = self.last_still_needed_packages.index(package)
+                        self.last_still_needed_packages.pop(index)
+                        self.last_still_needed_package_versions.pop(index)
+                        installed_update_count += 1
+
+            self.attempted_parent_package_install_count += len(packages_in_batch)
+
+            # Update reboot pending status in status_handler
+            self.status_handler.set_reboot_pending(self.package_manager.is_reboot_pending())
+
+            # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
+            installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_package_install_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
+
+            per_batch_install_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallBatchOfPackages",
+                                         "PackagesInBatch", str(packages_in_batch), "PackageAndDependencies", str(package_and_dependencies), "PackageAndDependencyVersions", str(package_and_dependency_versions),
+                                         "NumberOfParentPackagesInstalled", str(parent_packages_installed_in_batch_count), "NumberOfParentPackagesFailed", str(parent_packages_failed_in_batch_count),
+                                         "NumberOfDependenciesInstalled", str(number_of_dependencies_installed), "NumberOfDependenciesFailed", str(number_of_dependencies_failed))
+
+            per_batch_installation_stopwatch.stop_and_write_telemetry(str(per_batch_install_perf_log))
+
+        # Performing reconciliation at the end to get accurate number of installed packages through this function.
+        installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
+
+        # not_attempted_and_failed_packages is the list of packages including two kind of packages:
+        # (a) Not attempted due to not enough time in maintenance window to install packages in batches.
+        # (b) Failed to install in batch patching.
+        # These packages are attempted in the sequential patching if there is enough time remaining in maintenance window. The non attempted packages are in
+        # the front of the list than failed packages and hence non attempated packages are attempted first in sequential patching than the failed packages.
+        not_attempted_and_failed_packages = remaining_packages + failed_packages
+        not_attempted_and_failed_package_versions = remaining_package_versions + failed_package_versions
+        return installed_update_count, patch_installation_successful, maintenance_window_batch_cutoff_reached, not_attempted_and_failed_packages, not_attempted_and_failed_package_versions
 
     def mark_installation_completed(self):
         """ Marks Installation operation as completed by updating the status of PatchInstallationSummary as success and patch metadata to be sent to healthstore.
@@ -369,7 +631,7 @@ class PatchInstaller(object):
                 excluded_package_versions.append(package_version)
                 continue
 
-            dependency_list = package_manager.get_dependent_list(package)
+            dependency_list = package_manager.get_dependent_list([package])
             if dependency_list and self.package_filter.check_for_exclusion(dependency_list):
                 self.composite_logger.log_debug(" - Exclusion list match on dependency list for package '{0}': {1}".format(str(package), str(dependency_list)))
                 excluded_packages.append(package)  # one of the package's dependencies are excluded, so exclude the package

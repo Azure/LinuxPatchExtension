@@ -360,19 +360,27 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log_debug("   - Package version specified was determined to NOT be installed.")
         return False
 
-    def get_dependent_list(self, package_name):
-        """Returns dependent List of the package"""
-        cmd = self.single_package_dependency_resolution_template.replace('<PACKAGE-NAME>', package_name)
+    def get_dependent_list(self, packages):
+        """Returns dependent List for the list of packages"""
+        package_names = ""
+        for index, package in enumerate(packages):
+            if index != 0:
+                package_names += ' '
+            package_names += package
+
+        cmd = self.single_package_dependency_resolution_template.replace('<PACKAGE-NAME>', package_names)
 
         self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(cmd))
         output = self.invoke_package_manager(cmd)
 
-        packages, package_versions = self.extract_packages_and_versions(output)
-        if package_name in packages:
-            packages.remove(package_name)
+        dependencies, dependency_versions = self.extract_packages_and_versions(output)
+        
+        for package in packages:
+            if package in dependencies:
+                dependencies.remove(package)
 
-        self.composite_logger.log_debug(str(len(packages)) + " dependent updates were found for package '" + package_name + "'.")
-        return packages
+        self.composite_logger.log_debug(str(len(dependencies)) + " dependent packages were found for packages '" + str(packages) + "'.")
+        return dependencies
 
     def get_product_name(self, package_name):
         """Retrieve product name """
@@ -584,3 +592,10 @@ class AptitudePackageManager(PackageManager):
     def __is_minimum_required_python_installed(self):
         """check if python version is at least 3.5"""
         return sys.version_info >= Constants.UbuntuProClientSettings.MINIMUM_PYTHON_VERSION_REQUIRED
+
+    def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+        """
+        Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
+        Only required for yum. No-op for apt and zypper.
+        """
+        return

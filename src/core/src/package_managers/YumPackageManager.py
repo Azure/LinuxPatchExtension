@@ -282,7 +282,7 @@ class YumPackageManager(PackageManager):
 
         return False
 
-    def get_dependent_list(self, package_name):
+    def extract_dependencies(self, output, packages):
         # Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
         #
         # Loaded plugins: langpacks, product-id, search-disabled-repos
@@ -299,10 +299,7 @@ class YumPackageManager(PackageManager):
         # ---> Package selinux-policy-targeted.noarch 0:3.13.1-102.el7_3.16 will be an update
         # --> Finished Dependency Resolution
 
-        self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + package_name))
-        dependent_updates = []
-
-        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_name)
+        dependencies = []
         lines = output.strip().split('\n')
 
         for line in lines:
@@ -316,12 +313,24 @@ class YumPackageManager(PackageManager):
                 continue
 
             dependent_package_name = self.get_product_name(updates_line[2])
-            if len(dependent_package_name) != 0 and dependent_package_name != package_name:
+            if len(dependent_package_name) != 0 and dependent_package_name not in packages:
                 self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
-                dependent_updates.append(dependent_package_name)
+                dependencies.append(dependent_package_name)
 
-        self.composite_logger.log_debug(str(len(dependent_updates)) + " dependent updates were found for package '" + package_name + "'.")
-        return dependent_updates
+        return dependencies
+
+    def get_dependent_list(self, packages):
+        package_names = ""
+        for index, package in enumerate(packages):
+            if index != 0:
+                package_names += ' '
+            package_names += package
+
+        self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + package_names))
+        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_names)
+        dependencies = self.extract_dependencies(output, packages)
+        self.composite_logger.log_debug(str(len(dependencies)) + " dependent packages were found for packages '" + str(packages) + "'.")
+        return dependencies
 
     def get_product_name(self, package_name):
         """Retrieve product name including arch where present"""
@@ -930,3 +939,22 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log(" - Processes requiring restart (" + str(process_count) + "): [" + process_list_verbose + "<eol>]")
         return process_count != 0  # True if there were any
     # endregion Reboot Management
+
+    def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+        """
+        Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
+
+        Parameters:
+        package_manager (PackageManager): Package manager used.
+        package (string): Input package for which same package name but different architecture need to be added in the list package_and_dependencies.
+        packages (List of strings): List of all packages selected by user to install.
+        package_versions (List of strings): Versions of packages in packages list.
+        package_and_dependencies (List of strings): List of packages along with dependencies. This function adds packages with same name as input parameter package 
+                                                    but different architecture in this list.
+        package_and_dependency_versions (List of strings): Versions of packages in package_and_dependencies.
+        """
+        package_name_without_arch = package_manager.get_product_name_without_arch(package)
+        for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
+            if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies:
+                package_and_dependencies.append(possible_arch_dependency)
+                package_and_dependency_versions.append(possible_arch_dependency_version)

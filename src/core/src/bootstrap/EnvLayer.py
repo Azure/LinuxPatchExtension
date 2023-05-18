@@ -502,6 +502,19 @@ class EnvLayer(object):
             return (time_delta.microseconds + (time_delta.seconds + time_delta.days * 24 * 3600) * 10 ** 6) / 10.0 ** 6
 
         @staticmethod
+        def total_seconds_from_time_delta_round_to_one_decimal_digit(time_delta):
+            """ 
+            Converts the input time in datetime.timedelta format to seconds in float format
+            
+            Parameters:
+            time_delta (datetime.timedelta): time in datetime.timedelta format e.g. 0:00:00.219000
+            
+            Returns:
+            time in seconds round of to one decimal digit (float): e.g. 0.2 seconds
+            """
+            return round(EnvLayer.DateTime.total_seconds_from_time_delta(time_delta), 1)
+
+        @staticmethod
         def utc_to_standard_datetime(utc_datetime):
             """ Converts string of format '"%Y-%m-%dT%H:%M:%SZ"' to datetime object """
             return datetime.datetime.strptime(utc_datetime.split(".")[0], "%Y-%m-%dT%H:%M:%S")
