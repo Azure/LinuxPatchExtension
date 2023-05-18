@@ -154,7 +154,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # test for get_dependent_list
         # legacy_test_type ='Happy Path'
-        dependent_list = package_manager.get_dependent_list("man")
+        dependent_list = package_manager.get_dependent_list(["man"])
         self.assertIsNotNone(dependent_list)
         self.assertEqual(len(dependent_list), 16)
 
@@ -180,7 +180,7 @@ class TestZypperPackageManager(unittest.TestCase):
         # test for get_dependent_list
         # legacy_test_type ='Exception Path'
         try:
-            package_manager.get_dependent_list("man")
+            package_manager.get_dependent_list(["man"])
         except Exception as exception:
             self.assertTrue(str(exception))
         else:
@@ -227,7 +227,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for successfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
 
     def test_install_package_failure(self):
         self.runtime.set_legacy_test_type('FailInstallPath')
@@ -236,7 +236,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
 
     def test_get_process_tree_from_package_manager_output_success(self):
         self.runtime.set_legacy_test_type('HappyPath')
