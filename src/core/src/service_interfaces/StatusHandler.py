@@ -34,6 +34,7 @@ class StatusHandler(object):
         self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
         self.status_complete_file_path = self.execution_config.status_complete_file_path
         self.status_file_path = self.execution_config.status_file_path
+        self.truncated_patches_list = []
         self.__log_file_path = self.execution_config.log_file_path
         self.vm_cloud_type = vm_cloud_type
 
@@ -312,10 +313,15 @@ class StatusHandler(object):
         # Wrap assessment summary into assessment substatus
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
+        # message  = json.loads(self.__assessment_substatus_json['formattedMessage']['message'])
+        # print('what is patches list ', message['patches'])
+
         # Update status complete on disk
         self.__write_status_complete_file()
 
         # Write truncated status on disk, apply truncation logic here
+        # check if patches[] is empty or not then write to truncate status
+        # status: transitioning \"patches\": []
         status_json_payload = self.__read_status_file_raw_data(self.status_complete_file_path)
         # print('what is status json_payload', status_json_payload)
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path,
@@ -700,6 +706,20 @@ class StatusHandler(object):
         # Write status complete file <seq.no>.complete
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_complete_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
 
+        message = status_file_payload['status']['substatus'][0]['formattedMessage']['message']
+        #status_file_payload['status']['substatus'][0]['status'] = Constants.STATUS_WARNING
+        patches = json.loads(message)['patches']
+        errors = json.loads(message)['errors']
+
+        print('what is status_file_payload', status_file_payload)
+        print('what is assessment_package', self.__assessment_packages)
+        print('what is installation_package', self.__installation_packages)
+        print('what is patches', patches)
+        print('what is errors', errors['message'])
+
+        # Write truncated status file
+        #self.__write_truncated_status_file(status_file_payload)
+
     # endregion
 
     # region - Error objects
@@ -809,6 +829,37 @@ class StatusHandler(object):
     # endregion
 
     # region - Patch Truncation
+    def __write_truncated_status_file(self, status_file_payload):
+
+        # Check Complete status file is more than Max File Size and operations are Assessment or Installation
+        complete_status_byte_size = self.__get_latest_file_byte_size(self.status_complete_file_path)
+
+        if complete_status_byte_size > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES:
+            self.composite_logger.log("Begin Truncation")
+            substatus_payload_list = status_file_payload['status']['substatus']
+            assessment_index, assessment_name = self.__get_substatus_index_and_name(substatus_payload_list, Constants.PATCH_ASSESSMENT_SUMMARY)
+            installation_index, installation_name = self.__get_substatus_index_and_name(substatus_payload_list, Constants.PATCH_INSTALLATION_SUMMARY)
+            assessment_message = status_file_payload['status']['substatus'][assessment_index]['formattedMessage']['message']
+            assessment_patches_list = json.loads(assessment_message)['patches']
+
+            # Truncated Assessment Summary Patches
+            if assessment_name is not None and installation_name is None and assessment_patches_list is None and len(assessment_patches_list) > 0:
+                status_byte_diff = Constants.MAX_STATUS_FILE_SIZE_IN_BYTES - complete_status_byte_size
+                while len(json.dumps(assessment_patches_list)) > status_byte_diff:
+                    self.truncated_patches_list.append(assessment_patches_list[-1])
+                    assessment_patches_list = assessment_patches_list[:-1]
+                    self.composite_logger.log("Truncated assessment patches list: {0}", self.truncated_patches_list)
+
+                # add the tombstone record
+                assessment_patches_list.append(self.__add_assessment_tombstone_record())
+                # update the message field
+
+                status_file_payload['status']['substatus'][assessment_index]['status'] = Constants.STATUS_WARNING
+
+            self.composite_logger.log("Complete Truncation")
+        # write to status file
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+
     def __read_status_file_raw_data(self, file_path):
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
@@ -822,22 +873,44 @@ class StatusHandler(object):
                     raise
         return status_file_data_raw
 
-    def __get_latest_status_complete_file(self, file_path):
-        """ Get the latest status complete file and remove other .complete.status files"""
-        list_of_files = glob.glob(file_path + '\\' + '*.complete.status')
+    def __get_latest_status_complete_file(self, status_folder_path):
+        """ Get the latest status complete file and remove other .complete.status files """
+        list_of_files = glob.glob(status_folder_path + '\\' + '*.complete.status')
         latest_file = max(list_of_files,
                           key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
 
+        if latest_file is None:
+            raise Exception("Error: File is not found.")
+
+        # Remove older complete.status files
         for file in list_of_files:
             if file != latest_file:
                 self.env_layer.file_system.delete_files_from_dir(file, '*.complete.status')
 
         return latest_file
 
-    def __get_latest_file_kb_size(self, latest_file):
-        """ Get the file kb size in two decimal places of the latest status complete file"""
-        if latest_file is None:
-            raise Exception("Error: File is not found.")
-        file_kb_size = round(os.path.getsize(latest_file) / 1024, 2)
+    def __get_latest_file_byte_size(self, latest_file):
+        """ Get the file kb size in two decimal places of the latest status complete file """
+        file_kb_size = os.path.getsize(latest_file)
         return file_kb_size
+    def __get_substatus_index_and_name(self, substatus_list, patch_summary):
+        """ Get the index and patch summary name from substatus """
+        for index, substatus in enumerate(substatus_list):
+            if substatus['name'] == patch_summary:
+                return index, substatus['name']
+    def __add_assessment_tombstone_record(self):
+        return {
+            "patchId": "Truncated Patch List",
+             "name": "Truncated Patch List",
+            "version": "",
+            "classifications": ["Other"]
+        }
+    def __add_installation_tombstone_record(self):
+        return {
+            "patchId": "Truncated Patch List",
+             "name": "Truncated Patch List",
+            "version": "",
+            "classifications": ["Other"],
+            "patchInstallationState": "NotSelected"
+        }
     # endregion

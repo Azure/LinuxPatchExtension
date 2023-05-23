@@ -168,6 +168,9 @@ class Constants(object):
     STATUS_SUCCESS = "Success"
     STATUS_WARNING = "Warning"
 
+    # Status file size
+    MAX_STATUS_FILE_SIZE_IN_BYTES = 126 * 1024
+
     # Wrapper-core handshake files
     EXT_STATE_FILE = 'ExtState.json'
     CORE_STATE_FILE = 'CoreState.json'
