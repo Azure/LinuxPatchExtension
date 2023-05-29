@@ -556,7 +556,9 @@ class StatusHandler(object):
 
     # region - Status generation
     def __reset_status_file(self):
-        self.env_layer.file_system.write_with_retry(self.status_file_path,
+
+        # Create complete status template
+        self.env_layer.file_system.write_with_retry(self.complete_status_file_path,
                                                     '[{0}]'.format(json.dumps(self.__new_basic_status_json())),
                                                     mode='w+')
 
@@ -615,15 +617,17 @@ class StatusHandler(object):
 
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
-        # Verify the status file exists - if not, reset status file
-        if not os.path.exists(self.status_file_path) and initial_load:
+        # Verify the complete status file exists - if not, reset complete status file
+        if not os.path.exists(self.complete_status_file_path) and initial_load:
             self.composite_logger.log_warning(
                 "Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()
             return
 
-        # Read the status file - raise exception on persistent failure
-        status_file_data_raw = self.__read_status_file_raw_data(self.status_file_path)
+        # Read the complete status file - raise exception on persistent failure
+        # Remove old complete status files and retain latest version
+        latest_complete_status_file_path = self.__get_latest_status_complete_file_path(self.complete_status_file_path)
+        status_file_data_raw = self.__read_status_file_raw_data(latest_complete_status_file_path)
 
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
         try:
@@ -970,7 +974,7 @@ class StatusHandler(object):
                     raise
         return status_file_data_raw
 
-    def __get_latest_status_complete_file(self, status_folder_path):
+    def __get_latest_status_complete_file_path(self, status_folder_path):
         """ Get the latest status complete file and remove other .complete.status files """
         list_of_files = glob.glob(status_folder_path + '\\' + '*.complete.status')
         latest_file = max(list_of_files, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
@@ -981,7 +985,7 @@ class StatusHandler(object):
             if file != latest_file:
                 self.env_layer.file_system.delete_files_from_dir(file, '*.complete.status')
 
-        return latest_file
+        return os.path.realpath(latest_file)
 
     def __set_truncated_package_detail(self, name, truncated_packages):
         return {
