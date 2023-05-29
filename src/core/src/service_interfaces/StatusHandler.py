@@ -32,7 +32,7 @@ class StatusHandler(object):
         self.execution_config = execution_config
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer  # not used immediately but need to know if there are issues persisting status
-        self.status_complete_file_path = self.execution_config.status_complete_file_path
+        self.complete_status_file_path = self.execution_config.complete_status_file_path
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
         self.vm_cloud_type = vm_cloud_type
@@ -56,7 +56,6 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
-        self.__truncated_patches = []
 
         # Internal in-memory representation of Patch Metadata for HealthStore
         self.__metadata_for_healthstore_substatus_json = None
@@ -71,6 +70,9 @@ class StatusHandler(object):
         self.__configure_patching_top_level_error_count = 0  # All errors during configure patching (excluding auto-assessment), includes errors not in error objects due to size limit
         self.__configure_patching_auto_assessment_errors = []
         self.__configure_patching_auto_assessment_error_count = 0  # All errors relating to auto-assessment configuration.
+
+        # Internal in-memory representation of Truncated Patching data
+        self.__truncated_patches = []
 
         # Load the currently persisted status file into memory
         self.load_status_file_components(initial_load=True)
@@ -110,6 +112,8 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0
+
+        self.__truncated_patches = []
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other",
                                       status="Available"):
@@ -728,12 +732,12 @@ class StatusHandler(object):
             status_file_payload['status']['substatus'].append(self.__metadata_for_healthstore_substatus_json)
         if self.__configure_patching_substatus_json is not None:
             status_file_payload['status']['substatus'].append(self.__configure_patching_substatus_json)
-        if os.path.isdir(self.status_complete_file_path):
+        if os.path.isdir(self.complete_status_file_path):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
-            shutil.rmtree(self.status_complete_file_path)
+            shutil.rmtree(self.complete_status_file_path)
 
         # Write status complete file <seq.no>.complete
-        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_complete_file_path,'[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
 
         self.__write_truncated_status_file(status_file_payload)
 
@@ -863,18 +867,19 @@ class StatusHandler(object):
             "code": str(error_code),
             "message": str(formatted_message)
         }
-
     # endregion
 
     # region - Patch Truncation
+    def get_truncated_patches(self):
+        return self.__truncated_patches
+
     def __write_truncated_status_file(self, status_file_payload):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
 
         # Get complete status file size
         complete_status_byte_size = self.__get_byte_size(status_file_payload)
         truncated_status_file = status_file_payload
-        print('what is complete size', complete_status_byte_size)
-        print('what is complete patches size', self.__get_byte_size(self.__assessment_packages))
+
         if complete_status_byte_size > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES:
 
             self.composite_logger.log("Begin Truncation")
@@ -885,9 +890,15 @@ class StatusHandler(object):
             # Truncated assessment patch when operation is not installation
             if self.execution_config.operation != Constants.INSTALLATION and assessment_name == Constants.PATCH_ASSESSMENT_SUMMARY and len(assessment_patch) > 0:
 
+                # self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
+                # json.dumps(__assessment_summary_json) happens in multiple calls that creates escape \ for ", \ is an extra byte in the status file. it's unnecssary to perform json.dumps every time
+                # removing json.dumps will need to remove json.loads part in substatus_file_data["formattedMessage"]["message"] in entire codebase
+                # Get the numbers of quotes in the patch, to get an estimate of \ and subtract total byte from max file
+                quote_counts = sum(char == '"' for char in json.dumps(assessment_patch))
+
                 # Perform assessment truncation
-                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
-                self.__truncated_patches.append(self.__set_package_detail("Assessment", truncated_packages))
+                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, (Constants.MAX_STATUS_FILE_SIZE_IN_BYTES - quote_counts))
+                self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", truncated_packages))
                 self.composite_logger.log("Truncated assessment patches: ", self.__truncated_patches[0])
 
             # Add assessment tombstone record
@@ -904,11 +915,6 @@ class StatusHandler(object):
 
             self.composite_logger.log("Complete Truncation")
 
-        # print('what is keep patches length', len(assessment_patch))
-        # print('what is keep patch byte after tombstone', self.__get_byte_size(assessment_patch))
-        # print('how many packages were removed', len(self.__truncated_patches[0]['truncated_packages']))
-        print('what is byte size of final version', self.__get_byte_size(truncated_status_file))
-
         # Write to status file
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(truncated_status_file)), mode='w+')
 
@@ -923,9 +929,6 @@ class StatusHandler(object):
         new_assessment_list, truncated_packages, _ = self.__apply_truncation(patches_second_half, capacity)
 
         return patches_first_half + new_assessment_list, truncated_packages
-
-    def __truncate_installation_helper_func(self):
-        return
 
     def __apply_truncation(self, patch_list, size_limit):
         """ Binary search
@@ -980,7 +983,7 @@ class StatusHandler(object):
 
         return latest_file
 
-    def __set_package_detail(self, name, truncated_packages):
+    def __set_truncated_package_detail(self, name, truncated_packages):
         return {
             "name": str.capitalize(name),
             "truncated_packages": truncated_packages
@@ -989,17 +992,6 @@ class StatusHandler(object):
     def __get_byte_size(self, val):
         """ Get the current byte size of val """
         return len(json.dumps(val).encode("utf-8"))
-
-    def __get_substatus_index_and_name(self, substatus_list, patch_summary):
-        """ Get the index and summary name from substatus """
-        for index, substatus in enumerate(substatus_list):
-            if substatus['name'] == patch_summary:
-                return index, substatus['name']
-    def __get_truncated_packages(self, summary_name, truncated_packages):
-        return {
-            "name": str.capitalize(summary_name),
-            "truncated_packages": truncated_packages
-        }
 
     def __recompose_truncated_status_payload(self, status_file_payload, new_patches, code, errors_detail_list):
         """ Recompose complete status file payload with new errors detail list, new errors message, new truncated patches, and Warning status  """
@@ -1012,7 +1004,6 @@ class StatusHandler(object):
 
         # Update operation summary message
         message = self.__new_truncation_assessment_message(self.__assessment_summary_json, new_patches, truncated_errors_json)
-
         status_file_payload['status']['substatus'][0]['formattedMessage']['message'] = json.dumps(message)
 
         # Update operation status to warning
