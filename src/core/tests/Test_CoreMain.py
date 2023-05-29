@@ -1063,7 +1063,7 @@ class TestCoreMain(unittest.TestCase):
 
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
-        self.assertNotEqual(substatus_file_data["status"], Constants.STATUS_WARNING)
+        self.assertNotEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), 435)
         status_file_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
         self.assertNotEqual(status_file_patches[len(status_file_patches) - 1]['patchId'], "Truncated patch list record")
@@ -1110,7 +1110,7 @@ class TestCoreMain(unittest.TestCase):
                                                      'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING)
+        self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
         self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
         self.assertTrue(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]) < 800)
 

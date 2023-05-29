@@ -556,9 +556,12 @@ class StatusHandler(object):
 
     # region - Status generation
     def __reset_status_file(self):
-
         # Create complete status template
         self.env_layer.file_system.write_with_retry(self.complete_status_file_path,
+                                                    '[{0}]'.format(json.dumps(self.__new_basic_status_json())),
+                                                    mode='w+')
+        # Create status template
+        self.env_layer.file_system.write_with_retry(self.status_file_path,
                                                     '[{0}]'.format(json.dumps(self.__new_basic_status_json())),
                                                     mode='w+')
 
@@ -626,7 +629,7 @@ class StatusHandler(object):
 
         # Read the complete status file - raise exception on persistent failure
         # Remove old complete status files and retain latest version
-        latest_complete_status_file_path = self.__get_latest_status_complete_file_path(self.complete_status_file_path)
+        latest_complete_status_file_path = self.__get_latest_status_complete_file_path(self.execution_config.status_folder)
         status_file_data_raw = self.__read_status_file_raw_data(latest_complete_status_file_path)
 
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
@@ -808,18 +811,10 @@ class StatusHandler(object):
             # retain previously set status, code, patchMode and assessmentMode for configure patching substatus
             if self.__configure_patching_substatus_json is not None:
                 automatic_os_patch_state = \
-                json.loads(self.__configure_patching_substatus_json["formattedMessage"]["message"])[
-                    "automaticOSPatchState"]
-                auto_assessment_status = self.__json_try_get_key_value(
-                    self.__configure_patching_substatus_json["formattedMessage"]["message"], "autoAssessmentStatus",
-                    "{}")
-                auto_assessment_state = self.__json_try_get_key_value(json.dumps(auto_assessment_status),
-                                                                      "autoAssessmentState",
-                                                                      Constants.AutoAssessmentStates.UNKNOWN)
-                self.set_configure_patching_substatus_json(status=self.__configure_patching_substatus_json["status"],
-                                                           code=self.__configure_patching_substatus_json["code"],
-                                                           automatic_os_patch_state=automatic_os_patch_state,
-                                                           auto_assessment_state=auto_assessment_state)
+                json.loads(self.__configure_patching_substatus_json["formattedMessage"]["message"])["automaticOSPatchState"]
+                auto_assessment_status = self.__json_try_get_key_value(self.__configure_patching_substatus_json["formattedMessage"]["message"], "autoAssessmentStatus", "{}")
+                auto_assessment_state = self.__json_try_get_key_value(json.dumps(auto_assessment_status), "autoAssessmentState", Constants.AutoAssessmentStates.UNKNOWN)
+                self.set_configure_patching_substatus_json(status=self.__configure_patching_substatus_json["status"], code=self.__configure_patching_substatus_json["code"], automatic_os_patch_state=automatic_os_patch_state, auto_assessment_state=auto_assessment_state)
             else:
                 self.set_configure_patching_substatus_json()
         else:
@@ -892,7 +887,7 @@ class StatusHandler(object):
             errors_detail_list = []
 
             # Truncated assessment patch when operation is not installation
-            if self.execution_config.operation != Constants.INSTALLATION and assessment_name == Constants.PATCH_ASSESSMENT_SUMMARY and len(assessment_patch) > 0:
+            if self.execution_config.operation != Constants.INSTALLATION.lower() and assessment_name == Constants.PATCH_ASSESSMENT_SUMMARY and len(assessment_patch) > 0:
 
                 # self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
                 # json.dumps(__assessment_summary_json) happens in multiple calls that creates escape \ for ", \ is an extra byte in the status file. it's unnecssary to perform json.dumps every time
@@ -910,8 +905,11 @@ class StatusHandler(object):
 
             # Check for existing errors before recompose status file payload
             code = self.__assessment_summary_json['errors']['code']
-            if code == 0 or 2:
+            print('what is error code', code)
+            if code == 0 or code == 2:
                 truncated_status_file = self.__recompose_truncated_status_payload(status_file_payload, assessment_patch, code, errors_detail_list)
+                # Update operation status to warning
+                truncated_status_file['status']['substatus'][0]['status'] = Constants.STATUS_WARNING.lower()
             else:
                 # code == 1 (Error), add everything in the errors['detail'] to errors_detail_list
                 errors_detail_list.extend(self.__assessment_summary_json['errors']['details'])
@@ -1004,14 +1002,16 @@ class StatusHandler(object):
 
         truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
         errors_detail_list.insert(0, truncated_error_detail)
+
+        # Max length of error details is set to 5
+        if len(errors_detail_list) > 5:
+            errors_detail_list = errors_detail_list[:5]
+
         truncated_errors_json = self.__set_truncation_errors_json(code, errors_detail_list)
 
         # Update operation summary message
         message = self.__new_truncation_assessment_message(self.__assessment_summary_json, new_patches, truncated_errors_json)
         status_file_payload['status']['substatus'][0]['formattedMessage']['message'] = json.dumps(message)
-
-        # Update operation status to warning
-        status_file_payload['status']['substatus'][0]['status'] = Constants.STATUS_WARNING
 
         return status_file_payload
 
