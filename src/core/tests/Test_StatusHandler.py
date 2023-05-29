@@ -389,12 +389,40 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[7]["name"], "test-package-9")  #  | Security           | Pending     |
             self.assertEqual(installation_patches_sorted[8]["name"], "test-package-7")  #  | Security           | NotSelected |
 
-
             self.assertEqual(installation_patches_sorted[9]["name"], "test-package-5")  #  | Other              | Installed   |
             self.assertEqual(installation_patches_sorted[10]["name"], "test-package-4")  # | Other              | Available   |
             self.assertEqual(installation_patches_sorted[11]["name"], "test-package-3")  # | Other              | Pending     |
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
+
+    def test_write_truncated_status_file(self):
+        self.runtime.execution_config.operation = Constants.ASSESSMENT
+        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+
+        test_packages = []
+        test_package_versions = []
+
+        for i in range(0, 800):
+            test_packages.append('python-samba' + str(i))
+            test_package_versions.append('2:4.4.5+dfsg-2ubuntu5.4')
+
+        print('what length of package', len(test_packages))
+        print('what length of package', len(test_package_versions))
+        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+
+
+
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), 3)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["name"], "samba-libs")
+        self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["startedBy"], Constants.PatchAssessmentSummaryStartedBy.USER)
+        return
 
 
 if __name__ == '__main__':

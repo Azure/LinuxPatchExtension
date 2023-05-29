@@ -169,7 +169,7 @@ class Constants(object):
     STATUS_WARNING = "Warning"
 
     # Status file size
-    MAX_STATUS_FILE_SIZE_IN_BYTES = 126 * 1024
+    MAX_STATUS_FILE_SIZE_IN_BYTES = 124 * 1024
 
     # Wrapper-core handshake files
     EXT_STATE_FILE = 'ExtState.json'
@@ -260,12 +260,14 @@ class Constants(object):
     class PatchOperationTopLevelErrorCode(EnumBackport):
         SUCCESS = 0
         ERROR = 1
+        WARNING = 2
 
     class PatchOperationErrorCodes(EnumBackport):
         DEFAULT_ERROR = "ERROR"  # default error code
         OPERATION_FAILED = "OPERATION_FAILED"
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
+        TRUNCATION = "TRUNCATION"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
