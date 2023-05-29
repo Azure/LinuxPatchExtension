@@ -46,6 +46,10 @@ class PatchInstaller(object):
         self.attempted_parent_package_install_count = 0
         self.successful_parent_package_install_count = 0
         self.failed_parent_package_install_count = 0
+        self.skipped_esm_packages = []
+        self.skipped_esm_package_versions = []
+        self.esm_packages_found = False  # Flag used to record if esm packages excluded as ubuntu vm not attached.
+
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
     def start_installation(self, simulate=False):
@@ -150,6 +154,10 @@ class PatchInstaller(object):
         excluded_packages, excluded_package_versions = self.get_excluded_updates(package_manager, packages, package_versions)
         self.telemetry_writer.write_event("Excluded package list: " + str(excluded_packages), Constants.TelemetryEventLevel.Verbose)
 
+        # For ubuntu VMs, filter out esm_packages, if the VM is not attached.
+        # These packages will already be marked with version as 'UA_ESM_REQUIRED'.
+        packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found = package_manager.filter_out_esm_packages(packages, package_versions)
+
         packages, package_versions = self.filter_out_excluded_updates(packages, package_versions, excluded_packages)  # Final, honoring exclusions
         self.telemetry_writer.write_event("Final package list: " + str(packages), Constants.TelemetryEventLevel.Verbose)
 
@@ -158,6 +166,7 @@ class PatchInstaller(object):
             self.status_handler.set_package_install_status(not_included_packages, not_included_package_versions, Constants.NOT_SELECTED)
         self.status_handler.set_package_install_status(excluded_packages, excluded_package_versions, Constants.EXCLUDED)
         self.status_handler.set_package_install_status(packages, package_versions, Constants.PENDING)
+        self.status_handler.set_package_install_status(self.skipped_esm_packages, self.skipped_esm_package_versions, Constants.FAILED)
         self.composite_logger.log("\nList of packages to be updated: \n" + str(packages))
 
         sec_packages, sec_package_versions = self.package_manager.get_security_updates()
@@ -250,7 +259,7 @@ class PatchInstaller(object):
             self.composite_logger.log(progress_status)
 
             # include all dependencies (with specified versions) explicitly
-            # package_and_dependencies initially conains only one package. The dependencies are added in the list by method include_dependencies
+            # package_and_dependencies initially contains only one package. The dependencies are added in the list by method include_dependencies
             package_and_dependencies = [package]
             package_and_dependency_versions = [version]
             
@@ -331,6 +340,13 @@ class PatchInstaller(object):
 
         stopwatch_for_sequential_install_process.stop_and_write_telemetry(sequential_processing_perf_log)
 
+        if not patch_installation_successful or maintenance_window_exceeded:
+            message = "\n\nOperation status was marked as failed because: "
+            message += "[X] a failure occurred during the operation  " if not patch_installation_successful else ""
+            message += "[X] maintenance window exceeded " if maintenance_window_exceeded else ""
+            self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            self.composite_logger.log_error(message)
+
         return installed_update_count, patch_installation_successful, maintenance_window_exceeded
 
     def log_final_metrics(self, maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count):
@@ -346,18 +362,6 @@ class PatchInstaller(object):
         progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                         "Completed processing packages!")
         self.composite_logger.log(progress_status)
-
-        if failed_updates_for_esm_required_count > 0:
-            self.status_handler.add_error_to_status("{0} patch(es) require Ubuntu Pro Subscription to be patched".format(failed_updates_for_esm_required_count), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
-            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
-            self.telemetry_writer.write_event("Install Patches[FailedPatchesForESMRequired={0}]".format(failed_updates_for_esm_required_count), Constants.TelemetryEventLevel.Warning)
-
-        if not patch_installation_successful or maintenance_window_exceeded:
-            message = "\n\nOperation status was marked as failed because: "
-            message += "[X] a failure occurred during the operation  " if not patch_installation_successful else ""
-            message += "[X] maintenance window exceeded " if maintenance_window_exceeded else ""
-            self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
-            self.composite_logger.log_error(message)
 
     def include_dependencies(self, package_manager, packages_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
@@ -566,6 +570,10 @@ class PatchInstaller(object):
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
         else:
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        # If esm packages are found, set the status as warning. This will show up in portal along with the error message we already set.
+        if self.esm_packages_found:
+            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
 
         # Update patch metadata in status for auto patching request, to be reported to healthStore
         # When available, HealthStoreId always takes precedence over the 'overriden' Maintenance Run Id that is being re-purposed for other reasons

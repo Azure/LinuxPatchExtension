@@ -456,3 +456,7 @@ class PackageManager(object):
     def set_security_esm_package_status(self, operation):
         pass
 
+    @abstractmethod
+    def filter_out_esm_packages(self, packages, package_versions):
+        pass
+

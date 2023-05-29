@@ -675,3 +675,31 @@ class AptitudePackageManager(PackageManager):
         Only required for yum. No-op for apt and zypper.
         """
         return
+
+    def filter_out_esm_packages(self, packages, package_versions):
+        """
+        Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
+        """
+        non_esm_packages = []
+        non_esm_package_versions = []
+        esm_packages = []
+        esm_package_versions = []
+        esm_packages_found = False
+
+        for pkg, version in zip(packages, package_versions):
+            if version != Constants.UA_ESM_REQUIRED:
+                non_esm_packages.append(pkg)
+                non_esm_package_versions.append(version)
+                continue
+
+            # version is UA_ESM_REQUIRED.
+            esm_packages.append(pkg)
+            esm_package_versions.append(version)
+
+        esm_packages_found = len(esm_packages) > 0
+        if esm_packages_found:
+            self.status_handler.add_error_to_status("{0} patch(es) require Ubuntu Pro Subscription to be patched".format(len(esm_packages)), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED) # Set the error status with the esm_package details. Will be used in portal.
+            self.telemetry_writer.write_event("Filter esm packages [EsmPackagesCount={0}]".format(len(esm_packages)), Constants.TelemetryEventLevel.Informational)
+
+        self.composite_logger.log_debug("Filter esm packages : [PackagesCount={0}][EsmPackagesCount={1}]".format(len(packages), len(esm_packages)))
+        return non_esm_packages, non_esm_package_versions, esm_packages, esm_package_versions, esm_packages_found
