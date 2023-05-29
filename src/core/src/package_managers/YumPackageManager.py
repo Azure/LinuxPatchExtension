@@ -971,11 +971,9 @@ class YumPackageManager(PackageManager):
         Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
         Only needed for apt. No-op for yum and zypper
         """
-        non_esm_packages = []
-        non_esm_package_versions = []
         esm_packages = []
         esm_package_versions = []
         esm_packages_found = False
 
-        return non_esm_packages, non_esm_package_versions, esm_packages, esm_package_versions, esm_packages_found
+        return packages, package_versions, esm_packages, esm_package_versions, esm_packages_found
 
