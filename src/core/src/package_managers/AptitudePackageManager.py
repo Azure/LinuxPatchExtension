@@ -652,7 +652,7 @@ class AptitudePackageManager(PackageManager):
             if operation == Constants.ASSESSMENT:
                 self.status_handler.set_package_assessment_status(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
                 # If the Ubuntu Pro Client is not attached, set the error with the code UA_ESM_REQUIRED. This will be used in portal to mark the VM as unattached to pro.
-                if self.ubuntu_pro_client.ubuntu_pro_client_is_attached:
+                if not self.ubuntu_pro_client.ubuntu_pro_client_is_attached:
                     self.status_handler.add_error_to_status("{0} patch(es) require Ubuntu Pro Subscription to be patched".format(len(security_esm_updates)), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
             elif operation == Constants.INSTALLATION:
                 self.status_handler.set_package_install_status_classification(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
