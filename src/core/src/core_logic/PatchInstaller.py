@@ -249,11 +249,7 @@ class PatchInstaller(object):
             # point in time status
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                             "Processing package: " + str(package) + " (" + str(version) + ")")
-            if version == Constants.UA_ESM_REQUIRED:
-                progress_status += "[Skipping - requires Ubuntu Pro for Infrastructure with Extended Security Maintenance]"
-                self.composite_logger.log(progress_status)
-                self.status_handler.set_package_install_status(package_manager.get_product_name(package), str(version), Constants.FAILED)
-                continue
+
             self.composite_logger.log(progress_status)
 
             # include all dependencies (with specified versions) explicitly
@@ -451,10 +447,7 @@ class PatchInstaller(object):
             already_installed_packages = []
 
             for index in range(begin_index, end_index + 1):
-                if package_versions[index] == Constants.UA_ESM_REQUIRED:
-                    skip_packages.append(packages[index])
-                    self.status_handler.set_package_install_status(package_manager.get_product_name(packages[index]), str(package_versions[index]), Constants.NOT_SELECTED)
-                elif packages[index] not in self.last_still_needed_packages:
+                if packages[index] not in self.last_still_needed_packages:
                     # Could have got installed as dependent package of some other package. Package installation status could also have been set.
                     already_installed_packages.append(packages[index])
                     self.attempted_parent_package_install_count += 1
