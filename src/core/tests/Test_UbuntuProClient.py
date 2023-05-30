@@ -116,11 +116,18 @@ class MockUpdatesResult(MockSystemModules):
     def mock_update_list_with_all_update_types(self):
         return MockUpdatesResult(self.get_mock_updates_list_with_three_updates())
 
+    def mock_update_list_with_one_esm_update(self):
+        return MockUpdatesResult(self.get_mock_updates_list_with_one_esm_update())
+
     @staticmethod
     def get_mock_updates_list_with_three_updates():
         return [UpdateInfo(package='python3', provided_by='standard-security', origin='security.ubuntu.com', version='1.2.3-1ubuntu0.3'),
                 UpdateInfo(package='apt', provided_by='standard-updates', origin='security.ubuntu.com', version='1.2.35'),
                 UpdateInfo(package='cups', provided_by='esm-infra', origin='security.ubuntu.com', version='2.1.3-4ubuntu0.11+esm1')]
+
+    @staticmethod
+    def get_mock_updates_list_with_one_esm_update():
+        return [UpdateInfo(package='git-man', provided_by='esm-infra', origin='security.ubuntu.com', version='1:2.17.1-1ubuntu0.15')]
 
     def mock_import_uaclient_update_module(self, mock_name, method_name):
         if sys.version_info[0] == 3:
@@ -169,7 +176,6 @@ class TestUbuntuProClient(unittest.TestCase):
 
         package_manager.env_layer.run_command_output = backup_run_command_output
 
-
     def test_is_pro_working_success(self):
         obj = MockVersionResult()
         obj.mock_import_uaclient_version_module('version', 'mock_version')
@@ -185,6 +191,8 @@ class TestUbuntuProClient(unittest.TestCase):
 
         package_manager = self.container.get('package_manager')
         self.assertFalse(package_manager.ubuntu_pro_client.is_pro_working())
+
+        obj.mock_unimport_uaclient_version_module()
 
     def test_is_pro_working_failure(self):
         obj = MockVersionResult()
@@ -284,6 +292,8 @@ class TestUbuntuProClient(unittest.TestCase):
         self.assertEqual(len(updates), 1)
         self.assertEqual(len(versions), 1)
 
+        obj.mock_unimport_uaclient_update_module()
+
     def test_get_security_updates_exception(self):
         obj = MockUpdatesResult()
         obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
@@ -297,6 +307,7 @@ class TestUbuntuProClient(unittest.TestCase):
         self.assertEqual(len(versions), 0)
 
         package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = backup_get_ubuntu_pro_client_updates
+        obj.mock_unimport_uaclient_update_module()
 
     def test_get_security_esm_updates_success(self):
         obj = MockUpdatesResult()
@@ -308,6 +319,7 @@ class TestUbuntuProClient(unittest.TestCase):
         self.assertTrue(query_success)
         self.assertEqual(len(updates), 1)
         self.assertEqual(len(versions), 1)
+        obj.mock_unimport_uaclient_update_module()
 
     def test_get_security_esm_updates_exception(self):
         obj = MockUpdatesResult()
@@ -322,6 +334,7 @@ class TestUbuntuProClient(unittest.TestCase):
         self.assertEqual(len(versions), 0)
 
         package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = backup_get_ubuntu_pro_client_updates
+        obj.mock_unimport_uaclient_update_module()
 
     def test_get_all_updates_success(self):
         obj = MockUpdatesResult()
@@ -333,6 +346,8 @@ class TestUbuntuProClient(unittest.TestCase):
         self.assertTrue(query_success)
         self.assertEqual(len(updates), 3)
         self.assertEqual(len(versions), 3)
+
+        obj.mock_unimport_uaclient_update_module()
 
     def test_get_all_updates_exception(self):
         obj = MockUpdatesResult()
@@ -347,6 +362,7 @@ class TestUbuntuProClient(unittest.TestCase):
         self.assertEqual(len(versions), 0)
 
         package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = backup_get_ubuntu_pro_client_updates
+        obj.mock_unimport_uaclient_update_module()
 
     def test_get_other_updates_success(self):
         obj = MockUpdatesResult()
@@ -358,6 +374,8 @@ class TestUbuntuProClient(unittest.TestCase):
         self.assertTrue(query_success)
         self.assertEqual(len(updates), 1)
         self.assertEqual(len(versions), 1)
+
+        obj.mock_unimport_uaclient_update_module()
 
     def test_get_other_updates_exception(self):
         obj = MockUpdatesResult()
@@ -372,7 +390,7 @@ class TestUbuntuProClient(unittest.TestCase):
         self.assertEqual(len(versions), 0)
 
         package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = backup_get_ubuntu_pro_client_updates
-
+        obj.mock_unimport_uaclient_update_module()
 
 if __name__ == '__main__':
     unittest.main()

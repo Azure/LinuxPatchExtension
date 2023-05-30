@@ -181,7 +181,6 @@ class PatchInstaller(object):
 
         self.composite_logger.log("[Progress Legend: (A)ttempted, (S)ucceeded, (F)ailed, (D)ependencies est.* (Important: Dependencies are excluded in all other counts)]")
         installed_update_count = 0  # includes dependencies
-        failed_updates_for_esm_required_count = 0
 
         patch_installation_successful = True
         maintenance_window_exceeded = False
@@ -251,10 +250,9 @@ class PatchInstaller(object):
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                             "Processing package: " + str(package) + " (" + str(version) + ")")
             if version == Constants.UA_ESM_REQUIRED:
-                progress_status += "[Skipping - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]"
+                progress_status += "[Skipping - requires Ubuntu Pro for Infrastructure with Extended Security Maintenance]"
                 self.composite_logger.log(progress_status)
                 self.status_handler.set_package_install_status(package_manager.get_product_name(package), str(version), Constants.FAILED)
-                failed_updates_for_esm_required_count += 1
                 continue
             self.composite_logger.log(progress_status)
 
@@ -469,7 +467,7 @@ class PatchInstaller(object):
                 self.composite_logger.log("Following packages are already installed. Could have got installed as dependent package of some other package " + str(already_installed_packages))
 
             if len(skip_packages) > 0:
-                self.composite_logger.log("[Skipping packages " + str(skip_packages) + " - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]")
+                self.composite_logger.log("[Skipping packages " + str(skip_packages) + " - requires Ubuntu Pro for Infrastructure with Extended Security Maintenance]")
 
             if len(packages_in_batch) == 0:
                 continue

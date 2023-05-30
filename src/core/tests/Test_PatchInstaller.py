@@ -18,6 +18,7 @@ import datetime
 import json
 import unittest
 from core.src.bootstrap.Constants import Constants
+from core.tests.Test_UbuntuProClient import MockUpdatesResult, MockVersionResult
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
@@ -197,6 +198,35 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
+
+    def test_apt_install_skips_esm_packages(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_one_esm_update')
+        version_obj = MockVersionResult()
+        version_obj.mock_import_uaclient_version_module('version', 'mock_version')
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('UA_ESM_Required')
+        backup_package_manager_ubuntu_pro_client_attached = runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached
+        runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached = False
+
+        # esm package should be skipped.
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(
+            runtime.maintenance_window, runtime.package_manager, simulate=True)
+        self.assertEqual(0, installed_update_count)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+        runtime.stop()
+
+        runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached = backup_package_manager_ubuntu_pro_client_attached
+        obj.mock_unimport_uaclient_update_module()
+        version_obj.mock_unimport_uaclient_version_module()
 
     def test_apt_install_success_not_enough_time_for_batch_patching(self):
         # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
