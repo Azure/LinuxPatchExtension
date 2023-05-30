@@ -131,13 +131,13 @@ class TestYumPackageManager(unittest.TestCase):
 
         # test for get_dependent_list
         # legacy_test_type ='HappyPath'
-        dependent_list = package_manager.get_dependent_list("selinux-policy.noarch")
+        dependent_list = package_manager.get_dependent_list(["selinux-policy.noarch"])
         self.assertIsNotNone(dependent_list)
         self.assertEqual(len(dependent_list), 1)
         self.assertEqual(dependent_list[0], "selinux-policy-targeted.noarch")
 
         # test for get_dependent_list with 'install' instead of update
-        dependent_list = package_manager.get_dependent_list("kmod-kvdo.x86_64")
+        dependent_list = package_manager.get_dependent_list(["kmod-kvdo.x86_64"])
         self.assertIsNotNone(dependent_list)
         self.assertEqual(len(dependent_list), 1)
         self.assertEqual(dependent_list[0], "kernel.x86_64")
@@ -181,7 +181,7 @@ class TestYumPackageManager(unittest.TestCase):
         # test for get_dependent_list
         # legacy_test_type ='Exception Path'
         try:
-            package_manager.get_dependent_list("man")
+            package_manager.get_dependent_list(["man"])
         except Exception as exception:
             self.assertTrue(str(exception))
         else:
@@ -197,7 +197,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for successfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
 
     def test_install_package_failure(self):
         """Unit test for install package failure"""
@@ -209,7 +209,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
 
     def test_install_package_obsoleted(self):
         """Unit test for install package failure"""
@@ -221,7 +221,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('rdma.noarch', '7.3_4.7_rc2-6.el7_3', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('rdma.noarch', '7.3_4.7_rc2-6.el7_3', simulate=True), Constants.INSTALLED)
 
     def test_install_package_replaced(self):
         """Unit test for install package failure"""
@@ -233,7 +233,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies('python-rhsm.x86_64', '1.19.10-1.el7_4', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('python-rhsm.x86_64', '1.19.10-1.el7_4', simulate=True), Constants.INSTALLED)
 
     def test_get_product_name(self):
         """Unit test for retrieving product Name"""
