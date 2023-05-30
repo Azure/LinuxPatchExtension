@@ -1078,8 +1078,41 @@ class LegacyEnvLayerExtensions():
                 if self.legacy_package_manager_name is Constants.APT:
                     if cmd.find("dist-upgrade") > -1:
                         code = 0
-                        output = "Inst git-man [1:2.17.1-1ubuntu0.15] (UA_ESM_Required Ubuntu:18.04/bionic-updates, " \
-                                 "Ubuntu:18.04/bionic-security [all])"
+                        output = "Inst cups [1:2.17.1-1ubuntu0.15] (UA_ESM_Required Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-updates [all])"
+                    # if cmd.find("dist-upgrade") > -1:
+                    #     code = 0
+                    #     output = "Inst python3 [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
+                    #              "Ubuntu:18.04/bionic-security [all])" \
+                    #              "Inst apt [2.06-2ubuntu14] (2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])" \
+                    #              "Inst cups [1:2.17.1-1ubuntu0.15] (UA_ESM_Required Ubuntu:18.04/bionic-updates, " \
+                    #              "Ubuntu:18.04/bionic-updates [all])"
+                    elif cmd.find("sudo dpkg -s python3") > -1:
+                        code = 0
+                        output = "Package: python3\n" + \
+                                 "Status: install ok installed\n" + \
+                                 "Priority: optional\n" + \
+                                 "Section: database\n" + \
+                                 "Installed-Size: 107\n" + \
+                                 "Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\n" + \
+                                 "Architecture: all\n" + \
+                                 "Source: mysql-5.7\n" + \
+                                 "Version: 1:2.17.1-1ubuntu0.16\n" + \
+                                 "Description: " + \
+                                  "Homepage: http://dev.mysql.com/\n"
+                    elif cmd.find("sudo dpkg -s apt") > -1:
+                        code = 0
+                        output = "Package: apt\n" + \
+                                 "Status: install ok installed\n" + \
+                                 "Priority: optional\n" + \
+                                 "Section: database\n" + \
+                                 "Installed-Size: 107\n" + \
+                                 "Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\n" + \
+                                 "Architecture: all\n" + \
+                                 "Source: mysql-5.7\n" + \
+                                 "Version: 2.06-2ubuntu14.1\n" + \
+                                 "Description: " + \
+                                  "Homepage: http://dev.mysql.com/\n"
             elif self.legacy_test_type == 'ArchDependency':
                 if self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("check-update") > -1:
