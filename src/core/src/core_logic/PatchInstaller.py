@@ -156,6 +156,7 @@ class PatchInstaller(object):
 
         # For ubuntu VMs, filter out esm_packages, if the VM is not attached.
         # These packages will already be marked with version as 'UA_ESM_REQUIRED'.
+        # Esm packages will not be dependent packages to non-esm packages. This is confirmed by Canonical. So, once these are removed from processing, we need not worry about handling it in our batch / sequential patch processing logic.
         packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found = package_manager.filter_out_esm_packages(packages, package_versions)
 
         packages, package_versions = self.filter_out_excluded_updates(packages, package_versions, excluded_packages)  # Final, honoring exclusions
