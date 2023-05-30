@@ -444,7 +444,6 @@ class PatchInstaller(object):
 
             packages_in_batch = []
             package_versions_in_batch = []
-            skip_packages = []
             already_installed_packages = []
 
             for index in range(begin_index, end_index + 1):
@@ -459,9 +458,6 @@ class PatchInstaller(object):
 
             if len(already_installed_packages) > 0:
                 self.composite_logger.log("Following packages are already installed. Could have got installed as dependent package of some other package " + str(already_installed_packages))
-
-            if len(skip_packages) > 0:
-                self.composite_logger.log("[Skipping packages " + str(skip_packages) + " - requires Ubuntu Pro for Infrastructure with Extended Security Maintenance]")
 
             if len(packages_in_batch) == 0:
                 continue

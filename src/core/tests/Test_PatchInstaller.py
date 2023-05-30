@@ -228,6 +228,35 @@ class TestPatchInstaller(unittest.TestCase):
         obj.mock_unimport_uaclient_update_module()
         version_obj.mock_unimport_uaclient_version_module()
 
+    def test_mark_status_completed_esm_required(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_one_esm_update')
+        version_obj = MockVersionResult()
+        version_obj.mock_import_uaclient_version_module('version', 'mock_version')
+        current_time = datetime.datetime.utcnow()
+        td = datetime.timedelta(hours=0, minutes=20)
+        job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = 'PT1H'
+        argument_composer.start_time = job_start_time
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        # Path change
+        runtime.set_legacy_test_type('UA_ESM_Required')
+        backup_package_manager_ubuntu_pro_client_attached = runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached
+        runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached = False
+
+        runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
+        runtime.patch_installer.mark_installation_completed()
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+        self.assertEqual('warning', substatus_file_data[0]['status'])
+
+        runtime.stop()
+        runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached = backup_package_manager_ubuntu_pro_client_attached
+        obj.mock_unimport_uaclient_update_module()
+        version_obj.mock_unimport_uaclient_version_module()
+
     def test_apt_install_success_not_enough_time_for_batch_patching(self):
         # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
         # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
