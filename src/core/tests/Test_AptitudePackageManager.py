@@ -17,7 +17,7 @@ import json
 import os
 import unittest
 from core.src.bootstrap.Constants import Constants
-from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequiredResult
+from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequiredResult, MockUpdatesResult
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -444,6 +444,24 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertIsNotNone(obj.ubuntu_pro_client)
 
         UbuntuProClient.UbuntuProClient.install_or_update_pro = backup_package_manager_ubuntu_pro_client_install_or_update_pro
+
+    def test_get_other_updates_success(self):
+        obj = MockVersionResult()
+        obj.mock_import_uaclient_version_module('version', 'mock_version')
+        updates_obj = MockUpdatesResult()
+        updates_obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('UA_ESM_Required')
+
+        backup_AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+
+        packages, versions = runtime.package_manager.get_other_updates()
+        self.assertEqual(1, len(packages))
+
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_AptitudePackageManager__pro_client_prereq_met
+        obj.mock_unimport_uaclient_version_module()
+        updates_obj.mock_unimport_uaclient_update_module()
 
     def test_is_reboot_pending_pro_client_success(self):
         reboot_mock = MockRebootRequiredResult()
