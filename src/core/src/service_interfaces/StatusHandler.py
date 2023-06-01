@@ -892,20 +892,17 @@ class StatusHandler(object):
                 # self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
                 # json.dumps(__assessment_summary_json) happens in multiple calls that creates escape \ for ", \ is an extra byte in the status file. it's unnecssary to perform json.dumps every time
                 # removing json.dumps will need to remove json.loads part in substatus_file_data["formattedMessage"]["message"] in entire codebase
-                # Get the numbers of quotes in the patch, to get an estimate of \ and subtract total byte from max file
-                quote_counts = sum(char == '"' for char in json.dumps(assessment_patch))
 
                 # Perform assessment truncation
-                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, (Constants.MAX_STATUS_FILE_SIZE_IN_BYTES - quote_counts))
+                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+
                 self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", truncated_packages))
                 self.composite_logger.log("Truncated assessment patches: ", self.__truncated_patches[0])
 
             # Add assessment tombstone record
             assessment_patch.append(self.__add_assessment_tombstone_record())
-
             # Check for existing errors before recompose status file payload
             code = self.__assessment_summary_json['errors']['code']
-            print('what is error code', code)
             if code == 0 or code == 2:
                 truncated_status_file = self.__recompose_truncated_status_payload(status_file_payload, assessment_patch, code, errors_detail_list)
                 # Update operation status to warning
@@ -1011,7 +1008,7 @@ class StatusHandler(object):
 
         # Update operation summary message
         message = self.__new_truncation_assessment_message(self.__assessment_summary_json, new_patches, truncated_errors_json)
-        status_file_payload['status']['substatus'][0]['formattedMessage']['message'] = json.dumps(message)
+        status_file_payload['status']['substatus'][0]['formattedMessage']['message'] = str(message)
 
         return status_file_payload
 
@@ -1032,24 +1029,24 @@ class StatusHandler(object):
         message = "{0} error/s reported.".format(len(errors_by_operation))
         message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path)
         return {
-            "code": code if code == 1 else Constants.PatchOperationTopLevelErrorCode.WARNING,
-            "details": errors_by_operation,
-            "message": message
+            'code': code if code == 1 else Constants.PatchOperationTopLevelErrorCode.WARNING,
+            'details': errors_by_operation,
+            'message': message
         }
     def __add_assessment_tombstone_record(self):
         return {
-            "patchId": "Truncated patch list record",
-            "name": "Truncated patch list record",
-            "version": "",
-            "classifications": ["Other"]
+            'patchId': 'Truncated patch list record',
+            'name': 'Truncated patch list record',
+            'version': '',
+            'classifications': ['Other']
         }
 
     def __add_installation_tombstone_record(self):
         return {
-            "patchId": "Truncated Patch List",
-            "name": "Truncated Patch List",
-            "version": "",
-            "classifications": ["Other"],
-            "patchInstallationState": "NotSelected"
+            'patchId': 'Truncated Patch List',
+            'name': 'Truncated Patch List',
+            'version': '',
+            'classifications': ['Other'],
+            'patchInstallationState': 'NotSelected'
         }
     # endregion

@@ -530,7 +530,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
 
-    # Set up functions to popular packages and version for truncation
+    # Setup functions to popular packages and versions for truncation
     def __set_up_packages_func(self, val):
         test_packages = []
         test_package_versions = []
