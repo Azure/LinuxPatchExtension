@@ -62,7 +62,7 @@ class TestStatusHandler(unittest.TestCase):
     def test_set_package_install_status(self):
         packages, package_versions = self.runtime.package_manager.get_all_updates()
         self.runtime.status_handler.set_package_install_status(packages, package_versions)
-        substatus_file_data = []
+
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
@@ -92,7 +92,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_install_status(packages, package_versions)
         sec_packages, sec_package_versions = self.runtime.package_manager.get_security_updates()
         self.runtime.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, "Security")
-        substatus_file_data = []
+
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
@@ -110,7 +110,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_install_status(packages, package_versions)
         sec_packages, sec_package_versions = self.runtime.package_manager.get_security_updates()
         self.runtime.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions)
-        substatus_file_data = []
+
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
@@ -208,7 +208,7 @@ class TestStatusHandler(unittest.TestCase):
         # Adding installation error
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
         self.runtime.status_handler.add_error_to_status("installexception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        substatus_file_data = []
+
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][1]
         self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
@@ -615,8 +615,6 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 5)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], "TRUNCATION")
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-
-
 
     # Setup functions to popular packages and versions for truncation
     def __set_up_packages_func(self, val):

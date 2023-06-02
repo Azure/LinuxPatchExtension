@@ -558,7 +558,6 @@ class StatusHandler(object):
         :param initial_load: If no status file exists AND initial_load is true, a default initial status file is created.
         :return: None
         """
-
         # Initializing records safely
         self.__installation_substatus_json = None
         self.__installation_summary_json = None
