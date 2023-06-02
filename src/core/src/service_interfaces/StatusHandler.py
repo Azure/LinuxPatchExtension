@@ -118,8 +118,7 @@ class StatusHandler(object):
     def set_package_assessment_status(self, package_names, package_versions, classification="Other",
                                       status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
-        self.composite_logger.log_debug(
-            "Setting package assessment status in bulk. [Count={0}]".format(str(len(package_names))))
+        self.composite_logger.log_debug("Setting package assessment status in bulk. [Count={0}]".format(str(len(package_names))))
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
@@ -879,7 +878,7 @@ class StatusHandler(object):
         complete_status_byte_size = self.__get_byte_size(status_file_payload)
         truncated_status_file = status_file_payload
 
-        if complete_status_byte_size > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES:
+        if complete_status_byte_size > Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES:
 
             self.composite_logger.log("Begin Truncation")
             assessment_name = self.__assessment_substatus_json['name']
@@ -888,15 +887,20 @@ class StatusHandler(object):
 
             # Truncated assessment patch when operation is not installation
             if self.execution_config.operation != Constants.INSTALLATION.lower() and assessment_name == Constants.PATCH_ASSESSMENT_SUMMARY and len(assessment_patch) > 0:
+                # Perform assessment truncation
+                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES)
 
                 # self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
                 # json.dumps(__assessment_summary_json) happens in multiple calls that creates escape \ for ", \ is an extra byte in the status file. it's unnecssary to perform json.dumps every time
                 # removing json.dumps will need to remove json.loads part in substatus_file_data["formattedMessage"]["message"] in entire codebase
+                # Reduce assement patch byte by quote size
+                quote_counts = sum(char == '"' for char in json.dumps(assessment_patch))
 
-                # Perform assessment truncation
-                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+                if (quote_counts + self.__get_byte_size(assessment_patch) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES):
+                    assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.MAX_STATUS_FILE_SIZE_IN_BYTES - quote_counts)
 
                 self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", truncated_packages))
+
                 self.composite_logger.log("Truncated assessment patches: ", self.__truncated_patches[0])
 
             # Add assessment tombstone record
@@ -1008,7 +1012,9 @@ class StatusHandler(object):
 
         # Update operation summary message
         message = self.__new_truncation_assessment_message(self.__assessment_summary_json, new_patches, truncated_errors_json)
-        status_file_payload['status']['substatus'][0]['formattedMessage']['message'] = str(message)
+        status_file_payload['status']['substatus'][0]['formattedMessage']['message'] = json.dumps(message)
+
+        # print('what is status message', status_file_payload['status']['substatus'][0]['formattedMessage'])
 
         return status_file_payload
 
@@ -1024,6 +1030,7 @@ class StatusHandler(object):
             "startedBy": assessment_message["startedBy"],
             "errors": new_error
         }
+
     def __set_truncation_errors_json(self, code, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
         message = "{0} error/s reported.".format(len(errors_by_operation))
@@ -1033,6 +1040,7 @@ class StatusHandler(object):
             'details': errors_by_operation,
             'message': message
         }
+
     def __add_assessment_tombstone_record(self):
         return {
             'patchId': 'Truncated patch list record',
