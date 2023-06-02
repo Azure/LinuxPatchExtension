@@ -73,6 +73,7 @@ class StatusHandler(object):
 
         # Internal in-memory representation of Truncated Patching data
         self.__truncated_patches = []
+        self.__assessment_tmp_map = {}
 
         # Load the currently persisted status file into memory
         self.load_status_file_components(initial_load=True)
@@ -112,21 +113,22 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0
-
         self.__truncated_patches = []
+        self.__assessment_tmp_map = {}
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other",
                                       status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
         self.composite_logger.log_debug("Setting package assessment status in bulk. [Count={0}]".format(str(len(package_names))))
+
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
-            for i in range(0, len(self.__assessment_packages)):
-                if patch_id == self.__assessment_packages[i]['patchId']:
-                    patch_already_saved = True
-                    self.__assessment_packages[i]['classifications'] = [classification]
-                    # self.__assessment_packages[i]['patchState'] = status
+
+            # Match patch_id in map and update existing patch's classification i.e from other -> security
+            if len(self.__assessment_tmp_map) > 0 and patch_id in self.__assessment_tmp_map:
+                self.__assessment_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
+                patch_already_saved = True
 
             if patch_already_saved is False:
                 record = {
@@ -136,8 +138,10 @@ class StatusHandler(object):
                     "classifications": [classification]
                     # "patchState": str(status) # Allows for capturing 'Installed' packages in addition to 'Available', when commented out, if spec changes
                 }
-                self.__assessment_packages.append(record)
+                # Add new patch to map
+                self.__assessment_tmp_map[patch_id] = record
 
+        self.__assessment_packages = list(self.__assessment_tmp_map.values())
         self.__assessment_packages = self.sort_packages_by_classification_and_state(self.__assessment_packages)
         self.set_assessment_substatus_json()
 
@@ -628,8 +632,8 @@ class StatusHandler(object):
 
         # Read the complete status file - raise exception on persistent failure
         # Remove old complete status files and retain latest version
-        latest_complete_status_file_path = self.__get_latest_status_complete_file_path(self.execution_config.status_folder)
-        status_file_data_raw = self.__read_status_file_raw_data(latest_complete_status_file_path)
+        latest_complete_status_file_path = self.__get_latest_complete_status_file_path(self.execution_config.status_folder)
+        status_file_data_raw = self.__read_complete_status_file_raw_data(latest_complete_status_file_path)
 
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
         try:
@@ -878,7 +882,7 @@ class StatusHandler(object):
         complete_status_byte_size = self.__get_byte_size(status_file_payload)
         truncated_status_file = status_file_payload
 
-        if complete_status_byte_size > Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES:
+        if complete_status_byte_size > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES:
 
             self.composite_logger.log("Begin Truncation")
             assessment_name = self.__assessment_substatus_json['name']
@@ -897,7 +901,7 @@ class StatusHandler(object):
                 quote_counts = sum(char == '"' for char in json.dumps(assessment_patch))
 
                 if (quote_counts + self.__get_byte_size(assessment_patch) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES):
-                    assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.MAX_STATUS_FILE_SIZE_IN_BYTES - quote_counts)
+                    assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES - quote_counts)
 
                 self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", truncated_packages))
 
@@ -959,7 +963,7 @@ class StatusHandler(object):
         truncated_packages = patch_list[left_index - 1:]
         return new_list, truncated_packages, size_limit - self.__get_byte_size(new_list)
 
-    def __read_status_file_raw_data(self, file_path):
+    def __read_complete_status_file_raw_data(self, file_path):
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
                 with self.env_layer.file_system.open(file_path, 'r') as file_handle:
@@ -973,7 +977,7 @@ class StatusHandler(object):
                     raise
         return status_file_data_raw
 
-    def __get_latest_status_complete_file_path(self, status_folder_path):
+    def __get_latest_complete_status_file_path(self, status_folder_path):
         """ Get the latest status complete file and remove other .complete.status files """
         list_of_files = glob.glob(status_folder_path + '\\' + '*.complete.status')
         latest_file = max(list_of_files, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
@@ -1013,8 +1017,6 @@ class StatusHandler(object):
         # Update operation summary message
         message = self.__new_truncation_assessment_message(self.__assessment_summary_json, new_patches, truncated_errors_json)
         status_file_payload['status']['substatus'][0]['formattedMessage']['message'] = json.dumps(message)
-
-        # print('what is status message', status_file_payload['status']['substatus'][0]['formattedMessage'])
 
         return status_file_payload
 
@@ -1058,3 +1060,4 @@ class StatusHandler(object):
             'patchInstallationState': 'NotSelected'
         }
     # endregion
+
