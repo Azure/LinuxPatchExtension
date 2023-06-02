@@ -382,8 +382,7 @@ class StatusHandler(object):
         self.__installation_summary_json = self.__new_installation_summary_json(self.__installation_packages)
 
         # Wrap deployment summary into installation substatus
-        self.__installation_substatus_json = self.__new_substatus_json_for_operation(
-            Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
+        self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
         # Update complete status on disk
         self.__write_status_complete_file()
@@ -412,8 +411,7 @@ class StatusHandler(object):
             elif patch_installation_state == Constants.FAILED:
                 failed_patch_count += 1
             else:
-                self.composite_logger.log_error(
-                    "Unknown patch state recorded: {0}".format(str(patch_installation_state)))
+                self.composite_logger.log_error("Unknown patch state recorded: {0}".format(str(patch_installation_state)))
 
         # Reboot status refresh
         self.__refresh_installation_reboot_status()

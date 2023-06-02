@@ -123,6 +123,25 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
 
+    def test_set_package_install_bad_status(self):
+        log123 = self.runtime.composite_logger
+
+        packages, package_versions = self.runtime.package_manager.get_all_updates()
+        self.runtime.status_handler.set_package_install_status(packages, package_versions, Constants.AVAILABLE)
+
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), 3)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
+        self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["classifications"]))
+        self.assertEqual("Available", str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchInstallationState"]))
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
+        self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["classifications"]))
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["name"], "samba-libs")
+        self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
+        self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
+
     def test_set_installation_reboot_status(self):
         self.assertRaises(Exception, self.runtime.status_handler.set_installation_reboot_status, "INVALID_STATUS")
 
@@ -152,7 +171,7 @@ class TestStatusHandler(unittest.TestCase):
         # Unexpected input
         self.runtime.status_handler.add_error_to_status(None)
         self.runtime.status_handler.set_assessment_substatus_json()
-        substatus_file_data = []
+
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
@@ -173,7 +192,6 @@ class TestStatusHandler(unittest.TestCase):
         # Test message restrictions
         self.runtime.status_handler.add_error_to_status("a"*130, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
 
-        substatus_file_data = []
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
 
@@ -205,7 +223,7 @@ class TestStatusHandler(unittest.TestCase):
         # Unexpected input
         self.runtime.status_handler.add_error_to_status(None)
         self.runtime.status_handler.set_assessment_substatus_json()
-        substatus_file_data = []
+
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
@@ -221,7 +239,6 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         self.runtime.status_handler.add_error_to_status("exception6", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
 
-        substatus_file_data = []
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
 
