@@ -69,8 +69,7 @@ class ExecutionConfig(object):
 
         # Accommodation for bugs in higher-level components where 'Security' is being selected without selecting 'Critical' - should be rolled back no later than Jan 2022
         if self.included_classifications_list is not None and ('Security' in self.included_classifications_list and 'Critical' not in self.included_classifications_list):
-            self.composite_logger.log_debug("The included_classifications_list was corrected to include 'Critical' "
-                                            "when 'Security' was specified.")
+            self.composite_logger.log_debug("The included_classifications_list was corrected to include 'Critical' ""when 'Security' was specified.")
             self.included_classifications_list = ['Critical'] + self.included_classifications_list
 
         # Derived Settings

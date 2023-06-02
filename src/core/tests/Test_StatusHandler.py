@@ -343,6 +343,30 @@ class TestStatusHandler(unittest.TestCase):
             self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
             self.assertEqual(formatted_message["startedBy"], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
 
+    def test_sequence_number_changed_termination_configuration_only(self):
+        self.runtime.execution_config.operation = Constants.CONFIGURE_PATCHING
+        self.runtime.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
+
+        self.runtime.status_handler.report_sequence_number_changed_termination()
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+            self.assertTrue(substatus_file_data["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+            self.assertEqual(substatus_file_data["status"], Constants.STATUS_ERROR.lower())
+            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
+
+    def test_sequence_number_changed_termination_installation(self):
+        self.runtime.execution_config.operation = Constants.INSTALLATION
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+
+        self.runtime.status_handler.report_sequence_number_changed_termination()
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+            self.assertTrue(substatus_file_data["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+            self.assertEqual(substatus_file_data["status"], Constants.STATUS_ERROR.lower())
+            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
+
     def test_set_patch_metadata_for_healthstore_substatus_json_auto_assess_transitioning(self):
         self.runtime.execution_config.exec_auto_assess_only = True
         self.assertRaises(Exception,
