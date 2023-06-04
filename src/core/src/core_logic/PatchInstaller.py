@@ -154,12 +154,14 @@ class PatchInstaller(object):
         excluded_packages, excluded_package_versions = self.get_excluded_updates(package_manager, packages, package_versions)
         self.telemetry_writer.write_event("Excluded package list: " + str(excluded_packages), Constants.TelemetryEventLevel.Verbose)
 
+        packages, package_versions = self.filter_out_excluded_updates(packages, package_versions, excluded_packages)  # honoring exclusions
+
         # For ubuntu VMs, filter out esm_packages, if the VM is not attached.
         # These packages will already be marked with version as 'UA_ESM_REQUIRED'.
         # Esm packages will not be dependent packages to non-esm packages. This is confirmed by Canonical. So, once these are removed from processing, we need not worry about handling it in our batch / sequential patch processing logic.
+        # Adding this after filtering excluded packages, so we don`t un-intentionally mark excluded esm-package status as failed.
         packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found = package_manager.filter_out_esm_packages(packages, package_versions)
 
-        packages, package_versions = self.filter_out_excluded_updates(packages, package_versions, excluded_packages)  # Final, honoring exclusions
         self.telemetry_writer.write_event("Final package list: " + str(packages), Constants.TelemetryEventLevel.Verbose)
 
         # Set initial statuses
@@ -555,6 +557,8 @@ class PatchInstaller(object):
 
         # RebootNever is selected and pending, set status warning else success
         if self.reboot_manager.reboot_setting == Constants.REBOOT_NEVER and self.reboot_manager.is_reboot_pending():
+            # Set error details inline with windows extension when setting warning status. This message will be shown in portal.
+            self.status_handler.add_error_to_status("Machine is Required to reboot. However, the customer-specified reboot setting doesn't allow reboots.", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
         else:
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
