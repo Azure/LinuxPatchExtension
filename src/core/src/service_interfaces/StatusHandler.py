@@ -74,6 +74,7 @@ class StatusHandler(object):
         # Internal in-memory representation of Truncated Patching data
         self.__truncated_patches = []
         self.__assessment_tmp_map = {}
+        self.__installation_tmp_map = {}
 
         # Load the currently persisted status file into memory
         self.load_status_file_components(initial_load=True)
@@ -119,7 +120,7 @@ class StatusHandler(object):
             patch_id = self.__get_patch_id(package_name, package_version)
 
             # Match patch_id in map and update existing patch's classification i.e from other -> security
-            if len(self.__assessment_tmp_map) > 0 and patch_id in self.__assessment_tmp_map:
+            if not len(self.__assessment_tmp_map) == 0 and patch_id in self.__assessment_tmp_map:
                 self.__assessment_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
                 patch_already_saved = True
 
@@ -174,12 +175,20 @@ class StatusHandler(object):
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
-            for i in range(0, len(self.__installation_packages)):
-                if patch_id == self.__installation_packages[i]['patchId']:
-                    patch_already_saved = True
-                    if classification is not None:
-                        self.__installation_packages[i]['classifications'] = [classification]
-                    self.__installation_packages[i]['patchInstallationState'] = status
+
+            # Match patch_id in map and update existing patch's classification i.e from None -> security and update pending status
+            if not len(self.__installation_tmp_map) == 0 and patch_id in self.__installation_tmp_map:
+                if classification is not None:
+                    self.__installation_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
+                self.__installation_tmp_map.setdefault(patch_id, {})['patchInstallationState'] = status
+                patch_already_saved = True
+
+            # for i in range(0, len(self.__installation_packages)):
+            #     if patch_id == self.__installation_packages[i]['patchId']:
+            #         patch_already_saved = True
+            #         if classification is not None:
+            #             self.__installation_packages[i]['classifications'] = [classification]
+            #         self.__installation_packages[i]['patchInstallationState'] = status
 
             if patch_already_saved is False:
                 if classification is None:
@@ -191,11 +200,15 @@ class StatusHandler(object):
                     "classifications": [classification],
                     "patchInstallationState": str(status)
                 }
-                self.__installation_packages.append(record)
+
+                # Add new patch to map
+                self.__installation_tmp_map[patch_id] = record
+                # self.__installation_packages.append(record)
 
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
 
         self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
+        self.__installation_packages = list(self.__installation_tmp_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
@@ -356,7 +369,7 @@ class StatusHandler(object):
         started_by = Constants.PatchAssessmentSummaryStartedBy.PLATFORM if (
                     self.execution_config.exec_auto_assess_only or self.execution_config.include_assessment_with_configure_patching) else Constants.PatchAssessmentSummaryStartedBy.USER
 
-        # Compose sub-status message
+        # Compose substatus assessment message
         substatus_message = {
             "assessmentActivityId": str(self.execution_config.activity_id),
             "rebootPending": self.is_reboot_pending,
@@ -416,7 +429,7 @@ class StatusHandler(object):
         # Reboot status refresh
         self.__refresh_installation_reboot_status()
 
-        # Compose substatus message
+        # Compose substatus installation message
         return {
             "installationActivityId": str(self.execution_config.activity_id),
             "rebootStatus": str(self.__installation_reboot_status),
@@ -459,7 +472,7 @@ class StatusHandler(object):
             Purpose: This composes the message inside the patch metadata for healthstore substatus:
                 Root --> Status --> Substatus [name: "PatchMetadataForHealthStore"] --> FormattedMessage --> **Message** """
 
-        # Compose substatus message
+        # Compose substatus healthstore message
         return {
             "patchVersion": str(patch_version),
             "shouldReportToHealthStore": report_to_healthstore
@@ -486,7 +499,7 @@ class StatusHandler(object):
             Purpose: This composes the message inside the configure patching summary substatus:
                 Root --> Status --> Substatus [name: "ConfigurePatchingSummary"] --> FormattedMessage --> **Message** """
 
-        # Compose substatus message
+        # Compose substatus configurePatching message
         substatus_message = {
             "activityId": str(self.execution_config.activity_id),
             "startTime": str(self.execution_config.start_time),
@@ -822,61 +835,102 @@ class StatusHandler(object):
         truncated_status_file = status_file_payload
 
         if complete_status_byte_size > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES:
-
             self.composite_logger.log("Begin Truncation")
-            assessment_name = self.__assessment_substatus_json['name']
             assessment_patch = self.__assessment_packages
-            errors_detail_list = []
+            assessment_index = self.__get_index_name(Constants.PATCH_ASSESSMENT_SUMMARY, truncated_status_file['status']['substatus'])
+            assessment_detail_list = []
 
             # Truncated assessment patch when operation is not installation
-            if self.execution_config.operation != Constants.INSTALLATION.lower() and assessment_name == Constants.PATCH_ASSESSMENT_SUMMARY and len(assessment_patch) > 0:
+            if not self.execution_config.operation == Constants.INSTALLATION:
                 # Perform assessment truncation
-                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+                assessment_patch, assessment_truncated_packages = self.__assessment_truncate_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES)
 
                 # self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
                 # json.dumps(__assessment_summary_json) happens in multiple calls that creates escape \ for ", \ is an extra byte in the status file. it's unnecssary to perform json.dumps every time
                 # removing json.dumps will need to remove json.loads part in substatus_file_data["formattedMessage"]["message"] in entire codebase
                 # Reduce assement patch byte by quote size
-                quote_counts = sum(char == '"' for char in json.dumps(assessment_patch))
+                assessment_quote_counts = self.__get_quote_count(assessment_patch)
 
-                if (quote_counts + self.__get_byte_size(assessment_patch) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES):
-                    assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES - quote_counts)
+                if (assessment_quote_counts + self.__get_byte_size(assessment_patch) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES):
+                    assessment_patch, assessment_truncated_packages = self.__assessment_truncate_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES - assessment_quote_counts)
 
-                self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", truncated_packages))
+                self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", assessment_truncated_packages))
                 self.composite_logger.log("Truncated assessment patches: ", self.__truncated_patches[0])
 
-            # Add assessment tombstone record
-            assessment_patch.append(self.__add_assessment_tombstone_record())
+            # Perform installation truncation
+            if self.execution_config.operation == Constants.INSTALLATION:
+                installation_patch = self.__installation_packages
+                installation_index = self.__get_index_name(Constants.PATCH_INSTALLATION_SUMMARY, truncated_status_file['status']['substatus'])
+                installation_detail_list = []
 
-            # Check for existing errors before recompose status file payload
-            code = self.__assessment_summary_json['errors']['code']
-            if code == 0 or code == 2:
-                truncated_status_file = self.__recompose_truncated_status_payload(status_file_payload, assessment_patch, code, errors_detail_list)
-                # Update operation status to warning
-                truncated_status_file['status']['substatus'][0]['status'] = Constants.STATUS_WARNING.lower()
-            else:
-                # code == 1 (Error), add everything in the errors['detail'] to errors_detail_list
-                errors_detail_list.extend(self.__assessment_summary_json['errors']['details'])
-                truncated_status_file = self.__recompose_truncated_status_payload(status_file_payload, assessment_patch, code, errors_detail_list)
+                assessment_patch, assessment_truncated_packages, installation_patch, installation_truncated_packages = self.__installation_truncate_helper_func(assessment_patch, installation_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+
+                installation_quote_counts = self.__get_quote_count(installation_patch)
+                assessment_quote_counts = self.__get_quote_count(assessment_patch)
+
+                if (assessment_quote_counts + self.__get_byte_size(assessment_patch) + installation_quote_counts + self.__get_byte_size(installation_patch) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES):
+                    assessment_patch, assessment_truncated_packages, installation_patch, installation_truncated_packages = self.__installation_truncate_helper_func(assessment_patch, installation_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES - (assessment_quote_counts + installation_quote_counts))
+
+                if len(assessment_truncated_packages) > 0:
+                    self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", assessment_truncated_packages))
+                    self.composite_logger.log("Truncated assessment patches: ", self.__truncated_patches[0])
+
+                if len(installation_truncated_packages) > 0:
+                    self.__truncated_patches.append(self.__set_truncated_package_detail("Installation", installation_truncated_packages))
+                    self.composite_logger.log("Truncated installation patches: ", self.__truncated_patches[0])
+
+                    # Add installation tombstone record
+                    installation_patch.append(self.__add_installation_tombstone_record())
+
+                    # Check for existing installation errors before recompose status file payload
+                    code = self.__installation_summary_json['errors']['code']
+                    # truncated_status_file, new_patch_list, errors_details, new_detail_list, index, code
+                    installation_errors_details = self.__installation_summary_json['errors']['details']
+                    truncated_status_file = self.__recompose_truncated_staus_file(truncated_status_file, installation_patch, installation_errors_details,
+                        installation_detail_list, Constants.PATCH_INSTALLATION_SUMMARY, installation_index, code)
+
+            if len(assessment_truncated_packages) > 0:
+                # Add assessment tombstone record
+                assessment_patch.append(self.__add_assessment_tombstone_record())
+
+                # Check for existing assessment errors before recompose status file payload
+                code = self.__assessment_summary_json['errors']['code']
+                assessment_errors_details = self.__assessment_summary_json['errors']['details']
+                truncated_status_file = self.__recompose_truncated_staus_file(truncated_status_file, assessment_patch, assessment_errors_details, assessment_detail_list, assessment_index, code)
 
             self.composite_logger.log("Complete Truncation")
 
         # Write to status file
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(truncated_status_file)), mode='w+')
 
-    def __truncate_assessment_helper_func(self, assessment_patches, size_limit):
+    def __assessment_truncate_helper_func(self, assessment_patches, size_limit, ):
         patches_first_half, patches_second_half = (assessment_patches[:5], assessment_patches[5:]) if len(assessment_patches) > 5 else (assessment_patches, [])
-
         capacity = size_limit - self.__get_byte_size(patches_first_half)
 
         # Check if the first 5 elements in the list are greater than the size limit
         assert capacity >= 0, "There are element(s) greater than the size limit"
 
-        new_assessment_list, truncated_packages, _ = self.__apply_truncation(patches_second_half, capacity)
+        # Perform assessment truncation
+        new_assessment_list, assessment_truncated_packages, _ = self.__apply_truncation(patches_second_half, capacity)
 
-        return patches_first_half + new_assessment_list, truncated_packages
+        return patches_first_half + new_assessment_list, assessment_truncated_packages
 
-    def __apply_truncation(self, patch_list, size_limit):
+    def __installation_truncate_helper_func(self, assessment_patches, installation_patches, size_limit, ):
+        patches_first_half, patches_second_half = (assessment_patches[:5], assessment_patches[5:]) if len(assessment_patches) > 5 else (assessment_patches, [])
+        capacity = size_limit - self.__get_byte_size(patches_first_half)
+
+        # Check if the first 5 elements in the list are greater than the size limit
+        assert capacity >= 0, "There are element(s) greater than the size limit"
+
+        # Perform assessment and installation truncation
+        new_installation_list, installation_truncated_packages, capacity = self.__apply_truncation(installation_patches, capacity)
+
+        # Perform assessment truncation
+        new_assessment_list, assessment_truncated_packages, _ = self.__apply_truncation(patches_second_half, capacity)
+
+        return patches_first_half + new_assessment_list, assessment_truncated_packages, new_installation_list, installation_truncated_packages
+
+    def __apply_truncation(self, patch_list, capacity):
         """ Binary search
         Instead of checking list[middel_index] >= target, check byte_size(list[:middle_index]),
         as byte_size[list[:i]] is monotonically increasing, i.e.
@@ -886,21 +940,21 @@ class StatusHandler(object):
         left_index = 0
         right_index = len(patch_list) - 1
 
-        if self.__get_byte_size(patch_list) <= size_limit:
-            return patch_list, [], size_limit - self.__get_byte_size(patch_list)
-        elif self.__get_byte_size(patch_list[0]) > size_limit:
-            return [], patch_list, size_limit
+        if self.__get_byte_size(patch_list) <= capacity:
+            return patch_list, [], capacity - self.__get_byte_size(patch_list)
+        elif self.__get_byte_size(patch_list[0]) > capacity:
+            return [], patch_list, capacity
 
         while left_index < right_index:
             mid_index = left_index + int((right_index - left_index) / 2)
-            if self.__get_byte_size(patch_list[:mid_index]) >= size_limit:
+            if self.__get_byte_size(patch_list[:mid_index]) >= capacity:
                 right_index = mid_index
             else:
                 left_index = mid_index + 1
 
         new_list = patch_list[:left_index - 1]
         truncated_packages = patch_list[left_index - 1:]
-        return new_list, truncated_packages, size_limit - self.__get_byte_size(new_list)
+        return new_list, truncated_packages, capacity - self.__get_byte_size(new_list)
 
     def __read_complete_status_file_raw_data(self, file_path):
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
@@ -929,19 +983,21 @@ class StatusHandler(object):
 
         return os.path.realpath(latest_file)
 
-    def __set_truncated_package_detail(self, name, truncated_packages):
-        return {
-            "name": str.capitalize(name),
-            "truncated_packages": truncated_packages
-        }
-
     def __get_byte_size(self, val):
         """ Get the current byte size of val """
         return len(json.dumps(val).encode("utf-8"))
 
-    def __recompose_truncated_status_payload(self, status_file_payload, new_patches, code, errors_detail_list):
-        """ Recompose complete status file payload with new errors detail list, new errors message, new truncated patches, and Warning status  """
+    def __get_quote_count(self, patch_list):
+        return sum(char == '"' for char in json.dumps(patch_list)) if not len(patch_list) == 0 else 0
 
+    def __get_index_name(self, summary_name, substatus):
+        """" Retrieve index from the current substatus list for summary """
+        for index, item in enumerate(substatus):
+            if item['name'] == summary_name:
+                return index
+
+    def __recompose_truncated_summary(self, truncated_status_file, new_patches, code, errors_detail_list, summary = Constants.PATCH_ASSESSMENT_SUMMARY, index=0):
+        """ Recompose status file with new errors detail list, new errors message, and truncated patches  """
         error_message = "Results were truncated because too many patches were present, Check log for truncated packages"
 
         truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
@@ -953,13 +1009,38 @@ class StatusHandler(object):
 
         truncated_errors_json = self.__set_truncation_errors_json(code, errors_detail_list)
 
-        # Update operation summary message
-        message = self.__new_truncation_assessment_message(self.__assessment_summary_json, new_patches, truncated_errors_json)
-        status_file_payload['status']['substatus'][0]['formattedMessage']['message'] = json.dumps(message)
+        # Update summary message
+        if not summary == Constants.PATCH_INSTALLATION_SUMMARY:
+            message = self.__truncated_assessment_message(self.__assessment_summary_json, new_patches, truncated_errors_json)
+        else:
+            message = self.__truncated_installation_message(self.__installation_summary_json, new_patches, truncated_errors_json)
 
-        return status_file_payload
+        truncated_status_file['status']['substatus'][index]['formattedMessage']['message'] = json.dumps(message)
 
-    def __new_truncation_assessment_message(self, assessment_message, new_patches, new_error):
+        return truncated_status_file
+
+    def __recompose_truncated_staus_file(self, truncated_status_file, new_patch_list, errors_details, new_detail_list, summary, index, code):
+        """ Recompose final truncated status file version """
+        if code == 0 or code == 2:
+            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, code, new_detail_list, summary, index)
+            # Update summary status to warning
+            final_truncated_status_file['status']['substatus'][index]['status'] = Constants.STATUS_WARNING.lower()
+        else:
+            # code == 1 (Error), add everything in the errors['detail'] to errors_detail_list
+            new_detail_list.extend(errors_details)
+            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, code, new_detail_list, summary, index)
+
+        return final_truncated_status_file
+
+    def __set_truncated_package_detail(self, name, truncated_packages):
+        """ Compose truncated packages for logging """
+        return {
+            "name": str.capitalize(name),
+            "truncated_packages": truncated_packages
+        }
+
+    def __truncated_assessment_message(self, assessment_message, new_patches, new_error):
+        """ Recompose truncated assessment substatus """
         return {
             "assessmentActivityId": assessment_message["assessmentActivityId"],
             "rebootPending": assessment_message["rebootPending"],
@@ -972,17 +1053,36 @@ class StatusHandler(object):
             "errors": new_error
         }
 
-    def __set_truncation_errors_json(self, code, errors_by_operation):
-        """ Compose the error object json to be added in 'errors' in given operation's summary """
-        message = "{0} error/s reported.".format(len(errors_by_operation))
-        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path)
+    def __truncated_installation_message(self, installation_message, new_patches, new_error):
+        """ Recompose truncated installation substatus """
         return {
-            'code': code if code == 1 else Constants.PatchOperationTopLevelErrorCode.WARNING,
-            'details': errors_by_operation,
+            "installationActivityId": installation_message['installationActivityId'],
+            "rebootStatus": installation_message['rebootStatus'],
+            "maintenanceWindowExceeded": installation_message['maintenanceWindowExceeded'],
+            "notSelectedPatchCount": installation_message['notSelectedPatchCount'],
+            "excludedPatchCount": installation_message['excludedPatchCount'],
+            "pendingPatchCount": installation_message['pendingPatchCount'],
+            "installedPatchCount": installation_message['installedPatchCount'],
+            "failedPatchCount": installation_message['failedPatchCount'],
+            "patches": new_patches,
+            "startTime": installation_message['startTime'],
+            "lastModifiedTime": installation_message['lastModifiedTime'],
+            "maintenanceRunId": installation_message['maintenanceRunId'],
+            "errors": new_error
+        }
+
+    def __set_truncation_errors_json(self, code, summary_errors):
+        """ Compose the error object json to be added in 'errors' in a given summary """
+        message = "{0} error/s reported.".format(len(summary_errors))
+        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(summary_errors), self.__log_file_path)
+        return {
+            'code': Constants.PatchOperationTopLevelErrorCode.WARNING if code != 1 else code,
+            'details': summary_errors,
             'message': message
         }
 
     def __add_assessment_tombstone_record(self):
+        """ Tombstone record for truncated assessment """
         return {
             'patchId': 'Truncated patch list record',
             'name': 'Truncated patch list record',
@@ -991,6 +1091,7 @@ class StatusHandler(object):
         }
 
     def __add_installation_tombstone_record(self):
+        """ Tombstone record for truncated installation """
         return {
             'patchId': 'Truncated Patch List',
             'name': 'Truncated Patch List',
