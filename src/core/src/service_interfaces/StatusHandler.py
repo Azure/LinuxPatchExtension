@@ -236,13 +236,18 @@ class StatusHandler(object):
         for package_name, package_version in zip(package_names, package_versions):
             classification_matching_package_found = False
             patch_id = self.__get_patch_id(package_name, package_version)
-            for i in range(0, len(self.__installation_packages)):
-                if patch_id == self.__installation_packages[i]['patchId']:
-                    classification_matching_package_found = True
-                    self.__installation_packages[i]['classifications'] = [classification]
+
+            if not len(self.__installation_tmp_map) == 0 and patch_id in self.__installation_tmp_map:
+                self.__installation_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
+                classification_matching_package_found = True
+            # for i in range(0, len(self.__installation_packages)):
+            #     if patch_id == self.__installation_packages[i]['patchId']:
+            #         classification_matching_package_found = True
+            #         self.__installation_packages[i]['classifications'] = [classification]
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
         self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
+        self.__installation_packages = list(self.__installation_tmp_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
@@ -896,7 +901,8 @@ class StatusHandler(object):
                 # Check for existing assessment errors before recompose status file payload
                 code = self.__assessment_summary_json['errors']['code']
                 assessment_errors_details = self.__assessment_summary_json['errors']['details']
-                truncated_status_file = self.__recompose_truncated_staus_file(truncated_status_file, assessment_patch, assessment_errors_details, assessment_detail_list, assessment_index, code)
+                truncated_status_file = self.__recompose_truncated_staus_file(truncated_status_file, assessment_patch, assessment_errors_details,
+                    assessment_detail_list, Constants.PATCH_ASSESSMENT_SUMMARY, assessment_index, code)
 
             self.composite_logger.log("Complete Truncation")
 
