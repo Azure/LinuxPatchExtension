@@ -337,13 +337,6 @@ class PatchInstaller(object):
 
         stopwatch_for_sequential_install_process.stop_and_write_telemetry(sequential_processing_perf_log)
 
-        if not patch_installation_successful or maintenance_window_exceeded:
-            message = "\n\nOperation status was marked as failed because: "
-            message += "[X] a failure occurred during the operation  " if not patch_installation_successful else ""
-            message += "[X] maintenance window exceeded " if maintenance_window_exceeded else ""
-            self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
-            self.composite_logger.log_error(message)
-
         return installed_update_count, patch_installation_successful, maintenance_window_exceeded
 
     def log_final_metrics(self, maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count):
@@ -359,6 +352,13 @@ class PatchInstaller(object):
         progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                         "Completed processing packages!")
         self.composite_logger.log(progress_status)
+
+        if not patch_installation_successful or maintenance_window_exceeded:
+            message = "\n\nOperation status was marked as failed because: "
+            message += "[X] a failure occurred during the operation  " if not patch_installation_successful else ""
+            message += "[X] maintenance window exceeded " if maintenance_window_exceeded else ""
+            self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            self.composite_logger.log_error(message)
 
     def include_dependencies(self, package_manager, packages_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
