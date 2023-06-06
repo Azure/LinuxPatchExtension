@@ -183,13 +183,6 @@ class StatusHandler(object):
                 self.__installation_tmp_map.setdefault(patch_id, {})['patchInstallationState'] = status
                 patch_already_saved = True
 
-            # for i in range(0, len(self.__installation_packages)):
-            #     if patch_id == self.__installation_packages[i]['patchId']:
-            #         patch_already_saved = True
-            #         if classification is not None:
-            #             self.__installation_packages[i]['classifications'] = [classification]
-            #         self.__installation_packages[i]['patchInstallationState'] = status
-
             if patch_already_saved is False:
                 if classification is None:
                     classification = Constants.PackageClassification.OTHER
@@ -203,8 +196,6 @@ class StatusHandler(object):
 
                 # Add new patch to map
                 self.__installation_tmp_map[patch_id] = record
-                # self.__installation_packages.append(record)
-
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
 
         self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
@@ -237,13 +228,10 @@ class StatusHandler(object):
             classification_matching_package_found = False
             patch_id = self.__get_patch_id(package_name, package_version)
 
+            # Match patch_id in map and update existing patch's classification i.e from None -> security
             if not len(self.__installation_tmp_map) == 0 and patch_id in self.__installation_tmp_map:
                 self.__installation_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
                 classification_matching_package_found = True
-            # for i in range(0, len(self.__installation_packages)):
-            #     if patch_id == self.__installation_packages[i]['patchId']:
-            #         classification_matching_package_found = True
-            #         self.__installation_packages[i]['classifications'] = [classification]
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
         self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
@@ -595,6 +583,10 @@ class StatusHandler(object):
         self.__configure_patching_errors = []
         self.__configure_patching_auto_assessment_errors = []
 
+        self.__truncated_patches = []
+        self.__assessment_tmp_map = {}
+        self.__installation_tmp_map = {}
+
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
         # Verify the complete status file exists - if not, reset complete status file
@@ -717,8 +709,10 @@ class StatusHandler(object):
         # Write complete status file <seq.no>.complete
         self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
 
+        complete_status_file = self.__read_complete_status_file_raw_data(self.complete_status_file_path)
+
         # Write truncated status file
-        self.__write_truncated_status_file(status_file_payload)
+        self.__write_truncated_status_file(complete_status_file)
     # endregion
 
     # region - Error objects
@@ -844,6 +838,7 @@ class StatusHandler(object):
             assessment_patch = self.__assessment_packages
             assessment_index = self.__get_index_name(Constants.PATCH_ASSESSMENT_SUMMARY, truncated_status_file['status']['substatus'])
             assessment_detail_list = []
+            self.__truncated_patches = []
 
             # Truncated assessment patch when operation is not installation
             if not self.execution_config.operation == Constants.INSTALLATION:
@@ -857,8 +852,12 @@ class StatusHandler(object):
                 assessment_quote_counts = self.__get_quote_count(assessment_patch)
 
                 if (assessment_quote_counts + self.__get_byte_size(assessment_patch) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES):
-                    assessment_patch, assessment_truncated_packages = self.__assessment_truncate_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES - assessment_quote_counts)
+                    assessment_patch, new_assessment_truncated_packages = self.__assessment_truncate_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES - assessment_quote_counts)
 
+                    # Add more truncated patches when \ cause the file to be over size limit
+                    assessment_truncated_packages = assessment_truncated_packages + new_assessment_truncated_packages
+
+                # Keep track of truncated packages for log
                 self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", assessment_truncated_packages))
                 self.composite_logger.log("Truncated assessment patches: ", self.__truncated_patches[0])
 
@@ -870,11 +869,16 @@ class StatusHandler(object):
 
                 assessment_patch, assessment_truncated_packages, installation_patch, installation_truncated_packages = self.__installation_truncate_helper_func(assessment_patch, installation_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES)
 
+                # Get quote count for \ byte
                 installation_quote_counts = self.__get_quote_count(installation_patch)
                 assessment_quote_counts = self.__get_quote_count(assessment_patch)
 
                 if (assessment_quote_counts + self.__get_byte_size(assessment_patch) + installation_quote_counts + self.__get_byte_size(installation_patch) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES):
-                    assessment_patch, assessment_truncated_packages, installation_patch, installation_truncated_packages = self.__installation_truncate_helper_func(assessment_patch, installation_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES - (assessment_quote_counts + installation_quote_counts))
+                    assessment_patch, new_assessment_truncated_packages, installation_patch, new_installation_truncated_packages = self.__installation_truncate_helper_func(assessment_patch, installation_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES - (assessment_quote_counts + installation_quote_counts))
+
+                    # Add more truncated patches when \ cause the file to be over size limit
+                    assessment_truncated_packages = assessment_truncated_packages + new_assessment_truncated_packages
+                    installation_truncated_packages = installation_truncated_packages + new_installation_truncated_packages
 
                 if len(assessment_truncated_packages) > 0:
                     self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", assessment_truncated_packages))
