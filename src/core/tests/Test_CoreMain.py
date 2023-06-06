@@ -1211,8 +1211,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
 
         # Test Truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path,
-                                                     'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
@@ -1266,8 +1265,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
 
         # Test Truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path,
-                                                     'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
@@ -1373,7 +1371,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
         runtime.stop()
 
-    def test_installation_operation_success_keep_5_assessment_over_size_limit(self):
+    def test_installation_operation_success_keep_5_assessment_size_limit(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1453,9 +1451,197 @@ class TestCoreMain(unittest.TestCase):
         installation_patches_count = len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"])
         self.assertTrue(installation_patches_count < test_installation_packages + 2)
 
+        # tombstone record
+        tombstone_record = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
+        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
+        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['name'], "Truncated patch list record")
+
+        self.assertEqual(truncated_patches[1]['name'], 'Installation')
         self.assertEqual(len(truncated_patches[1]["truncated_packages"]), 803 - installation_patches_count)
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 2)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+        runtime.stop()
+
+    def test_installation_operation_success_truncate_both_size_limit(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.INSTALLATION
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # Test code add 2 additional packages
+        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
+
+        test_assessment_packages = 19998
+        test_packages, test_package_versions = self.__set_up_packages_func(test_assessment_packages)
+        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        test_installation_packages = 29998
+        test_packages, test_package_versions = self.__set_up_packages_func(test_installation_packages)
+        runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+        runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        # Test Complete status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)
+
+        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+
+        # Assessment summary
+        assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
+        self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(len(json.dumps(assessment_substatus)) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), test_assessment_packages + 2)
+        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+
+        # Installation summary
+        installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
+        self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(len(json.dumps(installation_substatus)) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), test_installation_packages + 2)
+        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+
+        # Test truncated status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+        # Test assessment truncation
+        assessment_truncated_substatus = substatus_file_data[0]
+        self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+        self.assertTrue(len(json.dumps(assessment_truncated_substatus)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        assessment_patches_count = len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"])
+        self.assertTrue(assessment_patches_count == 6) # extra 1 is tombstone
+
+        # tombstone record
+        tombstone_record = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
+        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
+        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['name'], "Truncated patch list record")
+
+        truncated_patches = runtime.status_handler.get_truncated_patches()
+        # assessment truncated patches
+        self.assertEqual(len(truncated_patches[0]['truncated_packages']), (20001 - assessment_patches_count)) #extra 1 is tombstone
+        self.assertEqual(truncated_patches[0]['name'], 'Assessment')
+
+        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 2)
+        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], "TRUNCATION")
+        self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
+
+        # installation truncated patches
+        installation_truncated_substatus = substatus_file_data[1]
+        self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+        self.assertTrue(len(json.dumps(installation_truncated_substatus)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        installation_patches_count = len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"])
+        self.assertTrue(installation_patches_count < test_installation_packages + 2)
+
+        self.assertEqual(len(truncated_patches[1]["truncated_packages"]), 30001 - installation_patches_count)
+        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 2)
+        self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+        runtime.stop()
+
+    def test_installation_operation_fail_truncate_with_error_size_limit(self):
+        """ truncate assessment list > size limit but installation < size limit with error"""
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.INSTALLATION
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('FailInstallPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # Test code add 2 additional packages
+        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
+
+        test_assessment_packages = 598
+        test_packages, test_package_versions = self.__set_up_packages_func(test_assessment_packages)
+        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+
+        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        test_installation_packages = 218
+        test_packages, test_package_versions = self.__set_up_packages_func(test_installation_packages)
+        runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+
+        # Adding multiple exceptions
+        runtime.status_handler.add_error_to_status("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        runtime.status_handler.add_error_to_status("exception3", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+        runtime.status_handler.add_error_to_status("exception4", Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+        runtime.status_handler.add_error_to_status("exception5", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+
+        runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+
+        # Test Complete status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)
+
+        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+
+        # Assessment summary
+        assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
+        self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(len(json.dumps(assessment_substatus)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), test_assessment_packages + 2)
+        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+
+        # Installation summary
+        installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
+        self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(installation_substatus["status"], Constants.STATUS_ERROR.lower())
+        self.assertTrue(len(json.dumps(installation_substatus)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), test_installation_packages + 2)
+        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
+
+        # Test truncated status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+
+        # Test assessment truncation
+        assessment_truncated_substatus = substatus_file_data[0]
+        self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+        self.assertTrue(len(json.dumps(assessment_truncated_substatus)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        assessment_patches_count = len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"])
+        self.assertTrue(assessment_patches_count == 443) # extra 1 is tombstone
+
+        # tombstone record
+        tombstone_record = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
+        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
+        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['name'], "Truncated patch list record")
+
+        truncated_patches = runtime.status_handler.get_truncated_patches()
+        # assessment truncated patches
+        self.assertEqual(len(truncated_patches[0]['truncated_packages']), (601 - assessment_patches_count)) #extra 1 is tombstone
+        self.assertEqual(truncated_patches[0]['name'], 'Assessment')
+
+        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 2)
+        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], "TRUNCATION")
+        self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
+
+        # installation truncated patches
+        installation_truncated_substatus = substatus_file_data[1]
+        self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_ERROR.lower())
+        self.assertTrue(len(json.dumps(installation_truncated_substatus)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        installation_patches_count = len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"])
+        self.assertTrue(installation_patches_count == test_installation_packages + 2)
+        self.assertEqual(len(truncated_patches), 1)  # No installation truncation
+        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 1)
+        self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
         runtime.stop()
 
     def __set_up_packages_func(self, val):
