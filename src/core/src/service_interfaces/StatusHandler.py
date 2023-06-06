@@ -48,7 +48,6 @@ class StatusHandler(object):
         self.__installation_total_error_count = 0  # All errors during install, includes errors not in error objects due to size limit
         self.__maintenance_window_exceeded = False
         self.__installation_reboot_status = Constants.RebootStatus.NOT_NEEDED
-        self.__truncated_installation_patches = []
 
         # Internal in-memory representation of Patch Assessment data
         self.__assessment_substatus_json = None
@@ -89,7 +88,7 @@ class StatusHandler(object):
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
         if (execution_config.maintenance_run_id is not None or execution_config.health_store_id is not None) and execution_config.operation.lower() == Constants.INSTALLATION.lower():
             if self.__installation_reboot_status != Constants.RebootStatus.STARTED:
-                self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=True,  wait_after_update=True)
+                self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=True, wait_after_update=True)
                 # updating metadata summary again with reporting to healthstore turned off
                 self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=False, wait_after_update=False)
             else:
@@ -110,6 +109,7 @@ class StatusHandler(object):
         self.__assessment_total_error_count = 0
         self.__truncated_patches = []
         self.__assessment_tmp_map = {}
+        self.__installation_tmp_map = {}
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
