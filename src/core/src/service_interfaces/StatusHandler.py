@@ -109,7 +109,6 @@ class StatusHandler(object):
         self.__assessment_total_error_count = 0
         self.__truncated_patches = []
         self.__assessment_tmp_map = {}
-        self.__installation_tmp_map = {}
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
@@ -142,7 +141,7 @@ class StatusHandler(object):
     def sort_packages_by_classification_and_state(self, packages_list):
         """ Sorts a list of packages (usually either self.__assessment_packages or self.__installation_packages) by classification and patchState properties.
             (sorting order from highest priority to lowest):
-            1. Classification: Security, Critical, Other, Unclassified
+            1. Classification: Critical, Security, Other, Unclassified
             2. Patch Installation State: Failed, Installed, Available, Pending, Excluded, NotSelected
         """
 
@@ -232,6 +231,7 @@ class StatusHandler(object):
             if not len(self.__installation_tmp_map) == 0 and patch_id in self.__installation_tmp_map:
                 self.__installation_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
                 classification_matching_package_found = True
+
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
         self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
@@ -341,7 +341,7 @@ class StatusHandler(object):
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
         # Update status complete on disk
-        self.__write_status_complete_file()
+        self.__write_status_file()
 
     def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
@@ -391,7 +391,7 @@ class StatusHandler(object):
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
         # Update complete status on disk
-        self.__write_status_complete_file()
+        self.__write_status_file()
 
     def __new_installation_summary_json(self, installation_packages_json):
         """ Called by: set_installation_substatus_json
@@ -454,7 +454,7 @@ class StatusHandler(object):
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Update status complete on disk
-        self.__write_status_complete_file()
+        self.__write_status_file()
 
         # wait period required in cases where we need to ensure HealthStore reads the status from GA
         if wait_after_update:
@@ -485,7 +485,7 @@ class StatusHandler(object):
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
         # Update status complete on disk
-        self.__write_status_complete_file()
+        self.__write_status_file()
 
     def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
@@ -654,7 +654,7 @@ class StatusHandler(object):
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
-    def __write_status_complete_file(self):
+    def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
             This is usually the final call to compose and persist after an in-memory data update in a specialized method.
 

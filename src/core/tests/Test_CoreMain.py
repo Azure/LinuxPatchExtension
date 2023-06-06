@@ -1376,6 +1376,8 @@ class TestCoreMain(unittest.TestCase):
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
+        classifications_to_include = ["Security", "Critical"]
+        argument_composer.classifications_to_include = classifications_to_include
         CoreMain(argument_composer.get_composed_arguments())
 
         # check telemetry events
