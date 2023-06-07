@@ -123,9 +123,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
 
-    def test_set_package_install_bad_status(self):
-        log123 = self.runtime.composite_logger
-
+    def test_set_package_install_unknown_patch_state_recorded(self):
         packages, package_versions = self.runtime.package_manager.get_all_updates()
         self.runtime.status_handler.set_package_install_status(packages, package_versions, Constants.AVAILABLE)
 

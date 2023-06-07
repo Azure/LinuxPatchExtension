@@ -1129,6 +1129,16 @@ class TestCoreMain(unittest.TestCase):
             self.assertTrue('Core' in events[0]['TaskName'])
             f.close()
 
+    def __test_latest_complete_status_file(self, runtime):
+        all_complete_status = glob.glob(runtime.execution_config.status_folder + '\\' + '*.complete.status')
+        self.assertTrue(len(all_complete_status) > 0)
+        latest_complete_status = max(all_complete_status, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
+        with runtime.env_layer.file_system.open(latest_complete_status, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+            self.assertTrue(substatus_file_data is not None)
+            self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+            file_handle.close()
+
     def test_assessment_operation_success_truncation_under_size_limit(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
@@ -1197,6 +1207,9 @@ class TestCoreMain(unittest.TestCase):
         test_packages, test_package_versions = self.__set_up_packages_func(test_value)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        # check latest complete status file
+        self.__test_latest_complete_status_file(runtime)
 
         # Test Complete status file
         with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
