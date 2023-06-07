@@ -434,7 +434,6 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
-
     def test_latest_complete_status_file(self):
         """ Create dummy files in status folder and check if the complete_status_file_path is the latest file and delete those dummy files """
         file_path = self.runtime.execution_config.status_folder
@@ -463,6 +462,30 @@ class TestStatusHandler(unittest.TestCase):
         self.assertFalse(os.path.isfile(example_file2))
         self.assertFalse(os.path.isfile(example_file3))
         self.assertTrue(os.path.isfile(self.runtime.execution_config.complete_status_file_path))
+
+    def test_ordered_map(self):
+        self.runtime.execution_config.operation = Constants.INSTALLATION
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+
+        test_value = 50
+        test_packages, test_package_versions = self.__set_up_packages_func(test_value)
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, 'Installed', 'Other')
+        self.runtime.status_handler.set_package_install_status_classification(test_packages, test_package_versions, 'Critical')
+        self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        #Test Complete status file
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)
+
+        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]['classifications'], ['Critical'])
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]['classifications'], ['Critical'])
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
 
     def test_write_truncated_status_file_assessment_under_size_limit(self):
         """ Test the truncation logic will not apply to assessment when it is under the size limit """
