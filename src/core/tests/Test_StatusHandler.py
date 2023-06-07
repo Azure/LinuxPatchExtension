@@ -457,7 +457,6 @@ class TestStatusHandler(unittest.TestCase):
         test_packages, test_package_versions = self.__set_up_packages_func(test_value)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
         self.runtime.status_handler.load_status_file_components(initial_load=True)
 
         self.assertFalse(os.path.isfile(example_file1))
@@ -504,6 +503,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(len(self.runtime.status_handler.get_truncated_patches()), 0)
 
     def test_write_truncated_status_file_assessment_over_size_limit(self):
+        """ Test truncation logic will apply to assessment when it is over the size limit """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -547,6 +547,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
     def test_write_truncated_status_file_assessment_over_size_limit_with_quotes(self):
+        """ Test truncation logic will apply to assessment, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -590,6 +591,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
     def test_write_truncated_status_file_assessment_over_size_limit_with_error(self):
+        """ Test truncation logic will apply to assessment with errors over the size limit """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -648,6 +650,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
     def test_write_truncated_status_file_installation_over_size_limit(self):
+        """ Test truncation logic will apply to installation over the size limit """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -691,6 +694,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
     def test_write_truncated_status_file_installation_over_size_limit_with_quotes(self):
+        """ Test truncation logic will apply to installation, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -734,6 +738,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
     def test_write_truncated_status_file_installation_over_size_limit_with_error(self):
+        """ Test truncation logic will apply to installation with errors over the size limit """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
