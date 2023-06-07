@@ -148,7 +148,6 @@ class AptitudePackageManager(PackageManager):
             all_updates = self.all_updates_cached
             all_updates_versions = self.all_update_versions_cached
 
-
         if cached and not len(all_updates) == 0:
             self.composite_logger.log_debug("Get all updates : [Cached={0}][PackagesCount={1}]]".format(cached, len(all_updates)))
             return all_updates, all_updates_versions
