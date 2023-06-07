@@ -176,11 +176,17 @@ class StatusHandler(object):
             patch_id = self.__get_patch_id(package_name, package_version)
 
             # Match patch_id in map and update existing patch's classification i.e from None -> security and update pending status
-            if not len(self.__installation_tmp_map) == 0 and patch_id in self.__installation_tmp_map:
-                if classification is not None:
-                    self.__installation_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
-                self.__installation_tmp_map.setdefault(patch_id, {})['patchInstallationState'] = status
-                patch_already_saved = True
+            # if not len(self.__installation_tmp_map) == 0 and patch_id in self.__installation_tmp_map:
+            #     if classification is not None:
+            #         self.__installation_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
+            #     self.__installation_tmp_map.setdefault(patch_id, {})['patchInstallationState'] = status
+            #     patch_already_saved = True
+            for i in range(0, len(self.__installation_packages)):
+                if patch_id == self.__installation_packages[i]['patchId']:
+                    patch_already_saved = True
+                    if classification is not None:
+                        self.__installation_packages[i]['classifications'] = [classification]
+                    self.__installation_packages[i]['patchInstallationState'] = status
 
             if patch_already_saved is False:
                 if classification is None:
@@ -194,11 +200,12 @@ class StatusHandler(object):
                 }
 
                 # Add new patch to map
-                self.__installation_tmp_map[patch_id] = record
+                # self.__installation_tmp_map[patch_id] = record
+                self.__installation_packages.append(record)
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
 
-        self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
-        self.__installation_packages = list(self.__installation_tmp_map.values())
+        # self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
+        # self.__installation_packages = list(self.__installation_tmp_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
@@ -228,14 +235,18 @@ class StatusHandler(object):
             patch_id = self.__get_patch_id(package_name, package_version)
 
             # Match patch_id in map and update existing patch's classification i.e from None -> security
-            if not len(self.__installation_tmp_map) == 0 and patch_id in self.__installation_tmp_map:
-                self.__installation_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
-                classification_matching_package_found = True
+            # if not len(self.__installation_tmp_map) == 0 and patch_id in self.__installation_tmp_map:
+            #     self.__installation_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
+            #     classification_matching_package_found = True
+            for i in range(0, len(self.__installation_packages)):
+                if patch_id == self.__installation_packages[i]['patchId']:
+                    classification_matching_package_found = True
+                    self.__installation_packages[i]['classifications'] = [classification]
 
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
         self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
-        self.__installation_packages = list(self.__installation_tmp_map.values())
+        # self.__installation_packages = list(self.__installation_tmp_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
