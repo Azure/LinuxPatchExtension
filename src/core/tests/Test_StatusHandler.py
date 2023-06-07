@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 import datetime
 import json
+import os
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
@@ -433,7 +434,39 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
+
+    def test_latest_complete_status_file(self):
+        """ Create dummy files in status folder and check if the complete_status_file_path is the latest file and delete those dummy files """
+        file_path = self.runtime.execution_config.status_folder
+        example_file1 = os.path.join(file_path, '123.complete.status')
+        example_file2 = os.path.join(file_path, '124.complete.status')
+        example_file3 = os.path.join(file_path, '125.complete.status')
+
+        with open(example_file1, 'w') as f:
+            f.write("file1")
+        with open(example_file2, 'w') as f:
+            f.write("file2")
+        with open(example_file3, 'w') as f:
+            f.write("file3")
+
+        # self.runtime.status_handler.load_status_file_components(initial_load=True)
+        self.runtime.execution_config.operation = Constants.ASSESSMENT
+        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+
+        test_value = 50
+        test_packages, test_package_versions = self.__set_up_packages_func(test_value)
+        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        self.runtime.status_handler.load_status_file_components(initial_load=True)
+
+        self.assertFalse(os.path.isfile(example_file1))
+        self.assertFalse(os.path.isfile(example_file2))
+        self.assertFalse(os.path.isfile(example_file3))
+        self.assertTrue(os.path.isfile(self.runtime.execution_config.complete_status_file_path))
+
     def test_write_truncated_status_file_assessment_under_size_limit(self):
+        """ Test the truncation logic will not apply to assessment when it is under the size limit """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
