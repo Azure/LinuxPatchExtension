@@ -601,6 +601,9 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
         # Verify the complete status file exists - if not, reset complete status file
+        if os.path.isdir(self.complete_status_file_path):
+            self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+            shutil.rmtree(self.complete_status_file_path)
         if not os.path.exists(self.complete_status_file_path) and initial_load:
             self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()

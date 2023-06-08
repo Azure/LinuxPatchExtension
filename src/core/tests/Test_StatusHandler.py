@@ -16,7 +16,12 @@
 import datetime
 import json
 import os
+import shutil
 import unittest
+try:
+    from unittest.mock import patch, MagicMock
+except ImportError:
+    from mock import patch, MagicMock
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -462,6 +467,20 @@ class TestStatusHandler(unittest.TestCase):
         self.assertFalse(os.path.isfile(example_file2))
         self.assertFalse(os.path.isfile(example_file3))
         self.assertTrue(os.path.isfile(self.runtime.execution_config.complete_status_file_path))
+
+    @patch("os.path.isdir")
+    @patch("shutil.rmtree")
+    def test_if_complete_status_path_is_dir(self, mock_rmtree, mock_isdir):
+        mock_isdir.return_value = True
+        mock_logger = MagicMock()
+        self.runtime.composite_logger = mock_logger
+        self.runtime.execution_config.complete_status_file_path = self.runtime.execution_config.status_folder
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
+        status_handler.load_status_file_components(initial_load=True)
+
+        mock_isdir.assert_called_with(status_handler.complete_status_file_path)
+        mock_logger.log_error.assert_called_with("Core state file path returned a directory. Attempting to reset.")
+        mock_rmtree.assert_called_with(status_handler.complete_status_file_path)
 
     def test_ordered_map(self):
         self.runtime.execution_config.operation = Constants.INSTALLATION
