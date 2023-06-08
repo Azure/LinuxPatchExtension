@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 
+import glob
 import json
 import os
 import re
@@ -30,7 +31,8 @@ class StatusHandler(object):
         self.env_layer = env_layer
         self.execution_config = execution_config
         self.composite_logger = composite_logger
-        self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
+        self.telemetry_writer = telemetry_writer  # not used immediately but need to know if there are issues persisting status
+        self.complete_status_file_path = self.execution_config.complete_status_file_path
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
         self.vm_cloud_type = vm_cloud_type
@@ -46,6 +48,7 @@ class StatusHandler(object):
         self.__installation_total_error_count = 0  # All errors during install, includes errors not in error objects due to size limit
         self.__maintenance_window_exceeded = False
         self.__installation_reboot_status = Constants.RebootStatus.NOT_NEEDED
+        self.__truncated_installation_patches = []
 
         # Internal in-memory representation of Patch Assessment data
         self.__assessment_substatus_json = None
@@ -67,6 +70,10 @@ class StatusHandler(object):
         self.__configure_patching_top_level_error_count = 0  # All errors during configure patching (excluding auto-assessment), includes errors not in error objects due to size limit
         self.__configure_patching_auto_assessment_errors = []
         self.__configure_patching_auto_assessment_error_count = 0  # All errors relating to auto-assessment configuration.
+
+        # Internal in-memory representation of Truncated Patching data
+        self.__truncated_patches = []
+        self.__assessment_tmp_map = {}
 
         # Load the currently persisted status file into memory
         self.load_status_file_components(initial_load=True)
@@ -101,6 +108,8 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0
+        self.__truncated_patches = []
+        self.__assessment_tmp_map = {}
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
@@ -108,11 +117,11 @@ class StatusHandler(object):
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
-            for i in range(0, len(self.__assessment_packages)):
-                if patch_id == self.__assessment_packages[i]['patchId']:
-                    patch_already_saved = True
-                    self.__assessment_packages[i]['classifications'] = [classification]
-                    # self.__assessment_packages[i]['patchState'] = status
+
+            # Match patch_id in map and update existing patch's classification i.e from other -> security
+            if len(self.__assessment_tmp_map) > 0 and patch_id in self.__assessment_tmp_map:
+                self.__assessment_tmp_map.setdefault(patch_id, {})['classifications'] = [classification]
+                patch_already_saved = True
 
             if patch_already_saved is False:
                 record = {
@@ -122,8 +131,10 @@ class StatusHandler(object):
                     "classifications": [classification]
                     # "patchState": str(status) # Allows for capturing 'Installed' packages in addition to 'Available', when commented out, if spec changes
                 }
-                self.__assessment_packages.append(record)
+                # Add new patch to map
+                self.__assessment_tmp_map[patch_id] = record
 
+        self.__assessment_packages = list(self.__assessment_tmp_map.values())
         self.__assessment_packages = self.sort_packages_by_classification_and_state(self.__assessment_packages)
         self.set_assessment_substatus_json()
 
@@ -310,8 +321,8 @@ class StatusHandler(object):
         # Wrap assessment summary into assessment substatus
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update status complete on disk
+        self.__write_complete_status_file()
 
     def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
@@ -359,8 +370,8 @@ class StatusHandler(object):
         # Wrap deployment summary into installation substatus
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update complete status on disk
+        self.__write_complete_status_file()
 
     def __new_installation_summary_json(self, installation_packages_json):
         """ Called by: set_installation_substatus_json
@@ -421,8 +432,8 @@ class StatusHandler(object):
         # Wrap healthstore summary into healthstore substatus
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update status complete on disk
+        self.__write_complete_status_file()
 
         # wait period required in cases where we need to ensure HealthStore reads the status from GA
         if wait_after_update:
@@ -454,8 +465,8 @@ class StatusHandler(object):
         # Wrap configure patching summary into configure patching substatus
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update status complete on disk
+        self.__write_complete_status_file()
 
     def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
@@ -495,6 +506,9 @@ class StatusHandler(object):
 
     # region - Status generation
     def __reset_status_file(self):
+        # Create complete status template
+        self.env_layer.file_system.write_with_retry(self.complete_status_file_path, '[{0}]'.format(json.dumps(self.__new_basic_status_json())), mode='w+')
+        # Create status template
         self.env_layer.file_system.write_with_retry(self.status_file_path, '[{0}]'.format(json.dumps(self.__new_basic_status_json())), mode='w+')
 
     def __new_basic_status_json(self):
@@ -551,23 +565,19 @@ class StatusHandler(object):
 
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
-        # Verify the status file exists - if not, reset status file
-        if not os.path.exists(self.status_file_path) and initial_load:
+        # Verify the complete status file exists - if not, reset complete status file
+        if os.path.isdir(self.complete_status_file_path):
+            self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+            shutil.rmtree(self.complete_status_file_path)
+        if not os.path.exists(self.complete_status_file_path) and initial_load:
             self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()
             return
 
-        # Read the status file - raise exception on persistent failure
-        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
-            try:
-                with self.env_layer.file_system.open(self.status_file_path, 'r') as file_handle:
-                    status_file_data_raw = json.load(file_handle)[0]    # structure is array of 1
-            except Exception as error:
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    time.sleep(i + 1)
-                else:
-                    self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
-                    raise
+        # Read the complete status file - raise exception on persistent failure
+        # Remove old complete status files and retain latest version
+        latest_complete_status_file_path = self.__get_latest_complete_status_file_path(self.execution_config.status_folder)
+        status_file_data_raw = self.__read_complete_status_file_raw_data(latest_complete_status_file_path)
 
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
         try:
@@ -623,7 +633,7 @@ class StatusHandler(object):
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
-    def __write_status_file(self):
+    def __write_complete_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
             This is usually the final call to compose and persist after an in-memory data update in a specialized method.
             Pseudo-composition (including steps prior):
@@ -666,11 +676,15 @@ class StatusHandler(object):
             status_file_payload['status']['substatus'].append(self.__metadata_for_healthstore_substatus_json)
         if self.__configure_patching_substatus_json is not None:
             status_file_payload['status']['substatus'].append(self.__configure_patching_substatus_json)
-        if os.path.isdir(self.status_file_path):
+        if os.path.isdir(self.complete_status_file_path):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
-            shutil.rmtree(self.status_file_path)
+            shutil.rmtree(self.complete_status_file_path)
 
-        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+        # Write complete status file <seq.no>.complete
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+
+        # Write truncated status file
+        self.__write_truncated_status_file(status_file_payload)
     # endregion
 
     # region - Error objects
@@ -694,12 +708,8 @@ class StatusHandler(object):
         if not message or Constants.ERROR_ADDED_TO_STATUS in message:
             return
 
-        formatted_message = self.__ensure_error_message_restriction_compliance(message)
         # Compose error detail
-        error_detail = {
-            "code": str(error_code),
-            "message": str(formatted_message)
-        }
+        error_detail = self.__set_error_detail(error_code, message)
 
         # determine if a current operation override has been requested
         current_operation = self.__current_operation if current_operation_override_for_error == Constants.DEFAULT_UNSPECIFIED_VALUE else current_operation_override_for_error
@@ -776,5 +786,195 @@ class StatusHandler(object):
             "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
             "details": errors_by_operation,
             "message": message
+        }
+
+    def __set_error_detail(self, error_code, message):
+        formatted_message = self.__ensure_error_message_restriction_compliance(message)
+        return {
+            "code": str(error_code),
+            "message": str(formatted_message)
+        }
+    # endregion
+
+    # region - Patch Truncation
+    def get_truncated_patches(self):
+        return self.__truncated_patches
+
+    def __write_truncated_status_file(self, status_file_payload):
+        """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
+        complete_status_byte_size = self.__get_byte_size(status_file_payload)
+        truncated_status_file = status_file_payload
+
+        if complete_status_byte_size > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES:
+
+            self.composite_logger.log("Begin Truncation")
+            assessment_name = self.__assessment_substatus_json['name']
+            assessment_patch = self.__assessment_packages
+            errors_detail_list = []
+
+            # Truncated assessment patch when operation is not installation
+            if self.execution_config.operation != Constants.INSTALLATION.lower() and assessment_name == Constants.PATCH_ASSESSMENT_SUMMARY and len(assessment_patch) > 0:
+                # Perform assessment truncation
+                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)
+
+                # self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
+                # json.dumps(__assessment_summary_json) happens in multiple calls that creates escape \ for ", \ is an extra byte in the status file. it's unnecssary to perform json.dumps every time
+                # removing json.dumps will need to remove json.loads part in substatus_file_data["formattedMessage"]["message"] in entire codebase
+                # Reduce assement patch byte by quote size
+                quote_counts = sum(char == '"' for char in json.dumps(assessment_patch))
+
+                if (quote_counts + self.__get_byte_size(assessment_patch) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES):
+                    assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES - quote_counts)
+
+                self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", truncated_packages))
+                self.composite_logger.log("Truncated assessment patches: ", self.__truncated_patches[0])
+
+            # Add assessment tombstone record
+            assessment_patch.append(self.__add_assessment_tombstone_record())
+
+            # Check for existing errors before recompose status file payload
+            code = self.__assessment_summary_json['errors']['code']
+            if code == 0 or code == 2:
+                truncated_status_file = self.__recompose_truncated_status_payload(status_file_payload, assessment_patch, code, errors_detail_list)
+                # Update operation status to warning
+                truncated_status_file['status']['substatus'][0]['status'] = Constants.STATUS_WARNING.lower()
+            else:
+                # code == 1 (Error), add everything in the errors['detail'] to errors_detail_list
+                errors_detail_list.extend(self.__assessment_summary_json['errors']['details'])
+                truncated_status_file = self.__recompose_truncated_status_payload(status_file_payload, assessment_patch, code, errors_detail_list)
+
+            self.composite_logger.log("Complete Truncation")
+
+        # Write to status file
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(truncated_status_file)), mode='w+')
+
+    def __truncate_assessment_helper_func(self, assessment_patches, size_limit):
+        """ Helper function to split patch list into two, then apply truncation """
+        patches_first_half, patches_second_half = (assessment_patches[:Constants.StatusTruncationConfig.MIN_TRUNCATED_PACKAGE_COUNT], assessment_patches[Constants.StatusTruncationConfig.MIN_TRUNCATED_PACKAGE_COUNT:]) if len(assessment_patches) > 5 else (assessment_patches, [])
+        capacity = size_limit - self.__get_byte_size(patches_first_half)
+        new_assessment_list, truncated_packages, _ = self.__apply_truncation(patches_second_half, capacity)
+
+        return patches_first_half + new_assessment_list, truncated_packages
+
+    def __apply_truncation(self, patch_list, size_limit):
+        """ Binary search
+        Instead of checking list[middel_index] >= target, check byte_size(list[:middle_index]),
+        as byte_size[list[:i]] is monotonically increasing, i.e.
+        byte_size[list[:1]] < byte_size[list[:2]] < byte_size[list[:3]] ...
+        return new_patch_list, truncated_packages, and remaining size_limit
+        """
+        left_index = 0
+        right_index = len(patch_list) - 1
+
+        if self.__get_byte_size(patch_list) <= size_limit:
+            return patch_list, [], size_limit - self.__get_byte_size(patch_list)
+        elif self.__get_byte_size(patch_list[0]) > size_limit:
+            return [], patch_list, size_limit
+
+        while left_index < right_index:
+            mid_index = left_index + int((right_index - left_index) / 2)
+            if self.__get_byte_size(patch_list[:mid_index]) >= size_limit:
+                right_index = mid_index
+            else:
+                left_index = mid_index + 1
+
+        new_list = patch_list[:left_index - 1]
+        truncated_packages = patch_list[left_index - 1:]
+        return new_list, truncated_packages, size_limit - self.__get_byte_size(new_list)
+
+    def __read_complete_status_file_raw_data(self, file_path):
+        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
+            try:
+                with self.env_layer.file_system.open(file_path, 'r') as file_handle:
+                    status_file_data_raw = json.load(file_handle)[0]  # structure is array of 1
+            except Exception as error:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    time.sleep(i + 1)
+                else:
+                    self.composite_logger.log_error(
+                        "Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
+                    raise
+        return status_file_data_raw
+
+    def __get_latest_complete_status_file_path(self, status_folder_path):
+        """ Get the latest status complete file and remove other .complete.status files """
+        list_of_files = glob.glob(status_folder_path + '\\' + '*.complete.status')
+        latest_file = max(list_of_files, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
+        self.composite_logger.log("list of complete status files: {0}", list_of_files)
+
+        # Remove older complete.status files
+        for file in list_of_files:
+            if file != latest_file:
+                self.env_layer.file_system.delete_files_from_dir(file, '*.complete.status')
+
+        return os.path.realpath(latest_file)
+
+    def __set_truncated_package_detail(self, name, truncated_packages):
+        return {
+            "name": str.capitalize(name),
+            "truncated_packages": truncated_packages
+        }
+
+    def __get_byte_size(self, val):
+        """ Get the current byte size of val """
+        return len(json.dumps(val).encode("utf-8"))
+
+    def __recompose_truncated_status_payload(self, status_file_payload, new_patches, code, errors_detail_list):
+        """ Recompose complete status file payload with new errors detail list, new errors message, new truncated patches, and Warning status  """
+
+        error_message = Constants.StatusTruncationConfig.TRUNCATION_ERROR_MESSAGE
+        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
+        errors_detail_list.insert(0, truncated_error_detail)
+
+        # Max length of error details is set to 5
+        if len(errors_detail_list) > Constants.STATUS_ERROR_LIMIT:
+            errors_detail_list = errors_detail_list[:Constants.STATUS_ERROR_LIMIT]
+
+        truncated_errors_json = self.__set_truncation_errors_json(code, errors_detail_list)
+
+        # Update operation summary message
+        message = self.__new_truncation_assessment_message(self.__assessment_summary_json, new_patches, truncated_errors_json)
+        status_file_payload['status']['substatus'][0]['formattedMessage']['message'] = json.dumps(message)
+
+        return status_file_payload
+
+    def __new_truncation_assessment_message(self, assessment_message, new_patches, new_error):
+        return {
+            "assessmentActivityId": assessment_message["assessmentActivityId"],
+            "rebootPending": assessment_message["rebootPending"],
+            "criticalAndSecurityPatchCount": assessment_message["criticalAndSecurityPatchCount"],
+            "otherPatchCount": assessment_message["otherPatchCount"],
+            "patches": new_patches,
+            "startTime": assessment_message["startTime"],
+            "lastModifiedTime": assessment_message["lastModifiedTime"],
+            "startedBy": assessment_message["startedBy"],
+            "errors": new_error
+        }
+
+    def __set_truncation_errors_json(self, code, errors_by_operation):
+        """ Compose the error object json to be added in 'errors' in given operation's summary """
+        message = "{0} error/s reported.".format(len(errors_by_operation))
+        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path)
+        return {
+            'code': code if code == 1 else Constants.PatchOperationTopLevelErrorCode.WARNING,
+            'details': errors_by_operation,
+            'message': message
+        }
+
+    def __add_assessment_tombstone_record(self):
+        return {
+            'patchId': 'Truncated patch list record',
+            'name': 'Truncated patch list record',
+            'version': '',
+            'classifications': ['Other']
+        }
+
+    def __add_installation_tombstone_record(self):
+        return {
+            'patchId': 'Truncated Patch List',
+            'name': 'Truncated Patch List',
+            'version': '',
+            'classifications': ['Other'],
+            'patchInstallationState': 'NotSelected'
         }
     # endregion
