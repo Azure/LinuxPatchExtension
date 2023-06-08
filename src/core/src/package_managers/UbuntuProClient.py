@@ -26,7 +26,7 @@ class UbuntuProClient:
         self.ubuntu_pro_client_install_cmd = 'sudo apt-get install ubuntu-advantage-tools -y'
         self.ubuntu_pro_client_security_status_cmd = 'pro security-status --format=json'
         self.security_esm_criteria_strings = ["esm-infra", "esm-apps"]
-        self.ubuntu_pro_client_is_attached = False
+        self.is_ubuntu_pro_client_attached = False
 
     def install_or_update_pro(self):
         """install/update pro(ubuntu-advantage-tools) to the latest version"""
@@ -56,24 +56,24 @@ class UbuntuProClient:
             is_minimum_ubuntu_pro_version_installed = LooseVersion(ubuntu_pro_client_version) >= LooseVersion(Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION)
             if ubuntu_pro_client_version is not None and is_minimum_ubuntu_pro_version_installed:
                 is_ubuntu_pro_client_working = True
-                self.ubuntu_pro_client_is_attached = self.log_ubuntu_pro_client_attached()
+                self.is_ubuntu_pro_client_attached = self.log_ubuntu_pro_client_attached()
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
 
-        self.composite_logger.log_debug("Is Ubuntu Pro Client working debug flags: [Success={0}][UbuntuProClientVersion={1}][UbuntuProClientMinimumVersionInstalled={2}][IsAttached={3}][Error={4}]".format(is_ubuntu_pro_client_working, ubuntu_pro_client_version, is_minimum_ubuntu_pro_version_installed, self.ubuntu_pro_client_is_attached, ubuntu_pro_client_exception))
+        self.composite_logger.log_debug("Is Ubuntu Pro Client working debug flags: [Success={0}][UbuntuProClientVersion={1}][UbuntuProClientMinimumVersionInstalled={2}][IsAttached={3}][Error={4}]".format(is_ubuntu_pro_client_working, ubuntu_pro_client_version, is_minimum_ubuntu_pro_version_installed, self.is_ubuntu_pro_client_attached, ubuntu_pro_client_exception))
         return is_ubuntu_pro_client_working
 
     def log_ubuntu_pro_client_attached(self):
         """log the attachment status of the machine."""
-        ubuntu_pro_client_is_attached = False
+        is_ubuntu_pro_client_attached = False
         try:
             code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_security_status_cmd, False, False)
             if code == 0:
-                ubuntu_pro_client_is_attached = json.loads(output)['summary']['ua']['attached']
+                is_ubuntu_pro_client_attached = json.loads(output)['summary']['ua']['attached']
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
             self.composite_logger.log_debug("Ubuntu Pro Client Attached Exception: [Exception={0}]".format(ubuntu_pro_client_exception))
-        return ubuntu_pro_client_is_attached
+        return is_ubuntu_pro_client_attached
 
     def extract_packages_and_versions(self, updates):
         extracted_updates = []
@@ -81,7 +81,7 @@ class UbuntuProClient:
 
         for update in updates:
             extracted_updates.append(update.package)
-            if not self.ubuntu_pro_client_is_attached and update.provided_by in self.security_esm_criteria_strings:
+            if not self.is_ubuntu_pro_client_attached and update.provided_by in self.security_esm_criteria_strings:
                 extracted_updates_versions.append(Constants.UA_ESM_REQUIRED)
             else:
                 extracted_updates_versions.append(update.version)

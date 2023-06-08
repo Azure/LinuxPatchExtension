@@ -960,10 +960,8 @@ class YumPackageManager(PackageManager):
 
     def set_security_esm_package_status(self, operation):
         """
-        Set the security-ESM classification for the esm packages.
-        Only needed for apt. No-op for yum and zypper.
+        Set the security-ESM classification for the esm packages. Only needed for apt. No-op for yum and zypper.
         """
-
         pass
 
     def filter_out_esm_packages(self, packages, package_versions):

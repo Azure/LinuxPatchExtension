@@ -213,8 +213,8 @@ class TestPatchInstaller(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         # Path change
         runtime.set_legacy_test_type('UA_ESM_Required')
-        backup_package_manager_ubuntu_pro_client_attached = runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached
-        runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached = False
+        backup_package_manager_ubuntu_pro_client_attached = runtime.package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached
+        runtime.package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = False
 
         # esm package should be skipped.
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(
@@ -224,7 +224,7 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
-        runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached = backup_package_manager_ubuntu_pro_client_attached
+        runtime.package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = backup_package_manager_ubuntu_pro_client_attached
         obj.mock_unimport_uaclient_update_module()
         version_obj.mock_unimport_uaclient_version_module()
 
@@ -242,8 +242,8 @@ class TestPatchInstaller(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         # Path change
         runtime.set_legacy_test_type('UA_ESM_Required')
-        backup_package_manager_ubuntu_pro_client_attached = runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached
-        runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached = False
+        backup_package_manager_ubuntu_pro_client_attached = runtime.package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached
+        runtime.package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = False
 
         runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         runtime.patch_installer.mark_installation_completed()
@@ -253,7 +253,7 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertEqual('warning', substatus_file_data[0]['status'])
 
         runtime.stop()
-        runtime.package_manager.ubuntu_pro_client.ubuntu_pro_client_is_attached = backup_package_manager_ubuntu_pro_client_attached
+        runtime.package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = backup_package_manager_ubuntu_pro_client_attached
         obj.mock_unimport_uaclient_update_module()
         version_obj.mock_unimport_uaclient_version_module()
 

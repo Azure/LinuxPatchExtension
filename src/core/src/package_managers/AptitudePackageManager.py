@@ -651,7 +651,7 @@ class AptitudePackageManager(PackageManager):
             if operation == Constants.ASSESSMENT:
                 self.status_handler.set_package_assessment_status(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
                 # If the Ubuntu Pro Client is not attached, set the error with the code UA_ESM_REQUIRED. This will be used in portal to mark the VM as unattached to pro.
-                if not self.ubuntu_pro_client.ubuntu_pro_client_is_attached:
+                if not self.ubuntu_pro_client.is_ubuntu_pro_client_attached:
                     self.status_handler.add_error_to_status("{0} patches requires Ubuntu Pro for Infrastructure with Extended Security Maintenance".format(len(security_esm_updates)), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
             elif operation == Constants.INSTALLATION:
                 self.status_handler.set_package_install_status_classification(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
@@ -700,5 +700,6 @@ class AptitudePackageManager(PackageManager):
             self.status_handler.add_error_to_status("{0} patches requires Ubuntu Pro for Infrastructure with Extended Security Maintenance".format(len(esm_packages)), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED) # Set the error status with the esm_package details. Will be used in portal.
             self.telemetry_writer.write_event("Filter esm packages [EsmPackagesCount={0}]".format(len(esm_packages)), Constants.TelemetryEventLevel.Informational)
 
-        self.composite_logger.log_debug("Filter esm packages : [PackagesCount={0}][EsmPackagesCount={1}]".format(len(packages), len(esm_packages)))
+        self.composite_logger.log_debug("Filter esm packages : [TotalPackagesCount={0}][EsmPackagesCount={1}]".format(len(packages), len(esm_packages)))
         return non_esm_packages, non_esm_package_versions, esm_packages, esm_package_versions, esm_packages_found
+
