@@ -145,7 +145,6 @@ class StatusHandler(object):
             1. Classification: Critical, Security, Other, Unclassified
             2. Patch Installation State: Failed, Installed, Available, Pending, Excluded, NotSelected
         """
-
         def sort_patch_state_key(x):
             # Only for installation result packages
             if "patchInstallationState" in x.keys():

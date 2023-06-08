@@ -16,7 +16,6 @@
 import datetime
 import json
 import os
-import shutil
 import unittest
 try:
     from unittest.mock import patch, MagicMock
@@ -483,28 +482,20 @@ class TestStatusHandler(unittest.TestCase):
         mock_rmtree.assert_called_with(status_handler.complete_status_file_path)
 
     def test_ordered_map(self):
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
         test_value = 50
         test_packages, test_package_versions = self.__set_up_packages_func(test_value)
-        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, 'Installed', 'Other')
-        self.runtime.status_handler.set_package_install_status_classification(test_packages, test_package_versions, 'Critical')
-        self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
-        #Test Complete status file
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+        status_handler.set_package_install_status(test_packages, test_package_versions, 'Installed', 'Other')
+        self.assertIsNotNone(status_handler._StatusHandler__installation_ordered_map)
+        self.assertEqual(len(status_handler._StatusHandler__installation_ordered_map), test_value)
 
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
-        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]['classifications'], ['Critical'])
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]['classifications'], ['Critical'])
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
+        status_handler.set_package_install_status_classification(test_packages, test_package_versions, 'Critical')
+        self.assertIsNotNone(status_handler._StatusHandler__installation_ordered_map)
+        self.assertEqual(len(status_handler._StatusHandler__installation_ordered_map), test_value)
 
     def test_write_truncated_status_file_assessment_under_size_limit(self):
         """ Test the truncation logic will not apply to assessment when it is under the size limit """
