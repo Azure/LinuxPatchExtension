@@ -1129,7 +1129,7 @@ class TestCoreMain(unittest.TestCase):
             self.assertTrue('Core' in events[0]['TaskName'])
             f.close()
 
-    def test_assessment_operation_success_truncation_under_size_limit(self):
+    def test_assessment_operation_success_truncation_under_capacity(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1178,7 +1178,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(runtime.status_handler.get_assessment_truncated_removed()), 0)
         runtime.stop()
 
-    def test_assessment_operation_success_truncation_over_size_limit(self):
+    def test_assessment_operation_success_truncation_over_capacity(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1233,7 +1233,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
         runtime.stop()
 
-    def test_assessment_operation_success_truncation_over_size_limit_with_quotes(self):
+    def test_assessment_operation_success_truncation_over_capacity_with_quotes(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)

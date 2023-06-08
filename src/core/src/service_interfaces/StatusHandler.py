@@ -21,6 +21,7 @@ import re
 import shutil
 import time
 from core.src.bootstrap.Constants import Constants
+from collections import OrderedDict
 
 
 class StatusHandler(object):
@@ -55,7 +56,7 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
-        self.__assessment_packages_map = {}
+        self.__assessment_packages_map = OrderedDict()
         self.__assessment_truncated_removed = []
 
         # Internal in-memory representation of Patch Metadata for HealthStore
@@ -106,7 +107,7 @@ class StatusHandler(object):
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0
         self.__assessment_truncated_removed = []
-        self.__assessment_packages_map = {}
+        self.__assessment_packages_map = OrderedDict()
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
@@ -116,6 +117,8 @@ class StatusHandler(object):
             patch_id = self.__get_patch_id(package_name, package_version)
 
             # Match patch_id in map and update existing patch's classification i.e from other -> security
+            if self.__assessment_packages_map is None:
+                self.__assessment_packages_map = OrderedDict()
             if len(self.__assessment_packages_map) > 0 and patch_id in self.__assessment_packages_map:
                 self.__assessment_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
                 patch_already_saved = True
@@ -552,7 +555,7 @@ class StatusHandler(object):
         self.__assessment_summary_json = None
         self.__assessment_packages = []
         self.__assessment_errors = []
-        self.__assessment_packages_map = {}
+        self.__assessment_packages_map = None
 
         self.__metadata_for_healthstore_substatus_json = None
         self.__metadata_for_healthstore_summary_json = None
@@ -610,7 +613,8 @@ class StatusHandler(object):
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__assessment_summary_json = json.loads(message)
-                self.__assessment_packages = self.__assessment_summary_json['patches']
+                self.__assessment_packages_map = OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
+                self.__assessment_packages = list(self.__assessment_packages_map.values())
                 errors = self.__assessment_summary_json['errors']
                 if errors is not None and errors['details'] is not None:
                     self.__assessment_errors = errors['details']
