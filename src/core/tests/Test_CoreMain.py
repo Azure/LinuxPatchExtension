@@ -685,7 +685,6 @@ class TestCoreMain(unittest.TestCase):
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
-
         runtime.stop()
 
     # test with both assessment mode and patch mode set in configure patching or install patches or assess patches or auto assessment
@@ -747,7 +746,6 @@ class TestCoreMain(unittest.TestCase):
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
-
         runtime.stop()
 
     def test_auto_assessment_success_with_assessment_in_prev_operation_on_same_sequence(self):
@@ -813,7 +811,6 @@ class TestCoreMain(unittest.TestCase):
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
-
         runtime.stop()
 
     def test_auto_assessment_success_with_installation_in_prev_operation_on_same_sequence(self):
@@ -894,7 +891,6 @@ class TestCoreMain(unittest.TestCase):
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
-
         runtime.stop()
 
     def test_assessment_operation_fail_after_package_manager_reboot(self):
@@ -1029,7 +1025,6 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED in substatus_file_data[0]["formattedMessage"]["message"])
-
         runtime.stop()
 
     def test_temp_folder_created_during_execution_config_init(self):
@@ -1162,7 +1157,7 @@ class TestCoreMain(unittest.TestCase):
         substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value + 3)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
 
@@ -1171,7 +1166,7 @@ class TestCoreMain(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
 
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertNotEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value + 3)
         status_file_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
@@ -1181,7 +1176,6 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
         self.assertFalse("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
         self.assertEqual(len(runtime.status_handler.get_truncated_patches()), 0)
-
         runtime.stop()
 
     def test_assessment_operation_success_truncation_over_size_limit(self):
@@ -1212,7 +1206,7 @@ class TestCoreMain(unittest.TestCase):
         substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         print('what is length', len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]))
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value + 3)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
@@ -1223,7 +1217,7 @@ class TestCoreMain(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertTrue(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]) < test_value + 3)
 
         tombstone_record = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
@@ -1238,7 +1232,6 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], "TRUNCATION")
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-
         runtime.stop()
 
     def test_assessment_operation_success_truncation_over_size_limit_with_quotes(self):
@@ -1269,7 +1262,7 @@ class TestCoreMain(unittest.TestCase):
         substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         print('what is length', len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]))
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value + 3)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
@@ -1280,7 +1273,7 @@ class TestCoreMain(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.MAX_STATUS_FILE_SIZE_IN_BYTES)
+        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertTrue(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]) < test_value + 3)
 
         tombstone_record = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
@@ -1295,7 +1288,6 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], "TRUNCATION")
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-
         runtime.stop()
 
     def __set_up_packages_func(self, val):

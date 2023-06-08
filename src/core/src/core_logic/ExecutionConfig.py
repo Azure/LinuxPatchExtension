@@ -69,7 +69,7 @@ class ExecutionConfig(object):
 
         # Accommodation for bugs in higher-level components where 'Security' is being selected without selecting 'Critical' - should be rolled back no later than Jan 2022
         if self.included_classifications_list is not None and ('Security' in self.included_classifications_list and 'Critical' not in self.included_classifications_list):
-            self.composite_logger.log_debug("The included_classifications_list was corrected to include 'Critical' ""when 'Security' was specified.")
+            self.composite_logger.log_debug("The included_classifications_list was corrected to include 'Critical' when 'Security' was specified.")
             self.included_classifications_list = ['Critical'] + self.included_classifications_list
 
         # Derived Settings
@@ -77,7 +77,7 @@ class ExecutionConfig(object):
         self.complete_status_file_path = os.path.join(self.status_folder, str(self.sequence_number) + ".complete" + ".status")
         self.status_file_path = os.path.join(self.status_folder, str(self.sequence_number) + ".status")
         self.include_assessment_with_configure_patching = (self.operation == Constants.CONFIGURE_PATCHING and self.assessment_mode == Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM)
-        self.composite_logger.log_debug("- Derived execution-config settings. [CoreLog={0}][StatusCompleteFile={1}][StatusFile={2}][IncludeAssessmentWithConfigurePatching={3}]".format(str(self.log_file_path), str(self.complete_status_file_path), str(self.status_file_path), self.include_assessment_with_configure_patching))
+        self.composite_logger.log_debug("- Derived execution-config settings. [CoreLog={0}][CompleteStatusFile={1}][StatusFile={2}][IncludeAssessmentWithConfigurePatching={3}]".format(str(self.log_file_path), str(self.complete_status_file_path), str(self.status_file_path), self.include_assessment_with_configure_patching))
 
         # Auto assessment overrides
         if self.exec_auto_assess_only:

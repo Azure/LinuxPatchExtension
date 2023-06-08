@@ -14,12 +14,12 @@
 #
 # Requires Python 2.7+
 
+import glob
 import json
 import os
 import re
 import shutil
 import time
-import glob
 from core.src.bootstrap.Constants import Constants
 
 
@@ -335,7 +335,7 @@ class StatusHandler(object):
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
         # Update status complete on disk
-        self.__write_status_complete_file()
+        self.__write_complete_status_file()
 
     def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
@@ -385,7 +385,7 @@ class StatusHandler(object):
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
         # Update complete status on disk
-        self.__write_status_complete_file()
+        self.__write_complete_status_file()
 
     def __new_installation_summary_json(self, installation_packages_json):
         """ Called by: set_installation_substatus_json
@@ -448,7 +448,7 @@ class StatusHandler(object):
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Update status complete on disk
-        self.__write_status_complete_file()
+        self.__write_complete_status_file()
 
         # wait period required in cases where we need to ensure HealthStore reads the status from GA
         if wait_after_update:
@@ -479,7 +479,7 @@ class StatusHandler(object):
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
         # Update status complete on disk
-        self.__write_status_complete_file()
+        self.__write_complete_status_file()
 
     def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
@@ -512,7 +512,7 @@ class StatusHandler(object):
             "code": code,
             "formattedMessage": {
                 "lang": "en-US",
-                "message": message
+                "message": str(message)
             }
         }
 
@@ -580,6 +580,9 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
         # Verify the complete status file exists - if not, reset complete status file
+        if os.path.isdir(self.complete_status_file_path):
+            self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+            shutil.rmtree(self.complete_status_file_path)
         if not os.path.exists(self.complete_status_file_path) and initial_load:
             self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()
@@ -644,7 +647,7 @@ class StatusHandler(object):
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
-    def __write_status_complete_file(self):
+    def __write_complete_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
             This is usually the final call to compose and persist after an in-memory data update in a specialized method.
 
@@ -821,7 +824,7 @@ class StatusHandler(object):
         complete_status_byte_size = self.__get_byte_size(status_file_payload)
         truncated_status_file = status_file_payload
 
-        if complete_status_byte_size > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES:
+        if complete_status_byte_size > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES:
 
             self.composite_logger.log("Begin Truncation")
             assessment_name = self.__assessment_substatus_json['name']
@@ -831,7 +834,7 @@ class StatusHandler(object):
             # Truncated assessment patch when operation is not installation
             if self.execution_config.operation != Constants.INSTALLATION.lower() and assessment_name == Constants.PATCH_ASSESSMENT_SUMMARY and len(assessment_patch) > 0:
                 # Perform assessment truncation
-                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+                assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)
 
                 # self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
                 # json.dumps(__assessment_summary_json) happens in multiple calls that creates escape \ for ", \ is an extra byte in the status file. it's unnecssary to perform json.dumps every time
@@ -839,8 +842,8 @@ class StatusHandler(object):
                 # Reduce assement patch byte by quote size
                 quote_counts = sum(char == '"' for char in json.dumps(assessment_patch))
 
-                if (quote_counts + self.__get_byte_size(assessment_patch) > Constants.MAX_STATUS_FILE_SIZE_IN_BYTES):
-                    assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.STATUS_FILE_SIZE_LIMIT_IN_BYTES - quote_counts)
+                if (quote_counts + self.__get_byte_size(assessment_patch) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES):
+                    assessment_patch, truncated_packages = self.__truncate_assessment_helper_func(assessment_patch, Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES - quote_counts)
 
                 self.__truncated_patches.append(self.__set_truncated_package_detail("Assessment", truncated_packages))
                 self.composite_logger.log("Truncated assessment patches: ", self.__truncated_patches[0])
@@ -865,13 +868,9 @@ class StatusHandler(object):
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(truncated_status_file)), mode='w+')
 
     def __truncate_assessment_helper_func(self, assessment_patches, size_limit):
-        patches_first_half, patches_second_half = (assessment_patches[:5], assessment_patches[5:]) if len(assessment_patches) > 5 else (assessment_patches, [])
-
+        """ Helper function to split patch list into two, then apply truncation """
+        patches_first_half, patches_second_half = (assessment_patches[:Constants.StatusTruncationConfig.MIN_TRUNCATED_PACKAGE_COUNT], assessment_patches[Constants.StatusTruncationConfig.MIN_TRUNCATED_PACKAGE_COUNT:]) if len(assessment_patches) > 5 else (assessment_patches, [])
         capacity = size_limit - self.__get_byte_size(patches_first_half)
-
-        # Check if the first 5 elements in the list are greater than the size limit
-        assert capacity >= 0, "There are element(s) greater than the size limit"
-
         new_assessment_list, truncated_packages, _ = self.__apply_truncation(patches_second_half, capacity)
 
         return patches_first_half + new_assessment_list, truncated_packages
@@ -942,14 +941,13 @@ class StatusHandler(object):
     def __recompose_truncated_status_payload(self, status_file_payload, new_patches, code, errors_detail_list):
         """ Recompose complete status file payload with new errors detail list, new errors message, new truncated patches, and Warning status  """
 
-        error_message = "Results were truncated because too many patches were present, Check log for truncated packages"
-
+        error_message = Constants.StatusTruncationConfig.TRUNCATION_ERROR_MESSAGE
         truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
         errors_detail_list.insert(0, truncated_error_detail)
 
         # Max length of error details is set to 5
-        if len(errors_detail_list) > 5:
-            errors_detail_list = errors_detail_list[:5]
+        if len(errors_detail_list) > Constants.STATUS_ERROR_LIMIT:
+            errors_detail_list = errors_detail_list[:Constants.STATUS_ERROR_LIMIT]
 
         truncated_errors_json = self.__set_truncation_errors_json(code, errors_detail_list)
 
