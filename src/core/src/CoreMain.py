@@ -101,6 +101,8 @@ class CoreMain(object):
                     patch_installer.mark_installation_completed()
                     overall_patch_installation_operation_successful = True
                 self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger)
+            if not len(status_handler.get_assessment_truncated_removed()) == 0:
+                self.composite_logger.log_debug("Assessment truncated removed packages : {0}".format(status_handler.get_assessment_truncated_removed()))
 
         except Exception as error:
             # Privileged operation handling for non-production use
