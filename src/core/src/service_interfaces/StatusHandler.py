@@ -116,9 +116,10 @@ class StatusHandler(object):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
 
-            # Match patch_id in map and update existing patch's classification i.e from other -> security
+            # Lazy initialization, getting None when initialize in __init__
             if self.__assessment_packages_map is None:
                 self.__assessment_packages_map = OrderedDict()
+            # Match patch_id in map and update existing patch's classification i.e from other -> security
             if len(self.__assessment_packages_map) > 0 and patch_id in self.__assessment_packages_map:
                 self.__assessment_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
                 patch_already_saved = True
@@ -613,6 +614,7 @@ class StatusHandler(object):
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__assessment_summary_json = json.loads(message)
+                # Reload patches into assessment ordered map for fast look up
                 self.__assessment_packages_map = OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
                 errors = self.__assessment_summary_json['errors']
