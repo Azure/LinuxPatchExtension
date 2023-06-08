@@ -87,55 +87,46 @@ class UbuntuProClient:
                 extracted_updates_versions.append(update.version)
         return extracted_updates, extracted_updates_versions
 
-    def get_security_updates(self):
-        """query Ubuntu Pro Client to get security updates."""
-        security_updates_query_success = False
-        security_updates = []
-        security_updates_versions = []
-        security_updates_exception = None
+    def get_filtered_updates(self, filter_criteria):
+        """query Ubuntu Pro Client to get filtered updates."""
+        updates_query_success = False
+        updates = []
+        versions = []
+        updates_exception = None
         try:
             ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
-            security_updates_query_success = True
-            security_criteria_string = ["standard-security"]
-            filtered_security_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in security_criteria_string]
-            security_updates, security_updates_versions = self.extract_packages_and_versions(filtered_security_updates)
+            updates_query_success = True
+            if len(filter_criteria) > 0:  # Filter the updates only when the criteria strings are passed.
+                filtered_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in filter_criteria]
+            else:
+                filtered_updates = ubuntu_pro_client_updates
+            updates, versions = self.extract_packages_and_versions(filtered_updates)
         except Exception as error:
-            security_updates_exception = repr(error)
+            updates_exception = repr(error)
+
+        return updates_query_success, updates_exception, updates, versions
+
+    def get_security_updates(self):
+        """query Ubuntu Pro Client to get security updates."""
+        security_criteria = ["standard-security"]
+        security_updates_query_success, security_updates_exception, security_updates, security_updates_versions = self.get_filtered_updates(security_criteria)
 
         self.composite_logger.log_debug("Ubuntu Pro Client get security updates : [SecurityUpdatesCount={0}][error={1}]".format(len(security_updates), security_updates_exception))
         return security_updates_query_success, security_updates, security_updates_versions
 
     def get_security_esm_updates(self):
         """query Ubuntu Pro Client to get security-esm updates."""
-        security_esm_updates_query_success = False
-        security_esm_updates = []
-        security_esm_updates_versions = []
-        security_esm_updates_exception = None
-        try:
-            ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
-            security_esm_updates_query_success = True
-            filtered_security_esm_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in self.security_esm_criteria_strings]
-            security_esm_updates, security_esm_updates_versions = self.extract_packages_and_versions(filtered_security_esm_updates)
-        except Exception as error:
-            security_esm_updates_exception = repr(error)
+        security_esm_updates_query_success, security_esm_updates_exception, security_esm_updates, security_esm_updates_versions = self.get_filtered_updates(self.security_esm_criteria_strings)
 
         self.composite_logger.log_debug("Ubuntu Pro Client get security-esm updates : [SecurityEsmUpdatesCount={0}][error={1}]".format(len(security_esm_updates),security_esm_updates_exception))
         return security_esm_updates_query_success, security_esm_updates, security_esm_updates_versions
 
     def get_all_updates(self):
         """query Ubuntu Pro Client to get all updates."""
-        all_updates_query_success = False
-        all_updates = []
-        all_updates_versions = []
-        all_update_exception = None
-        try:
-            ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
-            all_updates_query_success = True
-            all_updates, all_updates_versions = self.extract_packages_and_versions(ubuntu_pro_client_updates)
-        except Exception as error:
-            all_update_exception = repr(error)
+        filter_criteria = []
+        all_updates_query_success, all_updates_exception, all_updates, all_updates_versions = self.get_filtered_updates(filter_criteria)
 
-        self.composite_logger.log_debug("Ubuntu Pro Client get all updates: [AllUpdatesCount={0}][error={1}]".format(len(all_updates), all_update_exception))
+        self.composite_logger.log_debug("Ubuntu Pro Client get all updates: [AllUpdatesCount={0}][error={1}]".format(len(all_updates), all_updates_exception))
         return all_updates_query_success, all_updates, all_updates_versions
 
     def get_ubuntu_pro_client_updates(self):
@@ -144,18 +135,8 @@ class UbuntuProClient:
 
     def get_other_updates(self):
         """query Ubuntu Pro Client to get other updates."""
-        other_updates_query_success = False
-        other_updates = []
-        other_updates_versions = []
-        other_update_exception = None
-        try:
-            ubuntu_pro_client_updates = self.get_ubuntu_pro_client_updates()
-            other_updates_query_success = True
-            other_criteria_strings = ["standard-updates"]
-            filtered_other_updates = [update for update in ubuntu_pro_client_updates if update.provided_by in other_criteria_strings]
-            other_updates, other_updates_versions = self.extract_packages_and_versions(filtered_other_updates)
-        except Exception as error:
-            other_update_exception = repr(error)
+        other_criteria = ["standard-updates"]
+        other_updates_query_success, other_update_exception, other_updates, other_updates_versions = self.get_filtered_updates(other_criteria)
 
         self.composite_logger.log_debug("Ubuntu Pro Client get other updates: [OtherUpdatesCount={0}][error = {1}]".format(len(other_updates), other_update_exception))
         return other_updates_query_success, other_updates, other_updates_versions

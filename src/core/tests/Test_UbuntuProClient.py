@@ -51,7 +51,7 @@ class MockVersionResult(MockSystemModules):
     def mock_version(self):
         return MockVersionResult()
 
-    def mock_version_to_version_below_minimum_version(self):
+    def mock_to_below_minimum_version(self):
         return MockVersionResult('27.13.4~18.04.1')
 
     def mock_version_raise_exception(self):
@@ -187,7 +187,7 @@ class TestUbuntuProClient(unittest.TestCase):
 
     def test_is_pro_working_failure_when_minimum_version_required_is_false(self):
         obj = MockVersionResult()
-        obj.mock_import_uaclient_version_module('version', 'mock_version_to_version_below_minimum_version')
+        obj.mock_import_uaclient_version_module('version', 'mock_to_below_minimum_version')
 
         package_manager = self.container.get('package_manager')
         self.assertFalse(package_manager.ubuntu_pro_client.is_pro_working())
