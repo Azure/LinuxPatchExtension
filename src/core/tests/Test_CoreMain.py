@@ -1144,8 +1144,8 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
         # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
         # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
-        test_value = 432
-        test_packages, test_package_versions = self.__set_up_packages_func(test_value)
+        patch_count_for_test = 432
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test )
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
@@ -1158,7 +1158,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
         self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value + 3)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test  + 3)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
 
         # Test Truncated status file
@@ -1168,7 +1168,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertNotEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value + 3)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test  + 3)
         status_file_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
         self.assertNotEqual(status_file_patches[len(status_file_patches) - 1]['patchId'], "Truncated patch list record")
         self.assertNotEqual(status_file_patches[len(status_file_patches) - 1]['name'], "Truncated patch list record")
@@ -1193,8 +1193,8 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
         # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
-        test_value = 997
-        test_packages, test_package_versions = self.__set_up_packages_func(test_value)
+        patch_count_for_test = 997
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test )
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
@@ -1207,7 +1207,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
         self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value + 3)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test  + 3)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
 
         # Test Truncated status file
@@ -1217,7 +1217,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
         self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         truncated_patches = len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"])
-        self.assertTrue(truncated_patches < test_value + 3)
+        self.assertTrue(truncated_patches < patch_count_for_test  + 3)
 
         tombstone_record = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
         self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
@@ -1248,8 +1248,8 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
         # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
-        test_value = 99997
-        test_packages, test_package_versions = self.__set_up_packages_func(test_value)
+        patch_count_for_test = 99997
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test )
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
@@ -1263,7 +1263,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
         self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         print('what is length', len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]))
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), test_value + 3)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test  + 3)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
 
         # Test Truncated status file
@@ -1273,7 +1273,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
         self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertTrue(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]) < test_value + 3)
+        self.assertTrue(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]) < patch_count_for_test  + 3)
 
         tombstone_record = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
         self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
