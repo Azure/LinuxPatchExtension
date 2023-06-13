@@ -804,8 +804,11 @@ class StatusHandler(object):
     # endregion
 
     # region - Patch Truncation
-    def get_assessment_truncated_removed(self):
-        return self.__assessment_truncated_removed
+    def log_truncated_removed_packages_if_any(self):
+        if not len(self.__assessment_truncated_removed) == 0:
+            self.composite_logger.log_debug("Assessment truncated removed packages : {0}".format(self.__assessment_truncated_removed))
+            return True
+        return False
 
     def __write_truncated_status_file(self, status_file_payload):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """

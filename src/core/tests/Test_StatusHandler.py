@@ -449,7 +449,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test )
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         status_handler.set_package_assessment_status(test_packages, test_package_versions, 'Critical')
         self.assertIsNotNone(status_handler._StatusHandler__assessment_packages_map)
         self.assertEqual(status_handler._StatusHandler__assessment_packages_map[patch_id], expected_value)
@@ -541,7 +541,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 0)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
         self.assertFalse("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-        self.assertEqual(len(self.runtime.status_handler.get_assessment_truncated_removed()), 0)
+        self.assertEqual(len(self.runtime.status_handler._StatusHandler__assessment_truncated_removed), 0)
 
     def test_write_truncated_status_file_over_capacity(self):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
@@ -578,7 +578,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
-        truncated_patches_removed_removed = self.runtime.status_handler.get_assessment_truncated_removed()
+        truncated_patches_removed_removed = self.runtime.status_handler._StatusHandler__assessment_truncated_removed
         self.assertEqual(len(truncated_patches_removed_removed[0]["truncated_packages"]), patch_count_for_test + 1 - truncated_packages)   # Extra 1 is tombstone
         self.assertEqual(truncated_patches_removed_removed[0]["name"], "Assessment")
 
@@ -622,7 +622,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
-        truncated_patches_removed_removed = self.runtime.status_handler.get_assessment_truncated_removed()
+        truncated_patches_removed_removed = self.runtime.status_handler._StatusHandler__assessment_truncated_removed
         self.assertEqual(len(truncated_patches_removed_removed[0]["truncated_packages"]), patch_count_for_test + 1 - truncated_packages)   # Extra 1 is tombstone
         self.assertEqual(truncated_patches_removed_removed[0]["name"], "Assessment")
 
@@ -680,7 +680,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
-        truncated_patches_removed = self.runtime.status_handler.get_assessment_truncated_removed()
+        truncated_patches_removed = self.runtime.status_handler._StatusHandler__assessment_truncated_removed
         self.assertTrue(len(truncated_patches_removed[0]["truncated_packages"]) > 0)
         self.assertEqual(truncated_patches_removed[0]["name"], "Assessment")
 
