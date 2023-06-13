@@ -811,11 +811,11 @@ class StatusHandler(object):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
         complete_status_byte_size = self.__get_byte_size(status_file_payload)
         truncated_status_file = status_file_payload
+        tombstone_truncated_map = {}
 
         if complete_status_byte_size > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES:
             self.composite_logger.log_debug("Begin Truncation")
             errors_detail_list = []
-            tombstone_truncated_map = {}
 
             # Truncated assessment patch when operation is not installation
             if self.execution_config.operation != Constants.INSTALLATION and len(self.__assessment_packages) > 0:
@@ -833,13 +833,13 @@ class StatusHandler(object):
 
             # Populate tombstone classifications map
             for package in truncated_packages_removed:
-                classifications = package['classifications']
+                classifications = package['classifications'][0]
                 tombstone_truncated_map[classifications] = tombstone_truncated_map.get(classifications, 0) + 1
 
             # Add assessment tombstone record per classification except unclassified
-            for tombstone_classification, tombstone_package_count in tombstone_truncated_map:
+            for tombstone_classification, tombstone_package_count in tombstone_truncated_map.items():
                 if not tombstone_classification == Constants.PackageClassification.UNCLASSIFIED:
-                    assessment_truncated_packages.append(self.__add_assessment_tombstone_record(tombstone_classification, tombstone_package_count))
+                    assessment_truncated_packages.append(self.__add_assessment_tombstone_record(tombstone_package_count, tombstone_classification))
 
             # Check for existing errors before recompose status file payload
             code = self.__assessment_summary_json['errors']['code']
@@ -972,16 +972,16 @@ class StatusHandler(object):
             'message': message
         }
 
-    def __add_assessment_tombstone_record(self, tombstone_classification, tombstone_packages_count):
+    def __add_assessment_tombstone_record(self, tombstone_packages_count, tombstone_classification):
         """ Tombstone record for truncated assessment
             Classification: “Critical, Security, Other”
             Patch Name: “20 additional updates of classification ‘Classification’ reported.”
         """
-        tombstone_name = str(tombstone_packages_count) + 'additional updates of classification' + tombstone_classification + 'reported',
+        tombstone_name = str(tombstone_packages_count) + ' additional updates of classification ' + tombstone_classification + ' reported',
         return {
             'patchId': 'Truncated_patch_list_id',
             'name': tombstone_name,
             'version': '',
-            'classifications': str([tombstone_classification])
+            'classifications': [tombstone_classification]
         }
     # endregion

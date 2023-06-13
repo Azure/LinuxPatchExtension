@@ -1194,8 +1194,8 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
         patch_count_for_test = 997
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test )
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Critical")
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
         # Test Complete status file
@@ -1217,14 +1217,14 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
         self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         truncated_patches_removed = len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"])
-        self.assertTrue(truncated_patches_removed < patch_count_for_test  + 3)
+        self.assertTrue(truncated_patches_removed < patch_count_for_test + 3)
 
         tombstone_record = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['name'], "Truncated patch list record")
+        self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
+        self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
         truncated_patches_removed_removed = runtime.status_handler.get_assessment_truncated_removed()
-        self.assertEqual(len(truncated_patches_removed_removed[0]["truncated_packages"]), 1001 - truncated_patches_removed)
+        self.assertEqual(len(truncated_patches_removed_removed[0]["truncated_packages"]), 1003 - truncated_patches_removed)  # Extra is the tombstones
         self.assertEqual(truncated_patches_removed_removed[0]["name"], "Assessment")
 
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 2)
@@ -1249,8 +1249,8 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
         patch_count_for_test = 99997
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test )
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Security")
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
         # Test Complete status file
@@ -1274,8 +1274,8 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]) < patch_count_for_test + 3)
 
         tombstone_record = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['name'], "Truncated patch list record")
+        self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
+        self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
         truncated_patches_removed = runtime.status_handler.get_assessment_truncated_removed()
         self.assertTrue(len(truncated_patches_removed[0]["truncated_packages"]) > 0)

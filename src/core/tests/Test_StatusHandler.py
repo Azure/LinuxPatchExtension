@@ -540,7 +540,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
         patch_count_for_test = 1000
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test )
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
@@ -567,8 +567,8 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue(truncated_packages < patch_count_for_test)
 
         tombstone_record = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['name'], "Truncated patch list record")
+        self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
+        self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
         truncated_patches_removed_removed = self.runtime.status_handler.get_assessment_truncated_removed()
         self.assertEqual(len(truncated_patches_removed_removed[0]["truncated_packages"]), patch_count_for_test + 1 - truncated_packages)   # Extra 1 is tombstone
@@ -584,8 +584,8 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
         patch_count_for_test = 100000
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test )
-        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Critical")
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
         # Test Complete status file
@@ -611,8 +611,8 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue(truncated_packages < patch_count_for_test)
 
         tombstone_record = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['name'], "Truncated patch list record")
+        self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
+        self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
         truncated_patches_removed_removed = self.runtime.status_handler.get_assessment_truncated_removed()
         self.assertEqual(len(truncated_patches_removed_removed[0]["truncated_packages"]), patch_count_for_test + 1 - truncated_packages)   # Extra 1 is tombstone
@@ -628,8 +628,8 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
         patch_count_for_test = 1000
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test )
-        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Security")
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -669,8 +669,8 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]) < patch_count_for_test)
 
         tombstone_record = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated patch list record")
-        self.assertTrue(tombstone_record[len(tombstone_record) - 1]['name'], "Truncated patch list record")
+        self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
+        self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
         truncated_patches_removed = self.runtime.status_handler.get_assessment_truncated_removed()
         self.assertTrue(len(truncated_patches_removed[0]["truncated_packages"]) > 0)
