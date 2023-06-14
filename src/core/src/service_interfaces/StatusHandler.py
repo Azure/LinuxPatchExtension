@@ -77,6 +77,8 @@ class StatusHandler(object):
 
         # Internal in-memory representation of Truncated Patching data
         self.__truncated_patches = []
+        self.__agent_size_limit = Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES
+        self.__internal_file_limit = Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES
 
         # Load the currently persisted status file into memory
         self.load_status_file_components(initial_load=True)
@@ -844,10 +846,8 @@ class StatusHandler(object):
         truncated_status_file = complete_status_file_payload
         tombstone_truncated_map = {}
 
-        if complete_status_byte_size > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES:
+        if complete_status_byte_size > self.__agent_size_limit:
             self.composite_logger.log_debug("Begin Truncation")
-            agent_size_limit = Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES
-            internal_file_limit = Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES
             assessment_index = self.__get_index_name(Constants.PATCH_ASSESSMENT_SUMMARY, truncated_status_file['status']['substatus'])
             assessment_detail_list = []
             # Reset to avoid duplicate when multiple write_status is called
@@ -856,14 +856,14 @@ class StatusHandler(object):
             # Truncated assessment patch when operation is not installation
             if not self.execution_config.operation == Constants.INSTALLATION and len(self.__assessment_packages) > 0:
                 # Perform assessment truncation
-                assessment_truncated_packages, removed_packages = self.__assessment_truncation_helper(self.__assessment_packages, internal_file_limit)
+                assessment_truncated_packages, removed_packages = self.__assessment_truncation_helper(self.__assessment_packages, self.__internal_file_limit)
 
                 # Reduce assessment patch byte by escape char (\) byte
                 assessment_quote_counts = self.__get_quote_count(assessment_truncated_packages)
 
-                if assessment_quote_counts + self.__get_byte_size(assessment_truncated_packages) > agent_size_limit:
+                if assessment_quote_counts + self.__get_byte_size(assessment_truncated_packages) > self.__agent_size_limit:
                     assessment_truncated_packages, additional_removed_packages = self.__assessment_truncation_helper(
-                        assessment_truncated_packages, internal_file_limit - assessment_quote_counts)
+                        assessment_truncated_packages, self.__internal_file_limit - assessment_quote_counts)
                     removed_packages = removed_packages + additional_removed_packages
 
                 self.__assessment_truncated_removed.append(self.__create_removed_package_detail("Assessment", removed_packages))
@@ -892,16 +892,16 @@ class StatusHandler(object):
                 installation_detail_list = []
 
                 assessment_patch, assessment_truncated_packages, installation_patch, installation_truncated_packages = \
-                    self.__installation_truncation_helper_func(self.__assessment_packages, installation_patch, internal_file_limit)
+                    self.__installation_truncation_helper_func(self.__assessment_packages, installation_patch, self.__internal_file_limit)
 
                 # Get quote count for \ byte
                 installation_quote_counts = self.__get_quote_count(installation_patch)
                 assessment_quote_counts = self.__get_quote_count(assessment_patch)
 
-                if (assessment_quote_counts + self.__get_byte_size(assessment_patch) + installation_quote_counts + self.__get_byte_size(installation_patch) > agent_size_limit):
+                if (assessment_quote_counts + self.__get_byte_size(assessment_patch) + installation_quote_counts + self.__get_byte_size(installation_patch) > self.__agent_size_limit):
                     assessment_patch, new_assessment_truncated_packages, installation_patch, new_installation_truncated_packages = \
                         self.__installation_truncation_helper_func(assessment_patch, installation_patch,
-                            internal_file_limit - (assessment_quote_counts + installation_quote_counts))
+                            self.__internal_file_limit - (assessment_quote_counts + installation_quote_counts))
 
                     # Add more truncated patches when \ cause the file to be over size limit
                     assessment_truncated_packages = assessment_truncated_packages + new_assessment_truncated_packages
