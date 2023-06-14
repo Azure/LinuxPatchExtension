@@ -494,6 +494,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             status = json.load(file_handle)
             self.assertEqual(status[0]["status"]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+            self.assertEqual(status[0]["status"]["substatus"][0]["name"], "PatchAssessmentSummary")
 
         # Parse the assessment data to check if we have logged the error details for esm_required.
         assessment_data = status[0]["status"]["substatus"][0]["formattedMessage"]["message"]
