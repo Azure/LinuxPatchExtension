@@ -169,8 +169,11 @@ class Constants(object):
     STATUS_WARNING = "Warning"
 
     # Status file size
-    STATUS_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
-    MAX_STATUS_FILE_SIZE_IN_BYTES = 128 * 1024
+    class StatusTruncationConfig(EnumBackport):
+        INTERNAL_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
+        AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
+        MIN_TRUNCATED_PACKAGE_COUNT = 5
+        TRUNCATION_ERROR_MESSAGE = "Results were truncated because too many patches were present, Check log for truncated packages"
 
     # Wrapper-core handshake files
     EXT_STATE_FILE = 'ExtState.json'
@@ -269,7 +272,7 @@ class Constants(object):
         OPERATION_FAILED = "OPERATION_FAILED"
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
-        TRUNCATION = "TRUNCATION"
+        TRUNCATION = "PACKAGE_LIST_TRUNCATED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
