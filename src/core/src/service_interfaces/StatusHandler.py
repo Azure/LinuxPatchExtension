@@ -809,6 +809,7 @@ class StatusHandler(object):
         if not len(self.__assessment_removed_packages) == 0:
             self.composite_logger.log_debug("Packages under PatchAsssessmentSummary were truncated due to size restrictions. "
                                             "Packages removed from the list are: {0}".format(self.__assessment_removed_packages))
+            return True
         return False
 
     def __write_status_file(self, complete_status_file_payload):
