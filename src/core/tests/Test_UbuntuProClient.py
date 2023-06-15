@@ -45,11 +45,14 @@ class MockSystemModules:
 
 
 class MockVersionResult(MockSystemModules):
-    def __init__(self, version='27.13.5~18.04.1'):
+    def __init__(self, version='27.14.4~18.04.1'):
         self.installed_version = version
 
     def mock_version(self):
         return MockVersionResult()
+
+    def mock_to_below_minimum_version(self):
+        return MockVersionResult('27.13.4~18.04.1')
 
     def mock_version_raise_exception(self):
         raise
@@ -97,6 +100,50 @@ class MockRebootRequiredResult(MockSystemModules):
         self.mock_unimport_module('uaclient.api.u.pro.security.status.reboot_required.v1')
 
 
+class UpdateInfo:
+    def __init__(self, package, version, provided_by, origin):
+        self.version = version
+        self.provided_by = provided_by
+        self.package = package
+        self.origin = origin
+
+
+class MockUpdatesResult(MockSystemModules):
+
+    def __init__(self, updates = []):
+        self.updates = updates
+
+    def mock_update_list_with_all_update_types(self):
+        return MockUpdatesResult(self.get_mock_updates_list_with_three_updates())
+
+    def mock_update_list_with_one_esm_update(self):
+        return MockUpdatesResult(self.get_mock_updates_list_with_one_esm_update())
+
+    @staticmethod
+    def get_mock_updates_list_with_three_updates():
+        return [UpdateInfo(package='python3', provided_by='standard-security', origin='security.ubuntu.com', version='1.2.3-1ubuntu0.3'),
+                UpdateInfo(package='apt', provided_by='standard-updates', origin='security.ubuntu.com', version='1.2.35'),
+                UpdateInfo(package='cups', provided_by='esm-infra', origin='security.ubuntu.com', version='2.1.3-4ubuntu0.11+esm1')]
+
+    @staticmethod
+    def get_mock_updates_list_with_one_esm_update():
+        return [UpdateInfo(package='git-man', provided_by='esm-infra', origin='security.ubuntu.com', version='1:2.17.1-1ubuntu0.15')]
+
+    def mock_import_uaclient_update_module(self, mock_name, method_name):
+        if sys.version_info[0] == 3:
+            sys.modules['uaclient.api.u.pro.packages.updates.v1'] = types.ModuleType('update_module')
+            mock_method = getattr(self, method_name)
+            setattr(sys.modules['uaclient.api.u.pro.packages.updates.v1'], mock_name, mock_method)
+        else:
+            update_module = imp.new_module('update_module')
+            mock_method = getattr(self, method_name)
+            setattr(update_module, mock_name, mock_method)
+            self.assign_sys_modules_with_mock_module('uaclient.api.u.pro.packages.updates.v1', update_module)
+
+    def mock_unimport_uaclient_update_module(self):
+        self.mock_unimport_module('uaclient.api.u.pro.packages.updates.v1')
+
+
 class TestUbuntuProClient(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
@@ -106,6 +153,9 @@ class TestUbuntuProClient(unittest.TestCase):
         self.runtime.stop()
 
     def mock_run_command_output_raise_exception(self, cmd="", output=False, chk_err=False):
+        raise Exception
+
+    def mock_get_ubuntu_pro_client_updates_raise_exception(self):
         raise Exception
 
     def test_install_or_update_pro_success(self):
@@ -126,13 +176,21 @@ class TestUbuntuProClient(unittest.TestCase):
 
         package_manager.env_layer.run_command_output = backup_run_command_output
 
-
     def test_is_pro_working_success(self):
         obj = MockVersionResult()
         obj.mock_import_uaclient_version_module('version', 'mock_version')
 
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager.ubuntu_pro_client.is_pro_working())
+
+        obj.mock_unimport_uaclient_version_module()
+
+    def test_is_pro_working_failure_when_minimum_version_required_is_false(self):
+        obj = MockVersionResult()
+        obj.mock_import_uaclient_version_module('version', 'mock_to_below_minimum_version')
+
+        package_manager = self.container.get('package_manager')
+        self.assertFalse(package_manager.ubuntu_pro_client.is_pro_working())
 
         obj.mock_unimport_uaclient_version_module()
 
@@ -144,6 +202,54 @@ class TestUbuntuProClient(unittest.TestCase):
         self.assertFalse(package_manager.ubuntu_pro_client.is_pro_working())
 
         obj.mock_unimport_uaclient_version_module()
+
+    def test_log_ubuntu_pro_client_attached_true(self):
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager.ubuntu_pro_client.log_ubuntu_pro_client_attached())
+
+    def test_log_ubuntu_pro_client_attached_false(self):
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        self.assertFalse(package_manager.ubuntu_pro_client.log_ubuntu_pro_client_attached())
+
+    def test_log_ubuntu_pro_client_attached_raises_exception(self):
+        package_manager = self.container.get('package_manager')
+        backup_run_command_output = package_manager.env_layer.run_command_output
+        package_manager.env_layer.run_command_output = self.mock_run_command_output_raise_exception
+
+        self.assertFalse(package_manager.ubuntu_pro_client.log_ubuntu_pro_client_attached())
+
+        package_manager.env_layer.run_command_output = backup_run_command_output
+
+    def test_extract_packages_and_versions_returns_zero_for_empty_updates(self):
+        package_manager = self.container.get('package_manager')
+        empty_updates = []
+        updates, version = package_manager.ubuntu_pro_client.extract_packages_and_versions(empty_updates)
+        self.assertTrue(len(updates) == 0)
+        self.assertTrue(len(version) == 0)
+
+    def test_extract_packages_and_versions_returns_correct_number_of_updates(self):
+        package_manager = self.container.get('package_manager')
+        mock_updates = MockUpdatesResult.get_mock_updates_list_with_three_updates()
+        updates, versions = package_manager.ubuntu_pro_client.extract_packages_and_versions(mock_updates)
+        self.assertTrue(len(updates) == len(mock_updates))
+        self.assertTrue(len(versions) == len(mock_updates))
+
+    def test_extract_packages_and_versions_returns_correct_esm_package_count(self):
+        package_manager = self.container.get('package_manager')
+        mock_updates = MockUpdatesResult.get_mock_updates_list_with_three_updates()
+        updates, versions = package_manager.ubuntu_pro_client.extract_packages_and_versions(mock_updates)
+        expected_count = 0
+        actual_count = 0
+        for update in mock_updates:
+            if update.provided_by == 'esm-infra':
+                expected_count += 1
+
+        for version in versions:
+            if version == Constants.UA_ESM_REQUIRED:
+                actual_count += 1
+
+        self.assertEqual(expected_count, actual_count)
 
     def test_is_reboot_pending_success(self):
         obj = MockRebootRequiredResult()
@@ -175,18 +281,116 @@ class TestUbuntuProClient(unittest.TestCase):
 
         obj.mock_unimport_uaclient_reboot_required_module()
 
-    def test_get_security_updates_is_None(self):
+    def test_get_security_updates_success(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
         package_manager = self.container.get('package_manager')
-        self.assertIsNone(package_manager.ubuntu_pro_client.get_security_updates())
 
-    def test_get_all_updates_is_None(self):
+        query_success, updates, versions = package_manager.ubuntu_pro_client.get_security_updates()
+
+        self.assertTrue(query_success)
+        self.assertEqual(len(updates), 1)
+        self.assertEqual(len(versions), 1)
+
+        obj.mock_unimport_uaclient_update_module()
+
+    def test_get_security_updates_exception(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
         package_manager = self.container.get('package_manager')
-        self.assertIsNone(package_manager.ubuntu_pro_client.get_all_updates())
+        backup_get_ubuntu_pro_client_updates = package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates
+        package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = self.mock_get_ubuntu_pro_client_updates_raise_exception
 
-    def test_get_other_updates_is_None(self):
+        query_success, updates, versions = package_manager.ubuntu_pro_client.get_security_updates()
+        self.assertFalse(query_success)
+        self.assertEqual(len(updates), 0)
+        self.assertEqual(len(versions), 0)
+
+        package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = backup_get_ubuntu_pro_client_updates
+        obj.mock_unimport_uaclient_update_module()
+
+    def test_get_security_esm_updates_success(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
         package_manager = self.container.get('package_manager')
-        self.assertIsNone(package_manager.ubuntu_pro_client.get_other_updates())
 
+        query_success, updates, versions = package_manager.ubuntu_pro_client.get_security_esm_updates()
+
+        self.assertTrue(query_success)
+        self.assertEqual(len(updates), 1)
+        self.assertEqual(len(versions), 1)
+        obj.mock_unimport_uaclient_update_module()
+
+    def test_get_security_esm_updates_exception(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
+        package_manager = self.container.get('package_manager')
+        backup_get_ubuntu_pro_client_updates = package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates
+        package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = self.mock_get_ubuntu_pro_client_updates_raise_exception
+
+        query_success, updates, versions = package_manager.ubuntu_pro_client.get_security_esm_updates()
+        self.assertFalse(query_success)
+        self.assertEqual(len(updates), 0)
+        self.assertEqual(len(versions), 0)
+
+        package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = backup_get_ubuntu_pro_client_updates
+        obj.mock_unimport_uaclient_update_module()
+
+    def test_get_all_updates_success(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
+        package_manager = self.container.get('package_manager')
+
+        query_success, updates, versions = package_manager.ubuntu_pro_client.get_all_updates()
+
+        self.assertTrue(query_success)
+        self.assertEqual(len(updates), 3)
+        self.assertEqual(len(versions), 3)
+
+        obj.mock_unimport_uaclient_update_module()
+
+    def test_get_all_updates_exception(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
+        package_manager = self.container.get('package_manager')
+        backup_get_ubuntu_pro_client_updates = package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates
+        package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = self.mock_get_ubuntu_pro_client_updates_raise_exception
+
+        query_success, updates, versions = package_manager.ubuntu_pro_client.get_all_updates()
+        self.assertFalse(query_success)
+        self.assertEqual(len(updates), 0)
+        self.assertEqual(len(versions), 0)
+
+        package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = backup_get_ubuntu_pro_client_updates
+        obj.mock_unimport_uaclient_update_module()
+
+    def test_get_other_updates_success(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
+        package_manager = self.container.get('package_manager')
+
+        query_success, updates, versions = package_manager.ubuntu_pro_client.get_other_updates()
+
+        self.assertTrue(query_success)
+        self.assertEqual(len(updates), 1)
+        self.assertEqual(len(versions), 1)
+
+        obj.mock_unimport_uaclient_update_module()
+
+    def test_get_other_updates_exception(self):
+        obj = MockUpdatesResult()
+        obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
+        package_manager = self.container.get('package_manager')
+        backup_get_ubuntu_pro_client_updates = package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates
+        package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = self.mock_get_ubuntu_pro_client_updates_raise_exception
+
+        query_success, updates, versions = package_manager.ubuntu_pro_client.get_other_updates()
+        self.assertFalse(query_success)
+        self.assertEqual(len(updates), 0)
+        self.assertEqual(len(versions), 0)
+
+        package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = backup_get_ubuntu_pro_client_updates
+        obj.mock_unimport_uaclient_update_module()
 
 if __name__ == '__main__':
     unittest.main()
