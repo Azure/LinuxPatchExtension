@@ -491,12 +491,13 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.composite_logger = mock_logger
         self.runtime.execution_config.complete_status_file_path = self.runtime.execution_config.status_folder
         status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
-        status_handler.load_status_file_components(initial_load=True)
 
         # Mock complete status path is dir and being called in the load_status_file_components
+        status_handler.load_status_file_components(initial_load=True)
         mock_isdir.assert_called_with(status_handler.complete_status_file_path)
         mock_logger.log_error.assert_called_with("Core state file path returned a directory. Attempting to reset.")
         mock_rmtree.assert_called_with(status_handler.complete_status_file_path)
+
 
         # Mock complete status path is dir and being called in the __write_complete_status_file but with exception
         try:
@@ -541,7 +542,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 0)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
         self.assertFalse("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-        self.assertEqual(len(self.runtime.status_handler._StatusHandler__assessment_truncated_removed), 0)
+        self.assertEqual(len(self.runtime.status_handler._StatusHandler__assessment_removed_packages), 0)
 
     def test_write_truncated_status_file_over_capacity(self):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
@@ -578,7 +579,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
-        truncated_patches_removed_removed = self.runtime.status_handler._StatusHandler__assessment_truncated_removed
+        truncated_patches_removed_removed = self.runtime.status_handler._StatusHandler__assessment_removed_packages
         self.assertEqual(len(truncated_patches_removed_removed[0]["truncated_packages"]), patch_count_for_test + 1 - truncated_packages)   # Extra 1 is tombstone
         self.assertEqual(truncated_patches_removed_removed[0]["name"], "Assessment")
 
@@ -622,7 +623,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
-        truncated_patches_removed_removed = self.runtime.status_handler._StatusHandler__assessment_truncated_removed
+        truncated_patches_removed_removed = self.runtime.status_handler._StatusHandler__assessment_removed_packages
         self.assertEqual(len(truncated_patches_removed_removed[0]["truncated_packages"]), patch_count_for_test + 1 - truncated_packages)   # Extra 1 is tombstone
         self.assertEqual(truncated_patches_removed_removed[0]["name"], "Assessment")
 
@@ -680,7 +681,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
-        truncated_patches_removed = self.runtime.status_handler._StatusHandler__assessment_truncated_removed
+        truncated_patches_removed = self.runtime.status_handler._StatusHandler__assessment_removed_packages
         self.assertTrue(len(truncated_patches_removed[0]["truncated_packages"]) > 0)
         self.assertEqual(truncated_patches_removed[0]["name"], "Assessment")
 

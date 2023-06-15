@@ -1174,7 +1174,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 0)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
         self.assertFalse("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-        self.assertEqual(len(runtime.status_handler._StatusHandler__assessment_truncated_removed), 0)
+        self.assertEqual(len(runtime.status_handler._StatusHandler__assessment_removed_packages), 0)
         self.assertFalse(runtime.status_handler.log_truncated_removed_packages_if_any())
         runtime.stop()
 
@@ -1223,7 +1223,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
-        truncated_patches_removed_removed = runtime.status_handler._StatusHandler__assessment_truncated_removed
+        truncated_patches_removed_removed = runtime.status_handler._StatusHandler__assessment_removed_packages
         self.assertEqual(len(truncated_patches_removed_removed[0]["truncated_packages"]), 1003 - truncated_patches_removed)  # Extra is the tombstones
         self.assertEqual(truncated_patches_removed_removed[0]["name"], "Assessment")
 
@@ -1278,7 +1278,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(tombstone_record[len(tombstone_record) - 1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue("additional updates of classification" in tombstone_record[len(tombstone_record) - 1]['name'][0])
 
-        truncated_patches_removed = runtime.status_handler._StatusHandler__assessment_truncated_removed
+        truncated_patches_removed = runtime.status_handler._StatusHandler__assessment_removed_packages
         self.assertTrue(len(truncated_patches_removed[0]["truncated_packages"]) > 0)
         self.assertEqual(truncated_patches_removed[0]["name"], "Assessment")
 
