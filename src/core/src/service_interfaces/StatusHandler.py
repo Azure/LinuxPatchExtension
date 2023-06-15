@@ -323,7 +323,7 @@ class StatusHandler(object):
         other_patch_count = 0
         for i in range(0, len(assessment_packages_json)):
             classifications = assessment_packages_json[i]['classifications']
-            if "Critical" in classifications or "Security" in classifications:
+            if "Critical" in classifications or "Security" in classifications or "Security-ESM" in classifications:
                 critsec_patch_count += 1
             else:
                 other_patch_count += 1

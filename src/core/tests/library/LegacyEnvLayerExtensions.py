@@ -532,6 +532,9 @@ class LegacyEnvLayerExtensions():
                         output = "tmp file created"
                     elif cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
                         code = 0
+                    elif cmd.find('pro security-status --format=json') > -1:
+                        code = 0
+                        output = "{\"summary\":{\"ua\":{\"attached\":true}}}"
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -542,6 +545,9 @@ class LegacyEnvLayerExtensions():
                 elif self.legacy_package_manager_name is Constants.APT:
                     if cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
                         code = 1
+                    elif cmd.find('pro security-status --format=json') > -1:
+                        code = 0
+                        output = "{\"summary\":{\"ua\":{\"attached\":false}}}"
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("microcode_ctl") > -1:
                         code = 1
@@ -1072,8 +1078,34 @@ class LegacyEnvLayerExtensions():
                 if self.legacy_package_manager_name is Constants.APT:
                     if cmd.find("dist-upgrade") > -1:
                         code = 0
-                        output = "Inst git-man [1:2.17.1-1ubuntu0.15] (UA_ESM_Required Ubuntu:18.04/bionic-updates, " \
-                                 "Ubuntu:18.04/bionic-security [all])"
+                        output = "Inst cups [1:2.17.1-1ubuntu0.15] (UA_ESM_Required Ubuntu:18.04/bionic-updates, " \
+                                 "Ubuntu:18.04/bionic-updates [all])"
+                    elif cmd.find("sudo dpkg -s python3") > -1:
+                        code = 0
+                        output = "Package: python3\n" + \
+                                 "Status: install ok installed\n" + \
+                                 "Priority: optional\n" + \
+                                 "Section: database\n" + \
+                                 "Installed-Size: 107\n" + \
+                                 "Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\n" + \
+                                 "Architecture: all\n" + \
+                                 "Source: python3\n" + \
+                                 "Version: 1:2.17.1-1ubuntu0.16\n" + \
+                                 "Description: " + \
+                                  "Homepage: http://dev.python3.com/\n"
+                    elif cmd.find("sudo dpkg -s apt") > -1:
+                        code = 0
+                        output = "Package: apt\n" + \
+                                 "Status: install ok installed\n" + \
+                                 "Priority: optional\n" + \
+                                 "Section: database\n" + \
+                                 "Installed-Size: 107\n" + \
+                                 "Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>\n" + \
+                                 "Architecture: all\n" + \
+                                 "Source: apt\n" + \
+                                 "Version: 2.06-2ubuntu14.1\n" + \
+                                 "Description: " + \
+                                  "Homepage: http://dev.apt.com/\n"
             elif self.legacy_test_type == 'ArchDependency':
                 if self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("check-update") > -1:

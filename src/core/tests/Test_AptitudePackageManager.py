@@ -17,7 +17,7 @@ import json
 import os
 import unittest
 from core.src.bootstrap.Constants import Constants
-from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequiredResult
+from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequiredResult, MockUpdatesResult
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -59,6 +59,10 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def mock_os_path_isfile_raise_exception(self, file):
         raise Exception
+
+    def mock_get_security_updates_return_empty_list(self):
+        return [], []
+
     #endregion Mocks
 
     def test_package_manager_no_updates(self):
@@ -444,6 +448,66 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertIsNotNone(obj.ubuntu_pro_client)
 
         UbuntuProClient.UbuntuProClient.install_or_update_pro = backup_package_manager_ubuntu_pro_client_install_or_update_pro
+
+    def test_get_other_updates_success(self):
+        obj = MockVersionResult()
+        obj.mock_import_uaclient_version_module('version', 'mock_version')
+        updates_obj = MockUpdatesResult()
+        updates_obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('UA_ESM_Required')
+
+        backup_AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+
+        packages, versions = runtime.package_manager.get_other_updates()
+        self.assertEqual(1, len(packages))
+
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_AptitudePackageManager__pro_client_prereq_met
+        obj.mock_unimport_uaclient_version_module()
+        updates_obj.mock_unimport_uaclient_update_module()
+
+    def test_get_other_updates_without_pro_success(self):
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('UA_ESM_Required')
+        backup_package_manager_get_security_updates = runtime.package_manager.get_security_updates
+        runtime.package_manager.get_security_updates = self.mock_get_security_updates_return_empty_list
+
+        packages, versions = runtime.package_manager.get_other_updates()
+        self.assertEqual(1, len(packages))
+
+        runtime.package_manager.get_security_updates = backup_package_manager_get_security_updates
+
+    def test_set_security_esm_package_status_assessment(self):
+        obj = MockVersionResult()
+        obj.mock_import_uaclient_version_module('version', 'mock_version')
+        updates_obj = MockUpdatesResult()
+        updates_obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('UA_ESM_Required')
+        backup_aptitudepackagemanager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+
+        runtime.patch_assessor.start_assessment()
+        status = ""
+        error_set = False
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            status = json.load(file_handle)
+            self.assertEqual(status[0]["status"]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+            self.assertEqual(status[0]["status"]["substatus"][0]["name"], "PatchAssessmentSummary")
+
+        # Parse the assessment data to check if we have logged the error details for esm_required.
+        assessment_data = status[0]["status"]["substatus"][0]["formattedMessage"]["message"]
+        error_list = json.loads(assessment_data)["errors"]["details"]
+        for error in error_list:
+            if error["code"] == Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED:
+                error_set = True
+                break
+        self.assertTrue(error_set)
+
+        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_aptitudepackagemanager__pro_client_prereq_met
+        obj.mock_unimport_uaclient_version_module()
+        updates_obj.mock_unimport_uaclient_update_module()
 
     def test_is_reboot_pending_pro_client_success(self):
         reboot_mock = MockRebootRequiredResult()
