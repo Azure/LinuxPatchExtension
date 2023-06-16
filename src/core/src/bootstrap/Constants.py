@@ -259,6 +259,7 @@ class Constants(object):
     class PatchOperationTopLevelErrorCode(EnumBackport):
         SUCCESS = 0
         ERROR = 1
+        WARNING = 2
 
     class PatchOperationErrorCodes(EnumBackport):
         DEFAULT_ERROR = "ERROR"  # default error code
@@ -266,6 +267,7 @@ class Constants(object):
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
         UA_ESM_REQUIRED = "UA_ESM_REQUIRED"
+        TRUNCATION = "PACKAGE_LIST_TRUNCATED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
@@ -334,4 +336,11 @@ class Constants(object):
         MINIMUM_PYTHON_VERSION_REQUIRED = (3, 5)  # using tuple as we can compare this with sys.version_info. The comparison will happen in the same order. Major version checked first. Followed by Minor version.
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
         MINIMUM_CLIENT_VERSION = "27.14.4"
+    class StatusTruncationConfig(EnumBackport):
+        INTERNAL_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
+        AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
+        MIN_TRUNCATED_PACKAGE_COUNT = 5
+        TRUNCATION_ERROR_MESSAGE = "Results were truncated because too many patches were present, Check log for truncated packages"
+
+
 

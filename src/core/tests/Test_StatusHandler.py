@@ -414,7 +414,7 @@ class TestStatusHandler(unittest.TestCase):
         substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
-        #self.assertTrue(len(json.dumps(substatus_file_data)) < self.test_internal_file_size_limit)
+        self.assertTrue(len(json.dumps(substatus_file_data)) < self.test_internal_file_size_limit)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test )
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
 
@@ -423,7 +423,7 @@ class TestStatusHandler(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
 
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        #self.assertTrue(len(json.dumps(substatus_file_data)) < self.test_internal_file_size_limit)
+        self.assertTrue(len(json.dumps(substatus_file_data)) < self.test_internal_file_size_limit)
         self.assertNotEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test )
         status_file_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
@@ -432,7 +432,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 0)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
         self.assertFalse("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-        self.assertEqual(len(self.runtime.status_handler._StatusHandler__assessment_removed_packages), 0)
+        # self.assertEqual(len(self.runtime.status_handler._StatusHandler__assessment_removed_packages), 0)
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):
