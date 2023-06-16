@@ -396,6 +396,32 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
+    def test_assessment_packages_map(self):
+        patch_count_for_test = 5
+        patch_id = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
+        expected_value = {'version': '2:4.4.5+dfsg-2ubuntu5.4', 'classifications': ['Critical'], 'name': 'python-samba0', 'patchId': 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'}
+
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
+        self.runtime.execution_config.operation = Constants.ASSESSMENT
+        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        status_handler.set_package_assessment_status(test_packages, test_package_versions, 'Critical')
+        self.assertIsNotNone(status_handler._StatusHandler__assessment_packages_map)
+        self.assertEqual(status_handler._StatusHandler__assessment_packages_map[patch_id], expected_value)
+        self.assertEqual(status_handler._StatusHandler__assessment_packages_map[patch_id]['name'], 'python-samba0')
+        self.assertEqual(len(status_handler._StatusHandler__assessment_packages_map), patch_count_for_test)
+
+    # Setup functions to populate packages and versions for truncation
+    def __set_up_packages_func(self, val):
+        test_packages = []
+        test_package_versions = []
+
+        for i in range(0, val):
+            test_packages.append('python-samba' + str(i))
+            test_package_versions.append('2:4.4.5+dfsg-2ubuntu5.4')
+
+        return test_packages, test_package_versions
 
 if __name__ == '__main__':
     unittest.main()
