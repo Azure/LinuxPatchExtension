@@ -51,7 +51,7 @@ class TestPatchAssessor(unittest.TestCase):
         self.runtime.package_manager.refresh_repo = self.mock_refresh_repo
         self.runtime.set_legacy_test_type('UnalignedPath')
         self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
-        with open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             file_contents = json.loads(file_handle.read())
             self.assertTrue('Unexpected return code (100) from package manager on command: LANG=en_US.UTF8 sudo apt-get -s dist-upgrade' in str(file_contents))
 

@@ -65,7 +65,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -88,7 +88,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -115,7 +115,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -139,7 +139,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -170,7 +170,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -206,7 +206,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -234,7 +234,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -261,7 +261,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -282,7 +282,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -302,7 +302,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.set_legacy_test_type('HappyPath')
         CoreMain(composed_arguments)
 
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -324,7 +324,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
 
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -357,7 +357,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.patch_assessor.start_assessment = lambda: ()
         CoreMain(argument_composer.get_composed_arguments())
 
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -383,7 +383,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.set_legacy_test_type('HappyPath')
         CoreMain(argument_composer.get_composed_arguments())
 
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -404,7 +404,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
 
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -444,7 +444,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -494,7 +494,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -543,7 +543,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -599,7 +599,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -648,7 +648,7 @@ class TestCoreMain(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
         self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
@@ -674,7 +674,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.execution_config.exec_auto_assess_only = True
         CoreMain(argument_composer.get_composed_arguments())
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
         # verifying the original operation name is preserved
         self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
@@ -706,7 +706,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.set_legacy_test_type("SuccessInstallPath")
         CoreMain(argument_composer.get_composed_arguments())
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
         self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
@@ -734,7 +734,7 @@ class TestCoreMain(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
         # verifying the original operation name is preserved
         self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
@@ -766,7 +766,7 @@ class TestCoreMain(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
         self.assertTrue(status_file_data["operation"] == Constants.ASSESSMENT)
         substatus_file_data = status_file_data["substatus"]
@@ -798,7 +798,7 @@ class TestCoreMain(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
 
         # verifying the original operation name is preserved
@@ -835,7 +835,7 @@ class TestCoreMain(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
         self.assertTrue(status_file_data["operation"] == Constants.INSTALLATION)
         substatus_file_data = status_file_data["substatus"]
@@ -872,7 +872,7 @@ class TestCoreMain(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
 
         # verifying the original operation name is preserved
@@ -926,7 +926,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -962,7 +962,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 3)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -987,7 +987,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -1026,7 +1026,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
