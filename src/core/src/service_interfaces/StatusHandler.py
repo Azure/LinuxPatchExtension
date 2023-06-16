@@ -561,16 +561,16 @@ class StatusHandler(object):
             self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()
             return
-        complete_status_file_data_raw = self.__read_complete_status_raw_data(self.complete_status_file_path)
+
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
         try:
-            complete_status_file_data = complete_status_file_data_raw
+            complete_status_file_data = self.__read_complete_status_raw_data(self.complete_status_file_path)
             if 'status' not in complete_status_file_data or 'substatus' not in complete_status_file_data['status']:
                 self.composite_logger.log_error("Malformed status file. Resetting status file for safety.")
                 self.__reset_status_file()
                 return
         except Exception as error:
-            self.composite_logger.log_error("Unable to load status file json. Error: {0}; Data: {1}".format(repr(error), str(complete_status_file_data_raw)))
+            self.composite_logger.log_error("Unable to load status file json. Error: {0}; Data: {1}".format(repr(error), str(complete_status_file_data)))
             raise
 
         # Load portions of data that need to be built on for next write - raise exception if corrupt data is encountered

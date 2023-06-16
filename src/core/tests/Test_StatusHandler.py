@@ -15,7 +15,12 @@
 # Requires Python 2.7+
 import datetime
 import json
+import os
 import unittest
+try:
+    from unittest.mock import patch, MagicMock
+except ImportError:
+    from mock import patch, MagicMock
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -396,6 +401,28 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[11]["name"], "test-package-3")  # | Other              | Pending     |
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
+
+    def test_if_complete_status_has_bad_json(self):
+        string_json = '[{"version": 1.0, "timestampUTC": "2023-05-13T07:38:07Z", "statusx": {"name": "Azure Patch Management", "operation": "Installation", "status": "success", "code": 0, "formattedMessage": {"lang": "en-US", "message": ""}, "substatusx": []}}]'
+        mock_logger = MagicMock()
+        self.runtime.composite_logger = mock_logger
+        file_path = self.runtime.execution_config.status_folder
+        example_file1 = os.path.join(file_path, '123.complete.status')
+        self.runtime.execution_config.complete_status_file_path = example_file1
+
+        with open(example_file1, 'w') as f:
+            f.write(string_json)
+
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer,
+            self.runtime.vm_cloud_type)
+
+        # Mock complete status path is dir and being called in the load_status_file_components
+        status_handler.load_status_file_components(initial_load=True)
+        self.assertEqual(mock_logger.log_error.call_count, 1)
+        mock_logger.log_error.assert_called_with("Malformed status file. Resetting status file for safety.")
+    def test_if_complete_status_path_is_dir(self):
+        self.runtime.execution_config.complete_status_file_path = self.runtime.execution_config.status_folder
+        self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
 
     def test_write_truncated_status_file_under_size_limit(self):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
