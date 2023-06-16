@@ -407,10 +407,21 @@ class TestStatusHandler(unittest.TestCase):
 
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         status_handler.set_package_assessment_status(test_packages, test_package_versions, 'Critical')
+
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+
+        self.assertTrue(substatus_file_data["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+        self.assertEqual(len(formatted_message['patches']), 5)
+        self.assertEqual(formatted_message['patches'][0]['classifications'], ['Critical'])
         self.assertIsNotNone(status_handler._StatusHandler__assessment_packages_map)
+        self.assertEqual(len(status_handler._StatusHandler__assessment_packages), 5)
+        self.assertEqual(status_handler._StatusHandler__assessment_packages[0], expected_value)
         self.assertEqual(status_handler._StatusHandler__assessment_packages_map[patch_id], expected_value)
         self.assertEqual(status_handler._StatusHandler__assessment_packages_map[patch_id]['name'], 'python-samba0')
         self.assertEqual(len(status_handler._StatusHandler__assessment_packages_map), patch_count_for_test)
+
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):
