@@ -142,7 +142,7 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         # ensure that error message appears in substatus properly
         substatus_file_data = []
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             status = json.load(file_handle)
             self.assertEqual(status[0]["status"]["status"].lower(), Constants.STATUS_SUCCESS.lower())
             substatus_file_data = status[0]["status"]["substatus"][0]
@@ -491,7 +491,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         runtime.patch_assessor.start_assessment()
         status = ""
         error_set = False
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             status = json.load(file_handle)
             self.assertEqual(status[0]["status"]["status"].lower(), Constants.STATUS_SUCCESS.lower())
             self.assertEqual(status[0]["status"]["substatus"][0]["name"], "PatchAssessmentSummary")

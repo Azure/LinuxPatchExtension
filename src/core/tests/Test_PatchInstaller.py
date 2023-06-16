@@ -247,7 +247,7 @@ class TestPatchInstaller(unittest.TestCase):
 
         runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
         runtime.patch_installer.mark_installation_completed()
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
 
         self.assertEqual('warning', substatus_file_data[0]['status'])
@@ -551,7 +551,7 @@ class TestPatchInstaller(unittest.TestCase):
             runtime.maintenance_window, runtime.package_manager, simulate=True)
         runtime.patch_installer.mark_installation_completed()
 
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
 
         if is_force_reboot:

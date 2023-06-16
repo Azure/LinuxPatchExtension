@@ -59,7 +59,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file for configure patching patch mode
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
 
         # check status file for configure patching patch state (and including for 'Platform' initiated assessment data)
@@ -106,7 +106,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(runtime.env_layer.file_system.read_with_retry(runtime.package_manager.image_default_patch_configuration_backup_path))
@@ -149,7 +149,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         runtime.configure_patching_processor.start_configure_patching()
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
@@ -177,7 +177,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)   # assessment is now part of the CP flow
@@ -206,7 +206,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)   # assessment is now part of the CP flow
@@ -244,7 +244,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file for configure patching patch mode
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
 
         # check status file for configure patching patch state
@@ -288,7 +288,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file for configure patching patch mode
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
 
         # check status file for configure patching patch state
