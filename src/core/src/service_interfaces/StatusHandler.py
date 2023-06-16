@@ -500,7 +500,7 @@ class StatusHandler(object):
         # Create complete status template
         self.env_layer.file_system.write_with_retry(self.complete_status_file_path, '[{0}]'.format(status_file_reset_content), mode='w+')
         # Create agent-facing status template
-        self.env_layer.file_system.write_with_retry(self.status_file_path, '[{0}]'.format(json.dumps(self.__new_basic_status_json())), mode='w+')
+        self.env_layer.file_system.write_with_retry(self.status_file_path, '[{0}]'.format(status_file_reset_content), mode='w+')
 
     def __new_basic_status_json(self):
         return {
