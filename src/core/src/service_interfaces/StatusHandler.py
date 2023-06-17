@@ -563,15 +563,11 @@ class StatusHandler(object):
             return
 
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
-        try:
-            complete_status_file_data = self.__read_complete_status_raw_data(self.complete_status_file_path)
-            if 'status' not in complete_status_file_data or 'substatus' not in complete_status_file_data['status']:
-                self.composite_logger.log_error("Malformed status file. Resetting status file for safety.")
-                self.__reset_status_file()
-                return
-        except Exception as error:
-            self.composite_logger.log_error("Unable to load status file json. Error: {0}; Data: {1}".format(repr(error), str(complete_status_file_data)))
-            raise
+        complete_status_file_data = self.__load_complete_status_file_data(self.complete_status_file_path)
+        if 'status' not in complete_status_file_data or 'substatus' not in complete_status_file_data['status']:
+            self.composite_logger.log_error("Malformed status file. Resetting status file for safety.")
+            self.__reset_status_file()
+            return
 
         # Load portions of data that need to be built on for next write - raise exception if corrupt data is encountered
         # todo: refactor
@@ -615,6 +611,20 @@ class StatusHandler(object):
                     if errors is not None and errors['details'] is not None:
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
+
+    def __load_complete_status_file_data(self, file_path):
+        # Read the status file - raise exception on persistent failure
+        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
+            try:
+                with self.env_layer.file_system.open(file_path, 'r') as file_handle:
+                    complete_status_file_data = json.load(file_handle)[0]    # structure is array of 1
+            except Exception as error:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    time.sleep(i + 1)
+                else:
+                    self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
+                    raise
+        return complete_status_file_data
 
     def __write_complete_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
@@ -672,7 +682,7 @@ class StatusHandler(object):
         self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(json.dumps(complete_status_payload)), mode='w+')
 
         # Write agent status file
-        self.__write_status_file(complete_status_payload)
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(complete_status_payload)), mode='w+')
     # endregion
 
     # region - Error objects
@@ -781,23 +791,3 @@ class StatusHandler(object):
         }
     # endregion
 
-    # region - Patch Truncation
-    def __read_complete_status_raw_data(self, file_path):
-        # Read the status file - raise exception on persistent failure
-        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
-            try:
-                with self.env_layer.file_system.open(file_path, 'r') as file_handle:
-                    complete_status_data_raw = json.load(file_handle)[0]    # structure is array of 1
-            except Exception as error:
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    time.sleep(i + 1)
-                else:
-                    self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
-                    raise
-        return complete_status_data_raw
-
-    def __write_status_file(self, complete_status_payload):
-        truncated_status_payload = complete_status_payload
-        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(truncated_status_payload)), mode='w+')
-
-    # endregion

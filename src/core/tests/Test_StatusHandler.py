@@ -17,10 +17,6 @@ import datetime
 import json
 import os
 import unittest
-try:
-    from unittest.mock import patch, MagicMock
-except ImportError:
-    from mock import patch, MagicMock
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -29,7 +25,7 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 class TestStatusHandler(unittest.TestCase):
     def setUp(self):
-        self.test_internal_file_size_limit = Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES
+        self.test_internal_file_size_limit = 126 * 1024
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
         self.container = self.runtime.container
 
@@ -404,8 +400,6 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_if_complete_status_has_bad_json(self):
         string_json = '[{"version": 1.0, "timestampUTC": "2023-05-13T07:38:07Z", "statusx": {"name": "Azure Patch Management", "operation": "Installation", "status": "success", "code": 0, "formattedMessage": {"lang": "en-US", "message": ""}, "substatusx": []}}]'
-        mock_logger = MagicMock()
-        self.runtime.composite_logger = mock_logger
         file_path = self.runtime.execution_config.status_folder
         example_file1 = os.path.join(file_path, '123.complete.status')
         self.runtime.execution_config.complete_status_file_path = example_file1
@@ -416,10 +410,13 @@ class TestStatusHandler(unittest.TestCase):
         status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer,
             self.runtime.vm_cloud_type)
 
-        # Mock complete status path is dir and being called in the load_status_file_components
+        # Mock complete status path is bas json and being called in the load_status_file_components
         status_handler.load_status_file_components(initial_load=True)
-        self.assertEqual(mock_logger.log_error.call_count, 1)
-        mock_logger.log_error.assert_called_with("Malformed status file. Resetting status file for safety.")
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertIsNotNone(substatus_file_data)
+        self.assertEqual(len(substatus_file_data), 0)
+        self.runtime.env_layer.file_system.delete_files_from_dir(example_file1, "*.complete.status")
 
     def test_if_complete_status_path_is_dir(self):
         self.runtime.execution_config.status_file_path = self.runtime.execution_config.status_folder

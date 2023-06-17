@@ -118,14 +118,12 @@ class Constants(object):
     class PatchOperationTopLevelErrorCode(EnumBackport):
         SUCCESS = 0
         ERROR = 1
-        WARNING = 2
 
     class PatchOperationErrorCodes(EnumBackport):
         # todo: finalize these error codes
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         OPERATION_FAILED = "OPERATION_FAILED"
         DEFAULT_ERROR = "ERROR"  # default error code
-        TRUNCATION = "PACKAGE_LIST_TRUNCATED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
     PYTHON_NOT_FOUND = "Python version could not be discovered for core invocation."
@@ -149,12 +147,6 @@ class Constants(object):
     HANDLER_SETTINGS = "handlerSettings"
     PUBLIC_SETTINGS = "publicSettings"
     AUTO_ASSESS_ONLY = "autoAssessOnly"
-
-    class StatusTruncationConfig(EnumBackport):
-        INTERNAL_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
-        AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
-        MIN_TRUNCATED_PACKAGE_COUNT = 5
-        TRUNCATION_ERROR_MESSAGE = "Results were truncated because too many patches were present, Check log for truncated packages"
 
     # Public Settings within Config Settings
     class ConfigPublicSettingsFields(EnumBackport):
