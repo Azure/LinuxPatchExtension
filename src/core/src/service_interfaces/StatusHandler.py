@@ -242,7 +242,7 @@ class StatusHandler(object):
 
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
-        # self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
+        self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
