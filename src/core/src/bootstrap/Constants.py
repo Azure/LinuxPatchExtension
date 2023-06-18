@@ -173,7 +173,7 @@ class Constants(object):
         INTERNAL_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
         AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
         MIN_TRUNCATED_PACKAGE_COUNT = 5
-        TRUNCATION_ERROR_MESSAGE = "Results were truncated because too many patches were present, Check log for truncated packages"
+        TRUNCATION_WARNING_MESSAGE = "Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists."
 
     # Wrapper-core handshake files
     EXT_STATE_FILE = 'ExtState.json'
