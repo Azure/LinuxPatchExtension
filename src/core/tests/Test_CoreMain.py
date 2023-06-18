@@ -1566,6 +1566,8 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
 
+        runtime.stop()
+
     def test_installation_operation_success_truncate_both_size_limit_happy_path(self):
         argument_composer = ArgumentComposer()
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
