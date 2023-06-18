@@ -118,10 +118,6 @@ class StatusHandler(object):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
         self.composite_logger.log_debug("Setting package assessment status in bulk. [Count={0}]".format(str(len(package_names))))
 
-        # Lazy initialization, getting None when initialize in __init__
-        if self.__assessment_packages_map is None:
-            self.__assessment_packages_map = OrderedDict()
-
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
@@ -242,7 +238,7 @@ class StatusHandler(object):
 
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
-        self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
+        # self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
