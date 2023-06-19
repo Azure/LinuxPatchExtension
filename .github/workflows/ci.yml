@@ -65,7 +65,7 @@ jobs:
       - name: Set up Python 2.7
         uses: actions/setup-python@v4
         with:
-          python-version: 2.7.18
+          python-version: 2.7
       - name: Install dependencies
         run: pip install coverage
       - name: Run extension tests
