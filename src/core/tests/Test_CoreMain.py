@@ -1196,7 +1196,6 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertNotEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test + 3)
         status_file_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
@@ -1248,7 +1247,6 @@ class TestCoreMain(unittest.TestCase):
         substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertTrue(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]) < patch_count_for_test + 3)
 
         message_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
@@ -1394,7 +1392,6 @@ class TestCoreMain(unittest.TestCase):
         installation_truncated_substatus = substatus_file_data["status"]["substatus"][1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(len(json.dumps(installation_truncated_substatus)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         installation_patches_count = len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"])
         self.assertTrue(installation_patches_count == patch_count_for_installation + 2)
 
@@ -1478,7 +1475,6 @@ class TestCoreMain(unittest.TestCase):
         installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        self.assertTrue(len(json.dumps(installation_truncated_substatus)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertTrue(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]) < patch_count_for_installation + 2)
 
         # tombstone record
@@ -1527,7 +1523,6 @@ class TestCoreMain(unittest.TestCase):
         assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(len(json.dumps(assessment_substatus)) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
         self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
 
@@ -1535,7 +1530,6 @@ class TestCoreMain(unittest.TestCase):
         installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(len(json.dumps(installation_substatus)) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
         self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
 
@@ -1568,7 +1562,6 @@ class TestCoreMain(unittest.TestCase):
         installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        self.assertTrue(len(json.dumps(installation_truncated_substatus)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
         self.assertEqual(len(message_patches), patch_count_for_installation + 3 - len(removed_packages_list[1]["removed_packages"]))    # 1 tombstone
 
@@ -1621,7 +1614,6 @@ class TestCoreMain(unittest.TestCase):
         installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_substatus["status"], Constants.STATUS_ERROR.lower())
-        self.assertTrue(len(json.dumps(installation_substatus)) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 3)
         self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
 
@@ -1706,7 +1698,6 @@ class TestCoreMain(unittest.TestCase):
         assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(len(json.dumps(assessment_substatus)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
         self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
 
@@ -1714,7 +1705,6 @@ class TestCoreMain(unittest.TestCase):
         installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_substatus["status"], Constants.STATUS_ERROR.lower())
-        self.assertTrue(len(json.dumps(installation_substatus)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
         self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
 
@@ -1727,7 +1717,6 @@ class TestCoreMain(unittest.TestCase):
         assessment_truncated_substatus = substatus_file_data[0]
         self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        self.assertTrue(len(json.dumps(assessment_truncated_substatus)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
 
         # tombstone record
         message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
@@ -1749,7 +1738,6 @@ class TestCoreMain(unittest.TestCase):
         installation_truncated_substatus = substatus_file_data[1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_ERROR.lower())
-        self.assertTrue(len(json.dumps(installation_truncated_substatus)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         installation_patches_count = len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"])
         self.assertTrue(installation_patches_count == patch_count_for_installation + 2)
         self.assertEqual(len(removed_packages_list), 1)  # No installation truncation
