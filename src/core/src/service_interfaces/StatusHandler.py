@@ -1037,6 +1037,11 @@ class StatusHandler(object):
         """ Get the current byte size of val """
         return len(json.dumps(val).encode("utf-8"))
 
+    def __get_twice_byte_size(self, val):
+        """ Get the current byte size of val """
+        first_byte_size_dump = json.dumps(val)
+        return len(json.dumps(first_byte_size_dump).encode("utf-8"))
+
     def __get_quote_count(self, patch_list):
         return sum(char == '"' for char in json.dumps(patch_list)) if not len(patch_list) == 0 else 0
 
