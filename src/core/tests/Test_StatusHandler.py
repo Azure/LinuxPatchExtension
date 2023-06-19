@@ -398,8 +398,7 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_assessment_packages_map(self):
         patch_count_for_test = 5
-        patch_id = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
-        expected_value = {'version': '2:4.4.5+dfsg-2ubuntu5.4', 'classifications': ['Critical'], 'name': 'python-samba0', 'patchId': 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'}
+        expected_patch_id = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
 
         status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         self.runtime.execution_config.operation = Constants.ASSESSMENT
@@ -413,15 +412,10 @@ class TestStatusHandler(unittest.TestCase):
 
         self.assertTrue(substatus_file_data["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
-        self.assertEqual(len(formatted_message['patches']), 5)
+        self.assertEqual(len(formatted_message['patches']), patch_count_for_test)
         self.assertEqual(formatted_message['patches'][0]['classifications'], ['Critical'])
-        self.assertIsNotNone(status_handler._StatusHandler__assessment_packages_map)
-        self.assertEqual(len(status_handler._StatusHandler__assessment_packages), 5)
-        self.assertEqual(status_handler._StatusHandler__assessment_packages[0], expected_value)
-        self.assertEqual(status_handler._StatusHandler__assessment_packages_map[patch_id], expected_value)
-        self.assertEqual(status_handler._StatusHandler__assessment_packages_map[patch_id]['name'], 'python-samba0')
-        self.assertEqual(len(status_handler._StatusHandler__assessment_packages_map), patch_count_for_test)
-
+        self.assertEqual(formatted_message['patches'][0]['name'], 'python-samba0')
+        self.assertEqual(formatted_message['patches'][0]['patchId'], expected_patch_id)
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):
