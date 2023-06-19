@@ -55,7 +55,9 @@ jobs:
           echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
   codecov-python-27:
-    runs-on: windows-latest
+    runs-on: ubuntu-20.04
+    container:
+        image: python:2.7.18-buster
     needs: codecov-python-39
     steps:
       - name: Checkout
