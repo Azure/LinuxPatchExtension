@@ -683,6 +683,38 @@ class StatusHandler(object):
 
         # Write agent status file
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(complete_status_payload)), mode='w+')
+
+        """"
+            write agent status file, the agent status must be < 126kb
+            
+            func write status file (self, payload)
+            main_substatus_list = []
+            
+            check if byte(payload) > agent limit
+                substatus = payload[status][substatus]
+                empty_list_payload_byte
+                loop through the substatus
+                    get the patches from each summary message patches -> message { patches [] }
+                    add non empty patches into the main_substatus_list [ [assessment] [installation] [newly added list]]
+                    
+                    get the byte of payload w/o list data
+                        create helper function (payload)
+                        set each message patches = []
+                        empty_list_payload_byte = byte(payload)
+                
+                start truncation
+                loop through main_sub
+            
+            
+            
+            
+            
+                
+        
+        """
+
+
+
     # endregion
 
     # region - Error objects
