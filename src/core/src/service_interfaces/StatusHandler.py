@@ -813,12 +813,22 @@ class StatusHandler(object):
         error_list.insert(0, detail)
         return True
 
-    def __set_errors_json(self, error_count_by_operation, errors_by_operation):
+    def __set_errors_json(self, error_count_by_operation, errors_by_operation, truncated=False):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
-        message = "{0} error/s reported.".format(error_count_by_operation)
-        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
+        success_code = Constants.PatchOperationTopLevelErrorCode.SUCCESS
+        error_code = Constants.PatchOperationTopLevelErrorCode.ERROR
+        error_count = error_count_by_operation
+        code = success_code if error_count_by_operation == 0 else error_code
+
+        # Update the errors json to include truncation detail
+        if truncated:
+            error_count += 1    # add 1 because of truncation
+            code = Constants.PatchOperationTopLevelErrorCode.WARNING if code != error_code else error_code
+
+        message = "{0} error/s reported.".format(error_count)
+        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count > 0 else ""
         return {
-            "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
+            "code": code,
             "details": errors_by_operation,
             "message": message
         }
@@ -884,8 +894,8 @@ class StatusHandler(object):
                 # Check for existing assessment errors before recompose truncated status file payload
                 code = self.__assessment_summary_json['errors']['code']
                 assessment_errors_details = self.__assessment_summary_json['errors']['details']
-                truncated_status_file = self.__recompose_truncated_staus_file(truncated_status_file, assessment_truncated_list, assessment_errors_details,
-                    assessment_detail_list, Constants.PATCH_ASSESSMENT_SUMMARY, assessment_index, code)
+                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, assessment_truncated_list, assessment_errors_details,
+                    assessment_detail_list, self.__assessment_total_error_count, Constants.PATCH_ASSESSMENT_SUMMARY, assessment_index, code)
 
             # Perform installation truncation
             if self.execution_config.operation == Constants.INSTALLATION:
@@ -935,8 +945,8 @@ class StatusHandler(object):
                     # Check for existing assessment errors before recompose truncated status file payload
                     code = self.__assessment_summary_json['errors']['code']
                     assessment_errors_details = self.__assessment_summary_json['errors']['details']
-                    truncated_status_file = self.__recompose_truncated_staus_file(truncated_status_file, assessment_truncated_list, assessment_errors_details,
-                        assessment_detail_list, Constants.PATCH_ASSESSMENT_SUMMARY, assessment_index, code)
+                    truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, assessment_truncated_list, assessment_errors_details,
+                        assessment_detail_list, self.__assessment_total_error_count, Constants.PATCH_ASSESSMENT_SUMMARY, assessment_index, code)
 
                 # Add packages removed from installation
                 if len(removed_installation_packages) > 0:
@@ -953,8 +963,8 @@ class StatusHandler(object):
                     code = self.__installation_summary_json['errors']['code']
                     # truncated_status_file, new_patch_list, errors_details, new_detail_list, index, code
                     installation_errors_details = self.__installation_summary_json['errors']['details']
-                    truncated_status_file = self.__recompose_truncated_staus_file(truncated_status_file, installation_truncated_list, installation_errors_details,
-                        installation_detail_list, Constants.PATCH_INSTALLATION_SUMMARY, installation_index, code)
+                    truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, installation_truncated_list, installation_errors_details,
+                        installation_detail_list, self.__installation_total_error_count, Constants.PATCH_INSTALLATION_SUMMARY, installation_index, code)
 
             self.composite_logger.log_debug("Complete Truncation")
 
@@ -1051,41 +1061,45 @@ class StatusHandler(object):
             if item['name'] == summary_name:
                 return index
 
-    def __recompose_truncated_summary(self, truncated_status_file, new_patches, code, errors_detail_list, summary, index):
+    def __recompose_truncated_summary(self, truncated_status_file, truncated_patches, code, errors_detail_list, count_total_errors, summary, index):
         """ Recompose status file with new errors detail list, new errors message, and truncated patches  """
         error_message = Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
 
         truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
-        errors_detail_list.insert(0, truncated_error_detail)
+        self.__try_add_error(errors_detail_list, truncated_error_detail)
+        truncated_errors_json = self.__set_errors_json(count_total_errors, errors_detail_list, True)
 
-        # Max length of error details is set to 5
-        if len(errors_detail_list) > Constants.STATUS_ERROR_LIMIT:
-            errors_detail_list = errors_detail_list[:Constants.STATUS_ERROR_LIMIT]
-        truncated_errors_json = self.__set_truncation_errors_json(code, errors_detail_list)
+        # count_assessment_errors = self.__assessment_total_error_count
+        # count_installation_errors = self.__installation_total_error_count
+        # errors_detail_list.insert(0, truncated_error_detail)
+        #
+        # # Max length of error details is set to 5
+        # if len(errors_detail_list) > Constants.STATUS_ERROR_LIMIT:
+        #     errors_detail_list = errors_detail_list[:Constants.STATUS_ERROR_LIMIT]
+        # truncated_errors_json = self.__set_truncation_errors_json(code, errors_detail_list)
 
         # Update summary message
         if not summary == Constants.PATCH_INSTALLATION_SUMMARY:
-            message = self.__assessment_truncated_message(self.__assessment_summary_json, new_patches, truncated_errors_json)
+            message = self.__assessment_truncated_message(self.__assessment_summary_json, truncated_patches, truncated_errors_json)
         else:
-            message = self.__truncated_installation_message(self.__installation_summary_json, new_patches, truncated_errors_json)
+            message = self.__truncated_installation_message(self.__installation_summary_json, truncated_patches, truncated_errors_json)
 
         truncated_status_file['status']['substatus'][index]['formattedMessage']['message'] = json.dumps(message)
 
         return truncated_status_file
 
-    def __recompose_truncated_staus_file(self, truncated_status_file, new_patch_list, errors_details, new_detail_list, summary, index, code):
+    def __recompose_truncated_status_file(self, truncated_status_file, new_patch_list, errors_details, truncation_detail_list, count_total_errors, summary, index, code):
         """ Recompose final truncated status file version """
-        success_code = Constants.PatchOperationTopLevelErrorCode.SUCCESS
-        warning_code = Constants.PatchOperationTopLevelErrorCode.WARNING
+        error_code = Constants.PatchOperationTopLevelErrorCode.ERROR
 
-        if code == success_code or code == warning_code:
-            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, code, new_detail_list, summary, index)
+        if code != error_code:
+            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, code, truncation_detail_list, count_total_errors, summary, index)
             # Update summary status to warning
             final_truncated_status_file['status']['substatus'][index]['status'] = Constants.STATUS_WARNING.lower()
         else:
-            # code == 1 (Error), add everything in the errors['detail'] to errors_detail_list
-            new_detail_list.extend(errors_details)
-            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, code, new_detail_list, summary, index)
+            # code == 1 (Error), add everything in the errors['details'] to truncation_detail_list
+            truncation_detail_list.extend(errors_details)
+            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, code, truncation_detail_list, count_total_errors, summary, index)
 
         return final_truncated_status_file
 
