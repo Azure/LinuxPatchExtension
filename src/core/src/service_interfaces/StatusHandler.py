@@ -1061,22 +1061,13 @@ class StatusHandler(object):
             if item['name'] == summary_name:
                 return index
 
-    def __recompose_truncated_summary(self, truncated_status_file, truncated_patches, code, errors_detail_list, count_total_errors, summary, index):
+    def __recompose_truncated_summary(self, truncated_status_file, truncated_patches, errors_detail_list, count_total_errors, summary, index):
         """ Recompose status file with new errors detail list, new errors message, and truncated patches  """
         error_message = Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
 
         truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
         self.__try_add_error(errors_detail_list, truncated_error_detail)
         truncated_errors_json = self.__set_errors_json(count_total_errors, errors_detail_list, True)
-
-        # count_assessment_errors = self.__assessment_total_error_count
-        # count_installation_errors = self.__installation_total_error_count
-        # errors_detail_list.insert(0, truncated_error_detail)
-        #
-        # # Max length of error details is set to 5
-        # if len(errors_detail_list) > Constants.STATUS_ERROR_LIMIT:
-        #     errors_detail_list = errors_detail_list[:Constants.STATUS_ERROR_LIMIT]
-        # truncated_errors_json = self.__set_truncation_errors_json(code, errors_detail_list)
 
         # Update summary message
         if not summary == Constants.PATCH_INSTALLATION_SUMMARY:
@@ -1093,13 +1084,13 @@ class StatusHandler(object):
         error_code = Constants.PatchOperationTopLevelErrorCode.ERROR
 
         if code != error_code:
-            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, code, truncation_detail_list, count_total_errors, summary, index)
+            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, truncation_detail_list, count_total_errors, summary, index)
             # Update summary status to warning
             final_truncated_status_file['status']['substatus'][index]['status'] = Constants.STATUS_WARNING.lower()
         else:
             # code == 1 (Error), add everything in the errors['details'] to truncation_detail_list
             truncation_detail_list.extend(errors_details)
-            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, code, truncation_detail_list, count_total_errors, summary, index)
+            final_truncated_status_file = self.__recompose_truncated_summary(truncated_status_file, new_patch_list, truncation_detail_list, count_total_errors, summary, index)
 
         return final_truncated_status_file
 
@@ -1133,16 +1124,6 @@ class StatusHandler(object):
             "lastModifiedTime": installation_message['lastModifiedTime'],
             "maintenanceRunId": installation_message['maintenanceRunId'],
             "errors": truncated_error
-        }
-
-    def __set_truncation_errors_json(self, code, errors_by_operation):
-        """ Compose the error object json to be added in 'errors' in given operation's summary """
-        message = "{0} error/s reported.".format(len(errors_by_operation))
-        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path)
-        return {
-            'code': Constants.PatchOperationTopLevelErrorCode.WARNING if not code == Constants.PatchOperationTopLevelErrorCode.ERROR else code,
-            'details': errors_by_operation,
-            'message': message
         }
 
     def __add_assessment_tombstone_record(self, tombstone_packages_count, tombstone_classification):
