@@ -73,6 +73,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertTrue(substatus_file_data[2]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+
         runtime.stop()
 
     def test_operation_fail_for_autopatching_request(self):
@@ -101,6 +102,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertFalse(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+
         runtime.stop()
 
     def test_operation_success_for_non_autopatching_request(self):
@@ -122,6 +124,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[2]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+
         runtime.stop()
 
     def test_operation_success_for_autopatching_request(self):
@@ -151,6 +154,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+
         runtime.stop()
 
     def test_operation_success_for_autopatching_request_with_security_classification(self):
@@ -189,6 +193,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+
         runtime.stop()
 
     def test_invalid_maintenance_run_id(self):
@@ -218,6 +223,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+
         runtime.stop()
 
         # test with a random string for maintenance run id
@@ -1054,6 +1060,7 @@ class TestCoreMain(unittest.TestCase):
         # validate temp_folder is created
         self.assertTrue(runtime.execution_config.temp_folder is not None)
         self.assertTrue(os.path.exists(runtime.execution_config.temp_folder))
+
         runtime.stop()
 
         # temp_folder is set to None in ExecutionConfig with a valid config_folder location
@@ -1065,6 +1072,7 @@ class TestCoreMain(unittest.TestCase):
         # validate temp_folder is created
         self.assertTrue(runtime.execution_config.temp_folder is not None)
         self.assertTrue(os.path.exists(runtime.execution_config.temp_folder))
+
         runtime.stop()
 
         # temp_folder is set to None in ExecutionConfig with an invalid config_folder location, throws exception
@@ -1367,8 +1375,8 @@ class TestCoreMain(unittest.TestCase):
 
         # tombstone record
         message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertTrue(message_patches[-1]['patchId'], "Truncated patch list record")
-        self.assertTrue(message_patches[-1]['name'], "Truncated patch list record")
+        self.assertTrue(message_patches[-1]['patchId'], 'Truncated_patch_list_id')
+        self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
 
         # assessment removed packages
         removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
@@ -1627,8 +1635,8 @@ class TestCoreMain(unittest.TestCase):
 
         # tombstone record
         message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertTrue(message_patches[len(message_patches) - 1]['patchId'], "Truncated patch list record")
-        self.assertTrue(message_patches[len(message_patches) - 1]['name'], "Truncated patch list record")
+        self.assertEqual(message_patches[- 1]['patchId'], 'Truncated_patch_list_id')
+        self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
 
         removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
         # assessment removed packages
