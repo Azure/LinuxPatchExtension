@@ -20,6 +20,7 @@ import re
 import shutil
 import time
 from core.src.bootstrap.Constants import Constants
+from collections import OrderedDict
 
 
 class StatusHandler(object):
@@ -46,6 +47,8 @@ class StatusHandler(object):
         self.__installation_total_error_count = 0  # All errors during install, includes errors not in error objects due to size limit
         self.__maintenance_window_exceeded = False
         self.__installation_reboot_status = Constants.RebootStatus.NOT_NEEDED
+
+        self.__installation_packages_map = OrderedDict()
 
         # Internal in-memory representation of Patch Assessment data
         self.__assessment_substatus_json = None
@@ -162,12 +165,12 @@ class StatusHandler(object):
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
-            for i in range(0, len(self.__installation_packages)):
-                if patch_id == self.__installation_packages[i]['patchId']:
-                    patch_already_saved = True
-                    if classification is not None:
-                        self.__installation_packages[i]['classifications'] = [classification]
-                    self.__installation_packages[i]['patchInstallationState'] = status
+            # Match patch_id in map and update existing patch's classification i.e from None -> security and update pending status
+            if len(self.__installation_packages_map) > 0 and patch_id in self.__installation_packages_map:
+                if classification is not None:
+                    self.__installation_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
+                self.__installation_packages_map.setdefault(patch_id, {})['patchInstallationState'] = status
+                patch_already_saved = True
 
             if patch_already_saved is False:
                 if classification is None:
@@ -179,11 +182,13 @@ class StatusHandler(object):
                     "classifications": [classification],
                     "patchInstallationState": str(status)
                 }
-                self.__installation_packages.append(record)
+                # Add new patch to ordered map
+                self.__installation_packages_map[patch_id] = record
 
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
 
         self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
+        self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
@@ -211,13 +216,15 @@ class StatusHandler(object):
         for package_name, package_version in zip(package_names, package_versions):
             classification_matching_package_found = False
             patch_id = self.__get_patch_id(package_name, package_version)
-            for i in range(0, len(self.__installation_packages)):
-                if patch_id == self.__installation_packages[i]['patchId']:
-                    classification_matching_package_found = True
-                    self.__installation_packages[i]['classifications'] = [classification]
+            # Match patch_id in map and update existing patch's classification i.e from None -> security
+            if len(self.__installation_packages_map) > 0 and patch_id in self.__installation_packages_map:
+                self.__installation_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
+                classification_matching_package_found = True
+
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
         self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
+        self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
@@ -535,6 +542,7 @@ class StatusHandler(object):
         self.__installation_summary_json = None
         self.__installation_packages = []
         self.__installation_errors = []
+        self.__installation_packages_map = OrderedDict()
 
         self.__assessment_substatus_json = None
         self.__assessment_summary_json = None
@@ -591,7 +599,8 @@ class StatusHandler(object):
                 else:
                     message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                     self.__installation_summary_json = json.loads(message)
-                    self.__installation_packages = self.__installation_summary_json['patches']
+                    self.__installation_packages_map = OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
+                    self.__installation_packages = list(self.__installation_packages_map.values())
                     self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
                     self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
                     errors = self.__installation_summary_json['errors']
