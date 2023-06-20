@@ -997,6 +997,21 @@ class StatusHandler(object):
 
         return assessment_first_half + new_assessment_list, assessment_removed_packages, new_installation_list, installation_removed_packages
 
+    def __get_installation_packages_index(self, installation_packages):
+        low_pri_index = -1
+        for index, package in enumerate(installation_packages):
+            if Constants.PENDING in package['patchInstallationState']:
+                low_pri_index = index
+                return low_pri_index
+            if Constants.EXCLUDED in package['patchInstallationState']:
+                low_pri_index = index
+                return low_pri_index
+            if Constants.NOT_SELECTED in package['patchInstallationState']:
+                low_pri_index = index
+                return low_pri_index
+
+        return low_pri_index
+
     def __apply_truncation(self, package_list, capacity):
         """ Binary search
         Instead of checking list[middel_index] >= target, check byte_size(list[:middle_index]),
@@ -1128,8 +1143,8 @@ class StatusHandler(object):
 
     def __add_assessment_tombstone_record(self, tombstone_packages_count, tombstone_classification):
         """ Tombstone record for truncated assessment
-            Classification: “Critical, Security, Other”
-            Patch Name: “20 additional updates of classification ‘Classification’ reported.”
+            Patch Name: 20 additional updates of classification <Classification> reported.
+            Classification: [Critical, Security, Other]
         """
         tombstone_name = str(tombstone_packages_count) + ' additional updates of classification ' + tombstone_classification + ' reported',
         return {
