@@ -51,13 +51,12 @@ jobs:
         run: |
           echo "::set-output name=contents::$(cat err.txt)"
       - name: Check if all tests passed
+        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
+        shell: cmd
         run: |
-          if grep -q "FAILED (failures=" err.txt; then
-            echo "There are tests failed."
-            exit 1
-          else
-            echo "All tests passed."
-          fi
+          echo %{{ steps.getoutput.outputs.contents }}%
+          exit 1
+
   codecov-python-27:
     runs-on: ubuntu-latest
     container:
