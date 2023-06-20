@@ -104,8 +104,6 @@ jobs:
         run: |
           echo "::set-output name=contents::$(cat err2.txt)"
       - name: Check if all tests passed
-        if: ${{ steps.getoutput.outputs.contents =~ 'FAILED \(failures=' }}
+        if: contains(steps.getoutput.outputs.contents, 'FAILED (failures=' )
         shell: bash
-        run: |
-          echo "There are tests failed"
-          exit 1
+        run: exit 1
