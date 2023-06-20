@@ -57,36 +57,32 @@ jobs:
           exit 1
 
   codecov-python-27:
-    runs-on: ubuntu-latest
-    container:
-        image: python:2.7.18-buster
+    runs-on: windows-latest
     needs: codecov-python-39
     steps:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Set up Python 2.7
-        run: |
-          apt-get update
-          apt-get install -y python2.7
-          rm /usr/bin/python
-          ln -s /usr/bin/python2.7 /usr/bin/python
+        run : |
+          choco install python2 -y
+          refreshenv
       - name: Install dependencies
-        run:  pip install coverage
+        run: pip install coverage
       - name: Run extension tests
         continue-on-error: true
-        shell: bash
+        shell: cmd
         run: |
           cd ./src/extension/tests
           echo '===============START EXTENSION TESTS...===============' >> ../../../err2.txt
-          coverage run -m unittest discover -s . -p "Test_*.py" -t ../../ 2>> ../../../err2.txt
+          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
           echo '===============FINISH EXTENSION TESTS...===============' >> ../../../err2.txt
       - name: Run core tests
         continue-on-error: true
-        shell: bash
+        shell: cmd
         run: |
           cd ./src/core/tests
           echo '===============START CORE TESTS...===============' >> ../../../err2.txt
-          coverage run -m unittest discover -s . -p "Test_*.py" -t ../../ 2>> ../../../err2.txt
+          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err2.txt
       - name: Collect coverage
         run: |
@@ -100,13 +96,9 @@ jobs:
           fail_ci_if_error: true
       - name: Read test output
         id: getoutput
-        run: |
-          echo "::set-output name=contents::$(cat err2.txt)"
+        run: echo "::set-output name=contents::$(cat err2.txt)"
       - name: Check if all tests passed
-        shell: bash
+        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
         run: |
           echo "${{ steps.getoutput.outputs.contents }}"
-          if grep -q "FAILED (failures=" err2.txt; then
-            echo "There are tests failed."
-            exit 1
-          fi
+          exit 1
