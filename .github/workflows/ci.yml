@@ -65,7 +65,7 @@ jobs:
       - name: Set up Python 2.7
         run : |
           choco install python2 -y
-          refreshenv
+          SETX PATH "%PATH%;C:\Python27"
       - name: Install dependencies
         run: pip install coverage
       - name: Run extension tests
