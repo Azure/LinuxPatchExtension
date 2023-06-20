@@ -47,7 +47,6 @@ class StatusHandler(object):
         self.__installation_total_error_count = 0  # All errors during install, includes errors not in error objects due to size limit
         self.__maintenance_window_exceeded = False
         self.__installation_reboot_status = Constants.RebootStatus.NOT_NEEDED
-
         self.__installation_packages_map = OrderedDict()
 
         # Internal in-memory representation of Patch Assessment data
