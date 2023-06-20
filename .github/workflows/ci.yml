@@ -98,9 +98,11 @@ jobs:
           fail_ci_if_error: true
       - name: Read test output
         id: getoutput
-        run: echo "::set-output name=contents::$(cat err2.txt)"
+        run: |
+          echo "::set-output name=contents::$(cat err2.txt)"
+          echo "print ${{ steps.getoutput.outputs.contents }}"
       - name: Check if all tests passed
-        if: ${{ contains(steps.getoutput.outputs.contents, 'FAILED (failures=') }}
+        if: ${{ contains(steps.getoutput.output.contents, 'FAILED (failures=') }}
         run: |
           echo "print ${{ steps.getoutput.outputs.contents }}"
           exit 1
