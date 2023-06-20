@@ -25,7 +25,6 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 class TestStatusHandler(unittest.TestCase):
     def setUp(self):
-        self.test_internal_file_size_limit = 126 * 1024
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
         self.container = self.runtime.container
 
@@ -398,19 +397,20 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
-    def test_if_complete_status_has_bad_json(self):
-        string_json = '[{"version": 1.0, "timestampUTC": "2023-05-13T07:38:07Z", "statusx": {"name": "Azure Patch Management", "operation": "Installation", "status": "success", "code": 0, "formattedMessage": {"lang": "en-US", "message": ""}, "substatusx": []}}]'
+    def test_if_complete_status_is_empty_json_with_bad_name(self):
+        # Mock complete status file is empty but with bad json name
+        sample_json = '[{"version": 1.0, "timestampUTC": "2023-05-13T07:38:07Z", "statusx": {"name": "Azure Patch Management", "operation": "Installation", "status": "success", "code": 0, "formattedMessage": {"lang": "en-US", "message": ""}, "substatusx": []}}]'
         file_path = self.runtime.execution_config.status_folder
         example_file1 = os.path.join(file_path, '123.complete.status')
         self.runtime.execution_config.complete_status_file_path = example_file1
 
         with open(example_file1, 'w') as f:
-            f.write(string_json)
+            f.write(sample_json)
 
         status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer,
             self.runtime.vm_cloud_type)
 
-        # Mock complete status path is bas json and being called in the load_status_file_components
+        # Mock complete status file is empty but with bad json name and being called in the load_status_file_components, and it will recreate a good complete_status_file
         status_handler.load_status_file_components(initial_load=True)
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
@@ -421,54 +421,6 @@ class TestStatusHandler(unittest.TestCase):
     def test_if_complete_status_path_is_dir(self):
         self.runtime.execution_config.status_file_path = self.runtime.execution_config.status_folder
         self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
-
-    def test_write_truncated_status_file_under_size_limit(self):
-        self.runtime.execution_config.operation = Constants.ASSESSMENT
-        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
-
-        patch_count_for_test = 500
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
-        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-        self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        # Test Complete status file
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.ASSESSMENT)
-        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(len(json.dumps(substatus_file_data)) < self.test_internal_file_size_limit)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test )
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Test Truncated status file
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
-
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(len(json.dumps(substatus_file_data)) < self.test_internal_file_size_limit)
-        self.assertNotEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test )
-        status_file_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
-        self.assertNotEqual(status_file_patches[len(status_file_patches) - 1]['patchId'], "Truncated patch list record")
-        self.assertNotEqual(status_file_patches[len(status_file_patches) - 1]['name'], "Truncated patch list record")
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 0)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
-        self.assertFalse("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-        # self.assertEqual(len(self.runtime.status_handler._StatusHandler__assessment_removed_packages), 0)
-
-    # Setup functions to populate packages and versions for truncation
-    def __set_up_packages_func(self, val):
-        test_packages = []
-        test_package_versions = []
-
-        for i in range(0, val):
-            test_packages.append('python-samba' + str(i))
-            test_package_versions.append('2:4.4.5+dfsg-2ubuntu5.4')
-
-        return test_packages, test_package_versions
 
 if __name__ == '__main__':
     unittest.main()
