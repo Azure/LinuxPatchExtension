@@ -688,29 +688,138 @@ class StatusHandler(object):
             write agent status file, the agent status must be < 126kb
             
             func write status file (self, payload)
-            main_substatus_list = []
+            need_truncation_assessment = None
+            need_truncation_installation = None
             
-            check if byte(payload) > agent limit
+            check if byte(payload) > internal_limit (126kb)
                 substatus = payload[status][substatus]
-                empty_list_payload_byte
+                empty_list_payload_byte = None
                 loop through the substatus
-                    get the patches from each summary message patches -> message { patches [] }
-                    add non empty patches into the main_substatus_list [ [assessment] [installation] [newly added list]]
                     
-                    get the byte of payload w/o list data
-                        create helper function (payload)
+                    check if assessmentPatchSummary is not none
+                        need_truncation_assessment = message patches
+                        get the patches from each summary message patches -> message { patches [] }
+                    check if installatinPatchSummary is not None
+                        get the byte of payload w/o list data
+                        
+                    create helper function (payload)
                         set each message patches = []
-                        empty_list_payload_byte = byte(payload)
+                        get empty_list_payload_byte(payload)
                 
-                start truncation
-                loop through main_sub
-            
-            
-            
-            
-            
                 
-        
+                ------------------------------------------------------------
+                *** start assessment truncation
+                total_byte_for_lists = internal_limit - empty_list_payload_byte
+                
+                check if need_truncation_assessment is not None and need_truncation_installation is None
+                *** apply truncation
+                if byte(need_truncation_assessment) > total_byte_for_lists
+                    split need_truncation_assessment into first 5 and rest [:5] [5:] -> so we can use same logic for installation to keep min 5 assessment
+                    remain_diff = total_byte_for_lists - byte([:5])
+                    binary_search_logic([5:], remain_diff)
+                        base case if [5:] <= remain_diff # keep everything
+                        base if [5:][0] > remain_diff # remove everything
+                        
+                        check byte[:mid] >= remain_diff, move rightPoint to mid
+                        else move leftPoint to mid+1 until last byte[:mid] < remain_diff 
+                        
+                        keep_elements = [:leftpoint-1]
+                        removed_elements = [leftpoint-1:]
+                        returns the keep_elements, removed_elements, remain_diff - byte(keep_elements) -> this calculation is to ensure we can reuse bs later when there's multiple lists
+                    
+                    reconstruct the status_file_payload
+                    add the tombstone record per classification
+                        loop the keep_elements and store into map [key=classifications, values=count=1]
+                        loop the map key,value and call helper func to create the tombstone record(classification, count)
+                    
+                    check for existing error in errors json if there's no error, then set_summary_status to warning
+                    recompose the errors json using a helper func with the [errors][code] and [errros][details]
+                    recompose the message using a helper func with keep_elements, new errors_json
+                    update the status
+                    recompose message into status_file[status][substatus][index]
+                    
+                    truncated_status_file = status_file[status][substatus][index][status] = 'warning'
+                    
+                
+                *** end assessment truncation
+                ---------------------------------------------------------------------------------------------------
+                Notes:
+                so both assessment and installation (there are business requirements, making this logic slight complicated)
+                requirement:
+                keep 5 assessment
+                remove low pri installation first, then available assessment packages, if needed then remove high pri installation
+                
+                check if need_truncation_assessment is not None and need_truncation_installation is not None 
+                we start truncation from high priority to low priority elements. this makes truncation simpler because if too many too high pri we just truncation high pri 
+                then remove all low pri at once, if there too many low pri, we then skip the high pri packages and focus the truncation on low pri
+                for example if total_byte_for_lists is 100kb
+                we first use 100kb - byte(assessment[:5]) = lets call this assessment_remain
+                assessment_remain - byte(installation_high_pri) = after_high_pri_remain
+                
+                check if byte(hig_pri) postive or negative)
+                    if positive then it's good this means we don't need to remove any high pri packages
+                    if negative then it's bad this means we have too many hig pri that causing the over_size limit issue, we need to do truncation 
+                    at the same time, this means eveything but 5 in assessment will be removed, and all low pri will be remove too
+                
+                after the checking above, we need to start apply binary search(assessment[:5], byte(after_high_pri_remain)
+                
+                then if there's any remaining byte in total_byte_for_lists after all the calculation above
+                we need to perform truncation on installation_low_pri
+                ---------------------------------------------------------------------------------------------------------
+                ---------------------------------------------------------------------------------------------------------
+                *** start installation truncation
+                
+                split need_truncation_assessment[:5], [5:]
+                loop through the need_truncation_installation
+                        check if need_truncation_installation['packagestate'] is pending, exclude, or not_selected
+                        set a local variable -> low_pri to that index
+                        split need_truncation_installation[:low_pri], [low_pri:]
+                
+                remain_diff = total_byte_for_lists - need_truncation_assessment[:5]
+                truncated_high_pri = binary_search_logic(high_pri, remain_diff) # base cases will cover for remain_diff - high_pri is (+ or -)
+                truncated_assesment = binary_search_logic(assessment[5:], remain_diff)
+                truncated_low_pri = binary_search_logic(low_pri, remain_diff)
+                
+                return assessment[:5] + truncated_assesment, truncated_high_pri + truncated_low_pri, removed_elements
+                
+                # recompose the status payload
+
+                add the 1 tombstone record
+                                  
+                check for existing error in errors json if there's no error, then set_summary_status to warning
+                recompose the errors json using a helper func with the [errors][code] and [errros][details]
+                recompose the message using a helper func with keep_elements, new errors_json
+                update the status
+                recompose message into status_file[status][substatus][index]
+                
+                truncated_status_file = status_file[status][substatus][index][status] = 'warning'
+                        
+                
+                *** end installation truncation      
+                ---------------------------------------------------------------------------------------------------------       
+                
+                *** Final validation if the truncated status file is truly < 126kb
+                Notes: two approach for this
+                
+                # we json.dumps twice which generates alot of escape characters 
+                if byte(json.dumps(truncated_status_file)) > 126kb
+                    diff = 126kb - byte(truncated_status_file)
+                    assessment_patch =  truncated_status_file[status][substatus][formatmessage][message]
+                    installation_patch = truncated_status_file[status][substatus][formatmessage][message]
+                    
+                    if installation_patch[-1][state] is not failed or installed 
+                        while diff >= 0
+                            final_truncated_installation,remain_diff = binary_search(installation_patch, byte(json.dumps(installation_patch)) - diff) # reduce installation_patch by the difference
+                            diff = remain_diff
+                    else
+                        while diff >= 0
+                            final_truncated_assessment,remain_diff = binary_search(assessment_patch, byte(dumps(assessment_patch)) - diff) # reduce assessment_patch by the difference
+                            diff = remain_diff
+                    
+                    recompose the message patches and add it back truncated_status_file
+                    return truncated_status_file
+                *** end truncation
+            write to disk
         """
 
 
