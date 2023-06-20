@@ -55,6 +55,8 @@ jobs:
           if grep -q "FAILED (failures=" err.txt; then
             echo "There are tests failed."
             exit 1
+          else
+            echo "All tests passed."
           fi
   codecov-python-27:
     runs-on: ubuntu-latest
