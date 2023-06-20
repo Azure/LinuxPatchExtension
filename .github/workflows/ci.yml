@@ -49,10 +49,10 @@ jobs:
       - name: Read test output
         id: getoutput
         run: |
-          echo "::set-output name=contents::$(cat err2.txt)"
+          echo "::set-output name=contents::$(cat err.txt)"
       - name: Check if all tests passed
         run: |
-          if grep -q "FAILED (failures=" err2.txt; then
+          if grep -q "FAILED (failures=" err.txt; then
             echo "There are tests failed."
             exit 1
           fi
