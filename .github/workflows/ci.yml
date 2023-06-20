@@ -48,13 +48,12 @@ jobs:
           fail_ci_if_error: true
       - name: Read test output
         id: getoutput
-        run: |
-          echo "::set-output name=contents::$(cat err.txt)"
+        run: echo "::set-output name=contents::$(cat err.txt)"
       - name: Check if all tests passed
         if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
         shell: cmd
         run: |
-          echo %{{ steps.getoutput.outputs.contents }}%
+          echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
 
   codecov-python-27:
@@ -104,7 +103,9 @@ jobs:
         run: |
           echo "::set-output name=contents::$(cat err2.txt)"
       - name: Check if all tests passed
+        shell: bash
         run: |
+          echo "${{ steps.getoutput.outputs.contents }}"
           if grep -q "FAILED (failures=" err2.txt; then
             echo "There are tests failed."
             exit 1
