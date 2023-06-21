@@ -396,6 +396,37 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
+    def test_assessment_packages_map(self):
+        patch_count_for_test = 5
+        expected_patch_id = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
+
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
+        self.runtime.execution_config.operation = Constants.ASSESSMENT
+        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        status_handler.set_package_assessment_status(test_packages, test_package_versions, 'Critical')
+
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+
+        self.assertTrue(substatus_file_data["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+        self.assertEqual(len(formatted_message['patches']), patch_count_for_test)
+        self.assertEqual(formatted_message['patches'][0]['classifications'], ['Critical'])
+        self.assertEqual(formatted_message['patches'][0]['name'], 'python-samba0')
+        self.assertEqual(formatted_message['patches'][0]['patchId'], expected_patch_id)
+
+    # Setup functions to populate packages and versions for truncation
+    def __set_up_packages_func(self, val):
+        test_packages = []
+        test_package_versions = []
+
+        for i in range(0, val):
+            test_packages.append('python-samba' + str(i))
+            test_package_versions.append('2:4.4.5+dfsg-2ubuntu5.4')
+
+        return test_packages, test_package_versions
 
 if __name__ == '__main__':
     unittest.main()
