@@ -928,8 +928,12 @@ class StatusHandler(object):
     """
 
     # --------------------------------------------------------------------
-    """ code flow """
+    """ code flow  """
+
     """
+        this approach has challenges is while loop checks the total byte size of the file this indicates we need to 
+        store the truncated lists during truncation process and reuse them second times and so forth
+        
         __write_status_file(self, payload):
             total_byte_size = __get__byte_size(payload)
             if total_byte_size > 126kb
