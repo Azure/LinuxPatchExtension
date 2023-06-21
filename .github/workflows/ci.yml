@@ -50,10 +50,12 @@ jobs:
         id: getoutput
         run: echo "::set-output name=contents::$(cat err.txt)"
       - name: Check if all tests passed
-        if: contains( steps.getoutput.outputs.contents , 'FAILED (failures=' )
+        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
+        shell: cmd
         run: |
           echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
+
   codecov-python-27:
     runs-on: windows-latest
     needs: codecov-python-39
@@ -61,9 +63,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Set up Python 2.7
-        uses: actions/setup-python@v4
-        with:
-          python-version: 2.7
+        run : |
+          choco install python2 -y
+          SETX PATH "%PATH%;C:\Python27"
       - name: Install dependencies
         run: pip install coverage
       - name: Run extension tests
