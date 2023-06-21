@@ -62,10 +62,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Set up Python 2.7
-        run : |
-          choco install python2 -y
-          SETX PATH "%PATH%;C:\Python27"
+      - name: Restore Python 2.7 cache
+        uses: actions/cache@v2
+        with:
+          path: C:\Python27
+          key: python27-cache
+      - name: Install Python 2.7
+        run: |
+          if not exist C:\Python27 (
+            choco install python2 -y
+            SETX PATH "%PATH%;C:\Python27"
+          )
       - name: Install dependencies
         run: pip install coverage
       - name: Run extension tests
