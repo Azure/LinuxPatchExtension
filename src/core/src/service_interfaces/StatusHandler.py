@@ -55,6 +55,7 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
+        self.__assessment_packages_map = OrderedDict()
 
         # Internal in-memory representation of Patch Metadata for HealthStore
         self.__metadata_for_healthstore_substatus_json = None
@@ -103,18 +104,21 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0
+        self.__assessment_packages_map = OrderedDict()
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
         self.composite_logger.log_debug("Setting package assessment status in bulk. [Count={0}]".format(str(len(package_names))))
+
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
-            for i in range(0, len(self.__assessment_packages)):
-                if patch_id == self.__assessment_packages[i]['patchId']:
-                    patch_already_saved = True
-                    self.__assessment_packages[i]['classifications'] = [classification]
-                    # self.__assessment_packages[i]['patchState'] = status
+
+            # Match patch_id in map and update existing patch's classification i.e from other -> security
+            if len(self.__assessment_packages_map) > 0 and patch_id in self.__assessment_packages_map:
+                self.__assessment_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
+                # self.__assessment_packages_map.setdefault(patch_id, {})['patchState'] = status
+                patch_already_saved = True
 
             if patch_already_saved is False:
                 record = {
@@ -124,8 +128,10 @@ class StatusHandler(object):
                     "classifications": [classification]
                     # "patchState": str(status) # Allows for capturing 'Installed' packages in addition to 'Available', when commented out, if spec changes
                 }
-                self.__assessment_packages.append(record)
+                # Add new patch to map
+                self.__assessment_packages_map[patch_id] = record
 
+        self.__assessment_packages = list(self.__assessment_packages_map.values())
         self.__assessment_packages = self.sort_packages_by_classification_and_state(self.__assessment_packages)
         self.set_assessment_substatus_json()
 
@@ -547,6 +553,7 @@ class StatusHandler(object):
         self.__assessment_summary_json = None
         self.__assessment_packages = []
         self.__assessment_errors = []
+        self.__assessment_packages_map = OrderedDict()
 
         self.__metadata_for_healthstore_substatus_json = None
         self.__metadata_for_healthstore_summary_json = None
@@ -609,7 +616,8 @@ class StatusHandler(object):
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__assessment_summary_json = json.loads(message)
-                self.__assessment_packages = self.__assessment_summary_json['patches']
+                self.__assessment_packages_map = OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
+                self.__assessment_packages = list(self.__assessment_packages_map.values())
                 errors = self.__assessment_summary_json['errors']
                 if errors is not None and errors['details'] is not None:
                     self.__assessment_errors = errors['details']
