@@ -792,24 +792,13 @@ class StatusHandler(object):
         need_truncation_installation = None
 
         check if byte(payload) > internal_limit (126kb)
-            substatus = payload[status][substatus]
-            empty_list_payload_byte = None
-            loop through the substatus
-
-                check if assessmentPatchSummary is not none
-                    need_truncation_assessment = message patches
-                    get the patches from each summary message patches -> message { patches [] }
-                check if installatinPatchSummary is not None
-                    get the byte of payload w/o list data
-
-                create helper function (payload)
-                    set each message patches = []
-                    get empty_list_payload_byte(payload)
-
-
+            empty_byte_size =   create helper function (payload)
+                                        set each message patches = []
+                                        get empty_list_payload_byte(payload)
+                                        
             ------------------------------------------------------------
             *** start assessment truncation
-            total_byte_for_lists = internal_limit - empty_list_payload_byte
+            total_byte_for_lists = 126kb - empty_byte_size
 
             check if need_truncation_assessment is not None and need_truncation_installation is None
             *** apply truncation
@@ -919,4 +908,209 @@ class StatusHandler(object):
                 return truncated_status_file
             *** end truncation
         write to disk
+        
     """
+
+    # --------------------------------------------------------------------
+    """ code flow """
+    """
+        __write_status_file(self, payload):
+            total_byte_size = __get__byte_size(payload)
+            if total_byte_size > 126kb
+                empty_byte_size = __get_twice_byte_size(__size_of_constant_status_data)
+                need_truncation_assessment = assessment_packages
+                need_truncation_installation = installation_packages
+                
+                if need_truncation_assessment > 0 and need_truncation_installation <0
+                    while total_byte_size > 126kb
+                        __split_package_list_helper_func
+                        __assessment_truncation_helper 
+                            __apply_truncation
+                        __add_assessment_tombstone_record
+                        __recompose_truncated_status_file
+                            __recompose_truncated_summary
+                        total_byte_size = __get__twice_byte_size(truncated_payload)
+                            
+                if need_truncation_assessment > 0 and need_truncation_installation > 0
+                    while total_byte_size > 126kb
+                        __split_package_list_helper_func
+                        __installation_truncation_helper
+                            __apply_truncation
+                        __add_assessment_tombstone_record
+                        __recompose_truncated_status_file
+                            __recompose_truncated_summary
+                        
+                        __add_installation_tombstone_record        
+                        __recompose_truncated_status_file
+                            __recompose_truncated_summary    
+                        total_byte_size = __get__twice_byte_size(truncated_payload)
+                        
+            self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')  
+ 
+    """
+
+    # --------------------------------------------------------------------
+
+
+    # region - truncation helper functions
+
+    def __size_of_constant_status_data(self):
+        """ Helper function to get the byte size of status w/o list """
+        return
+
+    def __split_package_list_helper_func(self, package_list, size_limit):
+        """ Helper function to split package list, keep 5 minimum (assessment) [:5][5:] """
+        return
+
+    def __assessment_truncation_helper(self, assessment_packages, size_limit):
+        """ Helper function call split patch list method then apply truncation """
+        self.__split_package_list_helper_func(assessment_packages, size_limit)
+        self.__apply_truncation
+        return
+
+    def __installation_truncation_helper(self, assessment_packages, installation_packages, size_limit, ):
+        """ Helper function call split patch list method then apply truncation on assessment and installation """
+        self.__split_package_list_helper_func(assessment_packages, size_limit)
+
+        # get the priority index
+        self.__get_priority_index()
+
+        # split the installation by high and low pri installation_high_pri[:low_pri_index] installation_low_pri[low_pri_index:]
+        self.__apply_truncation(installation_high_pri, remain_capacity)
+
+        self.__apply_truncation(assessment_available, remain_capacity)
+
+        # Perform installation truncations
+        self.__apply_truncation(installation_low_pri, remain_capacity)
+
+        # Perform assessment truncation
+        self.__apply_truncation(assessment_second_half, capacity)
+
+        return
+
+    def __get_priority_index(self):
+        return
+    def __apply_truncation(self, package_list, capacity):
+        """ Binary search
+        """
+        left_index = 0
+        right_index = len(package_list) - 1
+
+        if self.__get_byte_size(package_list) <= capacity:
+            return package_list, [], capacity - self.__get_byte_size(package_list)
+        elif self.__get_byte_size(package_list[0]) > capacity:
+            return [], package_list, capacity
+
+        while left_index < right_index:
+            mid_index = left_index + int((right_index - left_index) / 2)
+            if self.__get_byte_size(package_list[:mid_index]) >= capacity:
+                right_index = mid_index
+            else:
+                left_index = mid_index + 1
+
+        truncated_list = package_list[:left_index - 1]
+        truncated_packages_removed = package_list[left_index - 1:]
+        return truncated_list, truncated_packages_removed, capacity - self.__get_byte_size(truncated_list)
+
+    def __removed_old_complete_status_file_path(self, latest_complete_status_file_path):
+        """ remove other .complete.status files except latest """
+
+        # Remove older complete.status files
+        self.env_layer.file_system.delete_files_from_dir(latest_complete_status_file_path, '*.complete.status')
+
+    def __create_removed_package_detail(self, name, removed_packages):
+        """ Compose truncated packages for logging """
+        return {
+            "name": str.capitalize(name),
+            "removed_packages": removed_packages
+        }
+
+    def __get_byte_size(self, val):
+        """ Get the current byte size of val """
+        return
+
+    def __get_twice_byte_size(self, val):
+        """ Get twice the current byte size of val """
+        return
+
+    def __recompose_truncated_status_file(self, truncated_status_file, new_patch_list, errors_details, truncation_detail_list, count_total_errors, summary,
+            index, code):
+        """ Recompose final truncated status file version """
+        self.__recompose_truncated_summary(truncated_status_file, new_patch_list, truncation_detail_list, count_total_errors, summary, index)
+        # Update summary status to warning
+
+        return final_truncated_status_file
+
+    def __recompose_truncated_summary(self, truncated_status_file, truncated_patches, errors_detail_list, count_total_errors, summary, index):
+        """ Recompose status file with new errors detail list, new errors message, and truncated patches  """
+        error_message = Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
+
+        # create error object reuse older code
+        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
+        self.__try_add_error(errors_detail_list, truncated_error_detail)
+        truncated_errors_json = self.__set_errors_json(count_total_errors, errors_detail_list, True)
+
+        # create summary message
+        self.__assessment_truncated_message(self.__assessment_summary_json, truncated_patches, truncated_errors_json)
+        self.__truncated_installation_message(self.__installation_summary_json, truncated_patches, truncated_errors_json)
+
+        # Update substatus message
+
+        return truncated_status_file
+
+    def __assessment_truncated_message(self, assessment_message, assessment_truncated_list, truncated_error):
+        """ Recompose truncated assessment substatus """
+        return {
+            "assessmentActivityId": assessment_message["assessmentActivityId"],
+            "rebootPending": assessment_message["rebootPending"],
+            "criticalAndSecurityPatchCount": assessment_message["criticalAndSecurityPatchCount"],
+            "otherPatchCount": assessment_message["otherPatchCount"],
+            "patches": assessment_truncated_list,
+            "startTime": assessment_message["startTime"],
+            "lastModifiedTime": assessment_message["lastModifiedTime"],
+            "startedBy": assessment_message["startedBy"],
+            "errors": truncated_error
+        }
+
+    def __truncated_installation_message(self, installation_message, installation_truncated_list, truncated_error):
+        """ Recompose truncated installation substatus """
+        return {
+            "installationActivityId": installation_message['installationActivityId'],
+            "rebootStatus": installation_message['rebootStatus'],
+            "maintenanceWindowExceeded": installation_message['maintenanceWindowExceeded'],
+            "notSelectedPatchCount": installation_message['notSelectedPatchCount'],
+            "excludedPatchCount": installation_message['excludedPatchCount'],
+            "pendingPatchCount": installation_message['pendingPatchCount'],
+            "installedPatchCount": installation_message['installedPatchCount'],
+            "failedPatchCount": installation_message['failedPatchCount'],
+            "patches": installation_truncated_list,
+            "startTime": installation_message['startTime'],
+            "lastModifiedTime": installation_message['lastModifiedTime'],
+            "maintenanceRunId": installation_message['maintenanceRunId'],
+            "errors": truncated_error
+        }
+
+    def __add_assessment_tombstone_record(self, tombstone_packages_count, tombstone_classification):
+        """ Tombstone record for truncated assessment
+            Classification: “Critical, Security, Other”
+            Patch Name: “20 additional updates of classification ‘Classification’ reported.”
+        """
+        tombstone_name = str(tombstone_packages_count) + ' additional updates of classification ' + tombstone_classification + ' reported',
+        return {
+            'patchId': 'Truncated_patch_list_id',
+            'name': tombstone_name,
+            'version': '',
+            'classifications': [tombstone_classification]
+        }
+
+    def __add_installation_tombstone_record(self):
+        """ Tombstone record for truncated installation """
+        return {
+            'patchId': 'Truncated_patch_list_id',
+            'name': 'Truncated_patch_list',
+            'version': '',
+            'classifications': ['Other'],
+            'patchInstallationState': 'NotSelected'
+        }
+
+    # endregion
