@@ -68,6 +68,7 @@ jobs:
       - name: Install Python 2.7
         shell: cmd
         run: |
+          echo "check if python27 is not cached"
           if not exist C:\Python27 (
             choco install python2 -y
             SETX PATH "%PATH%;C:\Python27"
