@@ -73,8 +73,16 @@ jobs:
             choco install python2 -y
             SETX PATH "%PATH%;C:\Python27"
           )
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          path: '%UserProfile%\.cache\pip'
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
       - name: Install dependencies
-        run: pip install coverage
+        shell: cmd
+        run: pip install -r requirements.txt
       - name: Run extension tests
         continue-on-error: true
         shell: cmd
