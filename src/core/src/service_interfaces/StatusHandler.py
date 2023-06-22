@@ -998,9 +998,11 @@ class StatusHandler(object):
         return assessment_first_half + new_assessment_list, assessment_removed_packages, new_installation_list, installation_removed_packages
 
     def __get_installation_packages_index(self, installation_packages):
-        low_pri_index = -1
+        """" Get the first index of Pending, Excluded, or Not_Selected installation packages """
+        low_pri_index = -999
         for index, package in enumerate(installation_packages):
-            if Constants.PENDING in package['patchInstallationState'] or Constants.EXCLUDED in package['patchInstallationState'] or Constants.NOT_SELECTED in package['patchInstallationState']:
+            package_state = package['patchInstallationState']
+            if Constants.PENDING in package_state or Constants.EXCLUDED in package_state or Constants.NOT_SELECTED in package_state:
                 low_pri_index = index
                 return low_pri_index
         return low_pri_index
