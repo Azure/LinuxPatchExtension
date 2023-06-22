@@ -857,14 +857,12 @@ class StatusHandler(object):
             self.composite_logger.log_debug("Begin Truncation")
             assessment_index = self.__get_index_name(Constants.PATCH_ASSESSMENT_SUMMARY, truncated_status_file['status']['substatus'])
             assessment_detail_list = []
-            # Reset to avoid duplicates when write_status is called multiple times
-            assessment_tombstone_map = {}
             self.__assessment_removed_packages = []
             # this needs to be global
             # assessment_truncated_list = []
 
             # Truncated assessment patch when operation is not installation
-            if not self.execution_config.operation == Constants.INSTALLATION and len(self.__assessment_packages) > 0:
+            if len(self.__assessment_packages) > 0 and len(self.__installation_packages) == 0:
                 # Perform assessment truncation
                 truncated_assessment, removed_assessment_packages = self.__assessment_truncation_helper(self.__assessment_packages, self.__internal_file_limit)
 
@@ -878,15 +876,8 @@ class StatusHandler(object):
 
                 self.__assessment_removed_packages.append(self.__create_removed_package_detail("Assessment", removed_assessment_packages))
 
-                # Populate assessment tombstone classifications map
-                for package in removed_assessment_packages:
-                    classifications = package['classifications'][0]
-                    assessment_tombstone_map[classifications] = assessment_tombstone_map.get(classifications, 0) + 1
-
-                # Add assessment tombstone record per classifications except unclassified
-                for tombstone_classification, tombstone_package_count in assessment_tombstone_map.items():
-                    if not tombstone_classification == Constants.PackageClassification.UNCLASSIFIED:
-                        truncated_assessment.append(self.__add_assessment_tombstone_record(tombstone_package_count, tombstone_classification))
+                # add all assessment tombstones per classifications into packages_in_assessment
+                truncated_assessment.extend(self.__create_assessment_tombstone_list(removed_assessment_packages))
 
                 # Get the truncated assessment packages to a global variable
                 assessment_truncated_list = truncated_assessment
@@ -915,7 +906,7 @@ class StatusHandler(object):
                 installation_quotes = self.__get_quote_count(truncated_installation)
                 assessment_quotes = self.__get_quote_count(truncated_assessment)
 
-                if (assessment_quotes + self.__get_byte_size(truncated_assessment) + installation_quotes + self.__get_byte_size(truncated_installation) > self.__agent_size_limit):
+                if assessment_quotes + self.__get_byte_size(truncated_assessment) + installation_quotes + self.__get_byte_size(truncated_installation) > self.__agent_size_limit:
                     # Apply Truncation 2nd times
                     truncated_assessment, additional_packages_removed_from_assessment, truncated_installation, additional_packages_removed_from_installation = \
                         self.__installation_truncation_helper(truncated_assessment, truncated_installation,
@@ -929,15 +920,8 @@ class StatusHandler(object):
                 if len(truncated_assessment) > 0:
                     self.__installation_removed_packages.append(self.__create_removed_package_detail("Assessment", removed_assessment_packages))
 
-                    # Populate assessment tombstone classifications map
-                    for package in removed_assessment_packages:
-                        classifications = package['classifications'][0]
-                        assessment_tombstone_map[classifications] = assessment_tombstone_map.get(classifications, 0) + 1
-
-                    # Add assessment tombstone record per classifications except unclassified
-                    for tombstone_classification, tombstone_package_count in assessment_tombstone_map.items():
-                        if not tombstone_classification == Constants.PackageClassification.UNCLASSIFIED:
-                            truncated_assessment.append(self.__add_assessment_tombstone_record(tombstone_package_count, tombstone_classification))
+                    # add all assessment tombstones per classifications into packages_in_assessment
+                    truncated_assessment.extend(self.__create_assessment_tombstone_list(removed_assessment_packages))
 
                     # Get the truncated assessment packages to a global variable
                     assessment_truncated_list = truncated_assessment
@@ -990,10 +974,10 @@ class StatusHandler(object):
         assessment_first_half, assessment_second_half, remain_capacity = self.__split_package_list_helper_func(assessment_packages, size_limit)
 
         # Perform installation truncations
-        new_installation_list, installation_removed_packages, capacity = self.__apply_truncation(installation_packages, remain_capacity)
+        new_installation_list, installation_removed_packages, remain_capacity = self.__apply_truncation(installation_packages, remain_capacity)
 
         # Perform assessment truncation
-        new_assessment_list, assessment_removed_packages, _ = self.__apply_truncation(assessment_second_half, capacity)
+        new_assessment_list, assessment_removed_packages, _ = self.__apply_truncation(assessment_second_half, remain_capacity)
 
         return assessment_first_half + new_assessment_list, assessment_removed_packages, new_installation_list, installation_removed_packages
 
@@ -1058,7 +1042,7 @@ class StatusHandler(object):
         return len(json.dumps(val).encode("utf-8"))
 
     def __get_twice_byte_size(self, val):
-        """ Get the current byte size of val """
+        """ Get the 2x current byte size of val because of escape chars """
         first_byte_size_dump = json.dumps(val)
         return len(json.dumps(first_byte_size_dump).encode("utf-8"))
 
@@ -1075,6 +1059,7 @@ class StatusHandler(object):
         """ Recompose status file with new errors detail list, new errors message, and truncated patches  """
         error_message = Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
 
+        # Reuse the errors object set up
         truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
         self.__try_add_error(errors_detail_list, truncated_error_detail)
         truncated_errors_json = self.__set_errors_json(count_total_errors, errors_detail_list, True)
@@ -1135,6 +1120,20 @@ class StatusHandler(object):
             "maintenanceRunId": installation_message['maintenanceRunId'],
             "errors": truncated_error
         }
+
+    def __create_assessment_tombstone_list(self, removed_assessment_packages):
+        assessment_tombstone_map = {}
+        tombstone_record_list = []
+        for package in removed_assessment_packages:
+            classifications = package['classifications'][0]
+            assessment_tombstone_map[classifications] = assessment_tombstone_map.get(classifications, 0) + 1
+
+        # Add assessment tombstone record per classifications except unclassified
+        for tombstone_classification, tombstone_package_count in assessment_tombstone_map.items():
+            if not tombstone_classification == Constants.PackageClassification.UNCLASSIFIED:
+                tombstone_record_list.append(self.__add_assessment_tombstone_record(tombstone_package_count, tombstone_classification))
+
+        return tombstone_record_list
 
     def __add_assessment_tombstone_record(self, tombstone_packages_count, tombstone_classification):
         """ Tombstone record for truncated assessment
