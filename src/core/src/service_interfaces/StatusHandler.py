@@ -850,6 +850,7 @@ class StatusHandler(object):
 
     # region - Patch Truncation
     def log_truncated_removed_packages_if_any(self):
+        """ log the removed packages from patches in CoreMain after main operation are marked completed """
         if not len(self.__assessment_removed_packages) == 0:
             self.composite_logger.log_debug("Assessment truncated removed packages : {0}".format(self.__assessment_removed_packages))
         if not len(self.__installation_removed_packages) == 0:
@@ -857,6 +858,56 @@ class StatusHandler(object):
 
     def __write_status_file(self, complete_status_file_payload):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
+        """
+            __write_status_file(self, payload):
+                total_byte_size = __get_twice_byte_size(payload)
+                if total_byte_size > 126kb
+                    empty_byte_size = __get_twice_byte_size(__size_of_constant_status_data(payload))
+                    first_package_list = __assessment_packages
+                    second_package_list = __installation_packages
+                    packages_list_byte_size = total_byte_size - empty_byte_size
+                    
+                    if (first_package_list is not None) != (second_package_list is not None):
+                        list_byte = __get_twice_byte_size(first_package_list or second_package_list)
+                        while list_byte > packages_list_byte_size - fix_over_head_byte:
+                            __assessment_truncation_helper()
+                                __split_list_helper_func()
+                                __apply_truncation()
+                            __create_removed_package_detail()
+                            __create_assessment_tombstone_list()
+                            
+                            list_byte = __get__twice_byte_size(packages_truncated_in_assessment)
+                            
+                        __get_complete_status_errors()
+                        __recompose_truncated_status_file()
+                            __recompose_truncated_summary()
+                                
+                    if first_package_list > 0  and second_package_list > 0
+                        list_byte = __get_twice_byte_size(first_package_list + second_package_list)
+                        while list_byte > packages_list_byte_size - fix_over_head_byte:
+                            __assessment_truncation_helper()
+                                __split_list_helper_func()
+                                __apply_truncation()
+                            __create_removed_package_detail()
+                            __create_assessment_tombstone_list()
+                                __add_assessment_tombstone_record
+                            
+                            __installation_truncation_helper
+                                __split_list_helper_func()
+                                __get_installation_packages_index
+                                __apply_truncation()
+                            __create_removed_package_detail()
+                            __add_installation_tombstone_record() 
+                            
+                            list_byte = __get__twice_byte_size(packages_truncated_in_assessment + packages_truncated_in_installation)
+
+                        __get_complete_status_errors()
+                        __recompose_truncated_status_file()
+                            __recompose_truncated_summary()
+                                
+                write_with_retry_using_temp_file()  
+        """
+
         complete_status_byte_size = self.__get_byte_size(complete_status_file_payload)
         truncated_status_file = complete_status_file_payload
 
@@ -872,6 +923,7 @@ class StatusHandler(object):
                 # Perform assessment truncation
                 packages_truncated_in_assessment, packages_removed_from_assessment = self.__assessment_truncation_helper(self.__assessment_packages, self.__internal_file_limit)
 
+                # todo remove the below implementation
                 # Reduce assessment patch byte by escape char (\) byte
                 assessment_quotes = self.__get_quote_count(packages_truncated_in_assessment)
 
@@ -904,6 +956,7 @@ class StatusHandler(object):
                 packages_truncated_in_assessment, packages_removed_from_assessment, packages_truncated_in_installation, removed_packages_from_installation = \
                     self.__installation_truncation_helper(self.__assessment_packages, self.__installation_packages, self.__internal_file_limit)
 
+                # todo remove the below implementation
                 # Get quote count for \ byte
                 installation_quotes = self.__get_quote_count(packages_truncated_in_installation)
                 assessment_quotes = self.__get_quote_count(packages_truncated_in_assessment)
@@ -954,7 +1007,7 @@ class StatusHandler(object):
         # Write status file
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(truncated_status_file)), mode='w+')
 
-    def __split_package_list_helper_func(self, package_list, size_limit):
+    def __split_list_helper_func(self, package_list, size_limit):
         """ Helper function to split package list, keep 5 minimum (assessment) """
         min_packages_count = Constants.StatusTruncationConfig.MIN_TRUNCATED_PACKAGE_COUNT
         package_list_first_half, package_list_second_half = (package_list[:min_packages_count], package_list[min_packages_count:]) \
@@ -964,13 +1017,13 @@ class StatusHandler(object):
 
     def __assessment_truncation_helper(self, assessment_packages, size_limit):
         """ Helper function call split patch list method then apply truncation """
-        assessment_first_half, assessment_second_half, remain_capacity = self.__split_package_list_helper_func(assessment_packages, size_limit)
+        assessment_first_half, assessment_second_half, remain_capacity = self.__split_list_helper_func(assessment_packages, size_limit)
         assessment_truncated_list, truncated_packages, _ = self.__apply_truncation(assessment_second_half, remain_capacity)
         return assessment_first_half + assessment_truncated_list, truncated_packages
 
     def __installation_truncation_helper(self, assessment_packages, installation_packages, size_limit, ):
         """ Helper function call split patch list method then apply truncation on assessment and installation """
-        assessment_first_half, assessment_second_half, remain_capacity = self.__split_package_list_helper_func(assessment_packages, size_limit)
+        assessment_first_half, assessment_second_half, remain_capacity = self.__split_list_helper_func(assessment_packages, size_limit)
 
         # Perform installation truncations
         new_installation_list, installation_removed_packages, remain_capacity = self.__apply_truncation(installation_packages, remain_capacity)
@@ -1044,6 +1097,10 @@ class StatusHandler(object):
         """ Get the 2x current byte size of val because of escape chars """
         first_byte_size_dump = json.dumps(val)
         return len(json.dumps(first_byte_size_dump).encode("utf-8"))
+
+    def __size_of_constant_status_data(self, payload):
+        # todo: implementation create a empty complete status file w/o list data
+        return
 
     def __get_quote_count(self, patch_list):
         return sum(char == '"' for char in json.dumps(patch_list)) if not len(patch_list) == 0 else 0
