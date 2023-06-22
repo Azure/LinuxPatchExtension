@@ -83,7 +83,7 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Install dependencies
         shell: cmd
-        run: pip install -r requirements.txt
+        run: pip install -r .github/workflows/requirements.txt
       - name: Run extension tests
         continue-on-error: true
         shell: cmd
