@@ -117,4 +117,5 @@ jobs:
         if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
         run: |
           echo "${{ steps.getoutput.outputs.contents }}"
+          echo "There are failed tests"
           exit 1
