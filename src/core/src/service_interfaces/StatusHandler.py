@@ -1000,16 +1000,9 @@ class StatusHandler(object):
     def __get_installation_packages_index(self, installation_packages):
         low_pri_index = -1
         for index, package in enumerate(installation_packages):
-            if Constants.PENDING in package['patchInstallationState']:
+            if Constants.PENDING in package['patchInstallationState'] or Constants.EXCLUDED in package['patchInstallationState'] or Constants.NOT_SELECTED in package['patchInstallationState']:
                 low_pri_index = index
                 return low_pri_index
-            if Constants.EXCLUDED in package['patchInstallationState']:
-                low_pri_index = index
-                return low_pri_index
-            if Constants.NOT_SELECTED in package['patchInstallationState']:
-                low_pri_index = index
-                return low_pri_index
-
         return low_pri_index
 
     def __apply_truncation(self, package_list, capacity):
