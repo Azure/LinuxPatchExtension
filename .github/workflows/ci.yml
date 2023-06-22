@@ -50,7 +50,8 @@ jobs:
         id: getoutput
         run: echo "::set-output name=contents::$(cat err.txt)"
       - name: Check if all tests passed
-        if: contains( steps.getoutput.outputs.contents , 'FAILED (failures=' )
+        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
+        shell: cmd
         run: |
           echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
