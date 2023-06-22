@@ -46,6 +46,10 @@ class PatchInstaller(object):
         self.attempted_parent_package_install_count = 0
         self.successful_parent_package_install_count = 0
         self.failed_parent_package_install_count = 0
+        self.skipped_esm_packages = []
+        self.skipped_esm_package_versions = []
+        self.esm_packages_found_without_attach = False  # Flag used to record if esm packages excluded as ubuntu vm not attached.
+
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
     def start_installation(self, simulate=False):
@@ -150,7 +154,14 @@ class PatchInstaller(object):
         excluded_packages, excluded_package_versions = self.get_excluded_updates(package_manager, packages, package_versions)
         self.telemetry_writer.write_event("Excluded package list: " + str(excluded_packages), Constants.TelemetryEventLevel.Verbose)
 
-        packages, package_versions = self.filter_out_excluded_updates(packages, package_versions, excluded_packages)  # Final, honoring exclusions
+        packages, package_versions = self.filter_out_excluded_updates(packages, package_versions, excluded_packages)  # honoring exclusions
+
+        # For ubuntu VMs, filter out esm_packages, if the VM is not attached.
+        # These packages will already be marked with version as 'UA_ESM_REQUIRED'.
+        # Esm packages will not be dependent packages to non-esm packages. This is confirmed by Canonical. So, once these are removed from processing, we need not worry about handling it in our batch / sequential patch processing logic.
+        # Adding this after filtering excluded packages, so we don`t un-intentionally mark excluded esm-package status as failed.
+        packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found_without_attach = package_manager.filter_out_esm_packages(packages, package_versions)
+
         self.telemetry_writer.write_event("Final package list: " + str(packages), Constants.TelemetryEventLevel.Verbose)
 
         # Set initial statuses
@@ -158,11 +169,15 @@ class PatchInstaller(object):
             self.status_handler.set_package_install_status(not_included_packages, not_included_package_versions, Constants.NOT_SELECTED)
         self.status_handler.set_package_install_status(excluded_packages, excluded_package_versions, Constants.EXCLUDED)
         self.status_handler.set_package_install_status(packages, package_versions, Constants.PENDING)
+        self.status_handler.set_package_install_status(self.skipped_esm_packages, self.skipped_esm_package_versions, Constants.FAILED)
         self.composite_logger.log("\nList of packages to be updated: \n" + str(packages))
 
         sec_packages, sec_package_versions = self.package_manager.get_security_updates()
         self.telemetry_writer.write_event("Security packages out of the final package list: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
         self.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, classification="Security")
+
+        # Set the security-esm package status.
+        package_manager.set_security_esm_package_status(Constants.INSTALLATION)
 
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
         # We will see this as packages going from NotSelected --> Installed. We could remove them preemptively from not_included_packages, but we're explicitly choosing not to.
@@ -237,15 +252,11 @@ class PatchInstaller(object):
             # point in time status
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=remaining_time)), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                             "Processing package: " + str(package) + " (" + str(version) + ")")
-            if version == Constants.UA_ESM_REQUIRED:
-                progress_status += "[Skipping - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]"
-                self.composite_logger.log(progress_status)
-                self.status_handler.set_package_install_status(package_manager.get_product_name(package), str(version), Constants.NOT_SELECTED)     # may be changed to Failed in the future
-                continue
+
             self.composite_logger.log(progress_status)
 
             # include all dependencies (with specified versions) explicitly
-            # package_and_dependencies initially conains only one package. The dependencies are added in the list by method include_dependencies
+            # package_and_dependencies initially contains only one package. The dependencies are added in the list by method include_dependencies
             package_and_dependencies = [package]
             package_and_dependency_versions = [version]
             
@@ -435,14 +446,10 @@ class PatchInstaller(object):
 
             packages_in_batch = []
             package_versions_in_batch = []
-            skip_packages = []
             already_installed_packages = []
 
             for index in range(begin_index, end_index + 1):
-                if package_versions[index] == Constants.UA_ESM_REQUIRED:
-                    skip_packages.append(packages[index])
-                    self.status_handler.set_package_install_status(package_manager.get_product_name(packages[index]), str(package_versions[index]), Constants.NOT_SELECTED)
-                elif packages[index] not in self.last_still_needed_packages:
+                if packages[index] not in self.last_still_needed_packages:
                     # Could have got installed as dependent package of some other package. Package installation status could also have been set.
                     already_installed_packages.append(packages[index])
                     self.attempted_parent_package_install_count += 1
@@ -453,9 +460,6 @@ class PatchInstaller(object):
 
             if len(already_installed_packages) > 0:
                 self.composite_logger.log("Following packages are already installed. Could have got installed as dependent package of some other package " + str(already_installed_packages))
-
-            if len(skip_packages) > 0:
-                self.composite_logger.log("[Skipping packages " + str(skip_packages) + " - requires Ubuntu Advantage for Infrastructure with Extended Security Maintenance]")
 
             if len(packages_in_batch) == 0:
                 continue
@@ -553,9 +557,15 @@ class PatchInstaller(object):
 
         # RebootNever is selected and pending, set status warning else success
         if self.reboot_manager.reboot_setting == Constants.REBOOT_NEVER and self.reboot_manager.is_reboot_pending():
+            # Set error details inline with windows extension when setting warning status. This message will be shown in portal.
+            self.status_handler.add_error_to_status("Machine is Required to reboot. However, the customer-specified reboot setting doesn't allow reboots.", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
         else:
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        # If esm packages are found, set the status as warning. This will show up in portal along with the error message we already set.
+        if self.esm_packages_found_without_attach:
+            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
 
         # Update patch metadata in status for auto patching request, to be reported to healthStore
         # When available, HealthStoreId always takes precedence over the 'overriden' Maintenance Run Id that is being re-purposed for other reasons

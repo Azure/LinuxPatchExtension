@@ -139,24 +139,7 @@ class ProcessHandler(object):
             return python_path
         else:
             self.logger.log_debug("Default python path discovery failed. [Code={0}][Out={1}]".format(str(code), str(out)))
-
-        # nothing below this is really necessary and is only there as a fallback for safety initially -----------------
-        command_to_check_for_python = "which python"
-        command_to_check_for_python3 = "which python3"
-        command_to_use_for_python = "python"
-        command_to_use_for_python3 = "python3"
-
-        # check if the machine contains python3
-        code_returned_for_python3_check, output_for_python3_check = self.env_layer.run_command_output(command_to_check_for_python3, False, False)
-        if code_returned_for_python3_check == 0 and command_to_use_for_python3 in str(output_for_python3_check):
-            return command_to_use_for_python3
-
-        # check if the machine contains python
-        code_returned_for_python_check, output_for_python_check = self.env_layer.run_command_output(command_to_check_for_python, False, False)
-        if code_returned_for_python_check == 0 and command_to_use_for_python in str(output_for_python_check) and command_to_use_for_python3 not in str(output_for_python_check):
-            return command_to_use_for_python
-
-        return Constants.PYTHON_NOT_FOUND
+            return Constants.PYTHON_NOT_FOUND
 
     def __check_process_state(self, process, seq_no):
         """ Checks if the process is running by polling every second for a certain period and reports an error if the process is not found """

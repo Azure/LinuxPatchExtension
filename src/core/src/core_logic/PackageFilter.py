@@ -161,7 +161,7 @@ class PackageFilter(object):
     def is_msft_all_classification_included(self):
         """Returns true if all classifications were individually selected *OR* (nothing was selected AND no inclusion list is present) -- business logic"""
         all_classifications = [key for key in Constants.PackageClassification.__dict__.keys() if not key.startswith('__')]
-        all_classifications_explicitly_selected = bool(len(self.installation_included_classifications) == (len(all_classifications) - 1))
+        all_classifications_explicitly_selected = bool(len(self.installation_included_classifications) == (len(all_classifications) - 2))  # all_classifications has "UNCLASSIFIED" and "SECURITY-ESM" that should be ignored. Hence -2
         no_classifications_selected = bool(len(self.installation_included_classifications) == 0)
         only_unclassified_selected = bool('Unclassified' in self.installation_included_classifications and len(self.installation_included_classifications) == 1)
         return all_classifications_explicitly_selected or ((no_classifications_selected or only_unclassified_selected) and not self.is_inclusion_list_present())

@@ -89,6 +89,7 @@ class StatusHandler(object):
 
         # Discovers OS name and version for package id composition
         self.__os_name_and_version = self.get_os_name_and_version()
+
         self.__current_operation = None
 
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
@@ -119,14 +120,14 @@ class StatusHandler(object):
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
         self.composite_logger.log_debug("Setting package assessment status in bulk. [Count={0}]".format(str(len(package_names))))
-
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
 
             # Match patch_id in map and update existing patch's classification i.e from other -> security
-            if not len(self.__assessment_packages_map) == 0 and patch_id in self.__assessment_packages_map:
+            if len(self.__assessment_packages_map) > 0 and patch_id in self.__assessment_packages_map:
                 self.__assessment_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
+                # self.__assessment_packages_map.setdefault(patch_id, {})['patchState'] = status
                 patch_already_saved = True
 
             if patch_already_saved is False:
@@ -179,9 +180,8 @@ class StatusHandler(object):
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
-
             # Match patch_id in map and update existing patch's classification i.e from None -> security and update pending status
-            if not len(self.__installation_packages_map) == 0 and patch_id in self.__installation_packages_map:
+            if len(self.__installation_packages_map) > 0 and patch_id in self.__installation_packages_map:
                 if classification is not None:
                     self.__installation_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
                 self.__installation_packages_map.setdefault(patch_id, {})['patchInstallationState'] = status
@@ -197,7 +197,6 @@ class StatusHandler(object):
                     "classifications": [classification],
                     "patchInstallationState": str(status)
                 }
-
                 # Add new patch to ordered map
                 self.__installation_packages_map[patch_id] = record
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
@@ -225,15 +224,14 @@ class StatusHandler(object):
             return
 
         self.validate_packages_being_installed(package_names, package_versions)
-        self.composite_logger.log_debug("Setting package installation classification in bulk. [Count={0}]".format(str(len(package_names))))
 
+        self.composite_logger.log_debug("Setting package installation classification in bulk. [Count={0}]".format(str(len(package_names))))
         package_classification_summary = ""
         for package_name, package_version in zip(package_names, package_versions):
             classification_matching_package_found = False
             patch_id = self.__get_patch_id(package_name, package_version)
-
             # Match patch_id in map and update existing patch's classification i.e from None -> security
-            if not len(self.__installation_packages_map) == 0 and patch_id in self.__installation_packages_map:
+            if len(self.__installation_packages_map) > 0 and patch_id in self.__installation_packages_map:
                 self.__installation_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
                 classification_matching_package_found = True
 
@@ -346,7 +344,7 @@ class StatusHandler(object):
         other_patch_count = 0
         for i in range(0, len(assessment_packages_json)):
             classifications = assessment_packages_json[i]['classifications']
-            if "Critical" in classifications or "Security" in classifications:
+            if "Critical" in classifications or "Security" in classifications or "Security-ESM" in classifications:
                 critsec_patch_count += 1
             else:
                 other_patch_count += 1
@@ -673,6 +671,7 @@ class StatusHandler(object):
     def __write_complete_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
             This is usually the final call to compose and persist after an in-memory data update in a specialized method.
+
             Pseudo-composition (including steps prior):
             [__new_basic_status_json()]
                 assessment_substatus_json == set_assessment_substatus_json()
@@ -680,6 +679,7 @@ class StatusHandler(object):
                     __new_assessment_summary_json() with external data --
                         assessment_packages
                         errors
+
                 installation_substatus_json == set_installation_substatus_json
                     __new_substatus_json_for_operation
                     __new_installation_summary_json with external data --
@@ -687,11 +687,13 @@ class StatusHandler(object):
                         maintenance_window_exceeded
                         __refresh_installation_reboot_status
                         errors
+
                 patch_metadata_for_healthstore_json = set_patch_metadata_for_healthstore_substatus_json
                     __new_substatus_json_for_operation
                     __metadata_for_healthstore_summary_json with external data --
                         patchVersion
                         shouldReportToHealthStore
+
                 configure_patching_substatus_json == set_configure_patching_substatus_json
                     __new_substatus_json_for_operation
                     __new_configure_patching_summary_json with external data --
@@ -700,6 +702,7 @@ class StatusHandler(object):
                             auto_assessment_state
                             errors
                         errors
+
         :return: None
         """
         status_file_payload = self.__new_basic_status_json()

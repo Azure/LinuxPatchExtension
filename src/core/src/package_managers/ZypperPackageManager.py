@@ -812,3 +812,21 @@ class ZypperPackageManager(PackageManager):
         Only required for yum. No-op for apt and zypper.
         """
         return
+
+    def set_security_esm_package_status(self, operation):
+        """
+        Set the security-ESM classification for the esm packages. Only needed for apt. No-op for yum and zypper.
+        """
+        pass
+
+    def filter_out_esm_packages(self, packages, package_versions):
+        """
+        Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
+        Only needed for apt. No-op for yum and zypper
+        """
+        esm_packages = []
+        esm_package_versions = []
+        esm_packages_found = False
+
+        return packages, package_versions, esm_packages, esm_package_versions, esm_packages_found
+
