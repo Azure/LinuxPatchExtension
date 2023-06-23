@@ -930,9 +930,9 @@ class StatusHandler(object):
                     # add all assessment tombstones per classifications into packages_in_assessment
                     packages_truncated_in_assessment.extend(self.__create_assessment_tombstone_list(self.__assessment_removed_packages[0]['removed_packages']))
 
-                # Recompose truncated status file payload
-                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
-                    self.__assessment_summary_json, Constants.PATCH_ASSESSMENT_SUMMARY)
+                    # Recompose truncated status file payload
+                    truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
+                        self.__assessment_summary_json, Constants.PATCH_ASSESSMENT_SUMMARY)
 
             # Perform installation truncation
             if self.execution_config.operation == Constants.INSTALLATION:
@@ -1113,9 +1113,10 @@ class StatusHandler(object):
         # Reuse the errors object set up
         truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
         self.__try_add_error(truncation_detail_list, truncated_error_detail)
-        truncated_errors_json = self.__set_errors_json(count_total_errors, truncation_detail_list, True)
+        truncated_errors_json = self.__set_errors_json(count_total_errors, truncation_detail_list, True)    # True for truncated bool
 
         return truncated_errors_json
+
     def __assessment_truncated_message(self, assessment_message, assessment_truncated_list, truncated_error):
         """ Recompose truncated assessment substatus """
         return {

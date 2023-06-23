@@ -1319,7 +1319,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_operation_success_truncate_assessment_over_size_limit(self):
+    def test_installation_success_truncate_assessment_over_size_limit(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1402,7 +1402,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_operation_success_keep_min_5_assessment_size_limit(self):
+    def test_installation_success_keep_min_5_assessment_size_limit(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1489,7 +1489,86 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_operation_success_truncate_both_size_limit_install_path(self):
+    def test_installation_success_no_assessment_truncate_size_limit(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.INSTALLATION
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # SuccessInstallPath add 2 additional packages
+        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
+        #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
+
+        patch_count_for_assessment = 3
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
+        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        patch_count_for_installation = 1000
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
+        runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+        runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        # Test Complete status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)
+
+        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+
+        # Assessment summary
+        assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
+        self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
+        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+
+        # Installation summary
+        installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
+        self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
+        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+
+        # Test truncated status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)
+        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+
+        # Test assessment truncation
+        assessment_truncated_substatus = substatus_file_data[0]["status"]["substatus"][0]
+        self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 5)   # no tombstone
+
+        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
+        # assessment truncated patches
+        self.assertEqual(removed_packages_list[0]['name'], 'Installation')      # no assessment truncation
+        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.SUCCESS)
+        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+
+        # installation truncated patches
+        installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
+        self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+        self.assertTrue(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]) < patch_count_for_installation + 2)
+
+        # tombstone record
+        message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
+        self.assertEqual(message_patches[-1]['name'], 'Truncated_patch_list')
+        self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
+        self.assertEqual(removed_packages_list[0]['name'], 'Installation')
+        self.assertEqual(len(removed_packages_list[0]["removed_packages"]), patch_count_for_installation + 3 - len(message_patches))    # 1 tombstone
+        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 2)
+        self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+
+        runtime.stop()
+
+    def test_installation_success_truncate_both_size_limit_install_path(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1574,7 +1653,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_operation_success_truncate_both_size_limit_happy_path(self):
+    def test_installation_success_truncate_both_size_limit_happy_path(self):
         argument_composer = ArgumentComposer()
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
@@ -1656,7 +1735,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_operation_fail_truncate_with_error_size_limit(self):
+    def test_installation_fail_truncate_with_error_size_limit(self):
         """ truncate assessment list > size limit but installation < size limit with error"""
         argument_composer = ArgumentComposer()
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
