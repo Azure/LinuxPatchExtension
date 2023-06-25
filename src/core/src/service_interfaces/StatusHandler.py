@@ -50,9 +50,9 @@ class StatusHandler(object):
         self.__maintenance_window_exceeded = False
         self.__installation_reboot_status = Constants.RebootStatus.NOT_NEEDED
         self.__installation_packages_map = OrderedDict()
-        self.__installation_truncated_summary_json = None
-        self.__installation_truncated_packages = []
-        self.__installation_removed_packages = []
+        self.__installation_summary_json_truncated = None
+        self.__installation_packages_truncated = []
+        self.__installation_packages_removed = []
 
         # Internal in-memory representation of Patch Assessment data
         self.__assessment_substatus_json = None
@@ -61,9 +61,9 @@ class StatusHandler(object):
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
         self.__assessment_packages_map = OrderedDict()
-        self.__assessment_truncated_summary_json = None
-        self.__assessment_truncated_packages = []
-        self.__assessment_removed_packages = []
+        self.__assessment_summary_json_truncated = None
+        self.__assessment_packages_truncated = []
+        self.__assessment_packages_removed = []
 
         # Internal in-memory representation of Patch Metadata for HealthStore
         self.__metadata_for_healthstore_substatus_json = None
@@ -117,8 +117,10 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0
-        self.__assessment_removed_packages = []
         self.__assessment_packages_map = OrderedDict()
+        self.__assessment_packages_removed = []
+        self.__assessment_packages_truncated = []
+        self.__assessment_summary_json_truncated = None
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
@@ -564,16 +566,18 @@ class StatusHandler(object):
         self.__installation_packages = []
         self.__installation_errors = []
         self.__installation_packages_map = OrderedDict()
-        self.__installation_truncated_packages = []
-        self.__installation_removed_packages = []
+        self.__installation_summary_json_truncated = None
+        self.__installation_packages_truncated = []
+        self.__installation_packages_removed = []
 
         self.__assessment_substatus_json = None
         self.__assessment_summary_json = None
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_packages_map = OrderedDict()
-        self.__assessment_truncated_packages = []
-        self.__assessment_removed_packages = []
+        self.__assessment_summary_json_truncated = None
+        self.__assessment_packages_truncated = []
+        self.__assessment_packages_removed = []
 
         self.__metadata_for_healthstore_substatus_json = None
         self.__metadata_for_healthstore_summary_json = None
@@ -852,10 +856,10 @@ class StatusHandler(object):
     # region - Patch Truncation
     def log_truncated_removed_packages_if_any(self):
         """ log the removed packages from patches in CoreMain after main operation are marked completed """
-        if not len(self.__assessment_removed_packages) == 0:
-            self.composite_logger.log_debug("Assessment truncated removed packages : {0}".format(self.__assessment_removed_packages))
-        if not len(self.__installation_removed_packages) == 0:
-            self.composite_logger.log_debug("Installation truncated removed packages : {0}".format(self.__installation_removed_packages))
+        if not len(self.__assessment_packages_removed) == 0:
+            self.composite_logger.log_debug("Assessment truncated removed packages : {0}".format(self.__assessment_packages_removed))
+        if not len(self.__installation_packages_removed) == 0:
+            self.composite_logger.log_debug("Installation truncated removed packages : {0}".format(self.__installation_packages_removed))
 
     def __write_status_file(self, complete_status_file_payload):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
@@ -921,40 +925,40 @@ class StatusHandler(object):
             empty_list_file_size = self.__size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_index, installation_index)
 
             # Perform assessment truncation, no installation packages
-            if len(self.__assessment_truncated_packages) > 0 and len(self.__installation_truncated_packages) == 0:
+            if len(self.__assessment_packages_truncated) > 0 and len(self.__installation_packages_truncated) == 0:
 
                 # Perform assessment truncation
-                packages_truncated_in_assessment, packages_removed_from_assessment = self.__assessment_truncation_helper(self.__assessment_truncated_packages, self.__internal_file_limit - self.__fix_escape_byte)
+                packages_truncated_in_assessment, packages_removed_from_assessment = self.__assessment_truncation_helper(self.__assessment_packages_truncated, self.__internal_file_limit - self.__fix_escape_byte)
 
                 # Create removed packages object and add to assessment removed list
                 if len(packages_removed_from_assessment) > 0:
-                    self.__assessment_removed_packages = packages_removed_from_assessment
+                    self.__assessment_packages_removed = packages_removed_from_assessment
                     # Recompose truncated status file payload
                     truncated_status_file = self.__recreate_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
-                        self.__assessment_truncated_summary_json, assessment_name, assessment_index)
+                        self.__assessment_summary_json_truncated, assessment_name, assessment_index)
 
             # Perform assessment and installation truncation
             if self.execution_config.operation == Constants.INSTALLATION:
-                self.__installation_removed_packages = []   # avoid duplicates, reset for multiple write_status_calls()
+                self.__installation_packages_removed = []   # avoid duplicates, reset for multiple write_status_calls()
 
                 # Apply Truncation
                 packages_truncated_in_assessment, packages_removed_from_assessment, packages_truncated_in_installation, packages_removed_from_installation = \
-                    self.__installation_truncation_helper(self.__assessment_truncated_packages, self.__installation_truncated_packages, self.__internal_file_limit - self.__fix_escape_byte)
+                    self.__installation_truncation_helper(self.__assessment_packages_truncated, self.__installation_packages_truncated, self.__internal_file_limit - self.__fix_escape_byte)
 
                 # Create removed packages object and add to assessment removed list
                 if len(packages_removed_from_assessment) > 0:
-                    self.__assessment_removed_packages = packages_removed_from_assessment
+                    self.__assessment_packages_removed = packages_removed_from_assessment
                     # Recompose truncated status file payload
                     truncated_status_file = self.__recreate_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
-                        self.__assessment_truncated_summary_json, assessment_name, assessment_index)
+                        self.__assessment_summary_json_truncated, assessment_name, assessment_index)
 
                 # Add packages removed from installation
                 if len(packages_removed_from_installation) > 0:
-                    self.__installation_removed_packages = packages_removed_from_installation
+                    self.__installation_packages_removed = packages_removed_from_installation
                     # Recompose truncated status file payload
 
                     truncated_status_file = self.__recreate_truncated_status_file(truncated_status_file, packages_truncated_in_installation, self.__installation_total_error_count,
-                        self.__installation_truncated_summary_json, installation_name, installation_index)
+                        self.__installation_summary_json_truncated, installation_name, installation_index)
 
             self.composite_logger.log_debug("Complete Truncation")
 
@@ -1049,15 +1053,15 @@ class StatusHandler(object):
     def __size_of_constant_status_data(self, complete_status_file_payload, assessment_index, installation_index):
         """ Get the byte size complete_status_file without packages data  """
         if installation_index is not None:
-            self.__installation_truncated_summary_json = self.__get_substatus_message(complete_status_file_payload, installation_index)
-            self.__installation_truncated_packages = self.__installation_truncated_summary_json['patches']
-            message = self.__recreate_installation_summary_json(self.__installation_summary_json, [], self.__installation_truncated_summary_json['errors'])
+            self.__installation_summary_json_truncated = self.__get_substatus_message(complete_status_file_payload, installation_index)
+            self.__installation_packages_truncated = self.__installation_summary_json_truncated['patches']
+            message = self.__recreate_installation_summary_json(self.__installation_summary_json, [], self.__installation_summary_json_truncated['errors'])
             complete_status_file_payload['status']['substatus'][installation_index]['formattedMessage']['message'] = json.dumps(message)
 
         if assessment_index is not None:
-            self.__assessment_truncated_summary_json = self.__get_substatus_message(complete_status_file_payload, assessment_index)
-            self.__assessment_truncated_packages = self.__assessment_truncated_summary_json['patches']
-            message = self.__recreate_assessment_summary_json(self.__assessment_truncated_summary_json, [], self.__assessment_truncated_summary_json['errors'])
+            self.__assessment_summary_json_truncated = self.__get_substatus_message(complete_status_file_payload, assessment_index)
+            self.__assessment_packages_truncated = self.__assessment_summary_json_truncated['patches']
+            message = self.__recreate_assessment_summary_json(self.__assessment_summary_json_truncated, [], self.__assessment_summary_json_truncated['errors'])
             complete_status_file_payload['status']['substatus'][assessment_index]['formattedMessage']['message'] = json.dumps(message)
 
         return self.__get_twice_byte_size(complete_status_file_payload)
@@ -1073,9 +1077,6 @@ class StatusHandler(object):
         """ Recompose final truncated status file version """
         truncation_detail_list = []
         error_code = Constants.PatchOperationTopLevelErrorCode.ERROR
-        # todo move to under if condition for optimal performance
-        # substatus_index, substatus_name = self.__get_index_name(substatus_name, truncated_status_file['status']['substatus'])
-
         code, errors_details = self.__get_complete_status_errors(summary_json)
 
         # Check for existing assessment errors before recompose
@@ -1087,9 +1088,9 @@ class StatusHandler(object):
             truncation_detail_list.extend(errors_details)
 
         return self.__recreate_truncated_summary_json(truncated_status_file, packages_truncated_in_list, truncation_detail_list,
-            count_total_errors, substatus_name, substatus_index)
+            count_total_errors, summary_json, substatus_name, substatus_index)
 
-    def __recreate_truncated_summary_json(self, truncated_status_file, packages_truncated_in_list, truncation_detail_list, count_total_errors, substatus_name, substatus_index):
+    def __recreate_truncated_summary_json(self, truncated_status_file, packages_truncated_in_list, truncation_detail_list, count_total_errors, summary_json, substatus_name, substatus_index):
         """ Recompose status file with new errors detail list, new errors message, and truncated patches  """
         message = None
         # Recompose message errors json
@@ -1097,10 +1098,10 @@ class StatusHandler(object):
 
         if substatus_name == Constants.PATCH_ASSESSMENT_SUMMARY:
             # Add assessment tombstone per classifications into packages_in_assessment
-            packages_truncated_in_list.extend(self.__create_assessment_tombstone_list(self.__assessment_removed_packages))
+            packages_truncated_in_list.extend(self.__create_assessment_tombstone_list(self.__assessment_packages_removed))
 
             # Recompose assessment substatus message
-            message = self.__recreate_assessment_summary_json(self.__assessment_summary_json, packages_truncated_in_list, truncated_errors_json)
+            message = self.__recreate_assessment_summary_json(summary_json, packages_truncated_in_list, truncated_errors_json)
 
         # Update summary message
         if substatus_name == Constants.PATCH_INSTALLATION_SUMMARY:
@@ -1108,13 +1109,14 @@ class StatusHandler(object):
             packages_truncated_in_list.append(self.__create_installation_tombstone())
 
             # Recompose installation substatus message
-            message = self.__recreate_installation_summary_json(self.__installation_summary_json, packages_truncated_in_list, truncated_errors_json)
+            message = self.__recreate_installation_summary_json(summary_json, packages_truncated_in_list, truncated_errors_json)
 
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(message)
 
         return truncated_status_file
 
     def __recreate_substatus_errors(self, truncation_detail_list, count_total_errors):
+        """ Recompose truncated substatus errors json """
         error_message = Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
 
         # Reuse the errors object set up
@@ -1124,35 +1126,35 @@ class StatusHandler(object):
 
         return truncated_errors_json
 
-    def __recreate_assessment_summary_json(self, assessment_message, assessment_truncated_list, truncated_error):
+    def __recreate_assessment_summary_json(self, assessment_substatus, assessment_truncated, truncated_error):
         """ Recompose truncated assessment substatus """
         return {
-            "assessmentActivityId": assessment_message["assessmentActivityId"],
-            "rebootPending": assessment_message["rebootPending"],
-            "criticalAndSecurityPatchCount": assessment_message["criticalAndSecurityPatchCount"],
-            "otherPatchCount": assessment_message["otherPatchCount"],
-            "patches": assessment_truncated_list,
-            "startTime": assessment_message["startTime"],
-            "lastModifiedTime": assessment_message["lastModifiedTime"],
-            "startedBy": assessment_message["startedBy"],
+            "assessmentActivityId": assessment_substatus["assessmentActivityId"],
+            "rebootPending": assessment_substatus["rebootPending"],
+            "criticalAndSecurityPatchCount": assessment_substatus["criticalAndSecurityPatchCount"],
+            "otherPatchCount": assessment_substatus["otherPatchCount"],
+            "patches": assessment_truncated,
+            "startTime": assessment_substatus["startTime"],
+            "lastModifiedTime": assessment_substatus["lastModifiedTime"],
+            "startedBy": assessment_substatus["startedBy"],
             "errors": truncated_error
         }
 
-    def __recreate_installation_summary_json(self, installation_message, installation_truncated_list, truncated_error):
+    def __recreate_installation_summary_json(self, installation_substatus, installation_truncated, truncated_error):
         """ Recompose truncated installation substatus """
         return {
-            "installationActivityId": installation_message['installationActivityId'],
-            "rebootStatus": installation_message['rebootStatus'],
-            "maintenanceWindowExceeded": installation_message['maintenanceWindowExceeded'],
-            "notSelectedPatchCount": installation_message['notSelectedPatchCount'],
-            "excludedPatchCount": installation_message['excludedPatchCount'],
-            "pendingPatchCount": installation_message['pendingPatchCount'],
-            "installedPatchCount": installation_message['installedPatchCount'],
-            "failedPatchCount": installation_message['failedPatchCount'],
-            "patches": installation_truncated_list,
-            "startTime": installation_message['startTime'],
-            "lastModifiedTime": installation_message['lastModifiedTime'],
-            "maintenanceRunId": installation_message['maintenanceRunId'],
+            "installationActivityId": installation_substatus['installationActivityId'],
+            "rebootStatus": installation_substatus['rebootStatus'],
+            "maintenanceWindowExceeded": installation_substatus['maintenanceWindowExceeded'],
+            "notSelectedPatchCount": installation_substatus['notSelectedPatchCount'],
+            "excludedPatchCount": installation_substatus['excludedPatchCount'],
+            "pendingPatchCount": installation_substatus['pendingPatchCount'],
+            "installedPatchCount": installation_substatus['installedPatchCount'],
+            "failedPatchCount": installation_substatus['failedPatchCount'],
+            "patches": installation_truncated,
+            "startTime": installation_substatus['startTime'],
+            "lastModifiedTime": installation_substatus['lastModifiedTime'],
+            "maintenanceRunId": installation_substatus['maintenanceRunId'],
             "errors": truncated_error
         }
 
