@@ -1254,8 +1254,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue("additional updates of classification" in message_patches[-1]['name'][0])
 
         removed_packages_list = runtime.status_handler._StatusHandler__assessment_removed_packages
-        self.assertEqual(removed_packages_list[0]["name"], "Assessment")
-        self.assertEqual(len(removed_packages_list[0]["removed_packages"]), patch_count_for_test + 6 - len(message_patches))    # 3 tombstones - Critical, Security, Other
+        self.assertEqual(len(removed_packages_list), patch_count_for_test + 6 - len(message_patches))    # 3 tombstones - Critical, Security, Other
 
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
@@ -1310,8 +1309,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue("additional updates of classification" in message_patches[-1]['name'][0])
 
         removed_packages_list = runtime.status_handler._StatusHandler__assessment_removed_packages
-        self.assertEqual(removed_packages_list[0]["name"], "Assessment")
-        self.assertEqual(len(removed_packages_list[0]["removed_packages"]), patch_count_for_test + 5 - len(message_patches))    # 2 tombstones - Security, Other
+        self.assertEqual(len(removed_packages_list), patch_count_for_test + 5 - len(message_patches))    # 2 tombstones - Security, Other
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
@@ -1380,9 +1378,8 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
 
         # assessment removed packages
-        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
-        self.assertEqual(removed_packages_list[0]['name'], 'Assessment')
-        self.assertEqual(len(removed_packages_list[0]['removed_packages']), patch_count_for_assessment + 3 - len(message_patches))   # 1 tombstones - Other
+        removed_packages_list = runtime.status_handler._StatusHandler__assessment_removed_packages
+        self.assertEqual(len(removed_packages_list), patch_count_for_assessment + 3 - len(message_patches))   # 1 tombstone - Other
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
@@ -1392,10 +1389,10 @@ class TestCoreMain(unittest.TestCase):
         installation_truncated_substatus = substatus_file_data["status"]["substatus"][1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        installation_patches_count = len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"])
-        self.assertTrue(installation_patches_count == patch_count_for_installation + 2)
+        installation_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
+        self.assertEqual(len(installation_patches), patch_count_for_installation + 2)
 
-        self.assertEqual(len(removed_packages_list), 1)     # Only Assessment Truncation, No Installation
+        self.assertNotEqual(installation_patches[-1]['patchId'][0], 'Truncated_patch_list_id')     # No installation truncation
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 0)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
 
@@ -1462,10 +1459,9 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
 
-        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
+        removed_packages_list = runtime.status_handler._StatusHandler__assessment_removed_packages
         # assessment truncated patches
-        self.assertEqual(removed_packages_list[0]['name'], 'Assessment')
-        self.assertEqual(len(removed_packages_list[0]['removed_packages']), patch_count_for_assessment + 3 - len(message_patches))    # 1 tombstone
+        self.assertEqual(len(removed_packages_list), patch_count_for_assessment + 3 - len(message_patches))    # 1 tombstone
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
@@ -1478,11 +1474,11 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]) < patch_count_for_installation + 2)
 
         # tombstone record
+        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
         message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
         self.assertEqual(message_patches[-1]['name'], 'Truncated_patch_list')
         self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
-        self.assertEqual(removed_packages_list[1]['name'], 'Installation')
-        self.assertEqual(len(removed_packages_list[1]["removed_packages"]), patch_count_for_installation + 3 - len(message_patches))    # 1 tombstone
+        self.assertEqual(len(removed_packages_list), patch_count_for_installation + 3 - len(message_patches))    # 1 tombstone
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 2)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
 
@@ -1544,9 +1540,9 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_SUCCESS.lower())
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 5)   # no tombstone
 
-        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
+        removed_packages_list = runtime.status_handler._StatusHandler__assessment_removed_packages
         # assessment truncated patches
-        self.assertEqual(removed_packages_list[0]['name'], 'Installation')      # no assessment truncation
+        self.assertEqual(len(removed_packages_list), 0)      # no assessment truncation
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.SUCCESS)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
 
@@ -1557,11 +1553,11 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]) < patch_count_for_installation + 2)
 
         # tombstone record
+        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
         message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
         self.assertEqual(message_patches[-1]['name'], 'Truncated_patch_list')
         self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
-        self.assertEqual(removed_packages_list[0]['name'], 'Installation')
-        self.assertEqual(len(removed_packages_list[0]["removed_packages"]), patch_count_for_installation + 3 - len(message_patches))    # 1 tombstone
+        self.assertEqual(len(removed_packages_list), patch_count_for_installation + 3 - len(message_patches))    # 1 tombstone
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 2)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
 
@@ -1629,10 +1625,9 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
         self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
 
-        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
+        removed_packages_list = runtime.status_handler._StatusHandler__assessment_removed_packages
         # assessment removed packages
-        self.assertEqual(removed_packages_list[0]['name'], 'Assessment')
-        self.assertEqual(len(removed_packages_list[0]['removed_packages']), patch_count_for_assessment + 3 - len(message_patches))    # 1 is tombstone
+        self.assertEqual(len(removed_packages_list), patch_count_for_assessment + 3 - len(message_patches))    # 1 is tombstone
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
@@ -1640,12 +1635,13 @@ class TestCoreMain(unittest.TestCase):
 
         # installation truncated patches
         installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
+        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
         message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(len(message_patches), patch_count_for_installation + 3 - len(removed_packages_list[1]["removed_packages"]))    # 1 tombstone
+        self.assertEqual(len(message_patches), patch_count_for_installation + 3 - len(removed_packages_list))    # 1 tombstone
 
-        self.assertEqual(len(removed_packages_list[1]["removed_packages"]), patch_count_for_installation + 3 - len(message_patches))
+        self.assertEqual(len(removed_packages_list), patch_count_for_installation + 3 - len(message_patches))
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
@@ -1712,10 +1708,9 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(message_patches[- 1]['patchId'], 'Truncated_patch_list_id')
         self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
 
-        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
+        removed_packages_list = runtime.status_handler._StatusHandler__assessment_removed_packages
         # assessment removed packages
-        self.assertEqual(removed_packages_list[0]['name'], 'Assessment')
-        self.assertEqual(len(removed_packages_list[0]['removed_packages']), patch_count_for_assessment + 4 - len(message_patches))    # 2 tombstones
+        self.assertEqual(len(removed_packages_list), patch_count_for_assessment + 4 - len(message_patches))    # 2 tombstones
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
@@ -1723,11 +1718,12 @@ class TestCoreMain(unittest.TestCase):
 
         # installation truncated patches
         installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
+        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_ERROR.lower())
         message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(len(message_patches), patch_count_for_installation + 4 - len(removed_packages_list[1]['removed_packages']))    # 1 tombstone
-        self.assertEqual(len(removed_packages_list[1]["removed_packages"]), patch_count_for_installation + 4 - len(message_patches))    # 1 tombstone
+        self.assertEqual(len(message_patches), patch_count_for_installation + 4 - len(removed_packages_list))    # 1 tombstone
+        self.assertEqual(len(removed_packages_list), patch_count_for_installation + 4 - len(message_patches))    # 1 tombstone
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.ERROR)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 2)
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
@@ -1804,11 +1800,10 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
 
         truncated_assessment = len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"])
-        removed_packages_list = runtime.status_handler._StatusHandler__installation_removed_packages
+        removed_packages_list = runtime.status_handler._StatusHandler__assessment_removed_packages
         # assessment removed packages
-        self.assertEqual(removed_packages_list[0]['name'], 'Assessment')
-        self.assertEqual(len(removed_packages_list[0]['removed_packages']), patch_count_for_assessment + 3 - truncated_assessment)     # 1 tombstone
-        self.assertEqual(truncated_assessment, patch_count_for_assessment + 3 - len(removed_packages_list[0]['removed_packages']))    # 1 tombstone
+        self.assertEqual(len(removed_packages_list), patch_count_for_assessment + 3 - truncated_assessment)     # 1 tombstone
+        self.assertEqual(truncated_assessment, patch_count_for_assessment + 3 - len(removed_packages_list))    # 1 tombstone
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
@@ -1818,9 +1813,9 @@ class TestCoreMain(unittest.TestCase):
         installation_truncated_substatus = substatus_file_data[1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_ERROR.lower())
-        installation_patches_count = len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"])
-        self.assertTrue(installation_patches_count == patch_count_for_installation + 2)
-        self.assertEqual(len(removed_packages_list), 1)  # No installation truncation
+        installation_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
+        self.assertEqual(len(installation_patches), patch_count_for_installation + 2)
+        self.assertNotEqual(installation_patches[-1]['patchId'][0], 'Truncated_patch_list_id')  # No installation truncation
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 1)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
         # 1 failed installed packages errors, but no truncation error

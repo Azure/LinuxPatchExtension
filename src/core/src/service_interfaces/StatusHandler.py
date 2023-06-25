@@ -918,17 +918,16 @@ class StatusHandler(object):
 
             # Truncated assessment patch when operation is not installation
             if len(self.__assessment_packages) > 0 and len(self.__installation_packages) == 0:
-                self.__assessment_removed_packages = []  # avoid duplicates, reset for multiple write_status_calls()
 
                 # Perform assessment truncation
                 packages_truncated_in_assessment, packages_removed_from_assessment = self.__assessment_truncation_helper(self.__assessment_packages, self.__internal_file_limit - self.__fix_escape_byte)
 
                 # Create removed packages object and add to assessment removed list
                 if len(packages_removed_from_assessment) > 0:
-                    self.__assessment_removed_packages.append(self.__create_removed_package_detail("Assessment", packages_removed_from_assessment))
+                    self.__assessment_removed_packages = packages_removed_from_assessment
 
                     # add all assessment tombstones per classifications into packages_in_assessment
-                    packages_truncated_in_assessment.extend(self.__create_assessment_tombstone_list(self.__assessment_removed_packages[0]['removed_packages']))
+                    packages_truncated_in_assessment.extend(self.__create_assessment_tombstone_list(self.__assessment_removed_packages))
 
                     # Recompose truncated status file payload
                     truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
@@ -944,10 +943,10 @@ class StatusHandler(object):
 
                 # Create removed packages object and add to assessment removed list
                 if len(packages_removed_from_assessment) > 0:
-                    self.__installation_removed_packages.append(self.__create_removed_package_detail("Assessment", packages_removed_from_assessment))
+                    self.__assessment_removed_packages = packages_removed_from_assessment
 
                     # add all assessment tombstones per classifications into packages_in_installation
-                    packages_truncated_in_assessment.extend(self.__create_assessment_tombstone_list(self.__installation_removed_packages[0]['removed_packages']))
+                    packages_truncated_in_assessment.extend(self.__create_assessment_tombstone_list(self.__assessment_removed_packages))
 
                     # Recompose truncated status file payload
                     truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
@@ -955,7 +954,7 @@ class StatusHandler(object):
 
                 # Add packages removed from installation
                 if len(packages_removed_from_installation) > 0:
-                    self.__installation_removed_packages.append(self.__create_removed_package_detail("Installation", packages_removed_from_installation))
+                    self.__installation_removed_packages = packages_removed_from_installation
 
                     # Add installation tombstone record
                     packages_truncated_in_installation.append(self.__add_installation_tombstone_record())
@@ -1042,13 +1041,6 @@ class StatusHandler(object):
                 self.env_layer.file_system.delete_files_from_dir(file, '*.complete.status')
 
         return os.path.realpath(latest_file)
-
-    def __create_removed_package_detail(self, name, removed_packages):
-        """ Compose truncated packages for logging """
-        return {
-            "name": str.capitalize(name),
-            "removed_packages": removed_packages
-        }
 
     def __get_byte_size(self, val):
         """ Get the current byte size of val """
