@@ -1360,7 +1360,6 @@ class TestCoreMain(unittest.TestCase):
         installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        print('what is length', len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]))
         self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
         self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
 
@@ -1759,6 +1758,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
 
         # Adding multiple exceptions
+        runtime.status_handler.add_error_to_status("exception0", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         runtime.status_handler.add_error_to_status("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         runtime.status_handler.add_error_to_status("exception3", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
@@ -1823,6 +1823,8 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(len(removed_packages_list), 1)  # No installation truncation
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 1)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
+        # 1 failed installed packages errors, but no truncation error
+        self.assertTrue("7 error/s reported. The latest 5 error/s are shared in detail." in json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
 
         runtime.stop()
 

@@ -890,6 +890,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
 
         # Adding multiple exceptions
+        self.runtime.status_handler.add_error_to_status("exception0", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         self.runtime.status_handler.add_error_to_status("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         self.runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         self.runtime.status_handler.add_error_to_status("exception3", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
@@ -932,7 +933,8 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.ERROR)
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 5)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-        self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
+        # 1 truncation error
+        self.assertTrue("7 error/s reported. The latest 5 error/s are shared in detail" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):

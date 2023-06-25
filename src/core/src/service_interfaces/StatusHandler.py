@@ -939,7 +939,7 @@ class StatusHandler(object):
                 self.__installation_removed_packages = []   # avoid duplicates, reset for multiple write_status_calls()
 
                 # Apply Truncation
-                packages_truncated_in_assessment, packages_removed_from_assessment, packages_truncated_in_installation, removed_packages_from_installation = \
+                packages_truncated_in_assessment, packages_removed_from_assessment, packages_truncated_in_installation, packages_removed_from_installation = \
                     self.__installation_truncation_helper(self.__assessment_packages, self.__installation_packages, self.__internal_file_limit - self.__fix_escape_byte)
 
                 # Create removed packages object and add to assessment removed list
@@ -954,8 +954,8 @@ class StatusHandler(object):
                         self.__assessment_summary_json, Constants.PATCH_ASSESSMENT_SUMMARY)
 
                 # Add packages removed from installation
-                if len(removed_packages_from_installation) > 0:
-                    self.__installation_removed_packages.append(self.__create_removed_package_detail("Installation", removed_packages_from_installation))
+                if len(packages_removed_from_installation) > 0:
+                    self.__installation_removed_packages.append(self.__create_removed_package_detail("Installation", packages_removed_from_installation))
 
                     # Add installation tombstone record
                     packages_truncated_in_installation.append(self.__add_installation_tombstone_record())
