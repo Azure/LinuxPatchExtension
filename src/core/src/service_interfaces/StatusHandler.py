@@ -925,10 +925,6 @@ class StatusHandler(object):
                 # Create removed packages object and add to assessment removed list
                 if len(packages_removed_from_assessment) > 0:
                     self.__assessment_removed_packages = packages_removed_from_assessment
-
-                    # add all assessment tombstones per classifications into packages_in_assessment
-                    packages_truncated_in_assessment.extend(self.__create_assessment_tombstone_list(self.__assessment_removed_packages))
-
                     # Recompose truncated status file payload
                     truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
                         self.__assessment_summary_json, Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -944,10 +940,6 @@ class StatusHandler(object):
                 # Create removed packages object and add to assessment removed list
                 if len(packages_removed_from_assessment) > 0:
                     self.__assessment_removed_packages = packages_removed_from_assessment
-
-                    # add all assessment tombstones per classifications into packages_in_installation
-                    packages_truncated_in_assessment.extend(self.__create_assessment_tombstone_list(self.__assessment_removed_packages))
-
                     # Recompose truncated status file payload
                     truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
                         self.__assessment_summary_json, Constants.PATCH_ASSESSMENT_SUMMARY)
@@ -955,11 +947,7 @@ class StatusHandler(object):
                 # Add packages removed from installation
                 if len(packages_removed_from_installation) > 0:
                     self.__installation_removed_packages = packages_removed_from_installation
-
-                    # Add installation tombstone record
-                    packages_truncated_in_installation.append(self.__add_installation_tombstone_record())
-
-                    # Check for existing installation errors before recompose status file payload
+                    # Recompose truncated status file payload
                     truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_installation, self.__installation_total_error_count,
                         self.__installation_summary_json, Constants.PATCH_INSTALLATION_SUMMARY)
 
@@ -1087,11 +1075,17 @@ class StatusHandler(object):
         truncated_errors_json = self.__create_substatus_errors(truncation_detail_list, count_total_errors)
 
         if substatus_name == Constants.PATCH_ASSESSMENT_SUMMARY:
+            # add all assessment tombstones per classifications into packages_in_assessment
+            packages_truncated_in_list.extend(self.__create_assessment_tombstone_list(self.__assessment_removed_packages))
+
             # Recompose assessment substatus message object
             message = self.__assessment_truncated_message(self.__assessment_summary_json, packages_truncated_in_list, truncated_errors_json)
 
         # Update summary message
         if substatus_name == Constants.PATCH_INSTALLATION_SUMMARY:
+            # Add installation tombstone record
+            packages_truncated_in_list.append(self.__add_installation_tombstone_record())
+
             # Recompose installation substatus message object
             message = self.__truncated_installation_message(self.__installation_summary_json, packages_truncated_in_list, truncated_errors_json)
 
