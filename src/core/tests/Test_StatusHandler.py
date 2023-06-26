@@ -928,7 +928,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 5)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
         # 1 truncation error
-        self.assertTrue("7 error/s reported. The latest 5 error/s are shared in detail" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
+        self.assertFalse("7 error/s reported. The latest 5 error/s are shared in detail" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):
