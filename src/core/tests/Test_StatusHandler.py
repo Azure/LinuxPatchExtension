@@ -635,7 +635,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
-        patch_count_for_test = 1000
+        patch_count_for_test = 780
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
