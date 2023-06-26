@@ -785,9 +785,53 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
-        patch_count_for_test = 800
+        patch_count_for_test = 871
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
-        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+        self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        #Test Complete status file
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)
+
+        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
+
+        # Test Truncated status file
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)
+
+        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
+        self.assertTrue(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]) < patch_count_for_test)
+
+        message_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
+        self.assertTrue(message_patches[-1]['patchId'], "Truncated_patch_list_id")
+        self.assertTrue(message_patches[-1]['name'], "Truncated_patch_list")
+
+        removed_packages_list = self.runtime.status_handler._StatusHandler__installation_packages_removed
+        self.assertEqual(len(removed_packages_list), patch_count_for_test + 1 - len(message_patches))
+
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+        self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
+
+    def test_write_truncated_status_file_installation_low_pri_over_capacity(self):
+        """ Test truncation logic will apply to installation over the size limit """
+        self.runtime.execution_config.operation = Constants.INSTALLATION
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+
+        patch_count_for_test = 1071
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.PENDING)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
         #Test Complete status file
@@ -831,7 +875,7 @@ class TestStatusHandler(unittest.TestCase):
 
         patch_count_for_test = 100000
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
-        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
         #Test Complete status file
@@ -875,7 +919,7 @@ class TestStatusHandler(unittest.TestCase):
 
         patch_count_for_test = 750
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
-        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -928,7 +972,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 5)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
         # 1 truncation error
-        self.assertFalse("7 error/s reported. The latest 5 error/s are shared in detail" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
+        self.assertTrue("7 error/s reported. The latest 5 error/s are shared in detail" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):

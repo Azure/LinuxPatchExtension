@@ -924,14 +924,16 @@ class StatusHandler(object):
             empty_list_file_size = self.__size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_index, installation_index)  # deepcopy fully copy the object avoid reference modification
             packages_size_limit = self.__internal_file_limit - empty_list_file_size
 
+            if installation_index is not None:
+                low_pri_index = self.__get_installation_low_pri_index(self.__installation_packages_truncated)
+
             # Perform only assessment truncation, no installation packages
             if len(self.__assessment_packages_truncated) > 0 and len(self.__installation_packages_truncated) == 0:
                 diff = 0
                 current_list_size = self.__get_twice_byte_size(self.__assessment_packages_truncated)
                 while status_file_size > self.__internal_file_limit and current_list_size > packages_size_limit:
                     # Apply truncation
-                    packages_truncated_in_assessment, packages_removed_from_assessment, _, _ = self.__truncation_helper(self.__assessment_packages_truncated, [],
-                        packages_size_limit - diff)
+                    packages_truncated_in_assessment, packages_removed_from_assessment = self.__assessment_helper(self.__assessment_packages_truncated, packages_size_limit - diff)
 
                     if len(packages_removed_from_assessment) > 0:
                         # Update current # of removed packages
@@ -952,8 +954,7 @@ class StatusHandler(object):
 
                 while status_file_size > self.__internal_file_limit and current_list_size > packages_size_limit:
                     # Apply truncation
-                    _, _, packages_truncated_in_installation, packages_removed_from_installation = self.__truncation_helper([],
-                        self.__installation_packages_truncated, packages_size_limit - diff)
+                    packages_truncated_in_installation, packages_removed_from_installation = self.__installation_helper(self.__installation_packages_truncated, packages_size_limit - diff)
 
                     if len(packages_removed_from_installation) > 0:
                         # Update current # of removed packages
@@ -975,7 +976,7 @@ class StatusHandler(object):
                 while status_file_size > self.__internal_file_limit and current_list_size > packages_size_limit:
                     # Apply truncation
                     packages_truncated_in_assessment, packages_removed_from_assessment, packages_truncated_in_installation, packages_removed_from_installation = \
-                        self.__truncation_helper(self.__assessment_packages_truncated, self.__installation_packages_truncated, packages_size_limit - diff)
+                        self.__both_truncation_helper(self.__assessment_packages_truncated, self.__installation_packages_truncated, packages_size_limit - diff, low_pri_index)
 
                     if len(packages_removed_from_assessment) > 0:
                         # Update current assessment # of removed packages
@@ -1023,25 +1024,46 @@ class StatusHandler(object):
         remain_capacity = size_limit - self.__get_twice_byte_size(package_list_first_five)
         return package_list_first_five, package_list_second_half, remain_capacity
 
-    def __truncation_helper(self, assessment_packages, installation_packages, size_limit):
-        """ Helper function call split patch list method then apply truncation on assessment and installation """
-        # todo check for empty assessment or installation
-        if len(assessment_packages) == 0 or len(installation_packages) == 0:
-            size_limit += 4    # add back 4 byte because of empty list
-
+    def __assessment_helper(self, assessment_packages, size_limit):
         assessment_first_five, assessment_second_half, remain_capacity = self.__split_list_helper_func(assessment_packages, size_limit)
+        remain_assessment, packages_removed_assessment, _ = self.__apply_truncation(assessment_second_half, remain_capacity)
+        packages_in_assessment = assessment_first_five + remain_assessment
 
-        # Perform installation truncations
-        new_installation_list, installation_removed_packages, remain_capacity = self.__apply_truncation(installation_packages, remain_capacity)
+        return packages_in_assessment, packages_removed_assessment
 
-        # Perform assessment truncation
-        new_assessment_list, assessment_removed_packages, _ = self.__apply_truncation(assessment_second_half, remain_capacity)
+    def __installation_helper(self, installation_packages, size_limit):
+        packages_in_installation, packages_removed_installation, _ = self.__apply_truncation(installation_packages, size_limit)
 
-        return assessment_first_five + new_assessment_list, assessment_removed_packages, new_installation_list, installation_removed_packages
+        return packages_in_installation, packages_removed_installation
 
-    def __get_installation_packages_index(self, installation_packages):
+    def __both_truncation_helper(self, assessment_packages, installation_packages, size_limit, low_pri_index=None):
+        """ Helper function call split patch list method then apply truncation on assessment and installation """
+        if low_pri_index is not None and low_pri_index != -999:
+            installation_high_pri = installation_packages[:low_pri_index]
+            installation_low_pri = installation_packages[low_pri_index:]
+
+            # Apply truncations
+            assessment_first_five, assessment_second_half, remain_capacity = self.__split_list_helper_func(assessment_packages, size_limit)
+            installation_high_pri_list, packages_removed_high_pri, remain_capacity = self.__apply_truncation(installation_high_pri, remain_capacity)
+            remain_assessment, packages_removed_assessment, remain_capacity = self.__apply_truncation(assessment_second_half, remain_capacity)
+            installation_low_pri_list, packages_removed_low_pri, _ = self.__apply_truncation(installation_low_pri, remain_capacity)
+
+            packages_in_installation = installation_high_pri_list + installation_low_pri_list
+            packages_removed_installation = packages_removed_high_pri + packages_removed_low_pri
+            packages_in_assessment = assessment_first_five + remain_assessment
+
+        else:
+            assessment_first_five, assessment_second_half, remain_capacity = self.__split_list_helper_func(assessment_packages, size_limit)
+            # Perform installation truncations
+            packages_in_installation, packages_removed_installation, remain_capacity = self.__apply_truncation(installation_packages, remain_capacity)
+            # Perform assessment truncation
+            remain_assessment, packages_removed_assessment, _ = self.__apply_truncation(assessment_second_half, remain_capacity)
+            packages_in_assessment = assessment_first_five + remain_assessment
+
+        return packages_in_assessment, packages_removed_assessment, packages_in_installation, packages_removed_installation
+
+    def __get_installation_low_pri_index(self, installation_packages):
         """" Get the first index of Pending, Excluded, or Not_Selected installation packages """
-        # todo move to under if condition for optimal performance
         low_pri_index = -999
         for index, package in enumerate(installation_packages):
             package_state = package['patchInstallationState']
@@ -1059,8 +1081,6 @@ class StatusHandler(object):
         """
         left_index = 0
         right_index = len(package_list) - 1
-        # byte = self.__get_twice_byte_size(package_list)
-        # single_byte = self.__get_twice_byte_size(package_list[0])
         if self.__get_twice_byte_size(package_list) <= capacity:
             return package_list, [], capacity - self.__get_twice_byte_size(package_list)
         elif self.__get_twice_byte_size(package_list[0]) > capacity:
@@ -1068,7 +1088,6 @@ class StatusHandler(object):
 
         while left_index < right_index:
             mid_index = left_index + int((right_index - left_index) / 2)
-            # mid_byte = self.__get_twice_byte_size(package_list[:mid_index])
             if self.__get_twice_byte_size(package_list[:mid_index]) >= capacity:
                 right_index = mid_index
             else:
