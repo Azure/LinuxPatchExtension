@@ -397,8 +397,8 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
-    def test_if_complete_status_is_empty_json_with_bad_name(self):
-        # Mock complete status file is empty but with bad json name
+    def test_if_status_file_resets_on_load_if_malformed(self):
+        # Mock complete status file with malformed json
         sample_json = '[{"version": 1.0, "timestampUTC": "2023-05-13T07:38:07Z", "statusx": {"name": "Azure Patch Management", "operation": "Installation", "status": "success", "code": 0, "formattedMessage": {"lang": "en-US", "message": ""}, "substatusx": []}}]'
         file_path = self.runtime.execution_config.status_folder
         example_file1 = os.path.join(file_path, '123.complete.status')
@@ -407,11 +407,9 @@ class TestStatusHandler(unittest.TestCase):
         with open(example_file1, 'w') as f:
             f.write(sample_json)
 
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer,
-            self.runtime.vm_cloud_type)
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
 
-        # Mock complete status file is empty but with bad json name and being called in the load_status_file_components, and it will recreate a good complete_status_file
-        status_handler.load_status_file_components(initial_load=True)
+        # Mock complete status file with malformed json and being called in the load_status_file_components, and it will recreate a good complete_status_file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertIsNotNone(substatus_file_data)
@@ -421,6 +419,7 @@ class TestStatusHandler(unittest.TestCase):
     def test_if_complete_status_path_is_dir(self):
         self.runtime.execution_config.status_file_path = self.runtime.execution_config.status_folder
         self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
+
     def test_assessment_packages_map(self):
         patch_count_for_test = 5
         expected_patch_id = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
