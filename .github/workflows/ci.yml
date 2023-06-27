@@ -55,19 +55,35 @@ jobs:
         run: |
           echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
-
   codecov-python-27:
     runs-on: windows-latest
     needs: codecov-python-39
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Set up Python 2.7
-        run : |
-          choco install python2 -y
-          SETX PATH "%PATH%;C:\Python27"
+      - name: Restore Python 2.7 cache
+        uses: actions/cache@v2
+        with:
+          path: C:\Python27
+          key: python27-cache
+      - name: Install Python 2.7
+        shell: cmd
+        run: |
+          echo "check if python27 is not cached"
+          if not exist C:\Python27 (
+            choco install python2 -y
+            SETX PATH "%PATH%;C:\Python27"
+          )
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          path: '%UserProfile%\.cache\pip'
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
       - name: Install dependencies
-        run: pip install coverage
+        shell: cmd
+        run: pip install -r .github/workflows/requirements.txt
       - name: Run extension tests
         continue-on-error: true
         shell: cmd
@@ -88,6 +104,8 @@ jobs:
         run: |
           cd ./src/core/tests
           coverage xml
+          cd ../../extension/tests
+          coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -101,4 +119,5 @@ jobs:
         if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
         run: |
           echo "${{ steps.getoutput.outputs.contents }}"
+          echo "There are failed tests"
           exit 1
