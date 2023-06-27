@@ -172,7 +172,6 @@ class Constants(object):
     class StatusTruncationConfig(EnumBackport):
         INTERNAL_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
         AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
-        FIX_ESCAPE_BYTE = 12800
         MIN_TRUNCATED_PACKAGE_COUNT = 5
         TRUNCATION_WARNING_MESSAGE = "Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists."
 

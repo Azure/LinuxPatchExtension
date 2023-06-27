@@ -80,9 +80,7 @@ class StatusHandler(object):
         self.__configure_patching_auto_assessment_error_count = 0  # All errors relating to auto-assessment configuration.
 
         # Internal in-memory representation of Truncated Patching data
-        self.__agent_size_limit = Constants.StatusTruncationConfig.AGENT_STATUS_FILE_SIZE_LIMIT_IN_BYTES
         self.__internal_file_limit = Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES
-        self.__fix_escape_byte = Constants.StatusTruncationConfig.FIX_ESCAPE_BYTE
 
         # Load the currently persisted status file into memory
         self.load_status_file_components(initial_load=True)
@@ -864,53 +862,86 @@ class StatusHandler(object):
     def __write_status_file(self, complete_status_file_payload):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
         """
-            __write_status_file(self, payload):
-                total_byte_size = __get_twice_byte_size(payload)
-                if total_byte_size > 126kb
-                    empty_byte_size = __get_twice_byte_size(__size_of_constant_status_data(payload))
-                    first_package_list = __assessment_packages
-                    second_package_list = __installation_packages
-                    packages_list_byte_size = total_byte_size - empty_byte_size
+            __write_status_file(self, complete_status_file_payload):
+                status_file_size = __get_byte_size(complete_status_file_payload)
+                if status_file_size > 126kb
+                    _index, _name = self.__get_index_name()
+                    empty_list_file_size = __get_twice_byte_size(__size_of_constant_status_data(complete_status_file_payload))
+                    packages_size_limit = 126kb - empty_list_file_size
                     
-                    if (first_package_list is not None) != (second_package_list is not None):
-                        list_byte = __get_twice_byte_size(first_package_list or second_package_list)
-                        while list_byte > packages_list_byte_size - fix_over_head_byte:
-                            __assessment_truncation_helper()
+                    if _index is not none:
+                        low_pri_index = __get_installation_low_pri_index()
+                    
+                    # only assessment
+                    if len(__assessment_packages_truncated) > 0 and len(__installation_packages_truncated) == 0:
+                        diff = 0
+                        current_byte_size = __get_twice_byte_size(__assessment_packages_truncated)                  
+                        while status_file_size > 126 and current_byte_size > packages_size_limit:
+                            __assessment_helper()
                                 __split_list_helper_func()
-                                __apply_truncation()
-                            __create_removed_package_detail()
-                            __create_assessment_tombstone_list()
-                            
-                            list_byte = __get__twice_byte_size(packages_truncated_in_assessment)
-                            
-                        __get_complete_status_errors()
-                        __recompose_truncated_status_file()
-                            __recompose_truncated_summary()
-                                
-                    if first_package_list > 0  and second_package_list > 0
-                        list_byte = __get_twice_byte_size(first_package_list + second_package_list)
-                        while list_byte > packages_list_byte_size - fix_over_head_byte:
-                            __assessment_truncation_helper()
+                                    __apply_truncation()
+                           
+                            __recreate_truncated_status_file()                                    
+                                __get_complete_status_errors()
+                                __recreate_truncated_summary_json()
+                                    __recreate_substatus_errors()
+                                    __create_assessment_tombstone_list()
+                                        __create_assessment_tombstone()
+                                    __recreate_assessment_summary_json()
+                            current_list_size -= diff
+                            if current_list_size <= packages_size_limit:
+                                break
+                            __get_recent_update_byte()
+                                               
+                    # installation
+                    if len(self.__assessment_packages_truncated) == 0 and len(self.__installation_packages_truncated) > 0:
+                        diff = 0
+                        current_byte_size = __get_twice_byte_size(__assessment_packages_truncated)
+                        while status_file_size > 126 and current_byte_size > packages_size_limit:
+                            __installation_helper()
                                 __split_list_helper_func()
-                                __apply_truncation()
-                            __create_removed_package_detail()
-                            __create_assessment_tombstone_list()
-                                __add_assessment_tombstone_record
-            
-                            
-                            __installation_truncation_helper
+                                    __apply_truncation()
+                           
+                            __recreate_truncated_status_file()                                    
+                                __get_complete_status_errors()
+                                __recreate_truncated_summary_json()
+                                    __recreate_substatus_errors()
+                                    __create_installation_tombstone
+                                    __recreate_installation_summary_json()
+                            current_list_size -= diff
+                            if current_list_size <= packages_size_limit:
+                                break
+                            __get_recent_update_byte() 
+                    
+                    # both
+                    if len(self.__assessment_packages_truncated) > 0 and len(self.__installation_packages_truncated) > 0:
+                        diff = 0
+                        current_byte_size = __get_twice_byte_size(__assessment_packages_truncated)
+                        while status_file_size > 126 and current_byte_size > packages_size_limit:
+                            __both_truncation_helper()
                                 __split_list_helper_func()
-                                __get_installation_packages_index
-                                __apply_truncation()
-                            __create_removed_package_detail()
-                            __add_installation_tombstone_record() 
-                            
-                            list_byte = __get__twice_byte_size(packages_truncated_in_assessment + packages_truncated_in_installation)
-
-                        __get_complete_status_errors()
-                        __recompose_truncated_status_file()
-                            __recompose_truncated_summary()
-                                
+                                    __apply_truncation()
+                                    
+                            __recreate_truncated_status_file()                                    
+                                __get_complete_status_errors()
+                                __recreate_truncated_summary_json()
+                                    __recreate_substatus_errors()
+                                    __create_assessment_tombstone_list()
+                                        __create_assessment_tombstone()
+                                    __recreate_assessment_summary_json()
+                           
+                            __recreate_truncated_status_file()                                    
+                                __get_complete_status_errors()
+                                __recreate_truncated_summary_json()
+                                    __recreate_substatus_errors()
+                                    __create_installation_tombstone
+                                    __recreate_installation_summary_json()
+                                    
+                            current_list_size -= diff
+                            if current_list_size <= packages_size_limit:
+                                break
+                            __get_recent_update_byte() 
+                    
                 write_with_retry_using_temp_file()  
         """
 
