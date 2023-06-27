@@ -449,15 +449,13 @@ class TestStatusHandler(unittest.TestCase):
         patch_id_critical = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
         expected_value_critical = {'version': '2:4.4.5+dfsg-2ubuntu5.4', 'classifications': ['Critical'], 'name': 'python-samba0',
                           'patchId': 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04', 'patchInstallationState': 'Installed'}
-
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
         patch_count_for_test = 50
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
 
-        status_handler.set_package_install_status(test_packages, test_package_versions, 'Installed', 'Other')
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, 'Installed', 'Other')
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
 
@@ -469,7 +467,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(formatted_message['patches'][0]['name'], 'python-samba0')
 
         # Update the classification from Other to Critical
-        status_handler.set_package_install_status_classification(test_packages, test_package_versions, 'Critical')
+        self.runtime.status_handler.set_package_install_status_classification(test_packages, test_package_versions, 'Critical')
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
 
@@ -519,7 +517,6 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual('python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04',
             str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
-
         self.runtime.env_layer.file_system.delete_files_from_dir(self.runtime.status_handler.status_file_path, '*.complete.status')
 
     # Setup functions to populate packages and versions for truncation
