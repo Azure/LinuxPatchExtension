@@ -408,7 +408,6 @@ class TestStatusHandler(unittest.TestCase):
             f.write(sample_json)
 
         status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
-
         # Mock complete status file with malformed json and being called in the load_status_file_components, and it will recreate a good complete_status_file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]
