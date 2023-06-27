@@ -411,9 +411,11 @@ class TestStatusHandler(unittest.TestCase):
 
         # Mock complete status file with malformed json and being called in the load_status_file_components, and it will recreate a good complete_status_file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertIsNotNone(substatus_file_data)
-        self.assertEqual(len(substatus_file_data), 0)
+            substatus_file_data = json.load(file_handle)[0]
+        self.assertEqual(substatus_file_data["status"]["name"], "Azure Patch Management")
+        self.assertEqual(substatus_file_data["status"]["operation"], "Installation")
+        self.assertIsNotNone(substatus_file_data["status"]["substatus"])
+        self.assertEqual(len(substatus_file_data["status"]["substatus"]), 0)
         self.runtime.env_layer.file_system.delete_files_from_dir(example_file1, "*.complete.status")
 
     def test_if_complete_status_path_is_dir(self):
