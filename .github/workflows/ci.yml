@@ -50,7 +50,8 @@ jobs:
         id: getoutput
         run: echo "::set-output name=contents::$(cat err.txt)"
       - name: Check if all tests passed
-        if: contains( steps.getoutput.outputs.contents , 'FAILED (failures=' )
+        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
+        shell: cmd
         run: |
           echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
@@ -60,12 +61,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Set up Python 2.7
-        uses: actions/setup-python@v4
+      - name: Restore Python 2.7 cache
+        uses: actions/cache@v2
         with:
-          python-version: 2.7
+          path: C:\Python27
+          key: python27-cache
+      - name: Install Python 2.7
+        shell: cmd
+        run: |
+          echo "check if python27 is not cached"
+          if not exist C:\Python27 (
+            choco install python2 -y
+            SETX PATH "%PATH%;C:\Python27"
+          )
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          path: '%UserProfile%\.cache\pip'
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
       - name: Install dependencies
-        run: pip install coverage
+        shell: cmd
+        run: pip install -r .github/workflows/requirements.txt
       - name: Run extension tests
         continue-on-error: true
         shell: cmd
@@ -86,6 +104,8 @@ jobs:
         run: |
           cd ./src/core/tests
           coverage xml
+          cd ../../extension/tests
+          coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -99,4 +119,5 @@ jobs:
         if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
         run: |
           echo "${{ steps.getoutput.outputs.contents }}"
+          echo "There are failed tests"
           exit 1
