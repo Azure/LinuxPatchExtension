@@ -684,6 +684,7 @@ class AptitudePackageManager(PackageManager):
         esm_packages = []
         esm_package_versions = []
         esm_packages_found = False
+        esm_packages_selected_to_install = []
 
         for pkg, version in zip(packages, package_versions):
             if version != Constants.UA_ESM_REQUIRED:
@@ -700,6 +701,11 @@ class AptitudePackageManager(PackageManager):
             self.status_handler.add_error_to_status("{0} patches requires Ubuntu Pro for Infrastructure with Extended Security Maintenance".format(len(esm_packages)), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED) # Set the error status with the esm_package details. Will be used in portal.
             self.telemetry_writer.write_event("Filter esm packages [EsmPackagesCount={0}]".format(len(esm_packages)), Constants.TelemetryEventLevel.Informational)
 
-        self.composite_logger.log_debug("Filter esm packages : [TotalPackagesCount={0}][EsmPackagesCount={1}]".format(len(packages), len(esm_packages)))
+        # Log the Esm packages that will be patched in case of an Ubuntu Pro attached VM.
+        security_esm_update_query_success, security_esm_updates, security_esm_updates_versions = self.get_security_esm_updates()
+        if security_esm_update_query_success:
+            esm_packages_selected_to_install = [package for package in non_esm_packages if package in security_esm_updates]
+
+        self.composite_logger.log_debug("Filter esm packages : [TotalPackagesCount={0}][EsmPackagesCount={1}][SelectedEsmPackagesCount={2}]".format(len(packages), len(esm_packages), len(esm_packages_selected_to_install)))
         return non_esm_packages, non_esm_package_versions, esm_packages, esm_package_versions, esm_packages_found
 
