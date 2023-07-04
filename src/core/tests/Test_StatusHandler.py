@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 import datetime
 import json
+import os
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
@@ -396,6 +397,118 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
+    def test_assessment_packages_map(self):
+        patch_count_for_test = 5
+        expected_patch_id = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
+
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
+        self.runtime.execution_config.operation = Constants.ASSESSMENT
+        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        status_handler.set_package_assessment_status(test_packages, test_package_versions, 'Critical')
+
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+
+        self.assertTrue(substatus_file_data["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+        self.assertEqual(len(formatted_message['patches']), patch_count_for_test)
+        self.assertEqual(formatted_message['patches'][0]['classifications'], ['Critical'])
+        self.assertEqual(formatted_message['patches'][0]['name'], 'python-samba0')
+        self.assertEqual(formatted_message['patches'][0]['patchId'], expected_patch_id)
+
+    def test_installation_packages_map(self):
+        patch_id_other = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
+        expected_value_other = {'version': '2:4.4.5+dfsg-2ubuntu5.4', 'classifications': ['Other'], 'name': 'python-samba0',
+                          'patchId': 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04', 'patchInstallationState': 'Installed'}
+
+        patch_id_critical = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
+        expected_value_critical = {'version': '2:4.4.5+dfsg-2ubuntu5.4', 'classifications': ['Critical'], 'name': 'python-samba0',
+                          'patchId': 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04', 'patchInstallationState': 'Installed'}
+
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
+        self.runtime.execution_config.operation = Constants.INSTALLATION
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+
+        patch_count_for_test = 50
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+
+        status_handler.set_package_install_status(test_packages, test_package_versions, 'Installed', 'Other')
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+
+        formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+        self.assertEqual(len(formatted_message['patches']), patch_count_for_test)
+        self.assertEqual(formatted_message['patches'][0]['classifications'], ['Other'])
+        self.assertEqual(formatted_message['patches'][0]['patchId'], patch_id_other)
+        self.assertEqual(formatted_message['patches'][0], expected_value_other)
+        self.assertEqual(formatted_message['patches'][0]['name'], 'python-samba0')
+
+        # Update the classification from Other to Critical
+        status_handler.set_package_install_status_classification(test_packages, test_package_versions, 'Critical')
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+
+        formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+        self.assertEqual(len(formatted_message['patches']), patch_count_for_test)
+        self.assertEqual(formatted_message['patches'][0]['classifications'], ['Critical'])
+        self.assertEqual(formatted_message['patches'][0]['patchId'], patch_id_critical)
+        self.assertEqual(formatted_message['patches'][0], expected_value_critical)
+        self.assertEqual(formatted_message['patches'][0]['name'], 'python-samba0')
+
+    def test_load_status_and_set_package_install_status(self):
+        patch_count_for_test = 5
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        file_path = self.runtime.execution_config.status_folder
+        example_file1 = os.path.join(file_path, '123.complete.status')
+        sample_json = [{"version": 1.0, "timestampUTC": "2023-06-17T02:06:19Z", "status": {"name": "Azure Patch Management", "operation": "Installation", "status": "success", "code": 0, "formattedMessage": {"lang": "en-US", "message": ""}, "substatus": [{"name": "PatchInstallationSummary", "status": "transitioning", "code": 0, "formattedMessage": {"lang": "en-US", "message": "{\"installationActivityId\": \"c365ab46-a12a-4388-853b-5240a0702124\", \"rebootStatus\": \"NotNeeded\", \"maintenanceWindowExceeded\": false, \"notSelectedPatchCount\": 0, \"excludedPatchCount\": 0, \"pendingPatchCount\": 0, \"installedPatchCount\": 5, \"failedPatchCount\": 0, \"patches\": [{\"patchId\": \"python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04\", \"name\": \"python-samba0\", \"version\": \"2:4.4.5+dfsg-2ubuntu5.4\", \"classifications\": [\"Other\"], \"patchInstallationState\": \"Pending\"}, {\"patchId\": \"python-samba1_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04\", \"name\": \"python-samba1\", \"version\": \"2:4.4.5+dfsg-2ubuntu5.4\", \"classifications\": [\"Security\"], \"patchInstallationState\": \"Failed\"}, {\"patchId\": \"python-samba2_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04\", \"name\": \"python-samba2\", \"version\": \"2:4.4.5+dfsg-2ubuntu5.4\", \"classifications\": [\"Other\"], \"patchInstallationState\": \"Not_Selected\"}, {\"patchId\": \"python-samba3_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04\", \"name\": \"python-samba3\", \"version\": \"2:4.4.5+dfsg-2ubuntu5.4\", \"classifications\": [\"Other\"], \"patchInstallationState\": \"Pending\"}, {\"patchId\": \"python-samba4_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04\", \"name\": \"python-samba4\", \"version\": \"2:4.4.5+dfsg-2ubuntu5.4\", \"classifications\": [\"Unclassified\"], \"patchInstallationState\": \"Failed\"}], \"startTime\": \"2023-06-17T02:06:19.480634Z\", \"lastModifiedTime\": \"2023-06-17T02:06:19Z\", \"maintenanceRunId\": \"\", \"errors\": {\"code\": 0, \"details\": [], \"message\": \"0 error/s reported.\"}}"}}]}}]
+        with open(example_file1, 'w') as f:
+            f.write(json.dumps(sample_json))
+        self.runtime.status_handler.status_file_path = example_file1
+        self.runtime.status_handler.load_status_file_components(initial_load=True)
+
+        # Test for set_package_install_status
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, 'Installed', 'Critical')
+        with self.runtime.env_layer.file_system.open(self.runtime.status_handler.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["name"], "python-samba0")
+        self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["classifications"]))
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["name"], "python-samba1")
+        self.assertEqual('Critical', str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["classifications"][0]))
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["name"], "python-samba2")
+        self.assertEqual('python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04', str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
+        self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
+
+        # Test for set_package_install_status_classification
+        self.runtime.status_handler.set_package_install_status_classification(test_packages, test_package_versions, "Critical")
+        with self.runtime.env_layer.file_system.open(self.runtime.status_handler.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["name"], "python-samba0")
+        self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["classifications"]))
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["name"], "python-samba1")
+        self.assertEqual('Critical', str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["classifications"][0]))
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["name"], "python-samba2")
+        self.assertEqual('python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04',
+            str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
+        self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
+
+        self.runtime.env_layer.file_system.delete_files_from_dir(self.runtime.status_handler.status_file_path, '*.complete.status')
+
+    # Setup functions to populate packages and versions for truncation
+    def __set_up_packages_func(self, val):
+        test_packages = []
+        test_package_versions = []
+
+        for i in range(0, val):
+            test_packages.append('python-samba' + str(i))
+            test_package_versions.append('2:4.4.5+dfsg-2ubuntu5.4')
+
+        return test_packages, test_package_versions
 
 if __name__ == '__main__':
     unittest.main()
