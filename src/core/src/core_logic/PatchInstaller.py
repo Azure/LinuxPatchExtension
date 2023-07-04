@@ -177,7 +177,7 @@ class PatchInstaller(object):
         self.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, classification="Security")
 
         # Set the security-esm package status.
-        package_manager.set_security_esm_package_status(Constants.INSTALLATION)
+        package_manager.set_security_esm_package_status(Constants.INSTALLATION, packages)
 
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
         # We will see this as packages going from NotSelected --> Installed. We could remove them preemptively from not_included_packages, but we're explicitly choosing not to.
