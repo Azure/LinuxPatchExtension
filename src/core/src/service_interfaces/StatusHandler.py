@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import collections
 import copy
 import glob
 import json
@@ -21,7 +22,6 @@ import re
 import shutil
 import time
 from core.src.bootstrap.Constants import Constants
-from collections import OrderedDict
 
 
 class StatusHandler(object):
@@ -49,7 +49,7 @@ class StatusHandler(object):
         self.__installation_total_error_count = 0  # All errors during install, includes errors not in error objects due to size limit
         self.__maintenance_window_exceeded = False
         self.__installation_reboot_status = Constants.RebootStatus.NOT_NEEDED
-        self.__installation_packages_map = OrderedDict()
+        self.__installation_packages_map = collections.OrderedDict()
         self.__installation_summary_json_truncated = None
         self.__installation_packages_truncated = []
         self.__installation_packages_removed = []
@@ -60,7 +60,7 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
-        self.__assessment_packages_map = OrderedDict()
+        self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_summary_json_truncated = None
         self.__assessment_packages_truncated = []
         self.__assessment_packages_removed = []
@@ -115,7 +115,7 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0
-        self.__assessment_packages_map = OrderedDict()
+        self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_packages_removed = []
         self.__assessment_packages_truncated = []
         self.__assessment_summary_json_truncated = None
@@ -563,7 +563,7 @@ class StatusHandler(object):
         self.__installation_summary_json = None
         self.__installation_packages = []
         self.__installation_errors = []
-        self.__installation_packages_map = OrderedDict()
+        self.__installation_packages_map = collections.OrderedDict()
         self.__installation_summary_json_truncated = None
         self.__installation_packages_truncated = []
         self.__installation_packages_removed = []
@@ -572,7 +572,7 @@ class StatusHandler(object):
         self.__assessment_summary_json = None
         self.__assessment_packages = []
         self.__assessment_errors = []
-        self.__assessment_packages_map = OrderedDict()
+        self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_summary_json_truncated = None
         self.__assessment_packages_truncated = []
         self.__assessment_packages_removed = []
@@ -623,7 +623,7 @@ class StatusHandler(object):
                 else:
                     self.__installation_summary_json = self.__get_substatus_message(status_file_data, i)
                     # Reload patches into installation ordered map for fast look up
-                    self.__installation_packages_map = OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
+                    self.__installation_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
                     self.__installation_packages = list(self.__installation_packages_map.values())
                     self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
                     self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
@@ -634,7 +634,7 @@ class StatusHandler(object):
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 self.__assessment_summary_json = self.__get_substatus_message(status_file_data, i)
                 # Reload patches into assessment ordered map for fast look up
-                self.__assessment_packages_map = OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
+                self.__assessment_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
                 errors = self.__assessment_summary_json['errors']
                 if errors is not None and errors['details'] is not None:
