@@ -17,10 +17,6 @@ import datetime
 import json
 import os
 import unittest
-try:
-    from unittest.mock import patch, MagicMock
-except ImportError:
-    from mock import patch, MagicMock
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.tests.library.ArgumentComposer import ArgumentComposer
