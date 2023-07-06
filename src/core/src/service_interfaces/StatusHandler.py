@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 import collections
+import collections
 import copy
 import glob
 import json
@@ -32,7 +33,7 @@ class StatusHandler(object):
         self.env_layer = env_layer
         self.execution_config = execution_config
         self.composite_logger = composite_logger
-        self.telemetry_writer = telemetry_writer  # not used immediately but need to know if there are issues persisting status
+        self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
         self.complete_status_file_path = self.execution_config.complete_status_file_path
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
@@ -123,6 +124,7 @@ class StatusHandler(object):
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
         self.composite_logger.log_debug("Setting package assessment status in bulk. [Count={0}]".format(str(len(package_names))))
+
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
@@ -202,6 +204,7 @@ class StatusHandler(object):
                 }
                 # Add new patch to ordered map
                 self.__installation_packages_map[patch_id] = record
+
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
 
         self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
@@ -596,30 +599,23 @@ class StatusHandler(object):
             self.__reset_status_file()
             return
 
-        # Read the complete status file - raise exception on persistent failure
-        status_file_data_raw = self.__load_complete_status_file_data(self.complete_status_file_path)
-
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
-        try:
-            status_file_data = status_file_data_raw
-            if 'status' not in status_file_data or 'substatus' not in status_file_data['status']:
-                self.composite_logger.log_error("Malformed status file. Resetting status file for safety.")
-                self.__reset_status_file()
-                return
-        except Exception as error:
-            self.composite_logger.log_error("Unable to load status file json. Error: {0}; Data: {1}".format(repr(error), str(status_file_data_raw)))
-            raise
+        complete_status_file_data = self.__load_complete_status_file_data(self.complete_status_file_path)
+        if 'status' not in complete_status_file_data or 'substatus' not in complete_status_file_data['status']:
+            self.composite_logger.log_error("Malformed status file. Resetting status file for safety.")
+            self.__reset_status_file()
+            return
 
         # Load portions of data that need to be built on for next write - raise exception if corrupt data is encountered
         # todo: refactor
-        self.__high_level_status_message = status_file_data['status']['formattedMessage']['message']
-        for i in range(0, len(status_file_data['status']['substatus'])):
-            name = status_file_data['status']['substatus'][i]['name']
+        self.__high_level_status_message = complete_status_file_data['status']['formattedMessage']['message']
+        for i in range(0, len(complete_status_file_data['status']['substatus'])):
+            name = complete_status_file_data['status']['substatus'][i]['name']
             if name == Constants.PATCH_INSTALLATION_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
-                    self.__installation_substatus_json = status_file_data['status']['substatus'][i]
+                    self.__installation_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    self.__installation_summary_json = self.__get_substatus_message(status_file_data, i)
+                    self.__installation_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                     # Reload patches into installation ordered map for fast look up
                     self.__installation_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
                     self.__installation_packages = list(self.__installation_packages_map.values())
@@ -630,7 +626,7 @@ class StatusHandler(object):
                         self.__installation_errors = errors['details']
                         self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
-                self.__assessment_summary_json = self.__get_substatus_message(status_file_data, i)
+                self.__assessment_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                 # Reload patches into assessment ordered map for fast look up
                 self.__assessment_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
@@ -640,14 +636,14 @@ class StatusHandler(object):
                     self.__assessment_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_METADATA_FOR_HEALTHSTORE:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
-                    self.__metadata_for_healthstore_substatus_json = status_file_data['status']['substatus'][i]
+                    self.__metadata_for_healthstore_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    self.__metadata_for_healthstore_summary_json = self.__get_substatus_message(status_file_data, i)
+                    self.__metadata_for_healthstore_summary_json = self.__get_substatus_message(complete_status_file_data, i)
             if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
-                    self.__configure_patching_substatus_json = status_file_data['status']['substatus'][i]
+                    self.__configure_patching_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    self.__configure_patching_summary_json = self.__get_substatus_message(status_file_data, i)
+                    self.__configure_patching_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                     errors = self.__configure_patching_summary_json['errors']
                     if errors is not None and errors['details'] is not None:
                         self.__configure_patching_errors = errors['details']
@@ -655,6 +651,7 @@ class StatusHandler(object):
 
     def __get_substatus_message(self, status_file_data, index):
         return json.loads(status_file_data['status']['substatus'][index]['formattedMessage']['message'])
+
     def __load_complete_status_file_data(self, file_path):
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
@@ -706,23 +703,24 @@ class StatusHandler(object):
 
         :return: None
         """
-        status_file_payload = self.__new_basic_status_json()
-        status_file_payload['status']['formattedMessage']['message'] = str(self.__high_level_status_message)
+        complete_status_payload = self.__new_basic_status_json()
+        complete_status_payload['status']['formattedMessage']['message'] = str(self.__high_level_status_message)
 
         if self.__assessment_substatus_json is not None:
-            status_file_payload['status']['substatus'].append(self.__assessment_substatus_json)
+            complete_status_payload['status']['substatus'].append(self.__assessment_substatus_json)
         if self.__installation_substatus_json is not None:
-            status_file_payload['status']['substatus'].append(self.__installation_substatus_json)
+            complete_status_payload['status']['substatus'].append(self.__installation_substatus_json)
         if self.__metadata_for_healthstore_substatus_json is not None:
-            status_file_payload['status']['substatus'].append(self.__metadata_for_healthstore_substatus_json)
+            complete_status_payload['status']['substatus'].append(self.__metadata_for_healthstore_substatus_json)
         if self.__configure_patching_substatus_json is not None:
-            status_file_payload['status']['substatus'].append(self.__configure_patching_substatus_json)
+            complete_status_payload['status']['substatus'].append(self.__configure_patching_substatus_json)
         if os.path.isdir(self.complete_status_file_path):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.complete_status_file_path)
+            shutil.rmtree(self.complete_status_file_path)
 
         # Write complete status file <seq.no>.complete
-        self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(json.dumps(complete_status_payload)), mode='w+')
 
         complete_status_file = self.__load_complete_status_file_data(self.complete_status_file_path)    # avoid reference modification
 
