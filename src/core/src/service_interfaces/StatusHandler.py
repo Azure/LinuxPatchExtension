@@ -1126,19 +1126,19 @@ class StatusHandler(object):
         truncated_packages_removed = package_list[left_index - 1:]
         return truncated_list, truncated_packages_removed, capacity - self.__get_twice_byte_size(truncated_list)
 
-    def __removed_older_complete_status_files(self, complete_status_folder_path):
+    def __removed_older_complete_status_files(self, status_folder):
         """ Get the latest status complete file and remove other .complete.status files """
         removed_files_list = []
-        list_of_files = glob.glob(complete_status_folder_path + '\\' + '*.complete.status')
+        list_of_files = glob.glob(status_folder + '/' + '*.complete.status')
 
         for file in list_of_files:
-            if file != self.execution_config.complete_status_file_path:
+            if file != self.complete_status_file_path:
                 removed_files_list.append(os.path.basename(file))
 
-        if removed_files_list is None:
+        if len(removed_files_list) < 1:
             return
 
-        self.env_layer.file_system.delete_files_from_dir(complete_status_folder_path, removed_files_list)
+        self.env_layer.file_system.delete_files_from_dir(status_folder, removed_files_list)
 
     def __get_byte_size(self, val):
         """ Get the current byte size of val """
