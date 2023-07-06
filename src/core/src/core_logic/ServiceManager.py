@@ -88,7 +88,7 @@ class ServiceManager(SystemctlManager):
     # endregion
 
     # region - Service Unit Management
-    def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="notify", wanted_by="multi-user.target"):
+    def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="forking", wanted_by="multi-user.target"):
         service_unit_content_template = "\n[Unit]" + \
                                "\nDescription={0}" + \
                                "\nAfter={1}\n" + \
