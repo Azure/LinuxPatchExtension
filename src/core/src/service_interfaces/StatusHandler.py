@@ -32,6 +32,7 @@ class StatusHandler(object):
         self.execution_config = execution_config
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer    # not used immediately but need to know if there are issues persisting status
+        self.complete_status_file_path = self.execution_config.complete_status_file_path
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
         self.vm_cloud_type = vm_cloud_type
@@ -322,8 +323,8 @@ class StatusHandler(object):
         # Wrap assessment summary into assessment substatus
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update complete status on disk
+        self.__write_complete_status_file()
 
     def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
@@ -371,8 +372,8 @@ class StatusHandler(object):
         # Wrap deployment summary into installation substatus
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update complete status on disk
+        self.__write_complete_status_file()
 
     def __new_installation_summary_json(self, installation_packages_json):
         """ Called by: set_installation_substatus_json
@@ -433,8 +434,8 @@ class StatusHandler(object):
         # Wrap healthstore summary into healthstore substatus
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update complete status on disk
+        self.__write_complete_status_file()
 
         # wait period required in cases where we need to ensure HealthStore reads the status from GA
         if wait_after_update:
@@ -466,8 +467,8 @@ class StatusHandler(object):
         # Wrap configure patching summary into configure patching substatus
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
-        # Update status on disk
-        self.__write_status_file()
+        # Update complete status on disk
+        self.__write_complete_status_file()
 
     def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
@@ -507,7 +508,11 @@ class StatusHandler(object):
 
     # region - Status generation
     def __reset_status_file(self):
-        self.env_layer.file_system.write_with_retry(self.status_file_path, '[{0}]'.format(json.dumps(self.__new_basic_status_json())), mode='w+')
+        status_file_reset_content = json.dumps(self.__new_basic_status_json())
+        # Create complete status template
+        self.env_layer.file_system.write_with_retry(self.complete_status_file_path, '[{0}]'.format(status_file_reset_content), mode='w+')
+        # Create agent-facing status template
+        self.env_layer.file_system.write_with_retry(self.status_file_path, '[{0}]'.format(status_file_reset_content), mode='w+')
 
     def __new_basic_status_json(self):
         return {
@@ -566,44 +571,28 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
         # Verify the status file exists - if not, reset status file
-        if not os.path.exists(self.status_file_path) and initial_load:
+        if not os.path.exists(self.complete_status_file_path) and initial_load:
             self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()
             return
 
-        # Read the status file - raise exception on persistent failure
-        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
-            try:
-                with self.env_layer.file_system.open(self.status_file_path, 'r') as file_handle:
-                    status_file_data_raw = json.load(file_handle)[0]    # structure is array of 1
-            except Exception as error:
-                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    time.sleep(i + 1)
-                else:
-                    self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
-                    raise
-
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
-        try:
-            status_file_data = status_file_data_raw
-            if 'status' not in status_file_data or 'substatus' not in status_file_data['status']:
-                self.composite_logger.log_error("Malformed status file. Resetting status file for safety.")
-                self.__reset_status_file()
-                return
-        except Exception as error:
-            self.composite_logger.log_error("Unable to load status file json. Error: {0}; Data: {1}".format(repr(error), str(status_file_data_raw)))
-            raise
+        complete_status_file_data = self.__load_complete_status_file_data(self.complete_status_file_path)
+        if 'status' not in complete_status_file_data or 'substatus' not in complete_status_file_data['status']:
+            self.composite_logger.log_error("Malformed status file. Resetting status file for safety.")
+            self.__reset_status_file()
+            return
 
         # Load portions of data that need to be built on for next write - raise exception if corrupt data is encountered
         # todo: refactor
-        self.__high_level_status_message = status_file_data['status']['formattedMessage']['message']
-        for i in range(0, len(status_file_data['status']['substatus'])):
-            name = status_file_data['status']['substatus'][i]['name']
+        self.__high_level_status_message = complete_status_file_data['status']['formattedMessage']['message']
+        for i in range(0, len(complete_status_file_data['status']['substatus'])):
+            name = complete_status_file_data['status']['substatus'][i]['name']
             if name == Constants.PATCH_INSTALLATION_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
-                    self.__installation_substatus_json = status_file_data['status']['substatus'][i]
+                    self.__installation_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                    message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
                     self.__installation_summary_json = json.loads(message)
                     self.__installation_packages_map = OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
                     self.__installation_packages = list(self.__installation_packages_map.values())
@@ -614,7 +603,7 @@ class StatusHandler(object):
                         self.__installation_errors = errors['details']
                         self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
-                message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__assessment_summary_json = json.loads(message)
                 self.__assessment_packages_map = OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
@@ -624,22 +613,36 @@ class StatusHandler(object):
                     self.__assessment_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_METADATA_FOR_HEALTHSTORE:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
-                    self.__metadata_for_healthstore_substatus_json = status_file_data['status']['substatus'][i]
+                    self.__metadata_for_healthstore_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                    message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
                     self.__metadata_for_healthstore_summary_json = json.loads(message)
             if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
-                    self.__configure_patching_substatus_json = status_file_data['status']['substatus'][i]
+                    self.__configure_patching_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    message = status_file_data['status']['substatus'][i]['formattedMessage']['message']
+                    message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
                     self.__configure_patching_summary_json = json.loads(message)
                     errors = self.__configure_patching_summary_json['errors']
                     if errors is not None and errors['details'] is not None:
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
-    def __write_status_file(self):
+    def __load_complete_status_file_data(self, file_path):
+        # Read the status file - raise exception on persistent failure
+        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
+            try:
+                with self.env_layer.file_system.open(file_path, 'r') as file_handle:
+                    complete_status_file_data = json.load(file_handle)[0]    # structure is array of 1
+            except Exception as error:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    time.sleep(i + 1)
+                else:
+                    self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
+                    raise
+        return complete_status_file_data
+
+    def __write_complete_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
             This is usually the final call to compose and persist after an in-memory data update in a specialized method.
 
@@ -676,22 +679,26 @@ class StatusHandler(object):
 
         :return: None
         """
-        status_file_payload = self.__new_basic_status_json()
-        status_file_payload['status']['formattedMessage']['message'] = str(self.__high_level_status_message)
+        complete_status_payload = self.__new_basic_status_json()
+        complete_status_payload['status']['formattedMessage']['message'] = str(self.__high_level_status_message)
 
         if self.__assessment_substatus_json is not None:
-            status_file_payload['status']['substatus'].append(self.__assessment_substatus_json)
+            complete_status_payload['status']['substatus'].append(self.__assessment_substatus_json)
         if self.__installation_substatus_json is not None:
-            status_file_payload['status']['substatus'].append(self.__installation_substatus_json)
+            complete_status_payload['status']['substatus'].append(self.__installation_substatus_json)
         if self.__metadata_for_healthstore_substatus_json is not None:
-            status_file_payload['status']['substatus'].append(self.__metadata_for_healthstore_substatus_json)
+            complete_status_payload['status']['substatus'].append(self.__metadata_for_healthstore_substatus_json)
         if self.__configure_patching_substatus_json is not None:
-            status_file_payload['status']['substatus'].append(self.__configure_patching_substatus_json)
-        if os.path.isdir(self.status_file_path):
+            complete_status_payload['status']['substatus'].append(self.__configure_patching_substatus_json)
+        if os.path.isdir(self.complete_status_file_path):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
-            shutil.rmtree(self.status_file_path)
+            shutil.rmtree(self.complete_status_file_path)
 
-        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(status_file_payload)), mode='w+')
+        # Write complete status file <seq.no>.complete.status
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(json.dumps(complete_status_payload)), mode='w+')
+
+        # Write agent status file
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(json.dumps(complete_status_payload)), mode='w+')
     # endregion
 
     # region - Error objects
@@ -799,3 +806,4 @@ class StatusHandler(object):
             "message": message
         }
     # endregion
+
