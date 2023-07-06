@@ -13,14 +13,13 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import collections
 import json
 import os
 import re
 import shutil
 import time
 from core.src.bootstrap.Constants import Constants
-from collections import OrderedDict
 
 
 class StatusHandler(object):
@@ -48,7 +47,7 @@ class StatusHandler(object):
         self.__installation_total_error_count = 0  # All errors during install, includes errors not in error objects due to size limit
         self.__maintenance_window_exceeded = False
         self.__installation_reboot_status = Constants.RebootStatus.NOT_NEEDED
-        self.__installation_packages_map = OrderedDict()
+        self.__installation_packages_map = collections.OrderedDict()
 
         # Internal in-memory representation of Patch Assessment data
         self.__assessment_substatus_json = None
@@ -56,7 +55,7 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
-        self.__assessment_packages_map = OrderedDict()
+        self.__assessment_packages_map = collections.OrderedDict()
 
         # Internal in-memory representation of Patch Metadata for HealthStore
         self.__metadata_for_healthstore_substatus_json = None
@@ -105,7 +104,7 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0
-        self.__assessment_packages_map = OrderedDict()
+        self.__assessment_packages_map = collections.OrderedDict()
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
@@ -552,13 +551,13 @@ class StatusHandler(object):
         self.__installation_summary_json = None
         self.__installation_packages = []
         self.__installation_errors = []
-        self.__installation_packages_map = OrderedDict()
+        self.__installation_packages_map = collections.OrderedDict()
 
         self.__assessment_substatus_json = None
         self.__assessment_summary_json = None
         self.__assessment_packages = []
         self.__assessment_errors = []
-        self.__assessment_packages_map = OrderedDict()
+        self.__assessment_packages_map = collections.OrderedDict()
 
         self.__metadata_for_healthstore_substatus_json = None
         self.__metadata_for_healthstore_summary_json = None
@@ -594,7 +593,7 @@ class StatusHandler(object):
                 else:
                     message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
                     self.__installation_summary_json = json.loads(message)
-                    self.__installation_packages_map = OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
+                    self.__installation_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
                     self.__installation_packages = list(self.__installation_packages_map.values())
                     self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
                     self.__installation_reboot_status = self.__installation_summary_json['rebootStatus']
@@ -605,7 +604,7 @@ class StatusHandler(object):
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
                 self.__assessment_summary_json = json.loads(message)
-                self.__assessment_packages_map = OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
+                self.__assessment_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
                 errors = self.__assessment_summary_json['errors']
                 if errors is not None and errors['details'] is not None:
