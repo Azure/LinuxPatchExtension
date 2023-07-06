@@ -520,6 +520,29 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
         self.runtime.env_layer.file_system.delete_files_from_dir(self.runtime.status_handler.status_file_path, '*.complete.status')
 
+    def test_latest_complete_status_file(self):
+        """ Create dummy files in status folder and check if the complete_status_file_path is the latest file and delete those dummy files """
+        file_path = self.runtime.execution_config.status_folder
+        example_file1 = os.path.join(file_path, '123.complete.status')
+        example_file2 = os.path.join(file_path, '124.complete.status')
+        example_file3 = os.path.join(file_path, '125.complete.status')
+
+        with open(example_file1, 'w') as f:
+            f.write("file1")
+        with open(example_file2, 'w') as f:
+            f.write("file2")
+        with open(example_file3, 'w') as f:
+            f.write("file3")
+
+        self.runtime.execution_config.operation = Constants.ASSESSMENT
+        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+        self.runtime.status_handler.load_status_file_components(initial_load=True)
+
+        self.assertFalse(os.path.isfile(example_file1))
+        self.assertFalse(os.path.isfile(example_file2))
+        self.assertFalse(os.path.isfile(example_file3))
+        self.assertTrue(os.path.isfile(self.runtime.execution_config.complete_status_file_path))
+
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):
         test_packages = []

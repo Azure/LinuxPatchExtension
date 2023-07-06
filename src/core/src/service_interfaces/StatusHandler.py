@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 import collections
+import glob
 import json
 import os
 import re
@@ -569,6 +570,9 @@ class StatusHandler(object):
 
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
+        # Remove older complete status files
+        self.__removed_older_complete_status_files(self.execution_config.status_folder)
+
         # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.complete_status_file_path) and initial_load:
             self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
@@ -591,8 +595,7 @@ class StatusHandler(object):
                 if self.execution_config.exec_auto_assess_only:
                     self.__installation_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                    self.__installation_summary_json = json.loads(message)
+                    self.__installation_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                     self.__installation_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
                     self.__installation_packages = list(self.__installation_packages_map.values())
                     self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
@@ -602,8 +605,7 @@ class StatusHandler(object):
                         self.__installation_errors = errors['details']
                         self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
-                message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                self.__assessment_summary_json = json.loads(message)
+                self.__assessment_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                 self.__assessment_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
                 errors = self.__assessment_summary_json['errors']
@@ -614,18 +616,19 @@ class StatusHandler(object):
                 if self.execution_config.exec_auto_assess_only:
                     self.__metadata_for_healthstore_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                    self.__metadata_for_healthstore_summary_json = json.loads(message)
+                    self.__metadata_for_healthstore_summary_json = self.__get_substatus_message(complete_status_file_data, i)
             if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
                     self.__configure_patching_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                    self.__configure_patching_summary_json = json.loads(message)
+                    self.__configure_patching_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                     errors = self.__configure_patching_summary_json['errors']
                     if errors is not None and errors['details'] is not None:
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
+
+    def __get_substatus_message(self, status_file_data, index):
+        return json.loads(status_file_data['status']['substatus'][index]['formattedMessage']['message'])
 
     def __load_complete_status_file_data(self, file_path):
         # Read the status file - raise exception on persistent failure
@@ -805,4 +808,19 @@ class StatusHandler(object):
             "message": message
         }
     # endregion
+
+    def __removed_older_complete_status_files(self, status_folder):
+        """ Get the latest status complete file and remove other .complete.status files """
+        removed_files_list = []
+        list_of_files = glob.glob(status_folder + '/' + '*.complete.status')
+
+        for file in list_of_files:
+            if file != self.complete_status_file_path:
+                removed_files_list.append(os.path.basename(file))
+
+        if len(removed_files_list) < 1:
+            return
+
+        self.env_layer.file_system.delete_files_from_dir(status_folder, removed_files_list)
+
 
