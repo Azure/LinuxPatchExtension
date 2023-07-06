@@ -324,7 +324,7 @@ class StatusHandler(object):
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
     def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
@@ -373,7 +373,7 @@ class StatusHandler(object):
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
     def __new_installation_summary_json(self, installation_packages_json):
         """ Called by: set_installation_substatus_json
@@ -435,7 +435,7 @@ class StatusHandler(object):
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
         # wait period required in cases where we need to ensure HealthStore reads the status from GA
         if wait_after_update:
@@ -468,7 +468,7 @@ class StatusHandler(object):
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
     def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
@@ -644,7 +644,7 @@ class StatusHandler(object):
                     raise
         return complete_status_file_data
 
-    def __write_complete_status_file(self):
+    def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
             This is usually the final call to compose and persist after an in-memory data update in a specialized method.
 
