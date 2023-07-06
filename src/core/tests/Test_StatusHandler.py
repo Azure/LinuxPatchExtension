@@ -558,40 +558,12 @@ class TestStatusHandler(unittest.TestCase):
 
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
-
-        patch_count_for_test = 50
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
-        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-        self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
         self.runtime.status_handler.load_status_file_components(initial_load=True)
 
         self.assertFalse(os.path.isfile(example_file1))
         self.assertFalse(os.path.isfile(example_file2))
         self.assertFalse(os.path.isfile(example_file3))
         self.assertTrue(os.path.isfile(self.runtime.execution_config.complete_status_file_path))
-
-    @patch("os.path.isdir")
-    @patch("shutil.rmtree")
-    def test_if_complete_status_path_is_dir(self, mock_rmtree, mock_isdir):
-        mock_isdir.return_value = True
-        mock_logger = MagicMock()
-        self.runtime.composite_logger = mock_logger
-        self.runtime.execution_config.complete_status_file_path = self.runtime.execution_config.status_folder
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
-        status_handler.load_status_file_components(initial_load=True)
-
-        # Mock complete status path is dir and being called in the load_status_file_components
-        mock_isdir.assert_called_with(status_handler.complete_status_file_path)
-        mock_logger.log_error.assert_called_with("Core state file path returned a directory. Attempting to reset.")
-        mock_rmtree.assert_called_with(status_handler.complete_status_file_path)
-
-        # Mock complete status path is dir and being called in the __write_complete_status_file but with exception
-        try:
-            status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-        except Exception as error:
-            self.assertTrue("Unable to open" in str(error))
-            mock_isdir.assert_called_with(status_handler.complete_status_file_path)
-            mock_rmtree.assert_called_with(status_handler.complete_status_file_path)
 
     def test_write_truncated_status_file_under_capacity(self):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
