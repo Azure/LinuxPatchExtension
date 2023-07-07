@@ -160,7 +160,7 @@ class PatchInstaller(object):
         # These packages will already be marked with version as 'UA_ESM_REQUIRED'.
         # Esm packages will not be dependent packages to non-esm packages. This is confirmed by Canonical. So, once these are removed from processing, we need not worry about handling it in our batch / sequential patch processing logic.
         # Adding this after filtering excluded packages, so we don`t un-intentionally mark excluded esm-package status as failed.
-        packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found_without_attach = package_manager.filter_out_esm_packages(packages, package_versions)
+        packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found_without_attach = package_manager.separate_out_esm_packages(packages, package_versions)
 
         self.telemetry_writer.write_event("Final package list: " + str(packages), Constants.TelemetryEventLevel.Verbose)
 

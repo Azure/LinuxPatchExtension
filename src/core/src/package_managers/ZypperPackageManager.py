@@ -819,7 +819,7 @@ class ZypperPackageManager(PackageManager):
         """
         pass
 
-    def filter_out_esm_packages(self, packages, package_versions):
+    def separate_out_esm_packages(self, packages, package_versions):
         """
         Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
         Only needed for apt. No-op for yum and zypper
