@@ -397,6 +397,30 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
+    def test_if_status_file_resets_on_load_if_malformed(self):
+        # Mock complete status file with malformed json
+        sample_json = '[{"version": 1.0, "timestampUTC": "2023-05-13T07:38:07Z", "statusx": {"name": "Azure Patch Management", "operation": "Installation", "status": "success", "code": 0, "formattedMessage": {"lang": "en-US", "message": ""}, "substatusx": []}}]'
+        file_path = self.runtime.execution_config.status_folder
+        example_file1 = os.path.join(file_path, '123.complete.status')
+        self.runtime.execution_config.complete_status_file_path = example_file1
+
+        with open(example_file1, 'w') as f:
+            f.write(sample_json)
+
+        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
+        # Mock complete status file with malformed json and being called in the load_status_file_components, and it will recreate a good complete_status_file
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]
+        self.assertEqual(substatus_file_data["status"]["name"], "Azure Patch Management")
+        self.assertEqual(substatus_file_data["status"]["operation"], "Installation")
+        self.assertIsNotNone(substatus_file_data["status"]["substatus"])
+        self.assertEqual(len(substatus_file_data["status"]["substatus"]), 0)
+        self.runtime.env_layer.file_system.delete_files_from_dir(example_file1, "*.complete.status")
+
+    def test_if_complete_status_path_is_dir(self):
+        self.runtime.execution_config.status_file_path = self.runtime.execution_config.status_folder
+        self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
+
     def test_assessment_packages_map(self):
         patch_count_for_test = 5
         expected_patch_id = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
@@ -426,15 +450,13 @@ class TestStatusHandler(unittest.TestCase):
         patch_id_critical = 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04'
         expected_value_critical = {'version': '2:4.4.5+dfsg-2ubuntu5.4', 'classifications': ['Critical'], 'name': 'python-samba0',
                           'patchId': 'python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04', 'patchInstallationState': 'Installed'}
-
-        status_handler = StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type)
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
         patch_count_for_test = 50
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
 
-        status_handler.set_package_install_status(test_packages, test_package_versions, 'Installed', 'Other')
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, 'Installed', 'Other')
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
 
@@ -446,7 +468,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(formatted_message['patches'][0]['name'], 'python-samba0')
 
         # Update the classification from Other to Critical
-        status_handler.set_package_install_status_classification(test_packages, test_package_versions, 'Critical')
+        self.runtime.status_handler.set_package_install_status_classification(test_packages, test_package_versions, 'Critical')
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
 
@@ -496,7 +518,6 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual('python-samba0_2:4.4.5+dfsg-2ubuntu5.4_Ubuntu_16.04',
             str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
-
         self.runtime.env_layer.file_system.delete_files_from_dir(self.runtime.status_handler.status_file_path, '*.complete.status')
 
     # Setup functions to populate packages and versions for truncation
