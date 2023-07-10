@@ -180,5 +180,5 @@ class Bootstrapper(object):
 
     def check_min_python_version(self):
         if sys.version_info < (2, 7):
-            self.composite_logger.log_debug("Python version is below 2.7")
+            self.composite_logger.log_error("Python version is below 2.7")
             raise Exception("Error: minimum python version is not met - Python version is below 2.7")
