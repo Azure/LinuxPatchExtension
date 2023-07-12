@@ -81,7 +81,7 @@ class PatchAssessor(object):
                 self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, Constants.PackageClassification.SECURITY)
 
                 # Set the security-esm packages in status.
-                self.package_manager.set_security_esm_package_status(Constants.ASSESSMENT)
+                self.package_manager.set_security_esm_package_status(Constants.ASSESSMENT, packages=[])
 
                 # ensure reboot status is set
                 reboot_pending = self.package_manager.is_reboot_pending()
