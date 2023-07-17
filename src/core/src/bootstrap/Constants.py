@@ -335,3 +335,6 @@ class Constants(object):
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
         MINIMUM_CLIENT_VERSION = "27.14.4"
 
+    class PythonVersionMsg(EnumBackport):
+        PYTHON_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Python version. Python version is below 2.7. To resolve: https://www.pythoncentral.io/how-to-update-python/"
+        PYTHON_COMPATIBLE_MSG = "Minimum Python version (2.7) prerequisite met"

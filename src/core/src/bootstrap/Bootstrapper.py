@@ -141,9 +141,6 @@ class Bootstrapper(object):
         self.composite_logger.log("Linux distribution: " + str(self.env_layer.platform.linux_distribution()) + "\n")
         self.composite_logger.log("Process id: " + str(os.getpid()))
 
-        # check machine min python version is met
-        self.check_min_python_version()
-
         # Ensure sudo works in the environment
         sudo_check_result = self.check_sudo_status()
         self.composite_logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
@@ -177,8 +174,3 @@ class Bootstrapper(object):
                                             "Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise
-
-    def check_min_python_version(self):
-        if sys.version_info < (2, 7):
-            self.composite_logger.log_error("Python version is below 2.7")
-            raise Exception("Error: minimum python version is not met - Python version is below 2.7")
