@@ -39,7 +39,7 @@ class AptitudePackageManager(PackageManager):
 
         # Support to get updates and their dependencies
         self.security_sources_list = os.path.join(execution_config.temp_folder, 'msft-patch-security-{0}.list'.format(security_list_guid))
-        self.prep_security_sources_list_cmd = 'sudo grep security /etc/apt/sources.list > ' + os.path.normpath(self.security_sources_list)
+        self.prep_security_sources_list_cmd = 'sudo grep -hR security /etc/apt/sources.list /etc/apt/sources.list.d/ > ' + os.path.normpath(self.security_sources_list)
         self.dist_upgrade_simulation_cmd_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
         self.single_package_check_versions = 'apt-cache madison <PACKAGE-NAME>'
         self.single_package_find_installed_dpkg = 'sudo dpkg -s <PACKAGE-NAME>'
@@ -182,9 +182,6 @@ class AptitudePackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(self.prep_security_sources_list_cmd, False, False)
         if code != 0:
             self.composite_logger.log_warning(" - SLP:: Return code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
-            error_msg = 'Unexpected return code (' + str(code) + ') from command: ' + self.prep_security_sources_list_cmd
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '-oDir::Etc::Sourcelist=' + self.security_sources_list)
         out = self.invoke_package_manager(cmd)
