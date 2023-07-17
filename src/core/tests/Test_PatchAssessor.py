@@ -29,8 +29,10 @@ class TestPatchAssessor(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), legacy_mode=True)
         self.container = self.runtime.container
+        self.original_version_info = sys.version_info
 
     def tearDown(self):
+        sys.version_info = self.original_version_info
         self.runtime.stop()
 
     def test_assessment_success(self):

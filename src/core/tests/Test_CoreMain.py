@@ -19,8 +19,6 @@ import json
 import os
 import re
 import shutil
-import sys
-import time
 import unittest
 import uuid
 
