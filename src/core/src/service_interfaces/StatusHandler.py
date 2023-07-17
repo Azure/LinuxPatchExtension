@@ -810,17 +810,17 @@ class StatusHandler(object):
     # endregion
 
     def __removed_older_complete_status_files(self, status_folder):
-        """ Get the latest status complete file and remove other .complete.status files """
-        removed_files_list = []
+        """ Retain the latest status complete file but remove older .complete.status files """
+        files_to_be_removed = []
         list_of_files = glob.glob(status_folder + '/' + '*.complete.status')
 
         for file in list_of_files:
             if file != self.complete_status_file_path:
-                removed_files_list.append(os.path.basename(file))
+                files_to_be_removed.append(os.path.basename(file))
 
-        if len(removed_files_list) < 1:
+        if len(files_to_be_removed) < 1:
             return
 
-        self.env_layer.file_system.delete_files_from_dir(status_folder, removed_files_list)
+        self.env_layer.file_system.delete_files_from_dir(status_folder, files_to_be_removed)
 
 
