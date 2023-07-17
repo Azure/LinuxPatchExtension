@@ -16,6 +16,7 @@
 
 import datetime
 import json
+import sys
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.tests.Test_UbuntuProClient import MockUpdatesResult, MockVersionResult
@@ -651,6 +652,18 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue(runtime.patch_installer.write_installer_perf_logs(True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, ""))
         runtime.stop()
 
+    def test_raise_if_min_python_version_not_met(self):
+        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), legacy_mode=True)
+        original_version = sys.version_info
+        sys.version_info = (2, 6)
+        # Assert that an exception is raised
+        with self.assertRaises(Exception) as context:
+            runtime.patch_installer.start_installation()
+        self.assertEqual(str(context.exception), Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info))
+
+        # reset sys.version to original
+        sys.version_info = original_version
+        runtime.stop()
 
 if __name__ == '__main__':
     unittest.main()

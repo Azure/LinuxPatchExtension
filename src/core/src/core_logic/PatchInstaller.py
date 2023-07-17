@@ -17,7 +17,7 @@
 """ The patch install orchestrator """
 import datetime
 import math
-import os
+import sys
 import time
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.Stopwatch import Stopwatch
@@ -56,6 +56,7 @@ class PatchInstaller(object):
         """ Kick off a patch installation run """
         self.status_handler.set_current_operation(Constants.INSTALLATION)
         self.raise_if_telemetry_unsupported()
+        self.raise_if_min_python_version_not_met()
 
         self.composite_logger.log('\nStarting patch installation...')
 
@@ -139,6 +140,13 @@ class PatchInstaller(object):
             raise Exception(error_msg)
 
         self.composite_logger.log("{0}".format(Constants.TELEMETRY_COMPATIBLE_MSG))
+
+    def raise_if_min_python_version_not_met(self):
+        if sys.version_info < (2, 7):
+            error_msg = Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info)
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+            raise Exception(error_msg)
 
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""
