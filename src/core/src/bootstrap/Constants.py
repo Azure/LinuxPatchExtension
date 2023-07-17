@@ -300,7 +300,7 @@ class Constants(object):
 
     TELEMETRY_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
     TELEMETRY_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"
-
+    PYTHON_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Python version. Minimum Python version required is 2.7. [DetectedPythonVersion={0}]"
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # EnvLayer Constants
@@ -335,6 +335,3 @@ class Constants(object):
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
         MINIMUM_CLIENT_VERSION = "27.14.4"
 
-    class PythonVersionMsg(EnumBackport):
-        PYTHON_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Python version. Python version is below 2.7. To resolve: https://www.pythoncentral.io/how-to-update-python/"
-        PYTHON_COMPATIBLE_MSG = "Minimum Python version (2.7) prerequisite met"

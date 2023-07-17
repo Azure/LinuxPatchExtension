@@ -179,7 +179,7 @@ class TestPatchAssessor(unittest.TestCase):
         # Assert that an exception is raised
         with self.assertRaises(Exception) as context:
             self.runtime.patch_assessor.start_assessment()
-        self.assertEqual(str(context.exception), "Unsupported older Python version. Python version is below 2.7. To resolve: https://www.pythoncentral.io/how-to-update-python/")
+        self.assertEqual(str(context.exception), Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info))
 
     def raise_ex(self):
         raise Exception()

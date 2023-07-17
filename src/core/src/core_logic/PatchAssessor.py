@@ -133,11 +133,10 @@ class PatchAssessor(object):
 
     def raise_if_min_python_version_not_met(self):
         if sys.version_info < (2, 7):
-            error_msg = "{0}".format(Constants.PythonVersionMsg.PYTHON_NOT_COMPATIBLE_ERROR_MSG)
+            error_msg = Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info)
             self.composite_logger.log_error(error_msg)
             self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
             raise Exception(error_msg)
-        self.composite_logger.log("{0}".format(Constants.PythonVersionMsg.PYTHON_COMPATIBLE_MSG))
 
     # region - Auto-assessment extensions
     def should_auto_assessment_run(self):

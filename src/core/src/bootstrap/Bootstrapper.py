@@ -174,3 +174,4 @@ class Bootstrapper(object):
                                             "Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise
+
