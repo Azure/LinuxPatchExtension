@@ -17,7 +17,7 @@
 """ The patch install orchestrator """
 import datetime
 import math
-import os
+import sys
 import time
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.Stopwatch import Stopwatch
@@ -56,6 +56,7 @@ class PatchInstaller(object):
         """ Kick off a patch installation run """
         self.status_handler.set_current_operation(Constants.INSTALLATION)
         self.raise_if_telemetry_unsupported()
+        self.raise_if_min_python_version_not_met()
 
         self.composite_logger.log('\nStarting patch installation...')
 
@@ -140,6 +141,13 @@ class PatchInstaller(object):
 
         self.composite_logger.log("{0}".format(Constants.TELEMETRY_COMPATIBLE_MSG))
 
+    def raise_if_min_python_version_not_met(self):
+        if sys.version_info < (2, 7):
+            error_msg = Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info)
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+            raise Exception(error_msg)
+
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""
         self.composite_logger.log("\n\nGetting available updates...")
@@ -160,7 +168,7 @@ class PatchInstaller(object):
         # These packages will already be marked with version as 'UA_ESM_REQUIRED'.
         # Esm packages will not be dependent packages to non-esm packages. This is confirmed by Canonical. So, once these are removed from processing, we need not worry about handling it in our batch / sequential patch processing logic.
         # Adding this after filtering excluded packages, so we don`t un-intentionally mark excluded esm-package status as failed.
-        packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found_without_attach = package_manager.filter_out_esm_packages(packages, package_versions)
+        packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found_without_attach = package_manager.separate_out_esm_packages(packages, package_versions)
 
         self.telemetry_writer.write_event("Final package list: " + str(packages), Constants.TelemetryEventLevel.Verbose)
 
@@ -177,7 +185,7 @@ class PatchInstaller(object):
         self.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, classification="Security")
 
         # Set the security-esm package status.
-        package_manager.set_security_esm_package_status(Constants.INSTALLATION)
+        package_manager.set_security_esm_package_status(Constants.INSTALLATION, packages)
 
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
         # We will see this as packages going from NotSelected --> Installed. We could remove them preemptively from not_included_packages, but we're explicitly choosing not to.

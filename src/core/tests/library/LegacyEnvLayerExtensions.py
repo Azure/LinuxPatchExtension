@@ -526,7 +526,7 @@ class LegacyEnvLayerExtensions():
                         output = "      bash | 4.3-14ubuntu1.3 | http://us.archive.ubuntu.com/ubuntu xenial-updates/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1.2 | http://security.ubuntu.com/ubuntu xenial-security/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1 | http://us.archive.ubuntu.com/ubuntu xenial/main amd64 Packages"
-                    elif cmd.find('sudo grep security /etc/apt/sources.list >') > -1:
+                    elif cmd.find('sudo grep -hR security /etc/apt/sources.list /etc/apt/sources.list.d/ >') > -1:
                         self.write_to_file(os.path.join(self.temp_folder_path, "temp2.list"), "test temp file 2")
                         code = 0
                         output = "tmp file created"
