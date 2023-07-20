@@ -932,6 +932,14 @@ class YumPackageManager(PackageManager):
                 self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
                 continue
             else:
+                # The first string should be process ID and hence it should be integer.
+                # If first string is not process ID then the line is not for a process detail.
+                try:
+                    int(process_details[0])
+                except Exception:
+                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    continue
+
                 self.composite_logger.log_debug(" - Applicable line: " + str(line))
                 process_count += 1
                 process_list_verbose += process_details[1] + " (" + process_details[0] + "), "  # process name and id
