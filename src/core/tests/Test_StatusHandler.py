@@ -531,7 +531,7 @@ class TestStatusHandler(unittest.TestCase):
         example_file15 = os.path.join(file_path, '115.complete.status')
 
         for i in range(1, 16):
-            with open(file_path + '\\' + str(i + 100) + '.complete' + '.status', 'w') as f:
+            with open(os.path.join(file_path, str(i + 100) + '.complete.status'), 'w') as f:
                 f.write("test" + str(i))
 
         self.runtime.execution_config.operation = Constants.ASSESSMENT

@@ -812,6 +812,7 @@ class StatusHandler(object):
     def __removed_older_complete_status_files(self, status_folder):
         """ Retain the 10 status complete file but remove older .complete.status files """
         list_of_files = glob.glob(status_folder + '/' + '*.complete.status')
+        files_to_removed = []
 
         if len(list_of_files) <= Constants.MAX_COMPLETE_STATUS_FILES_COUNT:
             return
@@ -819,5 +820,8 @@ class StatusHandler(object):
         while len(list_of_files) > Constants.MAX_COMPLETE_STATUS_FILES_COUNT:
             oldest_file = min(list_of_files, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
             file_base_name = os.path.basename(oldest_file)
+            files_to_removed.append(oldest_file)
             self.env_layer.file_system.delete_files_from_dir(status_folder, [file_base_name])
             list_of_files.remove(oldest_file)
+
+        self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_to_removed))
