@@ -554,15 +554,6 @@ class LegacyEnvLayerExtensions():
                         output = "Loaded plugins: langpacks, product-id, search-disabled-repos" + \
                                  "No package microcode_ctl-2:2.1-29.16.el7_5 available." + \
                                  "Error: Nothing to do"
-                    elif cmd.find("sudo yum ps") > -1:
-                        code = 0
-                        output = "Loaded plugins: enabled_repos_upload, package_upload, product-id, ps, search-\n" + \
-                                 "              : disabled-repos, subscription-manager\n" + \
-                                 "This system is not registered with an entitlement server. You can use subscription-manager to register.\n" + \
-                                 "       pid proc                  CPU      RSS      State uptime\n" + \
-                                 "ps\n" + \
-                                 "Uploading Enabled Repositories Report\n" + \
-                                 "Cannot upload enabled repos report, is this client registered?"
                     else:
                         code = 0
                         output = ''
