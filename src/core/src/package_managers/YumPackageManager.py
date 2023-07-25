@@ -398,12 +398,12 @@ class YumPackageManager(PackageManager):
 
     def get_yum_version(self):
         # Sample output for the cmd "sudo yum --version"
-        # 4.7.0
-        #   Installed: dnf-0:4.7.0-8.el8.noarch at Mon 29 May 2023 02:58:31 PM GMT
-        #   Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Fri 18 Mar 2022 03:21:28 PM GMT
+        #4.7.0
+        #  Installed: dnf-0:4.7.0-8.el8.noarch at Mon 29 May 2023 02:58:31 PM GMT
+        #  Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Fri 18 Mar 2022 03:21:28 PM GMT
         #
-        #   Installed: rpm-0:4.14.3-24.el8_6.x86_64 at Mon 29 May 2023 05:07:36 PM GMT
-        #   Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Wed 14 Sep 2022 09:12:50 AM GMT
+        #  Installed: rpm-0:4.14.3-24.el8_6.x86_64 at Mon 29 May 2023 05:07:36 PM GMT
+        #  Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Wed 14 Sep 2022 09:12:50 AM GMT
         try:
             output = self.invoke_package_manager(self.yum_version_check)
             lines = output.strip().split('\n')
