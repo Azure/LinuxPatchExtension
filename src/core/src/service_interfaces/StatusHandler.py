@@ -813,10 +813,10 @@ class StatusHandler(object):
         """ Retain the 10 status complete file but remove older .complete.status files """
         list_of_files = glob.glob(status_folder + '/' + '*.complete.status')
 
-        if len(list_of_files) <= 10:
+        if len(list_of_files) <= Constants.MAX_COMPLETE_STATUS_FILES_COUNT:
             return
 
-        while len(list_of_files) > 10:
+        while len(list_of_files) > Constants.MAX_COMPLETE_STATUS_FILES_COUNT:
             oldest_file = min(list_of_files, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
             file_base_name = os.path.basename(oldest_file)
             self.env_layer.file_system.delete_files_from_dir(status_folder, [file_base_name])
