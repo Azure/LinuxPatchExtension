@@ -19,9 +19,9 @@ from core.src.bootstrap.Constants import Constants
 
 
 class LegacyEnvLayerExtensions():
-    def __init__(self, package_manager_name):
+    def __init__(self, package_manager_name, test_type="HappyPath"):
         self.legacy_package_manager_name = package_manager_name
-        self.legacy_test_type = "HappyPath"
+        self.legacy_test_type = test_type
         self.temp_folder_path = ""
 
     class LegacyPlatform(object):
@@ -1144,7 +1144,52 @@ class LegacyEnvLayerExtensions():
                             entry = template.replace('<PACKAGE>', package)
                             entry = entry.replace('<VERSION>', version)
                             output += entry
-
+            elif self.legacy_test_type == 'YumVersion4Dependency':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("check-update") > -1:
+                        code = 100
+                        output = "\n" + \
+                                 "iptables.x86_64                                              " + \
+                                 "1.8.4-17.el8_4.2                                      " + \
+                                 "rhel-8-for-x86_64-baseos-eus-rhui-rpms\n" + \
+                                 "iptables-etables.x86_64                                     " + \
+                                 "1.8.4-17.el8_4.2                                      " + \
+                                 "rhel-8-for-x86_64-baseos-eus-rhui-rpms\n" + \
+                                 "iptables-libs.x86_64                                      " + \
+                                 "1.8.4-17.el8_4.2                                     " + \
+                                 "rhel-8-for-x86_64-baseos-eus-rhui-rpms\n"
+                    if cmd.find("--version") > -1:
+                        code = 0
+                        output = "4.7.0\n" + \
+                                 "  Installed: dnf-0:4.7.0-8.el8.noarch at Mon 29 May 2023 02:58:31 PM GMT\n" + \
+                                 "  Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Fri 18 Mar 2022 03:21:28 PM GMT" + \
+                                 "\n" + \
+                                 "  Installed: rpm-0:4.14.3-24.el8_6.x86_64 at Mon 29 May 2023 05:07:36 PM GMT" + \
+                                 "  Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Wed 14 Sep 2022 09:12:50 AM GMT"
+                    if cmd.find("assumeno iptables") > -1:
+                        code = 0
+                        output = "Updating Subscription Management repositories.\n" + \
+                                 "Unable to read consumer identity\n" + \
+                                 "\n" + \
+                                 "This system is not registered to Red Hat Subscription Management. You can use subscription-manager to register.\n" + \
+                                 "\n" + \
+                                 "Last metadata expiration check: 0:12:39 ago on Mon 27 Feb 2023 12:10:02 PM UTC.\n" + \
+                                 "Package iptables-libs-1.8.4-17.el8_4.1.x86_64 is already installed.\n" + \
+                                 "Dependencies resolved.\n" + \
+                                 "===========================================================================================\n" + \
+                                 " Package             Arch    Version          Repository                               Size\n" + \
+                                 "===========================================================================================\n" + \
+                                 "Upgrading:\n" + \
+                                 " iptables            x86_64  1.8.4-17.el8_4.2 rhel-8-for-x86_64-baseos-eus-rhui-rpms  584 k\n" + \
+                                 " iptables-ebtables   x86_64  1.8.4-17.el8_4.2 rhel-8-for-x86_64-baseos-eus-rhui-rpms   72 k\n" + \
+                                 " iptables-libs       x86_64  1.8.4-17.el8_4.2 rhel-8-for-x86_64-baseos-eus-rhui-rpms  108 k\n" + \
+                                 "\n" + \
+                                 "Transaction Summary\n" + \
+                                 "===========================================================================================\n" + \
+                                 "Upgrade  3 Packages\n" + \
+                                 "\n" + \
+                                 "Total download size: 764 k\n" + \
+                                 "Operation aborted."
             major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')

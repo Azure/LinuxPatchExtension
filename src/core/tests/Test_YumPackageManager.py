@@ -609,6 +609,19 @@ class TestYumPackageManager(unittest.TestCase):
 
         package_manager.do_processes_require_restart = backup_do_process_require_restart
 
+    def test_get_dependent_list_yum_version_4(self):
+        # Creating new RuntimeCompositor with test_type YumVersion4Dependency because there are some command runs in constructor of YumPackageManager
+        # for which the sample output is in the test_type YumVersion4Dependency.
+        self.runtime.stop() # First stopping the existing runtime
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.YUM, test_type="YumVersion4Dependency")
+
+        self.container = self.runtime.container
+        package_manager = self.container.get('package_manager')
+        self.assertEqual(package_manager.yum_version, 4)
+        dependent_list = package_manager.get_dependent_list(["iptables.x86_64"])
+        self.assertEqual(len(dependent_list), 2)
+        self.assertEqual(dependent_list[0], "iptables-ebtables.x86_64")
+        self.assertEqual(dependent_list[1], "iptables-libs.x86_64")
 
 if __name__ == '__main__':
     unittest.main()
