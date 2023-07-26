@@ -1181,6 +1181,35 @@ class LegacyEnvLayerExtensions():
                                  "\n" + \
                                  "Total download size: 764 k\n" + \
                                  "Operation aborted."
+            elif self.legacy_test_type == 'YumVersion4DependencyInTwoLines':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("--version") > -1:
+                        code = 0
+                        output = "4.7.0\n" + \
+                                 "  Installed: dnf-0:4.7.0-8.el8.noarch at Mon 29 May 2023 02:58:31 PM GMT\n" + \
+                                 "  Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Fri 18 Mar 2022 03:21:28 PM GMT" + \
+                                 "\n" + \
+                                 "  Installed: rpm-0:4.14.3-24.el8_6.x86_64 at Mon 29 May 2023 05:07:36 PM GMT" + \
+                                 "  Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Wed 14 Sep 2022 09:12:50 AM GMT"
+                    if cmd.find("assumeno polkit") > -1:
+                        code = 0
+                        output = "Last metadata expiration check: 0:08:47 ago on Tue 25 Jul 2023 02:14:28 PM UTC.\n" + \
+                                 "Package polkit-0.115-13.el8_5.2.x86_64 is already installed.\n" + \
+                                 "Dependencies resolved.\n" + \
+                                 "================================================================================\n" + \
+                                 " Package   Arch   Version          Repository                              Size \n" + \
+                                 "================================================================================\n" + \
+                                 "Upgrading:\n" + \
+                                 " polkit    x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms 154 k\n" + \
+                                 " polkit-libs\n" + \
+                                 "           x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms  77 k\n" + \
+                                 "\n" + \
+                                 "Transaction Summary\n" + \
+                                 "================================================================================\n" + \
+                                 "Upgrade  2 Packages\n" + \
+                                 "\n" + \
+                                 "Total download size: 231 k\n" + \
+                                 "Operation aborted.\n"
             major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')

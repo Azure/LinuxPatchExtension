@@ -333,11 +333,34 @@ class YumPackageManager(PackageManager):
         # In sample1, the starting delimeter is "Upgrading:" and in sample2, the starting delimeter is "Installing dependencies:"
         # If there are combinations of updates and new installations, one of the above delimeters will come first and the below logic will work.
         
+        # There is one edge scenario which is also handled in the below parsing logic i.e., the package detail spills over to two lines:
+        # Sample output for the cmd 'sudo yum update --assumeno polkit.x86_64' is :
+        #
+        #Last metadata expiration check: 0:08:47 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
+        #Package polkit-0.115-13.el8_5.2.x86_64 is already installed.
+        #Dependencies resolved.
+        #================================================================================
+        # Package   Arch   Version          Repository                              Size
+        #================================================================================
+        #Upgrading:
+        # polkit    x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms 154 k
+        # polkit-libs
+        #           x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms  77 k
+        #
+        #Transaction Summary
+        #================================================================================
+        #Upgrade  2 Packages
+        #
+        #Total download size: 231 k
+        #Operation aborted.
+
+        package_extensions = ["x86_64", "noarch", "i686"]
         dependencies = []
         lines = output.strip().split('\n')
         upgrading_or_installing_flag = False
 
-        for line in lines:
+        for line_index in range(0, len(lines)):
+            line = lines[line_index]
             if not upgrading_or_installing_flag:
                 if not line.startswith("Upgrading:") and not line.startswith("Installing dependencies:"):
                     self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
@@ -347,12 +370,28 @@ class YumPackageManager(PackageManager):
                     self.composite_logger.log_debug(" - Packages list started: " + str(line))
                     continue
 
+            if line.startswith("Transaction Summary"):
+                break
+
             updates_line = re.split(r'\s+', line.strip())
-            if len(updates_line) != 6:
+            dependent_package_name = ""
+
+            if len(updates_line) == 6 and updates_line[1] in package_extensions:
+                dependent_package_name = updates_line[0] + "." + updates_line[1]
+            elif len(updates_line) == 5 and line_index > 0 and updates_line[0] in package_extensions:
+                # Handling the scenario when package detail is spill over to 2 lines
+                prev_line = lines[line_index-1]
+                prev_updates_line = re.split(r'\s+', prev_line.strip())
+                if len(prev_updates_line) == 1:
+                    # Taking package name from previuos line and package extension from current line.
+                    dependent_package_name = prev_updates_line[0] + "." + updates_line[0]
+                else:
+                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    continue
+            else:
                 self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
                 continue
 
-            dependent_package_name = updates_line[0] + "." + updates_line[1]
             if len(dependent_package_name) != 0 and dependent_package_name not in packages:
                 self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
                 dependencies.append(dependent_package_name)

@@ -623,5 +623,18 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertEqual(dependent_list[0], "iptables-ebtables.x86_64")
         self.assertEqual(dependent_list[1], "iptables-libs.x86_64")
 
+    def test_get_dependent_list_yum_version_4_update_in_two_lines(self):
+        # Creating new RuntimeCompositor with test_type YumVersion4Dependency because there are some command runs in constructor of YumPackageManager
+        # for which the sample output is in the test_type YumVersion4Dependency.
+        self.runtime.stop() # First stopping the existing runtime
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.YUM, test_type="YumVersion4DependencyInTwoLines")
+
+        self.container = self.runtime.container
+        package_manager = self.container.get('package_manager')
+        self.assertEqual(package_manager.yum_version, 4)
+        dependent_list = package_manager.get_dependent_list(["polkit.x86_64"])
+        self.assertEqual(len(dependent_list), 1)
+        self.assertEqual(dependent_list[0], "polkit-libs.x86_64")
+
 if __name__ == '__main__':
     unittest.main()
