@@ -765,7 +765,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
-        #Test Complete status file
+        # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)
 
@@ -804,7 +804,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.PENDING)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
-        #Test Complete status file
+        # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)
 
@@ -844,7 +844,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
-        #Test Complete status file
+        # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)
 

@@ -1378,7 +1378,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
         self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
 
-        # installation truncated patches
+        # Test installation truncation
         installation_truncated_substatus = substatus_file_data["status"]["substatus"][1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
@@ -1453,7 +1453,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 0)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
 
-        # installation truncated patches
+        # Test installation truncation
         installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
@@ -1533,7 +1533,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
 
-        # installation truncated patches
+        # Test installation truncation
         installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
@@ -1604,7 +1604,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
 
-        # tombstone record
+        # Tombstone record
         message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
         self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
         self.assertNotEqual(message_patches[-2]['patchId'], "Truncated_patch_list_id")
@@ -1615,7 +1615,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
         self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
 
-        # installation truncated patches
+        # Test installation truncation
         installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
         message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
@@ -1630,7 +1630,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_success_truncate_both_size_limit_happy_path(self):
+    def test_installation_success_truncate_both_size_limit(self):
         argument_composer = ArgumentComposer()
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
@@ -1693,7 +1693,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
         self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
 
-        # installation truncated patches
+        # Test installation truncation
         installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_ERROR.lower())
@@ -1708,7 +1708,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.stop()
 
     def test_installation_fail_truncate_with_error_size_limit(self):
-        """ truncate assessment list > size limit but installation < size limit with error"""
+        """ assessment list > size limit but truncate installation < size limit with error"""
         argument_composer = ArgumentComposer()
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('FailInstallPath')
@@ -1772,12 +1772,11 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_SUCCESS.lower())
         message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
-        # assessment removed packages
         self.assertEqual(len(message_patches), patch_count_for_assessment + 2)
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.SUCCESS)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
 
-        # installation truncated patches
+        # Test installation truncation
         installation_truncated_substatus = substatus_file_data[1]
         installation_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
@@ -1787,7 +1786,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertNotEqual(installation_patches[-2]['patchId'], 'Truncated_patch_list_id')
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 1)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
-        # 1 failed installed packages errors, and 1 truncation error
+        # 1 failed installed packages errors, and 1 truncation error, plus 6 exception error
         self.assertTrue("8 error/s reported. The latest 5 error/s are shared in detail." in json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
 
         runtime.stop()
