@@ -16,6 +16,7 @@
 import datetime
 import json
 import os
+import sys
 import unittest
 
 from core.src.bootstrap.Constants import Constants
@@ -28,8 +29,10 @@ class TestPatchAssessor(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), legacy_mode=True)
         self.container = self.runtime.container
+        self.original_version_info = sys.version_info
 
     def tearDown(self):
+        sys.version_info = self.original_version_info
         self.runtime.stop()
 
     def test_assessment_success(self):
@@ -170,6 +173,13 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken_in_secs is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is not None)
+
+    def test_raise_if_min_python_version_not_met(self):
+        sys.version_info = (2, 6)
+        # Assert that an exception is raised
+        with self.assertRaises(Exception) as context:
+            self.runtime.patch_assessor.start_assessment()
+        self.assertEqual(str(context.exception), Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info))
 
     def raise_ex(self):
         raise Exception()

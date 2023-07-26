@@ -19,6 +19,7 @@ import datetime
 import json
 import os
 import shutil
+import sys
 import time
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.Stopwatch import Stopwatch
@@ -43,6 +44,7 @@ class PatchAssessor(object):
         """ Start a patch assessment """
         self.status_handler.set_current_operation(Constants.ASSESSMENT)
         self.raise_if_telemetry_unsupported()
+        self.raise_if_min_python_version_not_met()
 
         if self.execution_config.exec_auto_assess_only and not self.should_auto_assessment_run():
             self.composite_logger.log("\nSkipping automatic patch assessment... [ShouldAutoAssessmentRun=False]\n")
@@ -81,7 +83,7 @@ class PatchAssessor(object):
                 self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, Constants.PackageClassification.SECURITY)
 
                 # Set the security-esm packages in status.
-                self.package_manager.set_security_esm_package_status(Constants.ASSESSMENT)
+                self.package_manager.set_security_esm_package_status(Constants.ASSESSMENT, packages=[])
 
                 # ensure reboot status is set
                 reboot_pending = self.package_manager.is_reboot_pending()
@@ -128,6 +130,13 @@ class PatchAssessor(object):
             raise Exception(error_msg)
 
         self.composite_logger.log("{0}".format(Constants.TELEMETRY_COMPATIBLE_MSG))
+
+    def raise_if_min_python_version_not_met(self):
+        if sys.version_info < (2, 7):
+            error_msg = Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info)
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+            raise Exception(error_msg)
 
     # region - Auto-assessment extensions
     def should_auto_assessment_run(self):
