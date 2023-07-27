@@ -1137,18 +1137,6 @@ class LegacyEnvLayerExtensions():
                             output += entry
             elif self.legacy_test_type == 'YumVersion4Dependency':
                 if self.legacy_package_manager_name is Constants.YUM:
-                    if cmd.find("check-update") > -1:
-                        code = 100
-                        output = "\n" + \
-                                 "iptables.x86_64                                              " + \
-                                 "1.8.4-17.el8_4.2                                      " + \
-                                 "rhel-8-for-x86_64-baseos-eus-rhui-rpms\n" + \
-                                 "iptables-etables.x86_64                                     " + \
-                                 "1.8.4-17.el8_4.2                                      " + \
-                                 "rhel-8-for-x86_64-baseos-eus-rhui-rpms\n" + \
-                                 "iptables-libs.x86_64                                      " + \
-                                 "1.8.4-17.el8_4.2                                     " + \
-                                 "rhel-8-for-x86_64-baseos-eus-rhui-rpms\n"
                     if cmd.find("--version") > -1:
                         code = 0
                         output = "4.7.0\n" + \
