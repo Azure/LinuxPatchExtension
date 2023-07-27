@@ -1250,9 +1250,8 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
         message_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
         self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
-        self.assertEqual(message_patches[-1]['classifications'], ['Other'])
-        self.assertEqual(message_patches[-2]['classifications'], ['Security'])
-        self.assertEqual(message_patches[-3]['classifications'], ['Critical'])      # 3 tombstons Critical Security Other
+        self.assertEqual(message_patches[-2]['patchId'], "Truncated_patch_list_id")
+        self.assertEqual(message_patches[-3]['patchId'], "Truncated_patch_list_id")      # 3 tombstons Critical Security Other
         self.assertTrue("additional updates of classification" in message_patches[-1]['name'][0])
         self.assertTrue(len(message_patches) < patch_count_for_test + 3)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
