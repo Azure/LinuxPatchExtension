@@ -386,6 +386,9 @@ class YumPackageManager(PackageManager):
                     # Taking package name from previuos line and package extension from current line.
                     dependent_package_name = prev_updates_line[0] + "." + updates_line[0]
                 else:
+                    # This is unexpected scenario.
+                    # If update details are divided in two lines then first line should contain package name and second should contain rest of the details.
+                    # Hence previous line should contain package name and current line should contain other 5 details.
                     self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
                     continue
             else:
