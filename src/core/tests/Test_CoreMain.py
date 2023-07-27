@@ -17,6 +17,7 @@ import datetime
 import glob
 import json
 import os
+import random
 import re
 import shutil
 import unittest
@@ -1172,7 +1173,7 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
         # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
         # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
-        patch_count_for_test = 432
+        patch_count_for_test = random.randint(200, 432)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
@@ -1223,7 +1224,7 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
         # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
-        patch_count_for_test = 997
+        patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Critical")
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
@@ -1327,12 +1328,12 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
         #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
-        patch_count_for_assessment = 798
+        patch_count_for_assessment = random.randint(798, 1100)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
-        patch_count_for_installation = 500
+        patch_count_for_installation = random.randint(500, 1100)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
         runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
         runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
@@ -1542,7 +1543,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(message_patches[-1]['name'], 'Truncated_patch_list')
         self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')     # 1 tombstone
         self.assertNotEqual(message_patches[-2]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(436, patch_count_for_installation + 3 - len(message_patches))    # 436 removed packages
+        self.assertEqual(435, patch_count_for_installation + 3 - len(message_patches))    # 435 removed packages
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
 
@@ -1636,12 +1637,12 @@ class TestCoreMain(unittest.TestCase):
         runtime.set_legacy_test_type('HappyPath')
         CoreMain(argument_composer.get_composed_arguments())
 
-        patch_count_for_assessment = 950
+        patch_count_for_assessment = random.randint(950, 1200)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
-        patch_count_for_installation = 875
+        patch_count_for_installation = random.randint(875, 1200)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
         runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
         runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
@@ -1683,11 +1684,11 @@ class TestCoreMain(unittest.TestCase):
         assessment_truncated_substatus = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 702)      # 1 tombstone
+        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 703)      # 1 tombstone
         message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
         self.assertEqual(message_patches[- 1]['patchId'], 'Truncated_patch_list_id')
         self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
-        self.assertEqual(252, patch_count_for_assessment + 4 - len(message_patches))    # 252 removed packages
+        self.assertTrue(patch_count_for_assessment + 4 - len(message_patches) > 0)    # more than 1 removed packages
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)

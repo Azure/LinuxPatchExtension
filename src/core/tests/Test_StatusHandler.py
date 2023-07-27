@@ -16,6 +16,7 @@
 import datetime
 import json
 import os
+import random
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
@@ -634,7 +635,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
-        patch_count_for_test = 780
+        patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
@@ -712,7 +713,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
-        patch_count_for_test = 1000
+        patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Security")
 
@@ -767,7 +768,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
-        patch_count_for_test = 871
+        patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
@@ -806,7 +807,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
-        patch_count_for_test = 1071
+        patch_count_for_test = random.randint(780, 1100)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.PENDING)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
@@ -886,7 +887,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
-        patch_count_for_test = 750
+        patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
 

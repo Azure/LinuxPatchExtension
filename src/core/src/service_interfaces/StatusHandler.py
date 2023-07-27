@@ -957,10 +957,8 @@ class StatusHandler(object):
                     truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_installation, self.__installation_total_error_count,
                         self.__installation_substatus_message_copy, installation_name, installation_index)
 
-                current_package_list_capacity -= packages_capacity_diff
-                if current_package_list_capacity <= max_package_list_capacity:
-                    break
                 status_file_size_in_bytes, current_package_list_capacity, packages_capacity_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file, max_package_list_capacity, packages_truncated_in_assessment, packages_truncated_in_installation)
+                current_package_list_capacity -= packages_capacity_diff
 
             self.composite_logger.log_debug("End package list truncation")
 
@@ -978,11 +976,11 @@ class StatusHandler(object):
 
     def __get_current_packages_size_in_bytes(self, assessment_package_list, installation_package_list):
         """ Get current complete assessment, installation, or both package list size in bytes """
-        # Only assessment data exists
+        # Only installation data exists, get installation list capacity
         if len(assessment_package_list) == 0:
             return self.__calc_package_payload_size_on_disk(installation_package_list)
 
-        # Only installation data exists
+        # Only assessment data exists, get assessment list capacity
         if len(installation_package_list) == 0:
             return self.__calc_package_payload_size_on_disk(assessment_package_list)
 
@@ -1049,7 +1047,7 @@ class StatusHandler(object):
         left_index = 0
         right_index = len(package_list) - 1
 
-        if len(package_list) < 0:
+        if len(package_list) == 0:
             return [], [], capacity
         if self.__calc_package_payload_size_on_disk(package_list) <= capacity:
             return package_list, [], capacity - self.__calc_package_payload_size_on_disk(package_list)
