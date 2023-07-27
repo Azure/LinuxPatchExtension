@@ -1075,9 +1075,8 @@ class StatusHandler(object):
 
         while len(list_of_files) > 10:
             oldest_file = min(list_of_files, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
-            file_base_name = os.path.basename(oldest_file)
-            files_to_removed.append(oldest_file)
-            self.env_layer.file_system.delete_files_from_dir(status_folder, [file_base_name])
+            files_to_removed.append(os.path.basename(oldest_file))
+            self.env_layer.file_system.delete_files_from_dir(status_folder, files_to_removed)
             list_of_files.remove(oldest_file)
 
         self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_to_removed))
