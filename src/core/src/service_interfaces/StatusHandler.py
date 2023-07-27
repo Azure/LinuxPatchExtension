@@ -1068,18 +1068,21 @@ class StatusHandler(object):
         return truncated_list, truncated_packages_removed, capacity - self.__calc_package_payload_size_on_disk(truncated_list)
 
     def __removed_older_complete_status_files(self, status_folder):
-        """ Get the latest status complete file and remove other .complete.status files """
-        removed_files_list = []
+        """ Retain 10 latest status complete file and remove other .complete.status files """
         list_of_files = glob.glob(status_folder + '/' + '*.complete.status')
+        files_to_removed = []
 
-        for file in list_of_files:
-            if file != self.complete_status_file_path:
-                removed_files_list.append(os.path.basename(file))
-
-        if len(removed_files_list) < 1:
+        if len(list_of_files) <= 10:
             return
 
-        self.env_layer.file_system.delete_files_from_dir(status_folder, removed_files_list)
+        while len(list_of_files) > 10:
+            oldest_file = min(list_of_files, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
+            file_base_name = os.path.basename(oldest_file)
+            files_to_removed.append(oldest_file)
+            self.env_layer.file_system.delete_files_from_dir(status_folder, [file_base_name])
+            list_of_files.remove(oldest_file)
+
+        self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_to_removed))
 
     def __calc_status_size_on_disk(self, full_status):
         """ Calculate status file size in bytes on disk """
