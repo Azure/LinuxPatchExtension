@@ -871,7 +871,6 @@ class StatusHandler(object):
         if not len(self.__installation_packages_removed) == 0:
             self.composite_logger.log_debug("Installation truncated removed packages : {0}".format(self.__installation_packages_removed))
 
-    # rename __calc_status_size_on_disk, __calc_package_payload_size_on_disk
     def __write_status_file(self, complete_status_file_payload):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
         """
@@ -885,54 +884,12 @@ class StatusHandler(object):
                     if _index is not none:
                         low_pri_index = __get_installation_low_pri_index()
                     
-                    # only assessment
-                    if len(__assessment_packages_truncated) > 0 and len(__installation_packages_truncated) == 0:
-                        diff = 0
-                        current_byte_size = __calc_package_payload_size_on_disk(__assessment_packages_truncated)                  
-                        while status_file_size_in_bytes > 126 and current_byte_size > max_package_list_capacity:
-                            __assessment_helper()
-                                __split_list_for_truncation()
-                                    __apply_truncation()
-                           
-                            __recompose_truncated_status_file()                                    
-                                __get_current_complete_status_errors()
-                                __recompose_truncated_message()
-                                    __recompose_substatus_errors()
-                                    __create_assessment_tombstone_list()
-                                        __create_assessment_tombstone()
-                                    __recreate_assessment_summary_json()
-                            current_package_list_capacity -= diff
-                            if current_package_list_capacity <= max_package_list_capacity:
-                                break
-                            __get_new_size_in_bytes_after_truncation()
-                                               
-                    # installation
-                    if len(self.__assessment_packages_truncated) == 0 and len(self.__installation_packages_truncated) > 0:
-                        diff = 0
-                        current_byte_size = __calc_package_payload_size_on_disk(__assessment_packages_truncated)
-                        while status_file_size_in_bytes > 126 and current_byte_size > max_package_list_capacity:
-                            __installation_helper()
-                                __split_list_for_truncation()
-                                    __apply_truncation()
-                           
-                            __recompose_truncated_status_file()                                    
-                                __get_current_complete_status_errors()
-                                __recompose_truncated_message()
-                                    __recompose_substatus_errors()
-                                    __create_installation_tombstone
-                                    __recreate_installation_summary_json()
-                            current_package_list_capacity -= diff
-                            if current_package_list_capacity <= max_package_list_capacity:
-                                break
-                            __get_new_size_in_bytes_after_truncation() 
-                    
-                    # both
                     if len(self.__assessment_packages_truncated) > 0 and len(self.__installation_packages_truncated) > 0:
                         diff = 0
                         current_byte_size = __calc_package_payload_size_on_disk(__assessment_packages_truncated)
                         while status_file_size_in_bytes > 126 and current_byte_size > max_package_list_capacity:
-                            __both_truncation_helper()
-                                __split_list_for_truncation()
+                            __apply_truncation_process()
+                                __cut_list_and_get_list_capacity()
                                     __apply_truncation()
                                     
                             __recompose_truncated_status_file()                                    
@@ -961,8 +918,10 @@ class StatusHandler(object):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(complete_status_file_payload)      # status file has been json.dump twice
         truncated_status_file = complete_status_file_payload
 
-        if status_file_size_in_bytes > self.__internal_file_capacity:       # 126kb
+        if status_file_size_in_bytes > self.__internal_file_capacity:   # 126kb
             self.composite_logger.log_debug("Begin package list truncation")
+            low_pri_index = None
+            packages_capacity_diff = 0
             assessment_index, assessment_name = self.__get_substatus_name_and_index(Constants.PATCH_ASSESSMENT_SUMMARY, truncated_status_file['status']['substatus'])
             installation_index, installation_name = self.__get_substatus_name_and_index(Constants.PATCH_INSTALLATION_SUMMARY, truncated_status_file['status']['substatus'])
 
@@ -971,65 +930,18 @@ class StatusHandler(object):
                 self.__assessment_packages_copy = self.__assessment_substatus_message_copy['patches']
 
             if installation_index is not None:      # if installation data exists
-                low_pri_index = self.__get_installation_low_pri_index(self.__installation_packages_copy)
+                low_pri_index = self.__get_installation_low_pri_index(self.__installation_packages_copy, low_pri_index)
                 self.__installation_substatus_message_copy = self.__get_substatus_message_at_index(truncated_status_file, installation_index)
                 self.__installation_packages_copy = self.__installation_substatus_message_copy['patches']
 
             status_file_no_list_size = self.__get_size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_index, installation_index)  # deepcopy fully copy the object avoid reference modification
             max_package_list_capacity = self.__internal_file_capacity - status_file_no_list_size
-
-            # Execute if assessment packages exist, but no installation packages exist
-            # if len(self.__assessment_packages_copy) > 0 and len(self.__installation_packages_copy) == 0:
-            #     packages_capacity_diff = 0
-            #     current_assessment_list_size = self.__calc_package_payload_size_on_disk(self.__assessment_packages_copy)
-            #
-            #     while status_file_size_in_bytes > self.__internal_file_capacity and current_assessment_list_size > max_package_list_capacity:
-            #         # Apply truncation
-            #         packages_truncated_in_assessment, packages_removed_from_assessment = self.__assessment_helper(self.__assessment_packages_copy, max_package_list_capacity - packages_capacity_diff)
-            #
-            #         if len(packages_removed_from_assessment) > 0:
-            #             # Update current # of removed packages
-            #             self.__assessment_packages_removed = packages_removed_from_assessment
-            #             # Recompose truncated status file payload
-            #             truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
-            #                 self.__assessment_substatus_message_copy, assessment_name, assessment_index)
-            #         current_assessment_list_size -= packages_capacity_diff
-            #         if current_assessment_list_size <= max_package_list_capacity:
-            #             break
-            #         status_file_size_in_bytes, current_assessment_list_size, packages_capacity_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file, max_package_list_capacity,
-            #             packages_truncated_in_assessment, [])
-            #
-            # # Execute if installation packages exist, but no assessment packages exist
-            # if len(self.__assessment_packages_copy) == 0 and len(self.__installation_packages_copy) > 0:
-            #     packages_capacity_diff = 0
-            #     current_package_list_capacity = self.__calc_package_payload_size_on_disk(self.__installation_packages_copy)
-            #
-            #     while status_file_size_in_bytes > self.__internal_file_capacity and current_package_list_capacity > max_package_list_capacity:
-            #         # Apply truncation
-            #         packages_truncated_in_installation, packages_removed_from_installation = self.__installation_helper(self.__installation_packages_copy, max_package_list_capacity - packages_capacity_diff)
-            #
-            #         if len(packages_removed_from_installation) > 0:
-            #             # Update current # of removed packages
-            #             self.__installation_packages_removed = packages_removed_from_installation
-            #             # Recompose truncated status file payload
-            #             truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_installation, self.__installation_total_error_count,
-            #                 self.__installation_substatus_message_copy, installation_name, installation_index)
-            #         current_package_list_capacity -= packages_capacity_diff
-            #         if current_package_list_capacity <= max_package_list_capacity:
-            #             break
-            #         status_file_size_in_bytes, current_package_list_capacity, packages_capacity_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file, max_package_list_capacity,
-            #             [], packages_truncated_in_installation)
-
-            # Execute if both assessment and installation packages exist
-            # if len(self.__assessment_packages_copy) > 0 and len(self.__installation_packages_copy) > 0:
-            # TODO refactor the assessment and installation logic into the one, and perform tests, refactor function name and be descriptive
-            packages_capacity_diff = 0
             current_package_list_capacity = self.__get_current_packages_size_in_bytes(self.__assessment_packages_copy, self.__installation_packages_copy)
 
             while status_file_size_in_bytes > self.__internal_file_capacity and current_package_list_capacity > max_package_list_capacity:
-                # Apply truncation
+                # Start truncation process
                 packages_truncated_in_assessment, packages_removed_from_assessment, packages_truncated_in_installation, packages_removed_from_installation = \
-                    self.__both_truncation_helper(self.__assessment_packages_copy, self.__installation_packages_copy, max_package_list_capacity - packages_capacity_diff, low_pri_index)
+                    self.__apply_truncation_process(self.__assessment_packages_copy, self.__installation_packages_copy, max_package_list_capacity - packages_capacity_diff, low_pri_index)
 
                 if len(packages_removed_from_assessment) > 0:
                     # Update current assessment # of removed packages
@@ -1044,6 +956,7 @@ class StatusHandler(object):
                     # Recompose truncated status file payload (installation)
                     truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_installation, self.__installation_total_error_count,
                         self.__installation_substatus_message_copy, installation_name, installation_index)
+
                 current_package_list_capacity -= packages_capacity_diff
                 if current_package_list_capacity <= max_package_list_capacity:
                     break
@@ -1064,6 +977,7 @@ class StatusHandler(object):
         return status_file_size, current_package_list_size, truncated_package_list_diff
 
     def __get_current_packages_size_in_bytes(self, assessment_package_list, installation_package_list):
+        """ Get current complete assessment, installation, or both package list size in bytes """
         # Only assessment data exists
         if len(assessment_package_list) == 0:
             return self.__calc_package_payload_size_on_disk(installation_package_list)
@@ -1075,56 +989,49 @@ class StatusHandler(object):
         # Both assessment and installation data exist
         return self.__calc_package_payload_size_on_disk(assessment_package_list) + self.__calc_package_payload_size_on_disk(installation_package_list)
 
-
-    def __split_list_for_truncation(self, package_list, max_package_list_capacity):
+    def __cut_list_and_get_list_capacity(self, package_list, max_package_list_capacity):
         """ Split package list, keep 5 minimum packages, and discard remainings cccordingly to max_package_list_capacity  """
         min_packages_count = Constants.StatusTruncationConfig.MIN_TRUNCATED_PACKAGE_COUNT
+        remain_capacity = max_package_list_capacity
         package_list_keep_five, package_list_discard_half = (package_list[:min_packages_count], package_list[min_packages_count:]) \
             if len(package_list) > min_packages_count else (package_list, [])
-        remain_capacity = max_package_list_capacity - self.__calc_package_payload_size_on_disk(package_list_keep_five)
+
+        # Empty list after 2xjson.dumps have 4-5 bytes, might cause to lose 1 extra package in truncation process
+        if len(package_list) > 0:
+            remain_capacity = max_package_list_capacity - self.__calc_package_payload_size_on_disk(package_list_keep_five)
+
         return package_list_keep_five, package_list_discard_half, remain_capacity
 
-    def __assessment_helper(self, assessment_packages, max_package_list_capacity):
-        assessment_keep_five, assessment_second_half, remain_capacity = self.__split_list_for_truncation(assessment_packages, max_package_list_capacity)
-        remain_assessment, packages_removed_assessment, _ = self.__apply_truncation(assessment_second_half, remain_capacity)
-        packages_in_assessment = assessment_keep_five + remain_assessment
-
-        return packages_in_assessment, packages_removed_assessment
-
-    def __installation_helper(self, installation_packages, max_package_list_capacity):
-        packages_in_installation, packages_removed_installation, _ = self.__apply_truncation(installation_packages, max_package_list_capacity)
-        return packages_in_installation, packages_removed_installation
-
-    def __both_truncation_helper(self, assessment_packages, installation_packages, max_package_list_capacity, low_pri_index=None):
+    def __apply_truncation_process(self, assessment_packages, installation_packages, max_package_list_capacity, low_pri_index=None):
         """ Helper function call split patch list method then apply truncation on assessment and installation """
 
-        # Apply truncations
-        assessment_first_five, assessment_second_half, remain_capacity = self.__split_list_for_truncation(assessment_packages, max_package_list_capacity)
+        # cut assessment list into [:5], [5:]
+        assessment_keep_five, assessment_discard_half, remain_capacity = self.__cut_list_and_get_list_capacity(assessment_packages, max_package_list_capacity)
 
-        if low_pri_index:
+        # Apply high priority (Failed, Installed) and low priority (Pending, Excluded, Not_Selected) installation logic, and keep min 5 assessment packages
+        if low_pri_index and len(assessment_packages) > 0:
             installation_high_pri = installation_packages[:low_pri_index]
             installation_low_pri = installation_packages[low_pri_index:]
 
             installation_high_pri_list, packages_removed_high_pri, remain_capacity = self.__apply_truncation(installation_high_pri, remain_capacity)
-            remain_assessment, packages_removed_assessment, remain_capacity = self.__apply_truncation(assessment_second_half, remain_capacity)
+            remain_assessment, packages_removed_assessment, remain_capacity = self.__apply_truncation(assessment_discard_half, remain_capacity)
             installation_low_pri_list, packages_removed_low_pri, _ = self.__apply_truncation(installation_low_pri, remain_capacity)
 
-            packages_in_installation = installation_high_pri_list + installation_low_pri_list
+            truncated_installation_list = installation_high_pri_list + installation_low_pri_list
             packages_removed_installation = packages_removed_high_pri + packages_removed_low_pri
 
         else:
             # Perform installation truncations
-            packages_in_installation, packages_removed_installation, remain_capacity = self.__apply_truncation(installation_packages, remain_capacity)
+            truncated_installation_list, packages_removed_installation, remain_capacity = self.__apply_truncation(installation_packages, remain_capacity)
             # Perform assessment truncation
-            remain_assessment, packages_removed_assessment, _ = self.__apply_truncation(assessment_second_half, remain_capacity)
+            remain_assessment, packages_removed_assessment, _ = self.__apply_truncation(assessment_discard_half, remain_capacity)
 
-        packages_in_assessment = assessment_first_five + remain_assessment
+        truncated_assessment_list = assessment_keep_five + remain_assessment
 
-        return packages_in_assessment, packages_removed_assessment, packages_in_installation, packages_removed_installation
+        return truncated_assessment_list, packages_removed_assessment, truncated_installation_list, packages_removed_installation
 
-    def __get_installation_low_pri_index(self, priority_sorted_installation_packages):
+    def __get_installation_low_pri_index(self, priority_sorted_installation_packages, low_pri_index):
         """" Get the first index of Pending, Excluded, or Not_Selected installation packages """
-        low_pri_index = None
         for index, package in enumerate(priority_sorted_installation_packages):
             package_state = package['patchInstallationState']
             if Constants.PENDING in package_state or Constants.EXCLUDED in package_state or Constants.NOT_SELECTED in package_state:
@@ -1141,9 +1048,12 @@ class StatusHandler(object):
         """
         left_index = 0
         right_index = len(package_list) - 1
+
+        if len(package_list) < 0:
+            return [], [], capacity
         if self.__calc_package_payload_size_on_disk(package_list) <= capacity:
             return package_list, [], capacity - self.__calc_package_payload_size_on_disk(package_list)
-        elif self.__calc_package_payload_size_on_disk(package_list[0]) > capacity:
+        if self.__calc_package_payload_size_on_disk(package_list[0]) > capacity:
             return [], package_list, capacity
 
         while left_index < right_index:
@@ -1210,8 +1120,7 @@ class StatusHandler(object):
 
         # Check for existing assessment errors before recompose
         if code != error_code:
-            # Update substatus status to warning
-            truncated_status_file['status']['substatus'][substatus_index]['status'] = Constants.STATUS_WARNING.lower()
+            truncated_status_file['status']['substatus'][substatus_index]['status'] = Constants.STATUS_WARNING.lower()      # Update substatus status to warning
         else:
             # code == 1 (Error), add everything in the errors['details'] to truncated_detail_list
             truncated_detail_list.extend(errors_details)
@@ -1222,22 +1131,19 @@ class StatusHandler(object):
     def __recompose_truncated_message(self, truncated_status_file, truncated_package_list, truncated_detail_list, count_total_errors, truncated_substatus_json, substatus_name, substatus_index):
         """ Recompose status file with new errors detail list, new errors message, and truncated patches  """
         truncated_substatus_message = None
-        # Recompose message errors json
-        truncated_errors_json = self.__recompose_substatus_errors(truncated_detail_list, count_total_errors)
+        truncated_errors_json = self.__recompose_substatus_errors(truncated_detail_list, count_total_errors)    # Recompose substatus message errors json
 
+        # Recompose assessment substatus message
         if substatus_name == Constants.PATCH_ASSESSMENT_SUMMARY:
             # Add assessment tombstone per classifications into packages_in_assessment
             truncated_package_list.extend(self.__create_assessment_tombstone_list(self.__assessment_packages_removed))
-
-            # Recompose assessment substatus message
             truncated_substatus_message = self.__recompose_assessment_message(truncated_substatus_json, truncated_package_list, truncated_errors_json)
 
-        # Update summary message
+        # Recompose installation substatus message
         if substatus_name == Constants.PATCH_INSTALLATION_SUMMARY:
             # Add installation tombstone record
+            # Todo need further requirements to decompose installation tombstone by classifications
             truncated_package_list.append(self.__create_installation_tombstone())
-
-            # Recompose installation substatus message
             truncated_substatus_message = self.__recompose_installation_message(truncated_substatus_json, truncated_package_list, truncated_errors_json)
 
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_message)
@@ -1247,9 +1153,7 @@ class StatusHandler(object):
     def __recompose_substatus_errors(self, truncation_detail_list, count_total_errors):
         """ Recompose truncated substatus errors json """
         error_message = Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
-
-        # Reuse the errors object set up
-        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)
+        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)      # Reuse the errors object set up
         self.__try_add_error(truncation_detail_list, truncated_error_detail)
         truncated_errors_json = self.__set_errors_json(count_total_errors, truncation_detail_list, True)    # True for truncated
 
