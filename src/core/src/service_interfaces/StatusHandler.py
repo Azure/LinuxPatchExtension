@@ -810,18 +810,20 @@ class StatusHandler(object):
     # endregion
 
     def __removed_older_complete_status_files(self, status_folder):
-        """ Retain the 10 status complete file but remove older .complete.status files """
-        list_of_files = glob.glob(status_folder + '/' + '*.complete.status')
+        """ Retain 10 latest status complete file and remove other .complete.status files """
         files_to_removed = []
+        complete_status_files_list = glob.glob(status_folder + '/' + '*.complete.status')   # Glob return empty list if no file matched pattern
 
-        if len(list_of_files) <= Constants.MAX_COMPLETE_STATUS_FILES_COUNT:
+        if len(complete_status_files_list) <= Constants.MAX_COMPLETE_STATUS_FILES_COUNT:
             return
 
-        while len(list_of_files) > Constants.MAX_COMPLETE_STATUS_FILES_COUNT:
-            oldest_file = min(list_of_files, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
-            file_base_name = os.path.basename(oldest_file)
-            files_to_removed.append(oldest_file)
-            self.env_layer.file_system.delete_files_from_dir(status_folder, [file_base_name])
-            list_of_files.remove(oldest_file)
+        complete_status_files_list.sort(key=os.path.getmtime, reverse=True)
+        for file in complete_status_files_list[Constants.MAX_COMPLETE_STATUS_FILES_COUNT:]:
+            try:
+                if os.path.exists(file):
+                    os.remove(file)
+                    files_to_removed.append(file)
+            except Exception as e:
+                self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(file), repr(e)))
 
         self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_to_removed))
