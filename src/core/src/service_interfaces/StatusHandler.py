@@ -52,7 +52,7 @@ class StatusHandler(object):
         self.__maintenance_window_exceeded = False
         self.__installation_reboot_status = Constants.RebootStatus.NOT_NEEDED
         self.__installation_packages_map = collections.OrderedDict()
-        self.__installation_substatus_message_copy = None
+        self.__installation_substatus_msg_copy = None
         self.__installation_packages_copy = []
         self.__installation_packages_removed = []
 
@@ -63,7 +63,7 @@ class StatusHandler(object):
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
         self.__assessment_packages_map = collections.OrderedDict()
-        self.__assessment_substatus_message_copy = None
+        self.__assessment_substatus_msg_copy = None
         self.__assessment_packages_copy = []
         self.__assessment_packages_removed = []
 
@@ -120,7 +120,7 @@ class StatusHandler(object):
         self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_packages_removed = []
         self.__assessment_packages_copy = []
-        self.__assessment_substatus_message_copy = None
+        self.__assessment_substatus_msg_copy = None
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
@@ -361,7 +361,7 @@ class StatusHandler(object):
 
         # Compose substatus message
         errors = self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
-        substatus_message = self.__compose_assessment_substatus_message(self.execution_config.activity_id, self.is_reboot_pending, critsec_patch_count, other_patch_count,
+        substatus_message = self.__compose_assessment_substatus_msg(self.execution_config.activity_id, self.is_reboot_pending, critsec_patch_count, other_patch_count,
         assessment_packages_json, self.execution_config.start_time, self.env_layer.datetime.timestamp(), started_by, errors)
 
         if self.vm_cloud_type == Constants.VMCloudType.ARC:
@@ -369,7 +369,7 @@ class StatusHandler(object):
             substatus_message["patchAssessmentStatusString"] = status
         return substatus_message
 
-    def __compose_assessment_substatus_message(self, activity_id, reboot_pending, crit_patch_count, other_patch_count, assessment_packages, start_time, last_modified_time, started_by, errors):
+    def __compose_assessment_substatus_msg(self, activity_id, reboot_pending, crit_patch_count, other_patch_count, assessment_packages, start_time, last_modified_time, started_by, errors):
         return {
             "assessmentActivityId": str(activity_id),
             "rebootPending": reboot_pending,
@@ -427,13 +427,13 @@ class StatusHandler(object):
         # Compose substatus message
         maintenance_run_id = self.execution_config.maintenance_run_id if self.execution_config.maintenance_run_id is not None else ''
         errors = self.__set_errors_json(self.__installation_total_error_count, self.__installation_errors)
-        substatus_message = self.__compose_installation_substatus_message(self.execution_config.activity_id, self.__installation_reboot_status, self.__maintenance_window_exceeded, not_selected_patch_count,
+        substatus_message = self.__compose_installation_substatus_msg(self.execution_config.activity_id, self.__installation_reboot_status, self.__maintenance_window_exceeded, not_selected_patch_count,
             excluded_patch_count, pending_patch_count, installed_patch_count, failed_patch_count, installation_packages_json, self.execution_config.start_time,
             self.env_layer.datetime.timestamp(), maintenance_run_id, errors)
 
         return substatus_message
 
-    def __compose_installation_substatus_message(self, activity_id, reboot_status, maintenance_window, not_selected, excluded, pending, installed, failed, installation_packages, start_time, last_modified_time, maintenance_id, errors):
+    def __compose_installation_substatus_msg(self, activity_id, reboot_status, maintenance_window, not_selected, excluded, pending, installed, failed, installation_packages, start_time, last_modified_time, maintenance_id, errors):
         return {
             "installationActivityId": str(activity_id),
             "rebootStatus": str(reboot_status),
@@ -582,7 +582,7 @@ class StatusHandler(object):
         self.__installation_packages = []
         self.__installation_errors = []
         self.__installation_packages_map = collections.OrderedDict()
-        self.__installation_substatus_message_copy = None
+        self.__installation_substatus_msg_copy = None
         self.__installation_packages_copy = []
         self.__installation_packages_removed = []
 
@@ -591,7 +591,7 @@ class StatusHandler(object):
         self.__assessment_packages = []
         self.__assessment_errors = []
         self.__assessment_packages_map = collections.OrderedDict()
-        self.__assessment_substatus_message_copy = None
+        self.__assessment_substatus_msg_copy = None
         self.__assessment_packages_copy = []
         self.__assessment_packages_removed = []
 
@@ -630,7 +630,7 @@ class StatusHandler(object):
                 if self.execution_config.exec_auto_assess_only:
                     self.__installation_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    self.__installation_summary_json = self.__get_substatus_message_at_index(complete_status_file_data, i)
+                    self.__installation_summary_json = self.__get_substatus_msg_at_index(complete_status_file_data, i)
                     # Reload patches into installation ordered map for fast look up
                     self.__installation_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
                     self.__installation_packages = list(self.__installation_packages_map.values())
@@ -641,7 +641,7 @@ class StatusHandler(object):
                         self.__installation_errors = errors['details']
                         self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
-                self.__assessment_summary_json = self.__get_substatus_message_at_index(complete_status_file_data, i)
+                self.__assessment_summary_json = self.__get_substatus_msg_at_index(complete_status_file_data, i)
                 # Reload patches into assessment ordered map for fast look up
                 self.__assessment_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
@@ -653,18 +653,18 @@ class StatusHandler(object):
                 if self.execution_config.exec_auto_assess_only:
                     self.__metadata_for_healthstore_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    self.__metadata_for_healthstore_summary_json = self.__get_substatus_message_at_index(complete_status_file_data, i)
+                    self.__metadata_for_healthstore_summary_json = self.__get_substatus_msg_at_index(complete_status_file_data, i)
             if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
                     self.__configure_patching_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    self.__configure_patching_summary_json = self.__get_substatus_message_at_index(complete_status_file_data, i)
+                    self.__configure_patching_summary_json = self.__get_substatus_msg_at_index(complete_status_file_data, i)
                     errors = self.__configure_patching_summary_json['errors']
                     if errors is not None and errors['details'] is not None:
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
-    def __get_substatus_message_at_index(self, status_file_data, substatus_index):
+    def __get_substatus_msg_at_index(self, status_file_data, substatus_index):
         """ Get the substatus payload message by index """
         return json.loads(status_file_data['status']['substatus'][substatus_index]['formattedMessage']['message'])
 
@@ -733,15 +733,15 @@ class StatusHandler(object):
         if os.path.isdir(self.complete_status_file_path):
             self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.complete_status_file_path)
-            shutil.rmtree(self.complete_status_file_path)
 
         # Write complete status file <seq.no>.complete
-        self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(json.dumps(complete_status_payload)), mode='w+')
+        complete_status_payload_json_dumps = json.dumps(complete_status_payload)
+        self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(complete_status_payload_json_dumps), mode='w+')
 
-        complete_status_file = self.__load_complete_status_file_data(self.complete_status_file_path)    # avoid reference modification
+        # complete_status_file = self.__load_complete_status_file_data(self.complete_status_file_path)    # avoid reference modification
 
         # Write truncated status file
-        self.__write_status_file(complete_status_file)
+        self.__write_status_file(complete_status_payload_json_dumps)
     # endregion
 
     # region - Error objects
@@ -875,11 +875,12 @@ class StatusHandler(object):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
         """
             __write_status_file(self, complete_status_file_payload):
-                status_file_size_in_bytes = __calc_status_size_on_disk(complete_status_file_payload)
+                status_file_size_in_bytes = len(complete_status_file_payload.encode('utf-8))
+                truncated_status_file = json.loads(complete_status_file_payload)
                 if status_file_size_in_bytes > 126kb
-                    _index, _name = self.__get_substatus_name_and_index()
-                    status_file_no_list_size = __calc_package_payload_size_on_disk(__get_size_of_constant_status_data(complete_status_file_payload))
-                    max_package_list_capacity = 126kb - status_file_no_list_size
+                    _index = self.__get_substatus_index()
+                    status_file_without_package_list_size  = __calc_package_payload_size_on_disk(__get_size_of_constant_status_data(complete_status_file_payload))
+                    max_package_list_capacity = 126kb - status_file_without_package_list_size 
                     
                     if _index is not none:
                         low_pri_index = __get_installation_low_pri_index()
@@ -894,7 +895,7 @@ class StatusHandler(object):
                                     
                             __recompose_truncated_status_file()                                    
                                 __get_current_complete_status_errors()
-                                __recompose_truncated_message()
+                                __recompose_truncated_msg()
                                     __recompose_substatus_errors()
                                     __create_assessment_tombstone_list()
                                         __create_assessment_tombstone()
@@ -902,43 +903,42 @@ class StatusHandler(object):
                            
                             __recompose_truncated_status_file()                                    
                                 __get_current_complete_status_errors()
-                                __recompose_truncated_message()
+                                __recompose_truncated_msg()
                                     __recompose_substatus_errors()
                                     __create_installation_tombstone
                                     __recreate_installation_summary_json()
                                     
-                            current_package_list_capacity -= diff
-                            if current_package_list_capacity <= max_package_list_capacity:
+                            current_package_list_size -= diff
+                            if current_package_list_size <= max_package_list_capacity:
                                 break
                             __get_new_size_in_bytes_after_truncation() 
                     
                 write_with_retry_using_temp_file()  
         """
-
-        status_file_size_in_bytes = self.__calc_status_size_on_disk(complete_status_file_payload)      # status file has been json.dump twice
-        truncated_status_file = complete_status_file_payload
+        status_file_size_in_bytes = len(complete_status_file_payload.encode("utf-8"))   # calc complete_status_file_payload byte size on disk
+        truncated_status_file = json.loads(complete_status_file_payload)    # reload payload into python object
 
         if status_file_size_in_bytes > self.__internal_file_capacity:   # 126kb
             self.composite_logger.log_debug("Begin package list truncation")
             low_pri_index = None
             packages_capacity_diff = 0
-            assessment_index, assessment_name = self.__get_substatus_name_and_index(Constants.PATCH_ASSESSMENT_SUMMARY, truncated_status_file['status']['substatus'])
-            installation_index, installation_name = self.__get_substatus_name_and_index(Constants.PATCH_INSTALLATION_SUMMARY, truncated_status_file['status']['substatus'])
+            assessment_substatus_index = self.__get_substatus_index(Constants.PATCH_ASSESSMENT_SUMMARY, truncated_status_file['status']['substatus'])
+            installation_substatus_index = self.__get_substatus_index(Constants.PATCH_INSTALLATION_SUMMARY, truncated_status_file['status']['substatus'])
 
-            if assessment_index is not None:        # if assessment data exists
-                self.__assessment_substatus_message_copy = self.__get_substatus_message_at_index(truncated_status_file, assessment_index)
-                self.__assessment_packages_copy = self.__assessment_substatus_message_copy['patches']
+            if assessment_substatus_index is not None:        # if assessment data exists
+                self.__assessment_substatus_msg_copy = self.__get_substatus_msg_at_index(truncated_status_file, assessment_substatus_index)
+                self.__assessment_packages_copy = self.__assessment_substatus_msg_copy['patches']
 
-            if installation_index is not None:      # if installation data exists
+            if installation_substatus_index is not None:      # if installation data exists
                 low_pri_index = self.__get_installation_low_pri_index(self.__installation_packages_copy, low_pri_index)
-                self.__installation_substatus_message_copy = self.__get_substatus_message_at_index(truncated_status_file, installation_index)
-                self.__installation_packages_copy = self.__installation_substatus_message_copy['patches']
+                self.__installation_substatus_msg_copy = self.__get_substatus_msg_at_index(truncated_status_file, installation_substatus_index)
+                self.__installation_packages_copy = self.__installation_substatus_msg_copy['patches']
 
-            status_file_no_list_size = self.__get_size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_index, installation_index)  # deepcopy fully copy the object avoid reference modification
-            max_package_list_capacity = self.__internal_file_capacity - status_file_no_list_size
-            current_package_list_capacity = self.__get_current_packages_size_in_bytes(self.__assessment_packages_copy, self.__installation_packages_copy)
+            status_file_without_package_list_size = self.__get_size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_substatus_index, installation_substatus_index)  # deepcopy fully copy the object avoid reference modification
+            max_package_list_capacity = self.__internal_file_capacity - status_file_without_package_list_size
+            current_package_list_size = self.__get_current_packages_size_in_bytes(self.__assessment_packages_copy, self.__installation_packages_copy)
 
-            while status_file_size_in_bytes > self.__internal_file_capacity and current_package_list_capacity > max_package_list_capacity:
+            while status_file_size_in_bytes > self.__internal_file_capacity and current_package_list_size > max_package_list_capacity:
                 # Start truncation process
                 packages_truncated_in_assessment, packages_removed_from_assessment, packages_truncated_in_installation, packages_removed_from_installation = \
                     self.__apply_truncation_process(self.__assessment_packages_copy, self.__installation_packages_copy, max_package_list_capacity - packages_capacity_diff, low_pri_index)
@@ -948,17 +948,17 @@ class StatusHandler(object):
                     self.__assessment_packages_removed = packages_removed_from_assessment
                     # Recompose truncated status file payload (assessment)
                     truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_assessment, self.__assessment_total_error_count,
-                        self.__assessment_substatus_message_copy, assessment_name, assessment_index)
+                        self.__assessment_substatus_msg_copy, Constants.PATCH_ASSESSMENT_SUMMARY, assessment_substatus_index)
 
                 if len(packages_removed_from_installation) > 0:
                     # Update current installation # of removed packages
                     self.__installation_packages_removed = packages_removed_from_installation
                     # Recompose truncated status file payload (installation)
                     truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_truncated_in_installation, self.__installation_total_error_count,
-                        self.__installation_substatus_message_copy, installation_name, installation_index)
+                        self.__installation_substatus_msg_copy, Constants.PATCH_INSTALLATION_SUMMARY, installation_substatus_index)
 
-                status_file_size_in_bytes, current_package_list_capacity, packages_capacity_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file, max_package_list_capacity, packages_truncated_in_assessment, packages_truncated_in_installation)
-                current_package_list_capacity -= packages_capacity_diff
+                status_file_size_in_bytes, current_package_list_size, packages_capacity_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file, max_package_list_capacity, packages_truncated_in_assessment, packages_truncated_in_installation)
+                current_package_list_size -= packages_capacity_diff
 
             self.composite_logger.log_debug("End package list truncation")
 
@@ -977,53 +977,48 @@ class StatusHandler(object):
     def __get_current_packages_size_in_bytes(self, assessment_package_list, installation_package_list):
         """ Get current complete assessment, installation, or both package list size in bytes """
         # Only installation data exists, get installation list capacity
-        if len(assessment_package_list) == 0:
+        if not assessment_package_list:
             return self.__calc_package_payload_size_on_disk(installation_package_list)
 
         # Only assessment data exists, get assessment list capacity
-        if len(installation_package_list) == 0:
+        if not installation_package_list:
             return self.__calc_package_payload_size_on_disk(assessment_package_list)
 
         # Both assessment and installation data exist
         return self.__calc_package_payload_size_on_disk(assessment_package_list) + self.__calc_package_payload_size_on_disk(installation_package_list)
 
     def __cut_list_and_get_list_capacity(self, package_list, max_package_list_capacity):
-        """ Split package list, keep 5 minimum packages, and discard remainings cccordingly to max_package_list_capacity  """
+        """ Split package list, keep 5 minimum packages, and remaining packages for truncation """
         min_packages_count = Constants.StatusTruncationConfig.MIN_TRUNCATED_PACKAGE_COUNT
-        remain_capacity = max_package_list_capacity
-        package_list_keep_five, package_list_discard_half = (package_list[:min_packages_count], package_list[min_packages_count:]) \
+        remain_list_capacity = max_package_list_capacity
+        package_list_keep_five, package_list_for_truncate = (package_list[:min_packages_count], package_list[min_packages_count:]) \
             if len(package_list) > min_packages_count else (package_list, [])
 
         # Empty list after 2xjson.dumps have 4-5 bytes, might cause to lose 1 extra package in truncation process
         if len(package_list) > 0:
-            remain_capacity = max_package_list_capacity - self.__calc_package_payload_size_on_disk(package_list_keep_five)
+            remain_list_capacity = max_package_list_capacity - self.__calc_package_payload_size_on_disk(package_list_keep_five)
 
-        return package_list_keep_five, package_list_discard_half, remain_capacity
+        return package_list_keep_five, package_list_for_truncate, remain_list_capacity
 
     def __apply_truncation_process(self, assessment_packages, installation_packages, max_package_list_capacity, low_pri_index=None):
         """ Helper function call split patch list method then apply truncation on assessment and installation """
 
+        installation_low_pri = []
+        installation_high_pri = installation_packages
         # cut assessment list into [:5], [5:]
-        assessment_keep_five, assessment_discard_half, remain_capacity = self.__cut_list_and_get_list_capacity(assessment_packages, max_package_list_capacity)
+        assessment_keep_five, assessment_packages_for_truncate, remain_list_capacity = self.__cut_list_and_get_list_capacity(assessment_packages, max_package_list_capacity)
 
         # Apply high priority (Failed, Installed) and low priority (Pending, Excluded, Not_Selected) installation logic, and keep min 5 assessment packages
-        if low_pri_index and len(assessment_packages) > 0:
+        if low_pri_index:
             installation_high_pri = installation_packages[:low_pri_index]
             installation_low_pri = installation_packages[low_pri_index:]
 
-            installation_high_pri_list, packages_removed_high_pri, remain_capacity = self.__apply_truncation(installation_high_pri, remain_capacity)
-            remain_assessment, packages_removed_assessment, remain_capacity = self.__apply_truncation(assessment_discard_half, remain_capacity)
-            installation_low_pri_list, packages_removed_low_pri, _ = self.__apply_truncation(installation_low_pri, remain_capacity)
+        installation_high_pri_list, packages_removed_high_pri, remain_list_capacity = self.__apply_truncation(installation_high_pri, remain_list_capacity)
+        remain_assessment, packages_removed_assessment, remain_list_capacity = self.__apply_truncation(assessment_packages_for_truncate, remain_list_capacity)
+        installation_low_pri_list, packages_removed_low_pri, _ = self.__apply_truncation(installation_low_pri, remain_list_capacity)
 
-            truncated_installation_list = installation_high_pri_list + installation_low_pri_list
-            packages_removed_installation = packages_removed_high_pri + packages_removed_low_pri
-
-        else:
-            # Perform installation truncations
-            truncated_installation_list, packages_removed_installation, remain_capacity = self.__apply_truncation(installation_packages, remain_capacity)
-            # Perform assessment truncation
-            remain_assessment, packages_removed_assessment, _ = self.__apply_truncation(assessment_discard_half, remain_capacity)
-
+        truncated_installation_list = installation_high_pri_list + installation_low_pri_list
+        packages_removed_installation = packages_removed_high_pri + packages_removed_low_pri
         truncated_assessment_list = assessment_keep_five + remain_assessment
 
         return truncated_assessment_list, packages_removed_assessment, truncated_installation_list, packages_removed_installation
@@ -1042,7 +1037,7 @@ class StatusHandler(object):
         Instead of checking list[middel_index] >= target, check byte_size(list[:middle_index]),
         as byte_size[list[:i]] is monotonically increasing, i.e.
         byte_size[list[:1]] < byte_size[list[:2]] < byte_size[list[:3]] ...
-        return truncated_list, truncated_packages_removed, and remaining max_package_list_capacity
+        return truncated_list, packages_removed_from_list, and remaining max_package_list_capacity
         """
         left_index = 0
         right_index = len(package_list) - 1
@@ -1062,22 +1057,27 @@ class StatusHandler(object):
                 left_index = mid_index + 1
 
         truncated_list = package_list[:left_index - 1]
-        truncated_packages_removed = package_list[left_index - 1:]
-        return truncated_list, truncated_packages_removed, capacity - self.__calc_package_payload_size_on_disk(truncated_list)
+        packages_removed_from_list = package_list[left_index - 1:]
+        return truncated_list, packages_removed_from_list, capacity - self.__calc_package_payload_size_on_disk(truncated_list)
 
     def __removed_older_complete_status_files(self, status_folder):
         """ Retain 10 latest status complete file and remove other .complete.status files """
-        list_of_files = glob.glob(status_folder + '/' + '*.complete.status')
+
+        # Glob return empty list if no file matched pattern
+        complete_status_files_list = glob.glob(status_folder + '/' + '*.complete.status')
         files_to_removed = []
 
-        if len(list_of_files) <= 10:
+        if len(complete_status_files_list) <= 10:
             return
 
-        while len(list_of_files) > 10:
-            oldest_file = min(list_of_files, key=lambda x: (os.path.getmtime(x), int(re.search(r'(\d+)\.complete.status', x).group(1)), x))
-            files_to_removed.append(os.path.basename(oldest_file))
-            self.env_layer.file_system.delete_files_from_dir(status_folder, files_to_removed)
-            list_of_files.remove(oldest_file)
+        complete_status_files_list.sort(key=os.path.getmtime, reverse=True)
+        for file in complete_status_files_list[10:]:
+            try:
+                if os.path.exists(file):
+                    os.remove(file)
+                    files_to_removed.append(file)
+            except Exception as e:
+                self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(file), repr(e)))
 
         self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_to_removed))
 
@@ -1094,23 +1094,23 @@ class StatusHandler(object):
         """ Get the size in bytes of the complete_status_file without package data  """
         status_file_no_list_data = complete_status_file_payload
         if assessment_status_index is not None:
-            assessment_substatus_message_copy = self.__get_substatus_message_at_index(status_file_no_list_data, assessment_status_index)
-            assessment_message_empty_list = self.__recompose_assessment_message(assessment_substatus_message_copy, [],  assessment_substatus_message_copy['errors'])
+            assessment_substatus_msg_copy = self.__get_substatus_msg_at_index(status_file_no_list_data, assessment_status_index)
+            assessment_message_empty_list = self.__recompose_assessment_message(assessment_substatus_msg_copy, [],  assessment_substatus_msg_copy['errors'])
             status_file_no_list_data['status']['substatus'][assessment_status_index]['formattedMessage']['message'] = json.dumps(assessment_message_empty_list)
 
         if installation_status_index is not None:
-            installation_substatus_message_copy = self.__get_substatus_message_at_index(status_file_no_list_data, installation_status_index)
-            installation_message_empty_list = self.__recompose_installation_message(installation_substatus_message_copy, [], self.__installation_substatus_message_copy['errors'])
+            installation_substatus_msg_copy = self.__get_substatus_msg_at_index(status_file_no_list_data, installation_status_index)
+            installation_message_empty_list = self.__recompose_installation_message(installation_substatus_msg_copy, [], self.__installation_substatus_msg_copy['errors'])
             status_file_no_list_data['status']['substatus'][installation_status_index]['formattedMessage']['message'] = json.dumps(installation_message_empty_list)
 
         return self.__calc_status_size_on_disk(status_file_no_list_data)
 
-    def __get_substatus_name_and_index(self, substatus_name, substatus):
+    def __get_substatus_index(self, substatus_name, substatus):
         """" Get name and index from the current substatus """
-        for index, name in enumerate(substatus):
-            if name['name'] == substatus_name:
-                return index, name['name']
-        return None, None
+        for index, sub_name in enumerate(substatus):
+            if sub_name['name'] == substatus_name:
+                return index
+        return None
 
     def __recompose_truncated_status_file(self, truncated_status_file, truncated_package_list, count_total_errors, substatus_json, substatus_name, substatus_index):
         """ Recompose final truncated status file version """
@@ -1125,67 +1125,67 @@ class StatusHandler(object):
             # code == 1 (Error), add everything in the errors['details'] to truncated_detail_list
             truncated_detail_list.extend(errors_details)
 
-        return self.__recompose_truncated_message(truncated_status_file, truncated_package_list, truncated_detail_list,
+        return self.__recompose_truncated_msg(truncated_status_file, truncated_package_list, truncated_detail_list,
             count_total_errors, substatus_json, substatus_name, substatus_index)
 
-    def __recompose_truncated_message(self, truncated_status_file, truncated_package_list, truncated_detail_list, count_total_errors, truncated_substatus_json, substatus_name, substatus_index):
+    def __recompose_truncated_msg(self, truncated_status_file, truncated_package_list, truncated_detail_list, count_total_errors, truncated_substatus_json, substatus_name, substatus_index):
         """ Recompose status file with new errors detail list, new errors message, and truncated patches  """
-        truncated_substatus_message = None
+        truncated_substatus_msg = None
         truncated_errors_json = self.__recompose_substatus_errors(truncated_detail_list, count_total_errors)    # Recompose substatus message errors json
 
         # Recompose assessment substatus message
         if substatus_name == Constants.PATCH_ASSESSMENT_SUMMARY:
             # Add assessment tombstone per classifications into packages_in_assessment
             truncated_package_list.extend(self.__create_assessment_tombstone_list(self.__assessment_packages_removed))
-            truncated_substatus_message = self.__recompose_assessment_message(truncated_substatus_json, truncated_package_list, truncated_errors_json)
+            truncated_substatus_msg = self.__recompose_assessment_message(truncated_substatus_json, truncated_package_list, truncated_errors_json)
 
         # Recompose installation substatus message
         if substatus_name == Constants.PATCH_INSTALLATION_SUMMARY:
             # Add installation tombstone record
             # Todo need further requirements to decompose installation tombstone by classifications
             truncated_package_list.append(self.__create_installation_tombstone())
-            truncated_substatus_message = self.__recompose_installation_message(truncated_substatus_json, truncated_package_list, truncated_errors_json)
+            truncated_substatus_msg = self.__recompose_installation_message(truncated_substatus_json, truncated_package_list, truncated_errors_json)
 
-        truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_message)
+        truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_msg)
 
         return truncated_status_file
 
     def __recompose_substatus_errors(self, truncation_detail_list, count_total_errors):
         """ Recompose truncated substatus errors json """
-        error_message = Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
-        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_message)      # Reuse the errors object set up
+        error_msg = Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
+        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_msg)      # Reuse the errors object set up
         self.__try_add_error(truncation_detail_list, truncated_error_detail)
         truncated_errors_json = self.__set_errors_json(count_total_errors, truncation_detail_list, True)    # True for truncated
 
         return truncated_errors_json
 
-    def __recompose_assessment_message(self, assessment_substatus_message, assessment_packages, assessment_errors):
+    def __recompose_assessment_message(self, assessment_substatus_msg, assessment_packages, assessment_errors):
         """ Recompose assessment substatus message """
-        activity_id = assessment_substatus_message['assessmentActivityId']
-        reboot_pending = assessment_substatus_message['rebootPending']
-        crit_patch_count = assessment_substatus_message['criticalAndSecurityPatchCount']
-        other_patch_count = assessment_substatus_message['otherPatchCount']
-        start_time = assessment_substatus_message['startTime']
-        last_modified_time = assessment_substatus_message['lastModifiedTime']
-        started_by = assessment_substatus_message['startedBy']
+        activity_id = assessment_substatus_msg['assessmentActivityId']
+        reboot_pending = assessment_substatus_msg['rebootPending']
+        crit_patch_count = assessment_substatus_msg['criticalAndSecurityPatchCount']
+        other_patch_count = assessment_substatus_msg['otherPatchCount']
+        start_time = assessment_substatus_msg['startTime']
+        last_modified_time = assessment_substatus_msg['lastModifiedTime']
+        started_by = assessment_substatus_msg['startedBy']
 
-        return self.__compose_assessment_substatus_message(activity_id, reboot_pending, crit_patch_count, other_patch_count, assessment_packages, start_time, last_modified_time, started_by, assessment_errors)
+        return self.__compose_assessment_substatus_msg(activity_id, reboot_pending, crit_patch_count, other_patch_count, assessment_packages, start_time, last_modified_time, started_by, assessment_errors)
 
-    def __recompose_installation_message(self, installation_substatus_message, installation_packages, installation_errors):
+    def __recompose_installation_message(self, installation_substatus_msg, installation_packages, installation_errors):
         """ Recompose installation substatus message """
-        activity_id = installation_substatus_message['installationActivityId']
-        reboot_status = installation_substatus_message['rebootStatus']
-        maintenance_window = installation_substatus_message['maintenanceWindowExceeded']
-        not_selected = installation_substatus_message['notSelectedPatchCount']
-        excluded = installation_substatus_message['excludedPatchCount']
-        pending = installation_substatus_message['pendingPatchCount']
-        installed = installation_substatus_message['installedPatchCount']
-        failed = installation_substatus_message['failedPatchCount']
-        start_time = installation_substatus_message['startTime']
-        last_modified_time = installation_substatus_message['lastModifiedTime']
-        maintenance_id = installation_substatus_message['maintenanceRunId']
+        activity_id = installation_substatus_msg['installationActivityId']
+        reboot_status = installation_substatus_msg['rebootStatus']
+        maintenance_window = installation_substatus_msg['maintenanceWindowExceeded']
+        not_selected = installation_substatus_msg['notSelectedPatchCount']
+        excluded = installation_substatus_msg['excludedPatchCount']
+        pending = installation_substatus_msg['pendingPatchCount']
+        installed = installation_substatus_msg['installedPatchCount']
+        failed = installation_substatus_msg['failedPatchCount']
+        start_time = installation_substatus_msg['startTime']
+        last_modified_time = installation_substatus_msg['lastModifiedTime']
+        maintenance_id = installation_substatus_msg['maintenanceRunId']
 
-        return self.__compose_installation_substatus_message(activity_id, reboot_status, maintenance_window, not_selected, excluded, pending, installed, failed,
+        return self.__compose_installation_substatus_msg(activity_id, reboot_status, maintenance_window, not_selected, excluded, pending, installed, failed,
             installation_packages, start_time, last_modified_time, maintenance_id, installation_errors)
 
     def __get_current_complete_status_errors(self, substatus_json):
