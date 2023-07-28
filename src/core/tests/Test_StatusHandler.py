@@ -531,8 +531,6 @@ class TestStatusHandler(unittest.TestCase):
 
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
-        packages, package_versions = self.runtime.package_manager.get_all_updates()
-        self.runtime.status_handler.set_package_assessment_status(packages, package_versions)
         self.runtime.status_handler.load_status_file_components(initial_load=True)
 
         # remove 5 oldest

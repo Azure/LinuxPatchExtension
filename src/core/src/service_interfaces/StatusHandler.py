@@ -813,8 +813,7 @@ class StatusHandler(object):
         """ Retain 10 latest status complete file and remove other .complete.status files """
         files_to_removed = []
         complete_status_files_list = glob.glob(status_folder + '/' + '*.complete.status')   # Glob return empty list if no file matched pattern
-
-        if len(complete_status_files_list) <= Constants.MAX_COMPLETE_STATUS_FILES_COUNT:
+        if len(complete_status_files_list) <= Constants.MAX_COMPLETE_STATUS_FILES_COUNT:    # 9 + 1 complete_status_file to be created
             return
 
         complete_status_files_list.sort(key=os.path.getmtime, reverse=True)
