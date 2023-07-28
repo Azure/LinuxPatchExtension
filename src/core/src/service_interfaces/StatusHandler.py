@@ -882,11 +882,16 @@ class StatusHandler(object):
                     status_file_without_package_list_size  = __calc_package_payload_size_on_disk(__get_size_of_constant_status_data(complete_status_file_payload))
                     max_package_list_capacity = 126kb - status_file_without_package_list_size 
                     
-                    if _index is not none:
+                    if assessment_index is not none:
+                        _substatus_msg_copy = __get_substatus_msg_at_index(truncated_status_file, _index)
+                        _packages_copy = _substatus_msg_copy['patches']
+
+                    if installation_index is not none:
                         low_pri_index = __get_installation_low_pri_index()
-                    
-                    if len(self.__assessment_packages_truncated) > 0 and len(self.__installation_packages_truncated) > 0:
-                        diff = 0
+                        _substatus_msg_copy = __get_substatus_msg_at_index(truncated_status_file, _index)
+                        _packages_copy = _substatus_msg_copy['patches']
+                        
+                        packages_capacity_diff = 0
                         current_byte_size = __calc_package_payload_size_on_disk(__assessment_packages_truncated)
                         while status_file_size_in_bytes > 126 and current_byte_size > max_package_list_capacity:
                             __apply_truncation_process()
