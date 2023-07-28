@@ -1062,15 +1062,13 @@ class StatusHandler(object):
 
     def __removed_older_complete_status_files(self, status_folder):
         """ Retain 10 latest status complete file and remove other .complete.status files """
-
-        # Glob return empty list if no file matched pattern
-        complete_status_files_list = glob.glob(status_folder + '/' + '*.complete.status')
         files_to_removed = []
+        complete_status_files_list = glob.glob(status_folder + '/' + '*.complete.status')   # Glob return empty list if no file matched pattern
+        complete_status_files_list.sort(key=os.path.getmtime, reverse=True)
 
         if len(complete_status_files_list) <= 10:
             return
 
-        complete_status_files_list.sort(key=os.path.getmtime, reverse=True)
         for file in complete_status_files_list[10:]:
             try:
                 if os.path.exists(file):
@@ -1217,7 +1215,7 @@ class StatusHandler(object):
         return {
             'patchId': 'Truncated_patch_list_id',
             'name': tombstone_name,
-            'version': '',
+            'version': '0.0.0',
             'classifications': [tombstone_classification]
         }
 
@@ -1226,7 +1224,7 @@ class StatusHandler(object):
         return {
             'patchId': 'Truncated_patch_list_id',
             'name': 'Truncated_patch_list',
-            'version': '',
+            'version': '0.0.0',
             'classifications': ['Other'],
             'patchInstallationState': 'NotSelected'
         }
