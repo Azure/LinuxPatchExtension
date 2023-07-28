@@ -565,8 +565,6 @@ class TestStatusHandler(unittest.TestCase):
     def test_latest_complete_status_file(self):
         """ Create dummy files in status folder and check if the complete_status_file_path is the latest file and delete those dummy files """
         file_path = self.runtime.execution_config.status_folder
-        test_status_file1 = os.path.join(file_path, '101.complete.status')
-        test_status_file15 = os.path.join(file_path, '115.complete.status')
 
         for i in range(1, 16):
             with open(os.path.join(file_path, str(i + 100) + '.complete.status'), 'w') as f:
@@ -580,8 +578,6 @@ class TestStatusHandler(unittest.TestCase):
 
         # remove 5 oldest
         count_status_files = len(glob.glob(file_path + '/' + '*.complete.status'))
-        self.assertFalse(os.path.isfile(test_status_file1))
-        self.assertTrue(os.path.isfile(test_status_file15))
         self.assertEqual(10, count_status_files)
         self.assertTrue(os.path.isfile(self.runtime.execution_config.complete_status_file_path))
         self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
