@@ -119,10 +119,8 @@ class YumPackageManager(PackageManager):
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more return codes should be added as appropriate
         else:  # verbose diagnostic log
-            self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_verbose("==========================================================================\n\n")
+            self.composite_logger.log_debug("=[Success]=" + "\n - Return code from package manager: " + str(code) + 
+                                            "\n - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
         return out, code
 
     # region Classification-based (incl. All) update check
@@ -194,6 +192,7 @@ class YumPackageManager(PackageManager):
         packages = []
         versions = []
         package_extensions = ['.x86_64', '.noarch', '.i686']
+        debug_output = ""
 
         def is_package(chunk):
             # Using a list comprehension to determine if chunk is a package
@@ -223,8 +222,9 @@ class YumPackageManager(PackageManager):
                 versions.append(line[1])
                 line_index += 1
             else:
-                self.composite_logger.log_debug(" - Inapplicable line (" + str(line_index) + "): " + lines[line_index])
+                debug_output += "\nInapplicable line (" + str(line_index) + "): " + lines[line_index]
 
+        self.composite_logger.log_debug(debug_output)
         return packages, versions
     # endregion
     # endregion
@@ -269,13 +269,17 @@ class YumPackageManager(PackageManager):
         cmd = self.single_package_check_installed.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_package_manager(cmd)
         packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
+        debug_output = ""
 
         for index, package in enumerate(packages):
             if package == package_name and (package_versions[index] == package_version):
-                self.composite_logger.log_debug(" - Installed version match found.")
+                debug_output += "\nInstalled version match found."
+                self.composite_logger.log_debug(debug_output)
                 return True
             else:
-                self.composite_logger.log_debug(" - Did not match: " + package + " (" + package_versions[index] + ")")
+                debug_output += "\nDid not match: " + package + " (" + package_versions[index] + ")"
+
+        self.composite_logger.log_debug(debug_output)
 
         # sometimes packages are removed entirely from the system during installation of other packages
         # so let's check that the package is still needed before
@@ -301,21 +305,23 @@ class YumPackageManager(PackageManager):
 
         dependencies = []
         lines = output.strip().split('\n')
+        debug_output = ""
 
         for line in lines:
             if line.find(" will be updated") < 0 and line.find(" will be an update") < 0 and line.find(" will be installed") < 0:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
                 continue
 
             updates_line = re.split(r'\s+', line.strip())
             if len(updates_line) != 7:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                debug_output += "\nInapplicable line: " + str(line)
                 continue
 
             dependent_package_name = self.get_product_name(updates_line[2])
             if len(dependent_package_name) != 0 and dependent_package_name not in packages:
-                self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
+                debug_output += "\nDependency detected: " + dependent_package_name
                 dependencies.append(dependent_package_name)
+
+        self.composite_logger.log_debug(debug_output)
 
         return dependencies
 
