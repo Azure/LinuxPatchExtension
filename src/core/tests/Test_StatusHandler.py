@@ -420,9 +420,12 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_if_complete_and_status_path_is_dir(self):
         self.runtime.execution_config.complete_status_file_path = self.runtime.execution_config.status_folder
-        self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
+        self.runtime.status_handler.load_status_file_components(initial_load=True)
+        self.assertTrue(os.path.isfile(os.path.join(self.runtime.execution_config.status_folder, '1.complete.status')))
+
         self.runtime.execution_config.status_file_path = self.runtime.execution_config.status_folder
-        self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
+        self.runtime.status_handler.load_status_file_components(initial_load=True)
+        self.assertTrue(os.path.isfile(os.path.join(self.runtime.execution_config.status_folder, '1.status')))
 
     def test_assessment_packages_map(self):
         patch_count_for_test = 5
