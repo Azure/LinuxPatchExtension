@@ -419,13 +419,19 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.env_layer.file_system.delete_files_from_dir(example_file1, "*.complete.status")
 
     def test_if_complete_and_status_path_is_dir(self):
+        self.old_complete_status_path = self.runtime.execution_config.complete_status_file_path
         self.runtime.execution_config.complete_status_file_path = self.runtime.execution_config.status_folder
         self.runtime.status_handler.load_status_file_components(initial_load=True)
         self.assertTrue(os.path.isfile(os.path.join(self.runtime.execution_config.status_folder, '1.complete.status')))
 
+        self.old_status_path = self.runtime.execution_config.status_file_path
         self.runtime.execution_config.status_file_path = self.runtime.execution_config.status_folder
         self.runtime.status_handler.load_status_file_components(initial_load=True)
         self.assertTrue(os.path.isfile(os.path.join(self.runtime.execution_config.status_folder, '1.status')))
+
+        # reset the status path
+        self.runtime.execution_config.complete_status_file_path = self.old_complete_status_path
+        self.runtime.execution_config.status_file_path = self.old_status_path
 
     def test_assessment_packages_map(self):
         patch_count_for_test = 5
