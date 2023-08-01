@@ -812,8 +812,8 @@ class StatusHandler(object):
     def __removed_older_complete_status_files(self, status_folder):
         """ Retain 10 latest status complete file and remove other .complete.status files """
         files_removed = []
-        all_complete_status_files = glob.glob(status_folder + '/' + '*.complete.status')    # Glob return empty list if no file matched pattern
-        if len(all_complete_status_files) <= Constants.MAX_COMPLETE_STATUS_FILES_TO_RETAIN:  # 9 + 1 complete_status_file to be created
+        all_complete_status_files = glob.glob(os.path.join(status_folder, '*.complete.status'))    # Glob return empty list if no file matched pattern
+        if len(all_complete_status_files) <= Constants.MAX_COMPLETE_STATUS_FILES_TO_RETAIN:
             return
 
         all_complete_status_files .sort(key=os.path.getmtime, reverse=True)
@@ -824,5 +824,5 @@ class StatusHandler(object):
                     files_removed.append(complete_status_file)
             except Exception as e:
                 self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(complete_status_file), repr(e)))
-
+        all_complete_status_files = glob.glob(os.path.join(status_folder, '*.complete.status'))
         self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_removed))
