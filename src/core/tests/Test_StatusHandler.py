@@ -419,6 +419,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.env_layer.file_system.delete_files_from_dir(example_file1, "*.complete.status")
 
     def test_if_complete_status_path_is_dir(self):
+        self.runtime.execution_config.complete_status_file_path = self.runtime.execution_config.status_folder
         self.runtime.execution_config.status_file_path = self.runtime.execution_config.status_folder
         self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
 
@@ -521,10 +522,10 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
         self.runtime.env_layer.file_system.delete_files_from_dir(self.runtime.status_handler.status_file_path, '*.complete.status')
 
-    def test_latest_complete_status_file(self):
+    def test_remove_old_complete_status_files(self):
         """ Create dummy files in status folder and check if the complete_status_file_path is the latest file and delete those dummy files """
         file_path = self.runtime.execution_config.status_folder
-
+        test_deleted_file = os.path.join(file_path, '1.complete.status')
         for i in range(1, 16):
             with open(os.path.join(file_path, str(i + 100) + '.complete.status'), 'w') as f:
                 f.write("test" + str(i))
@@ -538,7 +539,26 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(10, count_status_files)
         self.assertTrue(os.path.isfile(self.runtime.execution_config.complete_status_file_path))
         self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
+        self.assertFalse(os.path.isfile(test_deleted_file))
 
+    def test_remove_older_complete_status_files(self):
+        file_path = self.runtime.execution_config.status_folder
+        test_deleted_file = os.path.join(file_path, '1.complete.status')
+        for i in range(1, 16):
+            with open(os.path.join(file_path, str(i + 100) + '.complete.status'), 'w') as f:
+                f.write("test" + str(i))
+
+        self.backup_os_remove = os.remove
+        os.remove = self.__mock_os_remove
+        self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
+
+        # reset os.remove() mock and remove *complete.status files
+        os.remove = self.backup_os_remove
+        self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
+        self.assertFalse(os.path.isfile(test_deleted_file))
+
+    def __mock_os_remove(self, file_to_remove):
+        raise Exception("File could not be deleted")
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):

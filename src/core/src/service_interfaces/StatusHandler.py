@@ -811,18 +811,18 @@ class StatusHandler(object):
 
     def __removed_older_complete_status_files(self, status_folder):
         """ Retain 10 latest status complete file and remove other .complete.status files """
-        files_to_removed = []
-        complete_status_files_list = glob.glob(status_folder + '/' + '*.complete.status')   # Glob return empty list if no file matched pattern
-        if len(complete_status_files_list) <= Constants.MAX_COMPLETE_STATUS_FILES_COUNT:    # 9 + 1 complete_status_file to be created
+        files_removed = []
+        all_complete_status_files = glob.glob(status_folder + '/' + '*.complete.status')    # Glob return empty list if no file matched pattern
+        if len(all_complete_status_files) <= Constants.MAX_COMPLETE_STATUS_FILES_TO_RETAIN:  # 9 + 1 complete_status_file to be created
             return
 
-        complete_status_files_list.sort(key=os.path.getmtime, reverse=True)
-        for file in complete_status_files_list[Constants.MAX_COMPLETE_STATUS_FILES_COUNT:]:
+        all_complete_status_files .sort(key=os.path.getmtime, reverse=True)
+        for complete_status_file in all_complete_status_files[Constants.MAX_COMPLETE_STATUS_FILES_TO_RETAIN:]:
             try:
-                if os.path.exists(file):
-                    os.remove(file)
-                    files_to_removed.append(file)
+                if os.path.exists(complete_status_file):
+                    os.remove(complete_status_file)
+                    files_removed.append(complete_status_file)
             except Exception as e:
-                self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(file), repr(e)))
+                self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(complete_status_file), repr(e)))
 
-        self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_to_removed))
+        self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_removed))
