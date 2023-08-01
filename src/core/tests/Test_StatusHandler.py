@@ -418,8 +418,9 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(len(substatus_file_data["status"]["substatus"]), 0)
         self.runtime.env_layer.file_system.delete_files_from_dir(example_file1, "*.complete.status")
 
-    def test_if_complete_status_path_is_dir(self):
+    def test_if_complete_and_status_path_is_dir(self):
         self.runtime.execution_config.complete_status_file_path = self.runtime.execution_config.status_folder
+        self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
         self.runtime.execution_config.status_file_path = self.runtime.execution_config.status_folder
         self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
 
