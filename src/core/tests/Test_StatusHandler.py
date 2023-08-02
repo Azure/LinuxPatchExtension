@@ -32,6 +32,9 @@ class TestStatusHandler(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
+    def __mock_os_remove(self, file_to_remove):
+        raise Exception("File could not be deleted")
+
     def test_set_package_assessment_status(self):
         # startedBy should be set to User in status for Assessment
         packages, package_versions = self.runtime.package_manager.get_all_updates()
@@ -550,7 +553,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
         self.assertFalse(os.path.isfile(os.path.join(file_path, '1.complete_status')))
 
-    def test_remove_older_complete_status_files(self):
+    def test_remove_old_complete_status_files_throws_exception(self):
         file_path = self.runtime.execution_config.status_folder
         for i in range(1, 16):
             with open(os.path.join(file_path, str(i + 100) + '.complete.status'), 'w') as f:
@@ -564,9 +567,6 @@ class TestStatusHandler(unittest.TestCase):
         os.remove = self.backup_os_remove
         self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
         self.assertFalse(os.path.isfile(os.path.join(file_path, '1.complete_status')))
-
-    def __mock_os_remove(self, file_to_remove):
-        raise Exception("File could not be deleted")
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):
