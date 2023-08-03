@@ -332,6 +332,26 @@ class YumPackageManager(PackageManager):
         
         # In sample1, the starting delimeter is "Upgrading:" and in sample2, the starting delimeter is "Installing dependencies:"
         # If there are combinations of updates and new installations, one of the above delimeters will come first and the below logic will work.
+        # Following is the example when both "Upgrading:" and "Installing dependencies:" are present:
+        #
+        #Last metadata expiration check: 0:01:56 ago on Tue 25 Jul 2023 12:01:47 PM UTC.
+        #Dependencies resolved.
+        #================================================================================================
+        # Package             Arch    Version               Repository                               Size
+        #================================================================================================
+        #Upgrading:
+        # kernel-tools        x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.4 M
+        # kernel-tools-libs   x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.2 M
+        # openssl             x86_64  1:1.1.1k-9.el8_6      rhel-8-for-x86_64-baseos-eus-rhui-rpms  710 k
+        # openssl-libs        x86_64  1:1.1.1k-9.el8_6      rhel-8-for-x86_64-baseos-eus-rhui-rpms  1.5 M
+        #Installing dependencies:
+        # kernel-core         x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   40 M
+        # kernel-modules      x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   32 M
+        #
+        #Transaction Summary
+        #================================================================================================
+        #Install  2 Packages
+        #Upgrade  4 Packages
         
         # There is one edge scenario which is also handled in the below parsing logic i.e., the package detail spills over to two lines:
         # Sample output for the cmd 'sudo yum update --assumeno polkit.x86_64' is :
