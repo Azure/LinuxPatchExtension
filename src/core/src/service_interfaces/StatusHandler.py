@@ -361,8 +361,13 @@ class StatusHandler(object):
 
         # Compose substatus message
         errors = self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
-        substatus_message = self.__compose_assessment_substatus_msg(self.execution_config.activity_id, self.is_reboot_pending, critsec_patch_count, other_patch_count,
-        assessment_packages_json, self.execution_config.start_time, self.env_layer.datetime.timestamp(), started_by, errors)
+        # substatus_message = self.__compose_assessment_substatus_msg(self.execution_config.activity_id, self.is_reboot_pending, critsec_patch_count, other_patch_count,
+        # assessment_packages_json, self.execution_config.start_time, self.env_layer.datetime.timestamp(), started_by, errors)
+
+        substatus_message = self.__compose_assessment_substatus_msg(
+            activity_id=self.execution_config.activity_id, reboot_pending=self.is_reboot_pending, crit_patch_count=critsec_patch_count,
+            other_patch_count=other_patch_count, assessment_packages=assessment_packages_json, start_time=self.execution_config.start_time,
+            last_modified_time=self.env_layer.datetime.timestamp(), started_by=started_by, errors=errors)
 
         if self.vm_cloud_type == Constants.VMCloudType.ARC:
             substatus_message["patchAssessmentStatus"] = code
@@ -427,9 +432,14 @@ class StatusHandler(object):
         # Compose substatus message
         maintenance_run_id = self.execution_config.maintenance_run_id if self.execution_config.maintenance_run_id is not None else ''
         errors = self.__set_errors_json(self.__installation_total_error_count, self.__installation_errors)
-        substatus_message = self.__compose_installation_substatus_msg(self.execution_config.activity_id, self.__installation_reboot_status, self.__maintenance_window_exceeded, not_selected_patch_count,
-            excluded_patch_count, pending_patch_count, installed_patch_count, failed_patch_count, installation_packages_json, self.execution_config.start_time,
-            self.env_layer.datetime.timestamp(), maintenance_run_id, errors)
+        # substatus_message = self.__compose_installation_substatus_msg(self.execution_config.activity_id, self.__installation_reboot_status, self.__maintenance_window_exceeded, not_selected_patch_count,
+        #     excluded_patch_count, pending_patch_count, installed_patch_count, failed_patch_count, installation_packages_json, self.execution_config.start_time,
+        #     self.env_layer.datetime.timestamp(), maintenance_run_id, errors)
+        substatus_message = self.__compose_installation_substatus_msg(activity_id=self.execution_config.activity_id, reboot_status=self.__installation_reboot_status,
+            maintenance_window=self.__maintenance_window_exceeded, not_selected=not_selected_patch_count, excluded=excluded_patch_count,
+            pending=pending_patch_count, installed=installed_patch_count, failed=failed_patch_count,
+            installation_packages=installation_packages_json, start_time=self.execution_config.start_time,
+            last_modified_time=self.env_layer.datetime.timestamp(), maintenance_id=maintenance_run_id, errors=errors)
 
         return substatus_message
 
@@ -868,12 +878,14 @@ class StatusHandler(object):
     # endregion
 
     # region - Patch Truncation
-    def log_truncated_removed_packages_if_any(self):
+    def log_truncated_packages(self):
         """ log the removed packages from patches in CoreMain after main operation are marked completed """
         if not len(self.__assessment_packages_removed) == 0:
-            self.composite_logger.log_debug("Assessment truncated removed packages : {0}".format(self.__assessment_packages_removed))
+            self.composite_logger.log_debug("Packages removed from assessment packages list: {0}".format(self.__assessment_packages_removed))
         if not len(self.__installation_packages_removed) == 0:
-            self.composite_logger.log_debug("Installation truncated removed packages : {0}".format(self.__installation_packages_removed))
+            self.composite_logger.log_debug("Packages removed from installation packages list: {0}".format(self.__installation_packages_removed))
+        if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
+            self.composite_logger.log_debug("No packages truncated")
 
     def __create_truncated_status_file(self, complete_status_file_payload):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
