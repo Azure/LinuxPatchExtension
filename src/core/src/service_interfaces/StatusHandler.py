@@ -826,3 +826,4 @@ class StatusHandler(object):
                 self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(complete_status_file), repr(e)))
 
         self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_removed))
+
