@@ -754,7 +754,7 @@ class StatusHandler(object):
             truncated_status_file = self.__create_truncated_status_file(status_file_payload_json_dumps)
             status_file_payload_json_dumps = json.dumps(truncated_status_file)
 
-        # Write <seq.no>.status
+        # Write status file <seq.no>.status
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(status_file_payload_json_dumps), mode='w+')
     # endregion
 
@@ -1106,12 +1106,12 @@ class StatusHandler(object):
         status_file_no_list_data = complete_status_file_payload
         if assessment_status_index is not None:
             assessment_substatus_msg_copy = self.__get_substatus_msg_at_index(status_file_no_list_data, assessment_status_index)
-            assessment_message_empty_list = self.__recompose_assessment_message(assessment_substatus_msg_copy, [],  assessment_substatus_msg_copy['errors'])
+            assessment_message_empty_list = self.__recompose_assessment_msg(assessment_substatus_msg_copy, [],  assessment_substatus_msg_copy['errors'])
             status_file_no_list_data['status']['substatus'][assessment_status_index]['formattedMessage']['message'] = json.dumps(assessment_message_empty_list)
 
         if installation_status_index is not None:
             installation_substatus_msg_copy = self.__get_substatus_msg_at_index(status_file_no_list_data, installation_status_index)
-            installation_message_empty_list = self.__recompose_installation_message(installation_substatus_msg_copy, [], self.__installation_substatus_msg_copy['errors'])
+            installation_message_empty_list = self.__recompose_installation_msg(installation_substatus_msg_copy, [], self.__installation_substatus_msg_copy['errors'])
             status_file_no_list_data['status']['substatus'][installation_status_index]['formattedMessage']['message'] = json.dumps(installation_message_empty_list)
 
         return self.__calc_status_size_on_disk(status_file_no_list_data)
@@ -1148,14 +1148,14 @@ class StatusHandler(object):
         if substatus_name == Constants.PATCH_ASSESSMENT_SUMMARY:
             # Add assessment tombstone per classifications into packages_in_assessment
             truncated_package_list.extend(self.__create_assessment_tombstone_list(self.__assessment_packages_removed))
-            truncated_substatus_msg = self.__recompose_assessment_message(truncated_substatus_json, truncated_package_list, truncated_errors_json)
+            truncated_substatus_msg = self.__recompose_assessment_msg(truncated_substatus_json, truncated_package_list, truncated_errors_json)
 
         # Recompose installation substatus message
         if substatus_name == Constants.PATCH_INSTALLATION_SUMMARY:
             # Add installation tombstone record
             # Todo need further requirements to decompose installation tombstone by classifications
             truncated_package_list.append(self.__create_installation_tombstone())
-            truncated_substatus_msg = self.__recompose_installation_message(truncated_substatus_json, truncated_package_list, truncated_errors_json)
+            truncated_substatus_msg = self.__recompose_installation_msg(truncated_substatus_json, truncated_package_list, truncated_errors_json)
 
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_msg)
 
@@ -1170,7 +1170,7 @@ class StatusHandler(object):
 
         return truncated_errors_json
 
-    def __recompose_assessment_message(self, assessment_substatus_msg, assessment_packages, assessment_errors):
+    def __recompose_assessment_msg(self, assessment_substatus_msg, assessment_packages, assessment_errors):
         """ Recompose assessment substatus message """
         activity_id = assessment_substatus_msg['assessmentActivityId']
         reboot_pending = assessment_substatus_msg['rebootPending']
@@ -1182,7 +1182,7 @@ class StatusHandler(object):
 
         return self.__compose_assessment_substatus_msg(activity_id, reboot_pending, crit_patch_count, other_patch_count, assessment_packages, start_time, last_modified_time, started_by, assessment_errors)
 
-    def __recompose_installation_message(self, installation_substatus_msg, installation_packages, installation_errors):
+    def __recompose_installation_msg(self, installation_substatus_msg, installation_packages, installation_errors):
         """ Recompose installation substatus message """
         activity_id = installation_substatus_msg['installationActivityId']
         reboot_status = installation_substatus_msg['rebootStatus']
