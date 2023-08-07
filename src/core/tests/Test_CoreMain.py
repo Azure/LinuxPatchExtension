@@ -1347,15 +1347,37 @@ class TestCoreMain(unittest.TestCase):
         assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+        assessment_msg = json.loads(assessment_substatus["formattedMessage"]["message"])
+        self.assertEqual(len(assessment_msg["patches"]), patch_count_for_assessment + 2)
+        self.assertEqual(len(assessment_msg["errors"]["details"]), 0)
+
+        assessment_activity_id = assessment_msg['assessmentActivityId']
+        assessment_reboot_pending = assessment_msg['rebootPending']
+        assessment_crit_patch_count = assessment_msg['criticalAndSecurityPatchCount']
+        assessment_other_patch_count = assessment_msg['otherPatchCount']
+        assessment_start_time = assessment_msg['startTime']
+        assessment_last_modified_time = assessment_msg['lastModifiedTime']
+        assessment_started_by = assessment_msg['startedBy']
 
         # Installation summary
         installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+        installation_msg = json.loads(installation_substatus["formattedMessage"]["message"])
+        self.assertEqual(len(installation_msg["patches"]), patch_count_for_installation + 2)
+        self.assertEqual(len(installation_msg["errors"]["details"]), 0)
+
+        installation_activity_id = installation_msg['installationActivityId']
+        installation_reboot_status = installation_msg['rebootStatus']
+        installation_maintenance_window = installation_msg['maintenanceWindowExceeded']
+        installation_not_selected = installation_msg['notSelectedPatchCount']
+        installation_excluded = installation_msg['excludedPatchCount']
+        installation_pending = installation_msg['pendingPatchCount']
+        installation_installed = installation_msg['installedPatchCount']
+        installation_failed = installation_msg['failedPatchCount']
+        installation_start_time = installation_msg['startTime']
+        installation_last_modified_time = installation_msg['lastModifiedTime']
+        installation_maintenance_id = installation_msg['maintenanceRunId']
 
         # Test truncated status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
@@ -1367,30 +1389,73 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
         # tombstone record
-        message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertTrue(len(message_patches) < patch_count_for_assessment + 2)
-        self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(message_patches[-1]['classifications'], ['Other'])     # 1 tombstone - Other
-        self.assertNotEqual(message_patches[-2]['patchId'], 'Truncated_patch_list_id')
-        self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
+        truncated_assessment_msg = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])
+        self.assertTrue(len(truncated_assessment_msg["patches"]) < patch_count_for_assessment + 2)
+        self.assertEqual(truncated_assessment_msg["patches"][-1]['patchId'], 'Truncated_patch_list_id')
+        self.assertEqual(truncated_assessment_msg["patches"][-1]['classifications'], ['Other'])     # 1 tombstone - Other
+        self.assertNotEqual(truncated_assessment_msg["patches"][-2]['patchId'], 'Truncated_patch_list_id')
+        self.assertTrue('additional updates of classification' in truncated_assessment_msg["patches"][-1]['name'][0])
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
         self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
 
+        truncated_assessment_activity_id = truncated_assessment_msg['assessmentActivityId']
+        truncated_assessment_reboot_pending = truncated_assessment_msg['rebootPending']
+        truncated_assessment_crit_patch_count = truncated_assessment_msg['criticalAndSecurityPatchCount']
+        truncated_assessment_other_patch_count = truncated_assessment_msg['otherPatchCount']
+        truncated_assessment_start_time = truncated_assessment_msg['startTime']
+        truncated_assessment_last_modified_time = truncated_assessment_msg['lastModifiedTime']
+        truncated_assessment_started_by = truncated_assessment_msg['startedBy']
+
+        # validate all assessment other fields in the message object are equal in both status files
+        self.assertEqual(assessment_activity_id, truncated_assessment_activity_id)
+        self.assertEqual(assessment_reboot_pending, truncated_assessment_reboot_pending)
+        self.assertEqual(assessment_crit_patch_count, truncated_assessment_crit_patch_count)
+        self.assertEqual(assessment_other_patch_count, truncated_assessment_other_patch_count)
+        self.assertEqual(assessment_start_time, truncated_assessment_start_time)
+        self.assertEqual(assessment_last_modified_time, truncated_assessment_last_modified_time)
+        self.assertEqual(assessment_started_by, truncated_assessment_started_by)
+
+
         # Test installation truncation
         installation_truncated_substatus = substatus_file_data["status"]["substatus"][1]
         self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        installation_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(len(installation_patches), 3)      # 1 tombstone
-        self.assertEqual(installation_patches[-1]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(installation_patches[-1]['classifications'][0], 'Other')
-        self.assertNotEqual(installation_patches[-2]['patchId'], 'Truncated_patch_list_id')
+        truncated_installation_msg = json.loads(installation_truncated_substatus["formattedMessage"]["message"])
+        self.assertEqual(len(truncated_installation_msg["patches"]), 3)      # 1 tombstone
+        self.assertEqual(truncated_installation_msg["patches"][-1]['patchId'], 'Truncated_patch_list_id')
+        self.assertEqual(truncated_installation_msg["patches"][-1]['classifications'][0], 'Other')
+        self.assertNotEqual(truncated_installation_msg["patches"][-2]['patchId'], 'Truncated_patch_list_id')
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
         self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
+
+        truncated_installation_activity_id = truncated_installation_msg['installationActivityId']
+        truncated_installation_reboot_status = truncated_installation_msg['rebootStatus']
+        truncated_installation_maintenance_window = truncated_installation_msg['maintenanceWindowExceeded']
+        truncated_installation_not_selected = truncated_installation_msg['notSelectedPatchCount']
+        truncated_installation_excluded = truncated_installation_msg['excludedPatchCount']
+        truncated_installation_pending = truncated_installation_msg['pendingPatchCount']
+        truncated_installation_installed = truncated_installation_msg['installedPatchCount']
+        truncated_installation_failed = truncated_installation_msg['failedPatchCount']
+        truncated_installation_start_time = truncated_installation_msg['startTime']
+        truncated_installation_last_modified_time = truncated_installation_msg['lastModifiedTime']
+        truncated_installation_maintenance_id = truncated_installation_msg['maintenanceRunId']
+
+        # validate all installation other fields in the message object are equal in both status files
+        self.assertEqual(installation_activity_id, truncated_installation_activity_id)
+        self.assertEqual(installation_reboot_status, truncated_installation_reboot_status)
+        self.assertEqual(installation_maintenance_window, truncated_installation_maintenance_window)
+        self.assertEqual(installation_not_selected, truncated_installation_not_selected)
+        self.assertEqual(installation_excluded, truncated_installation_excluded)
+        self.assertEqual(installation_pending, truncated_installation_pending)
+        self.assertEqual(installation_installed, truncated_installation_installed)
+        self.assertEqual(installation_failed, truncated_installation_failed)
+        self.assertEqual(installation_start_time, truncated_installation_start_time)
+        self.assertEqual(installation_last_modified_time, truncated_installation_last_modified_time)
+        self.assertEqual(installation_maintenance_id, truncated_installation_maintenance_id)
 
         runtime.stop()
 
