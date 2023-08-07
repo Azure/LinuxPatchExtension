@@ -1144,6 +1144,33 @@ class LegacyEnvLayerExtensions():
                             entry = template.replace('<PACKAGE>', package)
                             entry = entry.replace('<VERSION>', version)
                             output += entry
+            elif self.legacy_test_type == 'ObsoletePackages':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("check-update") > -1:
+                        code = 100
+                        output = "\n" + \
+                                 "grub2-tools.x86_64                                              " + \
+                                 "1:2.02-142.el8                                      " + \
+                                 "rhel-8-baseos-rhui-rpms\n" + \
+                                 "Obsoleting Packages\n" + \
+                                 "grub2-tools.x86_64                                     " + \
+                                 "1:2.02-123.el8_6.8                                      " + \
+                                 "rhel-8-baseos-rhui-rpms\n" + \
+                                 "    grub2-tools.x86_64                                      " + \
+                                 "1:2.02-123.el8                                      " + \
+                                 "@System\n"
+                    elif cmd.find("list installed") > -1:
+                        code = 0
+                        package = cmd.replace('sudo yum list installed ', '')
+                        whitelisted_versions = [
+                            '1:2.02-142.el8']  # any list of versions you want to work for *any* package
+                        output = "Loaded plugins: product-id, search-disabled-repos, subscription-manager\n" + \
+                                 "Installed Packages\n"
+                        template = "<PACKAGE>                                                                                     <VERSION>                                                                                      @anaconda/7.3\n"
+                        for version in whitelisted_versions:
+                            entry = template.replace('<PACKAGE>', package)
+                            entry = entry.replace('<VERSION>', version)
+                            output += entry
 
             major_version = self.get_python_major_version()
             if major_version == 2:

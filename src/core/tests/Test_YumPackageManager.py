@@ -609,6 +609,15 @@ class TestYumPackageManager(unittest.TestCase):
 
         package_manager.do_processes_require_restart = backup_do_process_require_restart
 
+    def test_obsolete_packages_should_not_considered_in_available_updates(self):
+        self.runtime.set_legacy_test_type('ObsoletePackages')
+        package_manager = self.container.get('package_manager')
+        package_filter = self.container.get('package_filter')
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
+        self.assertEqual(len(available_updates), 1)
+        self.assertEqual(len(package_versions), 1)
+        self.assertTrue(available_updates[0] == "grub2-tools.x86_64")
+        self.assertTrue(package_versions[0] == "1:2.02-142.el8")
 
 if __name__ == '__main__':
     unittest.main()
