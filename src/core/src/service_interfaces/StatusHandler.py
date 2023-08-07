@@ -960,7 +960,6 @@ class StatusHandler(object):
             # Start truncation process
             packages_retained_in_assessment, assessment_packages_removed_after_truncation, packages_retained_in_installation, installation_packages_removed_after_truncation = \
                 self.__apply_truncation_process(self.__assessment_packages_copy, self.__installation_packages_copy, size_of_max_packages_allowed_in_status - packages_capacity_diff, low_pri_index)
-
             if len(assessment_packages_removed_after_truncation) > 0:
                 # Update current assessment # of removed packages
                 self.__assessment_packages_removed = assessment_packages_removed_after_truncation
@@ -974,7 +973,6 @@ class StatusHandler(object):
                 # Recompose truncated status file payload (installation)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_retained_in_installation, self.__installation_total_error_count,
                     self.__installation_substatus_msg_copy, Constants.PATCH_INSTALLATION_SUMMARY, installation_substatus_index)
-
             size_of_dumped_package_lists, packages_capacity_diff = self.__get_new_size_in_bytes_after_truncation(size_of_max_packages_allowed_in_status, packages_retained_in_assessment, packages_retained_in_installation)
             size_of_dumped_package_lists -= packages_capacity_diff
 
