@@ -979,12 +979,12 @@ class StatusHandler(object):
         self.composite_logger.log_debug("End package list truncation")
         return truncated_status_file
 
-    def __get_new_size_in_bytes_after_truncation(self, max_package_list_capacity, assessment_package_list, installation_package_list):
+    def __get_new_size_in_bytes_after_truncation(self, size_of_max_packages_allowed_in_status, assessment_package_list, installation_package_list):
         """ Get new size in bytes for status_file, package_list, and diff after 1xxx truncation """
-        current_package_list_size = self.__get_current_packages_size_in_bytes(assessment_package_list, installation_package_list)
-        truncated_package_list_diff = current_package_list_size - max_package_list_capacity
+        size_of_dumped_package_lists = self.__get_current_packages_size_in_bytes(assessment_package_list, installation_package_list)
+        truncated_package_list_diff = size_of_dumped_package_lists - size_of_max_packages_allowed_in_status
 
-        return current_package_list_size, truncated_package_list_diff
+        return size_of_dumped_package_lists, truncated_package_list_diff
 
     def __get_current_packages_size_in_bytes(self, assessment_package_list, installation_package_list):
         """ Get current complete assessment, installation, or both package list size in bytes """
