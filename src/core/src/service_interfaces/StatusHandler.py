@@ -911,7 +911,7 @@ class StatusHandler(object):
                         current_byte_size = __calc_package_payload_size_on_disk(__assessment_packages_truncated)
                         while status_file_size_in_bytes > 126 and current_byte_size > size_of_max_packages_allowed_in_status:
                             __apply_truncation_process()
-                                __cut_list_and_get_list_capacity()
+                                __split_assessment_list()
                                     __apply_truncation()
                                     
                             __recompose_truncated_status_file()                                    
@@ -1001,32 +1001,31 @@ class StatusHandler(object):
         # Both assessment and installation data exist
         return self.__calc_package_payload_size_on_disk(assessment_package_list) + self.__calc_package_payload_size_on_disk(installation_package_list)
 
-    def __cut_list_and_get_list_capacity(self, package_list, max_package_list_capacity):
+    def __split_assessment_list(self, package_list):
         """ Split package list, keep 5 minimum packages, and remaining packages for truncation """
         min_packages_count = Constants.StatusTruncationConfig.MIN_TRUNCATED_PACKAGE_COUNT
-        remain_list_capacity = max_package_list_capacity
         package_list_keep_five, package_list_for_truncate = (package_list[:min_packages_count], package_list[min_packages_count:]) \
             if len(package_list) > min_packages_count else (package_list, [])
 
-        # Empty list after 2xjson.dumps have 4-5 bytes, might cause to lose 1 extra package in truncation process
-        if len(package_list) > 0:
-            remain_list_capacity = max_package_list_capacity - self.__calc_package_payload_size_on_disk(package_list_keep_five)
-
-        return package_list_keep_five, package_list_for_truncate, remain_list_capacity
+        return package_list_keep_five, package_list_for_truncate
 
     def __apply_truncation_process(self, assessment_packages, installation_packages, max_package_list_capacity, low_pri_index=None):
         """ Helper function call split patch list method then apply truncation on assessment and installation """
         installation_low_pri = []
         installation_high_pri = installation_packages
         # cut assessment list into [:5], [5:]
-        assessment_keep_five, assessment_packages_for_truncate, remain_list_capacity = self.__cut_list_and_get_list_capacity(assessment_packages, max_package_list_capacity)
+        assessment_keep_five, assessment_packages_for_truncate = self.__split_assessment_list(assessment_packages)
+
+        # Empty list after 2xjson.dumps have 4-5 bytes, might cause to lose 1 extra package in truncation process
+        if len(assessment_keep_five) > 0:
+            max_package_list_capacity = max_package_list_capacity - self.__calc_package_payload_size_on_disk(assessment_keep_five)
 
         # Apply high priority (Failed, Installed) and low priority (Pending, Excluded, Not_Selected) installation logic, and keep min 5 assessment packages
         if low_pri_index:
             installation_high_pri = installation_packages[:low_pri_index]
             installation_low_pri = installation_packages[low_pri_index:]
 
-        installation_high_pri_list, packages_removed_high_pri, remain_list_capacity = self.__apply_truncation(installation_high_pri, remain_list_capacity)
+        installation_high_pri_list, packages_removed_high_pri, remain_list_capacity = self.__apply_truncation(installation_high_pri, max_package_list_capacity)
         remain_assessment, packages_removed_assessment, remain_list_capacity = self.__apply_truncation(assessment_packages_for_truncate, remain_list_capacity)
         installation_low_pri_list, packages_removed_low_pri, _ = self.__apply_truncation(installation_low_pri, remain_list_capacity)
 
