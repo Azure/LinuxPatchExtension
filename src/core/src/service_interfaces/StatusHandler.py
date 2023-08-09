@@ -751,7 +751,7 @@ class StatusHandler(object):
         status_file_size_in_bytes = len(status_file_payload_json_dumps.encode("utf-8"))   # calc complete_status_file_payload byte size on disk
 
         if status_file_size_in_bytes > self.__internal_file_capacity:  # 126kb
-            truncated_status_file = self.__create_truncated_status_file(status_file_payload_json_dumps)
+            truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
             status_file_payload_json_dumps = json.dumps(truncated_status_file)
 
         # Write status file <seq.no>.status
@@ -887,7 +887,7 @@ class StatusHandler(object):
         if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
             self.composite_logger.log_debug("No packages truncated")
 
-    def __create_truncated_status_file(self, complete_status_file_payload):
+    def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
         """
             __create_truncated_status_file(self, complete_status_file_payload):
@@ -907,7 +907,7 @@ class StatusHandler(object):
                         _substatus_msg_copy = __get_substatus_msg_at_index(truncated_status_file, _index)
                         _packages_copy = _substatus_msg_copy['patches']
                         
-                        packages_capacity_diff = 0
+                        status_file_agent_size_diff = 0
                         current_byte_size = __calc_package_payload_size_on_disk(__assessment_packages_truncated)
                         while status_file_size_in_bytes > 126 and current_byte_size > size_of_max_packages_allowed_in_status:
                             __apply_truncation_process()
@@ -939,7 +939,6 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Begin package list truncation")
         truncated_status_file = json.loads(complete_status_file_payload)  # reload payload into python object
         low_pri_index = None
-        packages_capacity_diff = 0
         assessment_substatus_index = self.__get_substatus_index(Constants.PATCH_ASSESSMENT_SUMMARY, truncated_status_file['status']['substatus'])
         installation_substatus_index = self.__get_substatus_index(Constants.PATCH_INSTALLATION_SUMMARY, truncated_status_file['status']['substatus'])
 
@@ -954,12 +953,11 @@ class StatusHandler(object):
 
         status_file_without_package_list_size = self.size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_substatus_index, installation_substatus_index)  # deepcopy fully copy the object avoid reference modification
         size_of_max_packages_allowed_in_status = self.__internal_file_capacity - status_file_without_package_list_size
-        size_of_dumped_package_lists = self.__get_current_packages_size_in_bytes(self.__assessment_packages_copy, self.__installation_packages_copy)
 
-        while size_of_dumped_package_lists > size_of_max_packages_allowed_in_status:
+        while status_file_size_in_bytes > self.__internal_file_capacity:
             # Start truncation process
             packages_retained_in_assessment, assessment_packages_removed_after_truncation, packages_retained_in_installation, installation_packages_removed_after_truncation = \
-                self.__apply_truncation_process(self.__assessment_packages_copy, self.__installation_packages_copy, size_of_max_packages_allowed_in_status - packages_capacity_diff, low_pri_index)
+                self.__apply_truncation_process(self.__assessment_packages_copy, self.__installation_packages_copy, size_of_max_packages_allowed_in_status, low_pri_index)
             if len(assessment_packages_removed_after_truncation) > 0:
                 # Update current assessment # of removed packages
                 self.__assessment_packages_removed = assessment_packages_removed_after_truncation
@@ -973,31 +971,18 @@ class StatusHandler(object):
                 # Recompose truncated status file payload (installation)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file, packages_retained_in_installation, self.__installation_total_error_count,
                     self.__installation_substatus_msg_copy, Constants.PATCH_INSTALLATION_SUMMARY, installation_substatus_index)
-            size_of_dumped_package_lists, packages_capacity_diff = self.__get_new_size_in_bytes_after_truncation(size_of_max_packages_allowed_in_status, packages_retained_in_assessment, packages_retained_in_installation)
-            size_of_dumped_package_lists -= packages_capacity_diff
+            status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
+            size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
         self.composite_logger.log_debug("End package list truncation")
         return truncated_status_file
 
-    def __get_new_size_in_bytes_after_truncation(self, size_of_max_packages_allowed_in_status, assessment_package_list, installation_package_list):
+    def __get_new_size_in_bytes_after_truncation(self, truncated_status_file):
         """ Get new size in bytes for status_file, package_list, and diff after 1xxx truncation """
-        size_of_dumped_package_lists = self.__get_current_packages_size_in_bytes(assessment_package_list, installation_package_list)
-        truncated_package_list_diff = size_of_dumped_package_lists - size_of_max_packages_allowed_in_status
+        status_file_size_in_bytes = self.__calc_status_size_on_disk(truncated_status_file)
+        status_file_agent_size_diff = status_file_size_in_bytes - self.__internal_file_capacity
 
-        return size_of_dumped_package_lists, truncated_package_list_diff
-
-    def __get_current_packages_size_in_bytes(self, assessment_package_list, installation_package_list):
-        """ Get current complete assessment, installation, or both package list size in bytes """
-        # Only installation data exists, get installation list capacity
-        if not assessment_package_list:
-            return self.__calc_package_payload_size_on_disk(installation_package_list)
-
-        # Only assessment data exists, get assessment list capacity
-        if not installation_package_list:
-            return self.__calc_package_payload_size_on_disk(assessment_package_list)
-
-        # Both assessment and installation data exist
-        return self.__calc_package_payload_size_on_disk(assessment_package_list) + self.__calc_package_payload_size_on_disk(installation_package_list)
+        return status_file_size_in_bytes, status_file_agent_size_diff
 
     def __split_assessment_list(self, package_list):
         """ Split package list, keep 5 minimum packages, and remaining packages for truncation """
@@ -1067,7 +1052,9 @@ class StatusHandler(object):
 
         truncated_list = package_list[:left_index - 1]
         packages_removed_from_list = package_list[left_index - 1:]
-        return truncated_list, packages_removed_from_list, capacity - self.__calc_package_payload_size_on_disk(truncated_list)
+        # expect 128,007 byte
+        truncated_list_byte_size = self.__calc_package_payload_size_on_disk(truncated_list)
+        return truncated_list, packages_removed_from_list, capacity - truncated_list_byte_size
 
     def __removed_older_complete_status_files(self, status_folder):
         """ Retain 10 latest status complete file and remove other .complete.status files """

@@ -1159,7 +1159,7 @@ class TestCoreMain(unittest.TestCase):
             self.assertTrue('Core' in events[0]['TaskName'])
             f.close()
 
-    def test_assessment_operation_success_truncation_under_capacity(self):
+    def test_assessment_operation_truncation_under_size_limit(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1209,7 +1209,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_assessment_operation_success_truncation_over_capacity(self):
+    def test_assessment_operation_truncation_over_size_limit(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1261,7 +1261,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_assessment_operation_success_truncation_over_capacity_with_quotes(self):
+    def test_assessment_truncation_over_large_size_limit_for_extra_chars(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1313,7 +1313,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_success_truncate_assessment_over_size_limit(self):
+    def test_installation_truncation_over_size_limit(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1459,7 +1459,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_success_keep_min_5_assessment_size_limit(self):
+    def test_installation_keep_min_5_assessment_size_limit(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1530,14 +1530,14 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')
         self.assertEqual(message_patches[-1]['classifications'][0], 'Other')
         self.assertNotEqual(message_patches[-2]['patchId'][0], 'Truncated_patch_list_id')
-        self.assertEqual(430, patch_count_for_installation + 3 - len(message_patches))    # 1 tombstone
+        self.assertEqual(432, patch_count_for_installation + 3 - len(message_patches))    # 1 tombstone
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
 
         runtime.stop()
 
-    def test_installation_only_install_packages_truncate_size_limit(self):
+    def test_installation_truncation_with_only_install_packages_over_size_limit(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1592,7 +1592,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
         message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(len(message_patches), 6)   # 1 tombstone
+        self.assertEqual(len(message_patches), 7)   # 1 tombstone
         self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')   # 1 tombstone
         self.assertNotEqual(message_patches[-2]['patchId'], 'Truncated_patch_list_id')   # 1 tombstone
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
@@ -1607,14 +1607,14 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(message_patches[-1]['name'], 'Truncated_patch_list')
         self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')     # 1 tombstone
         self.assertNotEqual(message_patches[-2]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(435, patch_count_for_installation + 3 - len(message_patches))    # 435 removed packages
+        self.assertEqual(440, patch_count_for_installation + 3 - len(message_patches))    # 440 removed packages
         self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
         self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
 
 
         runtime.stop()
 
-    def test_installation_success_truncate_both_size_limit_install_path(self):
+    def test_installation_truncation_over_size_limit_success_path(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -1695,7 +1695,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_success_truncate_both_size_limit(self):
+    def test_installation_truncate_both_over_size_limit_happy_path(self):
         argument_composer = ArgumentComposer()
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
@@ -1748,7 +1748,7 @@ class TestCoreMain(unittest.TestCase):
         assessment_truncated_substatus = substatus_file_data[0]["status"]["substatus"][0]
         self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 703)      # 1 tombstone
+        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 699)      # 1 tombstone
         message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
         self.assertEqual(message_patches[- 1]['patchId'], 'Truncated_patch_list_id')
         self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
@@ -1772,7 +1772,7 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_fail_truncate_with_error_size_limit(self):
+    def test_installation_truncattion_with_error_over_size_limit(self):
         """ assessment list > size limit but truncate installation < size limit with error"""
         argument_composer = ArgumentComposer()
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
