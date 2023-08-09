@@ -750,7 +750,7 @@ class StatusHandler(object):
 
         status_file_size_in_bytes = len(status_file_payload_json_dumps.encode("utf-8"))   # calc complete_status_file_payload byte size on disk
 
-        if status_file_size_in_bytes > self.__internal_file_capacity:  # 126kb
+        if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
             truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
             status_file_payload_json_dumps = json.dumps(truncated_status_file)
 
@@ -890,49 +890,45 @@ class StatusHandler(object):
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload):
         """ Truncate the substatus summary patch list when complete status file size is more than 126kb """
         """
-            __create_truncated_status_file(self, complete_status_file_payload):
-                status_file_size_in_bytes = len(complete_status_file_payload.encode('utf-8))
-                truncated_status_file = json.loads(complete_status_file_payload)
-                if status_file_size_in_bytes > 126kb
-                    _index = self.__get_substatus_index()
-                    status_file_without_package_list_size  = __calc_package_payload_size_on_disk(size_of_constant_status_data(complete_status_file_payload))
-                    size_of_max_packages_allowed_in_status = 126kb - status_file_without_package_list_size 
-                    
-                    if assessment_index is not none:
-                        _substatus_msg_copy = __get_substatus_msg_at_index(truncated_status_file, _index)
-                        _packages_copy = _substatus_msg_copy['patches']
+            __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload):
 
-                    if installation_index is not none:
-                        low_pri_index = __get_installation_low_pri_index()
-                        _substatus_msg_copy = __get_substatus_msg_at_index(truncated_status_file, _index)
-                        _packages_copy = _substatus_msg_copy['patches']
-                        
-                        status_file_agent_size_diff = 0
-                        current_byte_size = __calc_package_payload_size_on_disk(__assessment_packages_truncated)
-                        while status_file_size_in_bytes > 126 and current_byte_size > size_of_max_packages_allowed_in_status:
-                            __apply_truncation_process()
-                                __split_assessment_list()
-                                    __apply_truncation()
-                                    
-                            __recompose_truncated_status_file()                                    
-                                __get_current_complete_status_errors()
-                                __recompose_truncated_msg()
-                                    __recompose_substatus_errors()
-                                    __create_assessment_tombstone_list()
-                                        __create_assessment_tombstone()
-                                    __recreate_assessment_summary_json()
-                           
-                            __recompose_truncated_status_file()                                    
-                                __get_current_complete_status_errors()
-                                __recompose_truncated_msg()
-                                    __recompose_substatus_errors()
-                                    __create_installation_tombstone
-                                    __recreate_installation_summary_json()
-                                    
-                            size_of_dumped_package_lists -= diff
-                            if size_of_dumped_package_lists <= size_of_max_packages_allowed_in_status:
-                                break
-                            __get_new_size_in_bytes_after_truncation() 
+                truncated_status_file = json.loads(complete_status_file_payload)
+                low_pri_index = None
+                _index = self.__get_substatus_index()
+                status_file_without_package_list_size  = __calc_package_payload_size_on_disk(size_of_constant_status_data(complete_status_file_payload))
+                size_of_max_packages_allowed_in_status = 126kb - status_file_without_package_list_size 
+                
+                if assessment_index is not none:
+                    _substatus_msg_copy = __get_substatus_msg_at_index(truncated_status_file, _index)
+                    _packages_copy = _substatus_msg_copy['patches']
+
+                if installation_index is not none:
+                    _substatus_msg_copy = __get_substatus_msg_at_index(truncated_status_file, _index)
+                    _packages_copy = _substatus_msg_copy['patches']
+                    low_pri_index = __get_installation_low_pri_index()
+
+                    while status_file_size_in_bytes > 126kb:
+                        __apply_truncation_process()
+                            __split_assessment_list()
+                                __apply_truncation()
+                                
+                        __recompose_truncated_status_file()                                    
+                            __get_current_complete_status_errors()
+                            __recompose_truncated_msg()
+                                __recompose_substatus_errors()
+                                __create_assessment_tombstone_list()
+                                    __create_assessment_tombstone()
+                                __recreate_assessment_summary_json()
+                       
+                        __recompose_truncated_status_file()                                    
+                            __get_current_complete_status_errors()
+                            __recompose_truncated_msg()
+                                __recompose_substatus_errors()
+                                __create_installation_tombstone
+                                __recreate_installation_summary_json()
+                                
+                        status_file_size_in_bytes, status_file_agent_size_diff = __get_new_size_in_bytes_after_truncation()
+                        size_of_max_packages_allowed_in_status -= status_file_agent_size_diff
                     
                 write_with_retry_using_temp_file()  
         """
