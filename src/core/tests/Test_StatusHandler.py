@@ -18,6 +18,7 @@ import glob
 import json
 import os
 import random
+import time
 import unittest
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
@@ -930,7 +931,47 @@ class TestStatusHandler(unittest.TestCase):
         # 1 truncation error
         self.assertTrue("7 error/s reported. The latest 5 error/s are shared in detail" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
-    # Setup functions to populate packages and versions for truncation
+    def test_truncation_method_time_performance(self):
+        self.runtime.execution_config.operation = Constants.INSTALLATION
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+
+        # Start no truncation performance test
+        no_truncate_start_time = time.time()
+        for i in range(0, 301):
+            test_packages, test_package_versions = self.__set_up_packages_func(500)
+            self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+            self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        no_truncate_end_time = time.time()
+        no_truncate_performance_time = no_truncate_start_time - no_truncate_end_time
+        no_truncate_performance_time_formatted = self.__convert_test_performance_to_date_time(no_truncate_performance_time)
+
+        # Start truncation performance test
+        truncate_start_time = time.time()
+        for i in range(0, 301):
+            test_packages, test_package_versions = self.__set_up_packages_func(1000)
+            self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+            self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        truncate_end_time = time.time()
+        truncate_performance_time = truncate_start_time - truncate_end_time
+        truncate_performance_time_formatted = self.__convert_test_performance_to_date_time(truncate_performance_time)
+        print('no_truncate_performance_time_formatted', no_truncate_performance_time_formatted)
+        print('truncate_performance_time_formatted', truncate_performance_time_formatted)
+
+    # Setup functions for truncation
+    def __convert_test_performance_to_date_time(self, performance_time):
+        performance_time = abs(performance_time)
+
+        # Calc days, hours, minutes, and seconds
+        days, remainder = divmod(performance_time, 86400)  # 86400 seconds in a day
+        hours, remainder = divmod(remainder, 3600)  # 3600 seconds in an hour
+        minutes, seconds = divmod(remainder, 60)  # 60 seconds in a minute
+
+        # Format the result
+        formatted_time = f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes, {seconds:.6f} seconds"
+        return formatted_time
+
     def __set_up_packages_func(self, val):
         test_packages = []
         test_package_versions = []
