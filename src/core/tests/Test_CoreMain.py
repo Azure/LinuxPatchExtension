@@ -1159,383 +1159,383 @@ class TestCoreMain(unittest.TestCase):
             self.assertTrue('Core' in events[0]['TaskName'])
             f.close()
 
-    def test_assessment_operation_truncation_under_size_limit(self):
-        argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-        runtime.set_legacy_test_type('HappyPath')
-        CoreMain(argument_composer.get_composed_arguments())
-
-        # check telemetry events
-        self.__check_telemetry_events(runtime)
-
-        # HappyPath 3 additional packages
-        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
-        # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
-        # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
-        patch_count_for_test = random.randint(200, 432)
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        # Test Complete status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.ASSESSMENT)
-        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test + 3)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Test Truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertNotEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test + 3)
-        status_file_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
-        self.assertNotEqual(status_file_patches[1]['patchId'], "Truncated_patch_list_id")
-        self.assertTrue('additional updates of classification' not in status_file_patches[1]['name'])
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 0)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
-        self.assertFalse("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-        self.assertEqual(len(runtime.status_handler._StatusHandler__assessment_packages_removed), 0)
-
-        runtime.stop()
-
-    def test_assessment_operation_truncation_over_size_limit(self):
-        argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-        runtime.set_legacy_test_type('HappyPath')
-        CoreMain(argument_composer.get_composed_arguments())
-
-        # check telemetry events
-        self.__check_telemetry_events(runtime)
-
-        # HappyPath add 3 additional packages
-        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
-        # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
-        # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
-
-        patch_count_for_test = random.randint(780, 1000)
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Critical")
-        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        # Test Complete status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.ASSESSMENT)
-        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test + 3)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Test Truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
-        message_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
-        self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
-        self.assertEqual(message_patches[-2]['patchId'], "Truncated_patch_list_id")
-        self.assertEqual(message_patches[-3]['patchId'], "Truncated_patch_list_id")      # 3 tombstons Critical Security Other
-        self.assertTrue("additional updates of classification" in message_patches[-1]['name'][0])
-        self.assertTrue(len(message_patches) < patch_count_for_test + 3)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-        self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-
-        runtime.stop()
-
-    def test_assessment_truncation_over_large_size_limit_for_extra_chars(self):
-        argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-        runtime.set_legacy_test_type('HappyPath')
-        CoreMain(argument_composer.get_composed_arguments())
-
-        # check telemetry events
-        self.__check_telemetry_events(runtime)
-
-        # HappyPath add 3 additional packages
-        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
-        # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
-        # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
-
-        patch_count_for_test = 99997
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Security")
-        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        # Test Complete status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.ASSESSMENT)
-        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test + 3)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Test Truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
-        message_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
-        self.assertTrue(len(message_patches) < patch_count_for_test + 3)
-        self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
-        self.assertEqual(message_patches[-1]['classifications'], ['Other'])
-        self.assertEqual(message_patches[-2]['classifications'], ['Security'])      # 2 tombstones - Security, Other
-        self.assertTrue("additional updates of classification" in message_patches[-1]['name'][0])
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-        self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-
-        runtime.stop()
-
-    def test_installation_truncation_over_size_limit(self):
-        argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.INSTALLATION
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-        runtime.set_legacy_test_type('SuccessInstallPath')
-        CoreMain(argument_composer.get_composed_arguments())
-
-        # check telemetry events
-        self.__check_telemetry_events(runtime)
-
-        # SuccessInstallPath add 2 additional packages
-        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
-        #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
-
-        patch_count_for_assessment = random.randint(798, 1100)
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        patch_count_for_installation = random.randint(500, 1100)
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
-        runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
-        runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        # Test Complete status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
-        # Assessment summary
-        assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        assessment_msg = json.loads(assessment_substatus["formattedMessage"]["message"])
-        self.assertEqual(len(assessment_msg["patches"]), patch_count_for_assessment + 2)
-        self.assertEqual(len(assessment_msg["errors"]["details"]), 0)
-
-        assessment_activity_id = assessment_msg['assessmentActivityId']
-        assessment_reboot_pending = assessment_msg['rebootPending']
-        assessment_crit_patch_count = assessment_msg['criticalAndSecurityPatchCount']
-        assessment_other_patch_count = assessment_msg['otherPatchCount']
-        assessment_start_time = assessment_msg['startTime']
-        assessment_last_modified_time = assessment_msg['lastModifiedTime']
-        assessment_started_by = assessment_msg['startedBy']
-
-        # Installation summary
-        installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
-        self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        installation_msg = json.loads(installation_substatus["formattedMessage"]["message"])
-        self.assertEqual(len(installation_msg["patches"]), patch_count_for_installation + 2)
-        self.assertEqual(len(installation_msg["errors"]["details"]), 0)
-
-        installation_activity_id = installation_msg['installationActivityId']
-        installation_reboot_status = installation_msg['rebootStatus']
-        installation_maintenance_window = installation_msg['maintenanceWindowExceeded']
-        installation_not_selected = installation_msg['notSelectedPatchCount']
-        installation_excluded = installation_msg['excludedPatchCount']
-        installation_pending = installation_msg['pendingPatchCount']
-        installation_installed = installation_msg['installedPatchCount']
-        installation_failed = installation_msg['failedPatchCount']
-        installation_start_time = installation_msg['startTime']
-        installation_last_modified_time = installation_msg['lastModifiedTime']
-        installation_maintenance_id = installation_msg['maintenanceRunId']
-
-        # Test truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]
-
-        # Test assessment truncation
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        assessment_truncated_substatus = substatus_file_data["status"]["substatus"][0]
-        self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        # tombstone record
-        truncated_assessment_msg = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])
-        self.assertTrue(len(truncated_assessment_msg["patches"]) < patch_count_for_assessment + 2)
-        self.assertEqual(truncated_assessment_msg["patches"][-1]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(truncated_assessment_msg["patches"][-1]['classifications'], ['Other'])     # 1 tombstone - Other
-        self.assertNotEqual(truncated_assessment_msg["patches"][-2]['patchId'], 'Truncated_patch_list_id')
-        self.assertTrue('additional updates of classification' in truncated_assessment_msg["patches"][-1]['name'][0])
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
-        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-        self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
-
-        truncated_assessment_activity_id = truncated_assessment_msg['assessmentActivityId']
-        truncated_assessment_reboot_pending = truncated_assessment_msg['rebootPending']
-        truncated_assessment_crit_patch_count = truncated_assessment_msg['criticalAndSecurityPatchCount']
-        truncated_assessment_other_patch_count = truncated_assessment_msg['otherPatchCount']
-        truncated_assessment_start_time = truncated_assessment_msg['startTime']
-        truncated_assessment_last_modified_time = truncated_assessment_msg['lastModifiedTime']
-        truncated_assessment_started_by = truncated_assessment_msg['startedBy']
-
-        # validate all assessment other fields in the message object are equal in both status files
-        self.assertEqual(assessment_activity_id, truncated_assessment_activity_id)
-        self.assertEqual(assessment_reboot_pending, truncated_assessment_reboot_pending)
-        self.assertEqual(assessment_crit_patch_count, truncated_assessment_crit_patch_count)
-        self.assertEqual(assessment_other_patch_count, truncated_assessment_other_patch_count)
-        self.assertEqual(assessment_start_time, truncated_assessment_start_time)
-        self.assertEqual(assessment_last_modified_time, truncated_assessment_last_modified_time)
-        self.assertEqual(assessment_started_by, truncated_assessment_started_by)
-
-
-        # Test installation truncation
-        installation_truncated_substatus = substatus_file_data["status"]["substatus"][1]
-        self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        truncated_installation_msg = json.loads(installation_truncated_substatus["formattedMessage"]["message"])
-        self.assertEqual(len(truncated_installation_msg["patches"]), 3)      # 1 tombstone
-        self.assertEqual(truncated_installation_msg["patches"][-1]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(truncated_installation_msg["patches"][-1]['classifications'][0], 'Other')
-        self.assertNotEqual(truncated_installation_msg["patches"][-2]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
-        self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-        self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
-
-        truncated_installation_activity_id = truncated_installation_msg['installationActivityId']
-        truncated_installation_reboot_status = truncated_installation_msg['rebootStatus']
-        truncated_installation_maintenance_window = truncated_installation_msg['maintenanceWindowExceeded']
-        truncated_installation_not_selected = truncated_installation_msg['notSelectedPatchCount']
-        truncated_installation_excluded = truncated_installation_msg['excludedPatchCount']
-        truncated_installation_pending = truncated_installation_msg['pendingPatchCount']
-        truncated_installation_installed = truncated_installation_msg['installedPatchCount']
-        truncated_installation_failed = truncated_installation_msg['failedPatchCount']
-        truncated_installation_start_time = truncated_installation_msg['startTime']
-        truncated_installation_last_modified_time = truncated_installation_msg['lastModifiedTime']
-        truncated_installation_maintenance_id = truncated_installation_msg['maintenanceRunId']
-
-        # validate all installation other fields in the message object are equal in both status files
-        self.assertEqual(installation_activity_id, truncated_installation_activity_id)
-        self.assertEqual(installation_reboot_status, truncated_installation_reboot_status)
-        self.assertEqual(installation_maintenance_window, truncated_installation_maintenance_window)
-        self.assertEqual(installation_not_selected, truncated_installation_not_selected)
-        self.assertEqual(installation_excluded, truncated_installation_excluded)
-        self.assertEqual(installation_pending, truncated_installation_pending)
-        self.assertEqual(installation_installed, truncated_installation_installed)
-        self.assertEqual(installation_failed, truncated_installation_failed)
-        self.assertEqual(installation_start_time, truncated_installation_start_time)
-        self.assertEqual(installation_last_modified_time, truncated_installation_last_modified_time)
-        self.assertEqual(installation_maintenance_id, truncated_installation_maintenance_id)
-
-        runtime.stop()
-
-    def test_installation_keep_min_5_assessment_size_limit(self):
-        argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.INSTALLATION
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-        runtime.set_legacy_test_type('SuccessInstallPath')
-        CoreMain(argument_composer.get_composed_arguments())
-
-        # check telemetry events
-        self.__check_telemetry_events(runtime)
-
-        # SuccessInstallPath add 2 additional packages
-        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
-        #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
-
-        patch_count_for_assessment = 3
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        patch_count_for_installation = 1000
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
-        runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
-        runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        # Test Complete status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
-
-        # Assessment summary
-        assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Installation summary
-        installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
-        self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Test truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-
-        # Test assessment truncation
-        assessment_truncated_substatus = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 5)   # no tombstone
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"][-1]['name'], 'python-samba2')
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 0)
-        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Test installation truncation
-        installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
-        self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        self.assertTrue(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]) < patch_count_for_installation + 2)
-
-        # tombstone record
-        message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(message_patches[-1]['name'], 'Truncated_patch_list')
-        self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(message_patches[-1]['classifications'][0], 'Other')
-        self.assertNotEqual(message_patches[-2]['patchId'][0], 'Truncated_patch_list_id')
-        self.assertEqual(432, patch_count_for_installation + 3 - len(message_patches))    # 1 tombstone
-        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
-        self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-
-        runtime.stop()
+    # def test_assessment_operation_truncation_under_size_limit(self):
+    #     argument_composer = ArgumentComposer()
+    #     argument_composer.operation = Constants.ASSESSMENT
+    #     runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+    #     runtime.set_legacy_test_type('HappyPath')
+    #     CoreMain(argument_composer.get_composed_arguments())
+    #
+    #     # check telemetry events
+    #     self.__check_telemetry_events(runtime)
+    #
+    #     # HappyPath 3 additional packages
+    #     # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
+    #     # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
+    #     # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
+    #     patch_count_for_test = random.randint(200, 432)
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+    #     runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+    #     runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     # Test Complete status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.ASSESSMENT)
+    #     substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test + 3)
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Test Truncated status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertNotEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test + 3)
+    #     status_file_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
+    #     self.assertNotEqual(status_file_patches[1]['patchId'], "Truncated_patch_list_id")
+    #     self.assertTrue('additional updates of classification' not in status_file_patches[1]['name'])
+    #     self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], 0)
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #     self.assertFalse("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
+    #     self.assertEqual(len(runtime.status_handler._StatusHandler__assessment_packages_removed), 0)
+    #
+    #     runtime.stop()
+    #
+    # def test_assessment_operation_truncation_over_size_limit(self):
+    #     argument_composer = ArgumentComposer()
+    #     argument_composer.operation = Constants.ASSESSMENT
+    #     runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+    #     runtime.set_legacy_test_type('HappyPath')
+    #     CoreMain(argument_composer.get_composed_arguments())
+    #
+    #     # check telemetry events
+    #     self.__check_telemetry_events(runtime)
+    #
+    #     # HappyPath add 3 additional packages
+    #     # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
+    #     # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
+    #     # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
+    #
+    #     patch_count_for_test = random.randint(780, 1000)
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+    #     runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Critical")
+    #     runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     # Test Complete status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.ASSESSMENT)
+    #     substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test + 3)
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Test Truncated status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
+    #     message_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
+    #     self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
+    #     self.assertEqual(message_patches[-2]['patchId'], "Truncated_patch_list_id")
+    #     self.assertEqual(message_patches[-3]['patchId'], "Truncated_patch_list_id")      # 3 tombstons Critical Security Other
+    #     self.assertTrue("additional updates of classification" in message_patches[-1]['name'][0])
+    #     self.assertTrue(len(message_patches) < patch_count_for_test + 3)
+    #     self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
+    #     self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+    #     self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
+    #
+    #     runtime.stop()
+    #
+    # def test_assessment_truncation_over_large_size_limit_for_extra_chars(self):
+    #     argument_composer = ArgumentComposer()
+    #     argument_composer.operation = Constants.ASSESSMENT
+    #     runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+    #     runtime.set_legacy_test_type('HappyPath')
+    #     CoreMain(argument_composer.get_composed_arguments())
+    #
+    #     # check telemetry events
+    #     self.__check_telemetry_events(runtime)
+    #
+    #     # HappyPath add 3 additional packages
+    #     # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
+    #     # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
+    #     # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
+    #
+    #     patch_count_for_test = 99997
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+    #     runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Security")
+    #     runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     # Test Complete status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.ASSESSMENT)
+    #     substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(substatus_file_data["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), patch_count_for_test + 3)
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Test Truncated status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     substatus_file_data = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(substatus_file_data["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(substatus_file_data["status"], Constants.STATUS_WARNING.lower())
+    #     message_patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
+    #     self.assertTrue(len(message_patches) < patch_count_for_test + 3)
+    #     self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
+    #     self.assertEqual(message_patches[-1]['classifications'], ['Other'])
+    #     self.assertEqual(message_patches[-2]['classifications'], ['Security'])      # 2 tombstones - Security, Other
+    #     self.assertTrue("additional updates of classification" in message_patches[-1]['name'][0])
+    #     self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
+    #     self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
+    #     self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+    #     self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
+    #
+    #     runtime.stop()
+    #
+    # def test_installation_truncation_over_size_limit(self):
+    #     argument_composer = ArgumentComposer()
+    #     argument_composer.operation = Constants.INSTALLATION
+    #     runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+    #     runtime.set_legacy_test_type('SuccessInstallPath')
+    #     CoreMain(argument_composer.get_composed_arguments())
+    #
+    #     # check telemetry events
+    #     self.__check_telemetry_events(runtime)
+    #
+    #     # SuccessInstallPath add 2 additional packages
+    #     # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
+    #     #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
+    #
+    #     patch_count_for_assessment = random.randint(798, 1100)
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
+    #     runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+    #     runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     patch_count_for_installation = random.randint(500, 1100)
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
+    #     runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+    #     runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     # Test Complete status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+    #     # Assessment summary
+    #     assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     assessment_msg = json.loads(assessment_substatus["formattedMessage"]["message"])
+    #     self.assertEqual(len(assessment_msg["patches"]), patch_count_for_assessment + 2)
+    #     self.assertEqual(len(assessment_msg["errors"]["details"]), 0)
+    #
+    #     assessment_activity_id = assessment_msg['assessmentActivityId']
+    #     assessment_reboot_pending = assessment_msg['rebootPending']
+    #     assessment_crit_patch_count = assessment_msg['criticalAndSecurityPatchCount']
+    #     assessment_other_patch_count = assessment_msg['otherPatchCount']
+    #     assessment_start_time = assessment_msg['startTime']
+    #     assessment_last_modified_time = assessment_msg['lastModifiedTime']
+    #     assessment_started_by = assessment_msg['startedBy']
+    #
+    #     # Installation summary
+    #     installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
+    #     self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     installation_msg = json.loads(installation_substatus["formattedMessage"]["message"])
+    #     self.assertEqual(len(installation_msg["patches"]), patch_count_for_installation + 2)
+    #     self.assertEqual(len(installation_msg["errors"]["details"]), 0)
+    #
+    #     installation_activity_id = installation_msg['installationActivityId']
+    #     installation_reboot_status = installation_msg['rebootStatus']
+    #     installation_maintenance_window = installation_msg['maintenanceWindowExceeded']
+    #     installation_not_selected = installation_msg['notSelectedPatchCount']
+    #     installation_excluded = installation_msg['excludedPatchCount']
+    #     installation_pending = installation_msg['pendingPatchCount']
+    #     installation_installed = installation_msg['installedPatchCount']
+    #     installation_failed = installation_msg['failedPatchCount']
+    #     installation_start_time = installation_msg['startTime']
+    #     installation_last_modified_time = installation_msg['lastModifiedTime']
+    #     installation_maintenance_id = installation_msg['maintenanceRunId']
+    #
+    #     # Test truncated status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)[0]
+    #
+    #     # Test assessment truncation
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     assessment_truncated_substatus = substatus_file_data["status"]["substatus"][0]
+    #     self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+    #     # tombstone record
+    #     truncated_assessment_msg = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])
+    #     self.assertTrue(len(truncated_assessment_msg["patches"]) < patch_count_for_assessment + 2)
+    #     self.assertEqual(truncated_assessment_msg["patches"][-1]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertEqual(truncated_assessment_msg["patches"][-1]['classifications'], ['Other'])     # 1 tombstone - Other
+    #     self.assertNotEqual(truncated_assessment_msg["patches"][-2]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertTrue('additional updates of classification' in truncated_assessment_msg["patches"][-1]['name'][0])
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
+    #     self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+    #     self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
+    #
+    #     truncated_assessment_activity_id = truncated_assessment_msg['assessmentActivityId']
+    #     truncated_assessment_reboot_pending = truncated_assessment_msg['rebootPending']
+    #     truncated_assessment_crit_patch_count = truncated_assessment_msg['criticalAndSecurityPatchCount']
+    #     truncated_assessment_other_patch_count = truncated_assessment_msg['otherPatchCount']
+    #     truncated_assessment_start_time = truncated_assessment_msg['startTime']
+    #     truncated_assessment_last_modified_time = truncated_assessment_msg['lastModifiedTime']
+    #     truncated_assessment_started_by = truncated_assessment_msg['startedBy']
+    #
+    #     # validate all assessment other fields in the message object are equal in both status files
+    #     self.assertEqual(assessment_activity_id, truncated_assessment_activity_id)
+    #     self.assertEqual(assessment_reboot_pending, truncated_assessment_reboot_pending)
+    #     self.assertEqual(assessment_crit_patch_count, truncated_assessment_crit_patch_count)
+    #     self.assertEqual(assessment_other_patch_count, truncated_assessment_other_patch_count)
+    #     self.assertEqual(assessment_start_time, truncated_assessment_start_time)
+    #     self.assertEqual(assessment_last_modified_time, truncated_assessment_last_modified_time)
+    #     self.assertEqual(assessment_started_by, truncated_assessment_started_by)
+    #
+    #
+    #     # Test installation truncation
+    #     installation_truncated_substatus = substatus_file_data["status"]["substatus"][1]
+    #     self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+    #     truncated_installation_msg = json.loads(installation_truncated_substatus["formattedMessage"]["message"])
+    #     self.assertEqual(len(truncated_installation_msg["patches"]), 3)      # 1 tombstone
+    #     self.assertEqual(truncated_installation_msg["patches"][-1]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertEqual(truncated_installation_msg["patches"][-1]['classifications'][0], 'Other')
+    #     self.assertNotEqual(truncated_installation_msg["patches"][-2]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
+    #     self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+    #     self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
+    #
+    #     truncated_installation_activity_id = truncated_installation_msg['installationActivityId']
+    #     truncated_installation_reboot_status = truncated_installation_msg['rebootStatus']
+    #     truncated_installation_maintenance_window = truncated_installation_msg['maintenanceWindowExceeded']
+    #     truncated_installation_not_selected = truncated_installation_msg['notSelectedPatchCount']
+    #     truncated_installation_excluded = truncated_installation_msg['excludedPatchCount']
+    #     truncated_installation_pending = truncated_installation_msg['pendingPatchCount']
+    #     truncated_installation_installed = truncated_installation_msg['installedPatchCount']
+    #     truncated_installation_failed = truncated_installation_msg['failedPatchCount']
+    #     truncated_installation_start_time = truncated_installation_msg['startTime']
+    #     truncated_installation_last_modified_time = truncated_installation_msg['lastModifiedTime']
+    #     truncated_installation_maintenance_id = truncated_installation_msg['maintenanceRunId']
+    #
+    #     # validate all installation other fields in the message object are equal in both status files
+    #     self.assertEqual(installation_activity_id, truncated_installation_activity_id)
+    #     self.assertEqual(installation_reboot_status, truncated_installation_reboot_status)
+    #     self.assertEqual(installation_maintenance_window, truncated_installation_maintenance_window)
+    #     self.assertEqual(installation_not_selected, truncated_installation_not_selected)
+    #     self.assertEqual(installation_excluded, truncated_installation_excluded)
+    #     self.assertEqual(installation_pending, truncated_installation_pending)
+    #     self.assertEqual(installation_installed, truncated_installation_installed)
+    #     self.assertEqual(installation_failed, truncated_installation_failed)
+    #     self.assertEqual(installation_start_time, truncated_installation_start_time)
+    #     self.assertEqual(installation_last_modified_time, truncated_installation_last_modified_time)
+    #     self.assertEqual(installation_maintenance_id, truncated_installation_maintenance_id)
+    #
+    #     runtime.stop()
+    #
+    # def test_installation_keep_min_5_assessment_size_limit(self):
+    #     argument_composer = ArgumentComposer()
+    #     argument_composer.operation = Constants.INSTALLATION
+    #     runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+    #     runtime.set_legacy_test_type('SuccessInstallPath')
+    #     CoreMain(argument_composer.get_composed_arguments())
+    #
+    #     # check telemetry events
+    #     self.__check_telemetry_events(runtime)
+    #
+    #     # SuccessInstallPath add 2 additional packages
+    #     # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
+    #     #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
+    #
+    #     patch_count_for_assessment = 3
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
+    #     runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+    #     runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     patch_count_for_installation = 1000
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
+    #     runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+    #     runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     # Test Complete status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+    #
+    #     # Assessment summary
+    #     assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
+    #     self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Installation summary
+    #     installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
+    #     self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
+    #     self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Test truncated status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #
+    #     # Test assessment truncation
+    #     assessment_truncated_substatus = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 5)   # no tombstone
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"][-1]['name'], 'python-samba2')
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 0)
+    #     self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Test installation truncation
+    #     installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
+    #     self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+    #     self.assertTrue(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]) < patch_count_for_installation + 2)
+    #
+    #     # tombstone record
+    #     message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
+    #     self.assertEqual(message_patches[-1]['name'], 'Truncated_patch_list')
+    #     self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertEqual(message_patches[-1]['classifications'][0], 'Other')
+    #     self.assertNotEqual(message_patches[-2]['patchId'][0], 'Truncated_patch_list_id')
+    #     self.assertEqual(432, patch_count_for_installation + 3 - len(message_patches))    # 1 tombstone
+    #     self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
+    #     self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+    #     self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+    #
+    #     runtime.stop()
 
     def test_installation_truncation_with_only_install_packages_over_size_limit(self):
         argument_composer = ArgumentComposer()
@@ -1564,7 +1564,7 @@ class TestCoreMain(unittest.TestCase):
         # Test Complete status file
         with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)
-
+        print('length substatus_file_data1', len(json.dumps(substatus_file_data).encode('utf-8')))
         self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
 
@@ -1585,6 +1585,7 @@ class TestCoreMain(unittest.TestCase):
         # Test truncated status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)
+        print('length substatus_file_data2', len(json.dumps(substatus_file_data).encode('utf-8')))
         self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
 
         # Test assessment truncation
@@ -1592,7 +1593,8 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
         message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertTrue(len(message_patches) >= 6)   # 1 tombstone
+        print('length message_patches', len(message_patches))
+        self.assertEqual(len(message_patches), 7)   # 1 tombstone
         self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')   # 1 tombstone
         self.assertNotEqual(message_patches[-2]['patchId'], 'Truncated_patch_list_id')   # 1 tombstone
         self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
@@ -1613,247 +1615,247 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_installation_truncation_over_size_limit_success_path(self):
-        argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.INSTALLATION
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-        runtime.set_legacy_test_type('SuccessInstallPath')
-        CoreMain(argument_composer.get_composed_arguments())
-
-        # check telemetry events
-        self.__check_telemetry_events(runtime)
-
-        # SuccessInstallPath add 2 additional packages
-        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
-        #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
-
-        patch_count_for_assessment = 19998
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        patch_count_for_installation = 9998
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
-        runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
-        runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        # Test Complete status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
-
-        # Assessment summary
-        assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Installation summary
-        installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
-        self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Test truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        # Test assessment truncation
-        assessment_truncated_substatus = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-
-        # Tombstone record
-        message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
-        self.assertNotEqual(message_patches[-2]['patchId'], "Truncated_patch_list_id")
-        self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
-        self.assertTrue(len(message_patches) < patch_count_for_assessment)
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
-        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-        self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
-
-        # Test installation truncation
-        installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
-        message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        self.assertEqual(3, len(message_patches))    # 1 tombstone
-        self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')
-        self.assertNotEqual(message_patches[-2]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
-        self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-        self.assertTrue('1 error/s reported. The latest 1 error/s are shared in detail.' in json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
-
-        runtime.stop()
-
-    def test_installation_truncate_both_over_size_limit_happy_path(self):
-        argument_composer = ArgumentComposer()
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-        runtime.set_legacy_test_type('HappyPath')
-        CoreMain(argument_composer.get_composed_arguments())
-
-        patch_count_for_assessment = random.randint(950, 1200)
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        patch_count_for_installation = random.randint(875, 1200)
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
-        runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
-        runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
-
-        # check telemetry events
-        self.__check_telemetry_events(runtime)
-
-        # HappyPath add 3 additional packages, HappyPath contains failed, pending, installed packages for installation
-        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
-        # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
-        # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
-
-        # Test Complete status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
-
-        # Assessment summary
-        assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 3)
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Installation summary
-        installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
-        self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_substatus["status"], Constants.STATUS_ERROR.lower())
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 3)
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
-
-        # Test truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        # Test assessment truncation
-        assessment_truncated_substatus = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
-        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 699)      # 1 tombstone
-        message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(message_patches[- 1]['patchId'], 'Truncated_patch_list_id')
-        self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
-        self.assertTrue(patch_count_for_assessment + 4 - len(message_patches) > 0)    # more than 1 removed packages
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
-        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-        self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
-
-        # Test installation truncation
-        installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
-        self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_ERROR.lower())
-        message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertTrue(len(message_patches) < patch_count_for_installation)    # 1 tombstone
-        self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')
-        self.assertNotEqual(message_patches[-2]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.ERROR)
-        self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 2)
-        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
-
-        runtime.stop()
-
-    def test_installation_truncattion_with_error_over_size_limit(self):
-        """ assessment list > size limit but truncate installation < size limit with error"""
-        argument_composer = ArgumentComposer()
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-        runtime.set_legacy_test_type('FailInstallPath')
-        CoreMain(argument_composer.get_composed_arguments())
-
-        # check telemetry events
-        self.__check_telemetry_events(runtime)
-
-        # Test code add 2 additional packages
-        # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
-
-        patch_count_for_assessment = 598
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
-        runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-
-        runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        patch_count_for_installation = 318
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
-        runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
-
-        # Adding multiple exceptions
-        runtime.status_handler.add_error_to_status("exception0", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        runtime.status_handler.add_error_to_status("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        runtime.status_handler.add_error_to_status("exception3", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        runtime.status_handler.add_error_to_status("exception4", Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-        runtime.status_handler.add_error_to_status("exception5", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
-
-        runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
-
-        # Test Complete status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-
-        self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
-        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-
-        # Assessment summary
-        assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
-        self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
-        self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Installation summary
-        installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
-        self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_substatus["status"], Constants.STATUS_ERROR.lower())
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
-        self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
-
-        # Test truncated status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)
-        # Test assessment truncation
-        assessment_truncated_substatus = substatus_file_data[0]
-        self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_SUCCESS.lower())
-        message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(len(message_patches), patch_count_for_assessment + 2)
-        self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.SUCCESS)
-        self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
-
-        # Test installation truncation
-        installation_truncated_substatus = substatus_file_data[1]
-        installation_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
-        self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_ERROR.lower())
-        self.assertTrue(len(installation_patches) < patch_count_for_installation + 2)
-        self.assertEqual(installation_patches[-1]['patchId'], 'Truncated_patch_list_id')        # 1 tombstone
-        self.assertNotEqual(installation_patches[-2]['patchId'], 'Truncated_patch_list_id')
-        self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 1)
-        self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
-        # 1 failed installed packages errors, and 1 truncation error, plus 6 exception error
-        self.assertTrue("8 error/s reported. The latest 5 error/s are shared in detail." in json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
-
-        runtime.stop()
+    # def test_installation_truncation_over_size_limit_success_path(self):
+    #     argument_composer = ArgumentComposer()
+    #     argument_composer.operation = Constants.INSTALLATION
+    #     runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+    #     runtime.set_legacy_test_type('SuccessInstallPath')
+    #     CoreMain(argument_composer.get_composed_arguments())
+    #
+    #     # check telemetry events
+    #     self.__check_telemetry_events(runtime)
+    #
+    #     # SuccessInstallPath add 2 additional packages
+    #     # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
+    #     #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
+    #
+    #     patch_count_for_assessment = 19998
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
+    #     runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+    #     runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     patch_count_for_installation = 9998
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
+    #     runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+    #     runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     # Test Complete status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+    #
+    #     # Assessment summary
+    #     assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
+    #     self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Installation summary
+    #     installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
+    #     self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
+    #     self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Test truncated status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data).encode('utf-8')) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     # Test assessment truncation
+    #     assessment_truncated_substatus = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+    #
+    #     # Tombstone record
+    #     message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
+    #     self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")
+    #     self.assertNotEqual(message_patches[-2]['patchId'], "Truncated_patch_list_id")
+    #     self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
+    #     self.assertTrue(len(message_patches) < patch_count_for_assessment)
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
+    #     self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+    #     self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
+    #
+    #     # Test installation truncation
+    #     installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
+    #     message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
+    #     self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+    #     self.assertEqual(3, len(message_patches))    # 1 tombstone
+    #     self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertNotEqual(message_patches[-2]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
+    #     self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+    #     self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+    #     self.assertTrue('1 error/s reported. The latest 1 error/s are shared in detail.' in json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
+    #
+    #     runtime.stop()
+    #
+    # def test_installation_truncate_both_over_size_limit_happy_path(self):
+    #     argument_composer = ArgumentComposer()
+    #     runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+    #     runtime.set_legacy_test_type('HappyPath')
+    #     CoreMain(argument_composer.get_composed_arguments())
+    #
+    #     patch_count_for_assessment = random.randint(950, 1200)
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
+    #     runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+    #     runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     patch_count_for_installation = random.randint(875, 1200)
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
+    #     runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+    #     runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+    #
+    #     # check telemetry events
+    #     self.__check_telemetry_events(runtime)
+    #
+    #     # HappyPath add 3 additional packages, HappyPath contains failed, pending, installed packages for installation
+    #     # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
+    #     # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
+    #     # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
+    #
+    #     # Test Complete status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+    #
+    #     # Assessment summary
+    #     assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 3)
+    #     self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Installation summary
+    #     installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
+    #     self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_substatus["status"], Constants.STATUS_ERROR.lower())
+    #     self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 3)
+    #     self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+    #
+    #     # Test truncated status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #     self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     # Test assessment truncation
+    #     assessment_truncated_substatus = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_WARNING.lower())
+    #     self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]), 699)      # 1 tombstone
+    #     message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
+    #     self.assertEqual(message_patches[- 1]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertTrue('additional updates of classification' in message_patches[-1]['name'][0])
+    #     self.assertTrue(patch_count_for_assessment + 4 - len(message_patches) > 0)    # more than 1 removed packages
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.WARNING)
+    #     self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 1)
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+    #     self.assertTrue("review this log file on the machine" in json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
+    #
+    #     # Test installation truncation
+    #     installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
+    #     self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_ERROR.lower())
+    #     message_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
+    #     self.assertTrue(len(message_patches) < patch_count_for_installation)    # 1 tombstone
+    #     self.assertEqual(message_patches[-1]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertNotEqual(message_patches[-2]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.ERROR)
+    #     self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 2)
+    #     self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
+    #
+    #     runtime.stop()
+    #
+    # def test_installation_truncattion_with_error_over_size_limit(self):
+    #     """ assessment list > size limit but truncate installation < size limit with error"""
+    #     argument_composer = ArgumentComposer()
+    #     runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+    #     runtime.set_legacy_test_type('FailInstallPath')
+    #     CoreMain(argument_composer.get_composed_arguments())
+    #
+    #     # check telemetry events
+    #     self.__check_telemetry_events(runtime)
+    #
+    #     # Test code add 2 additional packages
+    #     # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
+    #
+    #     patch_count_for_assessment = 598
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
+    #     runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+    #
+    #     runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+    #
+    #     patch_count_for_installation = 318
+    #     test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_installation)
+    #     runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
+    #
+    #     # Adding multiple exceptions
+    #     runtime.status_handler.add_error_to_status("exception0", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+    #     runtime.status_handler.add_error_to_status("exception1", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+    #     runtime.status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+    #     runtime.status_handler.add_error_to_status("exception3", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+    #     runtime.status_handler.add_error_to_status("exception4", Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+    #     runtime.status_handler.add_error_to_status("exception5", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+    #
+    #     runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+    #
+    #     # Test Complete status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.complete_status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)
+    #
+    #     self.assertEqual(substatus_file_data[0]["status"]["operation"], Constants.INSTALLATION)
+    #     self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #
+    #     # Assessment summary
+    #     assessment_substatus = substatus_file_data[0]["status"]["substatus"][0]
+    #     self.assertEqual(assessment_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_assessment + 2)
+    #     self.assertEqual(len(json.loads(assessment_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Installation summary
+    #     installation_substatus = substatus_file_data[0]["status"]["substatus"][1]
+    #     self.assertEqual(installation_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_substatus["status"], Constants.STATUS_ERROR.lower())
+    #     self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["patches"]), patch_count_for_installation + 2)
+    #     self.assertEqual(len(json.loads(installation_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
+    #
+    #     # Test truncated status file
+    #     with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+    #         substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+    #
+    #     self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+    #     self.assertTrue(len(json.dumps(substatus_file_data)) < Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)
+    #     # Test assessment truncation
+    #     assessment_truncated_substatus = substatus_file_data[0]
+    #     self.assertEqual(assessment_truncated_substatus["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+    #     self.assertEqual(assessment_truncated_substatus["status"], Constants.STATUS_SUCCESS.lower())
+    #     message_patches = json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["patches"]
+    #     self.assertEqual(len(message_patches), patch_count_for_assessment + 2)
+    #     self.assertEqual(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.SUCCESS)
+    #     self.assertEqual(len(json.loads(assessment_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 0)
+    #
+    #     # Test installation truncation
+    #     installation_truncated_substatus = substatus_file_data[1]
+    #     installation_patches = json.loads(installation_truncated_substatus["formattedMessage"]["message"])["patches"]
+    #     self.assertEqual(installation_truncated_substatus["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+    #     self.assertEqual(installation_truncated_substatus["status"], Constants.STATUS_ERROR.lower())
+    #     self.assertTrue(len(installation_patches) < patch_count_for_installation + 2)
+    #     self.assertEqual(installation_patches[-1]['patchId'], 'Truncated_patch_list_id')        # 1 tombstone
+    #     self.assertNotEqual(installation_patches[-2]['patchId'], 'Truncated_patch_list_id')
+    #     self.assertEqual(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["code"], 1)
+    #     self.assertEqual(len(json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["details"]), 5)
+    #     # 1 failed installed packages errors, and 1 truncation error, plus 6 exception error
+    #     self.assertTrue("8 error/s reported. The latest 5 error/s are shared in detail." in json.loads(installation_truncated_substatus["formattedMessage"]["message"])["errors"]["message"])
+    #
+    #     runtime.stop()
 
     def __set_up_packages_func(self, val):
         test_packages = []

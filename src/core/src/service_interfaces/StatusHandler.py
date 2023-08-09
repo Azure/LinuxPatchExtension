@@ -946,7 +946,7 @@ class StatusHandler(object):
 
         status_file_without_package_list_size = self.size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_substatus_index, installation_substatus_index)  # deepcopy fully copy the object avoid reference modification
         size_of_max_packages_allowed_in_status = self.__internal_file_capacity - status_file_without_package_list_size
-
+        print('length size_of_max_packages_allowed_in_status', size_of_max_packages_allowed_in_status)
         while status_file_size_in_bytes > self.__internal_file_capacity:
             # Start truncation process
             packages_retained_in_assessment, assessment_packages_removed_after_truncation, packages_retained_in_installation, installation_packages_removed_after_truncation = \
@@ -966,7 +966,8 @@ class StatusHandler(object):
                     self.__installation_substatus_msg_copy, Constants.PATCH_INSTALLATION_SUMMARY, installation_substatus_index)
             status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
             size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # reduce the max packages byte size by tombstone, new error, and escape chars byte size
-
+            print('what is packages_retained_in_installation', len(packages_retained_in_installation))
+            print('what is installation_packages_removed_after_truncation', len(installation_packages_removed_after_truncation))
         self.composite_logger.log_debug("End package list truncation")
         return truncated_status_file
 
@@ -1004,7 +1005,7 @@ class StatusHandler(object):
         installation_high_pri_list, packages_removed_high_pri, remain_list_capacity = self.__apply_truncation(installation_high_pri, max_package_list_capacity)
         remain_assessment, packages_removed_assessment, remain_list_capacity = self.__apply_truncation(assessment_packages_for_truncate, remain_list_capacity)
         installation_low_pri_list, packages_removed_low_pri, _ = self.__apply_truncation(installation_low_pri, remain_list_capacity)
-
+        print('what is last remain capcaity', _)
         truncated_installation_list = installation_high_pri_list + installation_low_pri_list
         packages_removed_installation = packages_removed_high_pri + packages_removed_low_pri
         truncated_assessment_list = assessment_keep_five + remain_assessment
@@ -1045,7 +1046,6 @@ class StatusHandler(object):
 
         truncated_list = package_list[:left_index - 1]
         packages_removed_from_list = package_list[left_index - 1:]
-        # expect 128,007 byte
         truncated_list_byte_size = self.__calc_package_payload_size_on_disk(truncated_list)
         return truncated_list, packages_removed_from_list, capacity - truncated_list_byte_size
 
