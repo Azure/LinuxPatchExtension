@@ -335,3 +335,16 @@ class Constants(object):
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
         MINIMUM_CLIENT_VERSION = "27.14.4"
 
+    BUFFER_LINE_SEPERATOR = "\n|\t"
+    BUFFER_LINE_SEPERATOR_LENGTH = len(BUFFER_LINE_SEPERATOR)
+
+    class BufferMessage(EnumBackport):
+        TRUE = 0
+        FALSE = 1
+        FLUSH = 2
+
+    class MessageLevel(EnumBackport):  
+        ERROR = 0
+        WARNING = 1
+        DEBUG = 2
+        VERBOSE = 3
