@@ -943,7 +943,7 @@ class TestStatusHandler(unittest.TestCase):
             self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
         no_truncate_end_time = time.time()
-        no_truncate_performance_time = no_truncate_start_time - no_truncate_end_time
+        no_truncate_performance_time = no_truncate_end_time - no_truncate_start_time
         no_truncate_performance_time_formatted = self.__convert_test_performance_to_date_time(no_truncate_performance_time)
 
         # Start truncation performance test
@@ -954,7 +954,7 @@ class TestStatusHandler(unittest.TestCase):
             self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
         truncate_end_time = time.time()
-        truncate_performance_time = truncate_start_time - truncate_end_time
+        truncate_performance_time = truncate_end_time - truncate_start_time
         truncate_performance_time_formatted = self.__convert_test_performance_to_date_time(truncate_performance_time)
         print('no_truncate_performance_time_formatted', no_truncate_performance_time_formatted)
         print('truncate_performance_time_formatted', truncate_performance_time_formatted)

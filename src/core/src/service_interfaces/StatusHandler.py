@@ -1045,7 +1045,6 @@ class StatusHandler(object):
 
         truncated_list = package_list[:left_index - 1]
         packages_removed_from_list = package_list[left_index - 1:]
-        # expect 128,007 byte
         truncated_list_byte_size = self.__calc_package_payload_size_on_disk(truncated_list)
         return truncated_list, packages_removed_from_list, capacity - truncated_list_byte_size
 
