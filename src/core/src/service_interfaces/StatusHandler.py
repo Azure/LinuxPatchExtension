@@ -14,7 +14,6 @@
 #
 # Requires Python 2.7+
 import collections
-import collections
 import copy
 import glob
 import json
@@ -360,8 +359,6 @@ class StatusHandler(object):
 
         # Compose substatus message
         errors = self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
-        # substatus_message = self.__compose_assessment_substatus_msg(self.execution_config.activity_id, self.is_reboot_pending, critsec_patch_count, other_patch_count,
-        # assessment_packages_json, self.execution_config.start_time, self.env_layer.datetime.timestamp(), started_by, errors)
 
         substatus_message = self.__compose_assessment_substatus_msg(
             activity_id=self.execution_config.activity_id, reboot_pending=self.is_reboot_pending, crit_patch_count=critsec_patch_count,
@@ -431,9 +428,6 @@ class StatusHandler(object):
         # Compose substatus message
         maintenance_run_id = self.execution_config.maintenance_run_id if self.execution_config.maintenance_run_id is not None else ''
         errors = self.__set_errors_json(self.__installation_total_error_count, self.__installation_errors)
-        # substatus_message = self.__compose_installation_substatus_msg(self.execution_config.activity_id, self.__installation_reboot_status, self.__maintenance_window_exceeded, not_selected_patch_count,
-        #     excluded_patch_count, pending_patch_count, installed_patch_count, failed_patch_count, installation_packages_json, self.execution_config.start_time,
-        #     self.env_layer.datetime.timestamp(), maintenance_run_id, errors)
         substatus_message = self.__compose_installation_substatus_msg(activity_id=self.execution_config.activity_id, reboot_status=self.__installation_reboot_status,
             maintenance_window=self.__maintenance_window_exceeded, not_selected=not_selected_patch_count, excluded=excluded_patch_count,
             pending=pending_patch_count, installed=installed_patch_count, failed=failed_patch_count,
@@ -681,7 +675,7 @@ class StatusHandler(object):
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
                 with self.env_layer.file_system.open(file_path, 'r') as file_handle:
-                    complete_status_file_file_data = json.load(file_handle)[0]  # structure is array of 1
+                    complete_status_file_data = json.load(file_handle)[0]  # structure is array of 1
             except Exception as error:
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
                     time.sleep(i + 1)
@@ -689,7 +683,7 @@ class StatusHandler(object):
                     self.composite_logger.log_error(
                         "Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
                     raise
-        return complete_status_file_file_data
+        return complete_status_file_data
 
     def __write_complete_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
@@ -1081,12 +1075,12 @@ class StatusHandler(object):
         status_file_no_list_data = complete_status_file_payload
         if assessment_status_index is not None:
             assessment_substatus_msg_copy = self.__get_substatus_msg_at_index(status_file_no_list_data, assessment_status_index)
-            assessment_msg_empty_list = self.__recompose_substatus_msg(assessment_substatus_msg_copy, [], assessment_substatus_msg_copy['errors'])
+            assessment_msg_empty_list = self.__update_substatus_msg_packages_and_errors(assessment_substatus_msg_copy, [], assessment_substatus_msg_copy['errors'])
             status_file_no_list_data['status']['substatus'][assessment_status_index]['formattedMessage']['message'] = json.dumps(assessment_msg_empty_list)
 
         if installation_status_index is not None:
             installation_substatus_msg_copy = self.__get_substatus_msg_at_index(status_file_no_list_data, installation_status_index)
-            installation_msg_empty_list = self.__recompose_substatus_msg(installation_substatus_msg_copy, [], installation_substatus_msg_copy['errors'])
+            installation_msg_empty_list = self.__update_substatus_msg_packages_and_errors(installation_substatus_msg_copy, [], installation_substatus_msg_copy['errors'])
             status_file_no_list_data['status']['substatus'][installation_status_index]['formattedMessage']['message'] = json.dumps(installation_msg_empty_list)
 
         return self.__calc_status_size_on_disk(status_file_no_list_data)
@@ -1129,7 +1123,7 @@ class StatusHandler(object):
             # Todo need further requirements to decompose installation tombstone by classifications
             truncated_package_list.append(self.__create_installation_tombstone())
 
-        truncated_substatus_msg = self.__recompose_substatus_msg(truncated_substatus_msg, truncated_package_list, truncated_errors_json)
+        truncated_substatus_msg = self.__update_substatus_msg_packages_and_errors(truncated_substatus_msg, truncated_package_list, truncated_errors_json)
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_msg)
 
         return truncated_status_file
@@ -1143,7 +1137,7 @@ class StatusHandler(object):
 
         return truncated_errors_json
 
-    def __recompose_substatus_msg(self, substatus_msg, substatus_msg_patches, substatus_msg_errors):
+    def __update_substatus_msg_packages_and_errors(self, substatus_msg, substatus_msg_patches, substatus_msg_errors):
         substatus_msg['patches'] = substatus_msg_patches
         substatus_msg['errors'] = substatus_msg_errors
         return substatus_msg
