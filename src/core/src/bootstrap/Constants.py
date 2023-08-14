@@ -172,7 +172,7 @@ class Constants(object):
     class StatusTruncationConfig(EnumBackport):
         INTERNAL_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
         AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
-        MIN_TRUNCATED_PACKAGE_COUNT = 5
+        MIN_ASSESSMENT_PACKAGE_TO_RETAIN = 5
         TRUNCATION_WARNING_MESSAGE = "Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists."
 
     # Wrapper-core handshake files
