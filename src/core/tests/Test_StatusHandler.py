@@ -936,22 +936,24 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
         # Start no truncation performance test
+        Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = False
         no_truncate_start_time = time.time()
         for i in range(0, 301):
             test_packages, test_package_versions = self.__set_up_packages_func(500)
+            self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
             self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
-            self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
         no_truncate_end_time = time.time()
         no_truncate_performance_time = no_truncate_end_time - no_truncate_start_time
         no_truncate_performance_time_formatted = self.__convert_test_performance_to_date_time(no_truncate_performance_time)
 
         # Start truncation performance test
+        Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = True
         truncate_start_time = time.time()
         for i in range(0, 301):
-            test_packages, test_package_versions = self.__set_up_packages_func(1000)
+            test_packages, test_package_versions = self.__set_up_packages_func(500)
+            self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
             self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
-            self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
 
         truncate_end_time = time.time()
         truncate_performance_time = truncate_end_time - truncate_start_time

@@ -174,6 +174,7 @@ class Constants(object):
         AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
         MIN_ASSESSMENT_PACKAGE_TO_RETAIN = 5
         TRUNCATION_WARNING_MESSAGE = "Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists."
+        TURN_ON_TRUNCATION = True
 
     # Wrapper-core handshake files
     EXT_STATE_FILE = 'ExtState.json'

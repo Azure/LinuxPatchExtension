@@ -740,11 +740,12 @@ class StatusHandler(object):
         status_file_payload_json_dumps = json.dumps(complete_status_payload)
         self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(status_file_payload_json_dumps), mode='w+')
 
-        status_file_size_in_bytes = len(status_file_payload_json_dumps.encode("utf-8"))   # calc complete_status_file_payload byte size on disk
+        if Constants.StatusTruncationConfig.TURN_ON_TRUNCATION:
+            status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)     # calc complete_status_file_payload byte size on disk
 
-        if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
-            truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
-            status_file_payload_json_dumps = json.dumps(truncated_status_file)
+            if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
+                truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
+                status_file_payload_json_dumps = json.dumps(truncated_status_file)
 
         # Write status file <seq.no>.status
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(status_file_payload_json_dumps), mode='w+')
@@ -928,16 +929,16 @@ class StatusHandler(object):
         assessment_substatus_index = self.__get_substatus_index(Constants.PATCH_ASSESSMENT_SUMMARY, truncated_status_file['status']['substatus'])
         installation_substatus_index = self.__get_substatus_index(Constants.PATCH_INSTALLATION_SUMMARY, truncated_status_file['status']['substatus'])
 
-        if assessment_substatus_index is not None:        # if assessment data exists
+        if assessment_substatus_index is not None:      # If assessment data exists
             self.__assessment_substatus_msg_copy = self.__get_substatus_msg_at_index(truncated_status_file, assessment_substatus_index)
             self.__assessment_packages_copy = self.__assessment_substatus_msg_copy['patches']
 
-        if installation_substatus_index is not None:      # if installation data exists
+        if installation_substatus_index is not None:    # If installation data exists
             self.__installation_substatus_msg_copy = self.__get_substatus_msg_at_index(truncated_status_file, installation_substatus_index)
             self.__installation_packages_copy = self.__installation_substatus_msg_copy['patches']
             low_pri_index = self.__get_installation_low_pri_index(self.__installation_packages_copy)
 
-        status_file_without_package_list_size = self.size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_substatus_index, installation_substatus_index)  # deepcopy fully copy the object avoid reference modification
+        status_file_without_package_list_size = self.size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_substatus_index, installation_substatus_index)  # Deepcopy fully copy the object avoid reference modification
         size_of_max_packages_allowed_in_status = self.__internal_file_capacity - status_file_without_package_list_size
 
         while status_file_size_in_bytes > self.__internal_file_capacity:
@@ -947,6 +948,7 @@ class StatusHandler(object):
             if len(packages_removed_from_assessment) > 0:
                 # Update current assessment # of removed packages
                 self.__assessment_packages_removed = packages_removed_from_assessment
+
                 # Recompose truncated status file payload (assessment)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_assessment,
                     count_total_errors=self.__assessment_total_error_count, substatus_msg=self.__assessment_substatus_msg_copy, substatus_name=Constants.PATCH_ASSESSMENT_SUMMARY,
@@ -955,10 +957,12 @@ class StatusHandler(object):
             if len(packages_removed_from_installation) > 0:
                 # Update current installation # of removed packages
                 self.__installation_packages_removed = packages_removed_from_installation
+
                 # Recompose truncated status file payload (installation)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_installation,
                     count_total_errors=self.__installation_total_error_count, substatus_msg=self.__installation_substatus_msg_copy,
                     substatus_name=Constants.PATCH_INSTALLATION_SUMMARY, substatus_index=installation_substatus_index)
+
             status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
             size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
@@ -967,7 +971,7 @@ class StatusHandler(object):
 
     def __get_new_size_in_bytes_after_truncation(self, truncated_status_file):
         """ Get new size in bytes for status_file,and difference of status file - 126kb """
-        status_file_size_in_bytes = self.__calc_status_size_on_disk(truncated_status_file)
+        status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
         status_file_agent_size_diff = status_file_size_in_bytes - self.__internal_file_capacity
 
         return status_file_size_in_bytes, status_file_agent_size_diff
@@ -1028,6 +1032,7 @@ class StatusHandler(object):
             return [], [], capacity
         if self.__calc_package_payload_size_on_disk(package_list) <= capacity:
             return package_list, [], capacity - self.__calc_package_payload_size_on_disk(package_list)
+        # Check if first element in the list is > list capacity, then remove the rest
         if self.__calc_package_payload_size_on_disk(package_list[0]) > capacity:
             return [], package_list, capacity
 
@@ -1062,9 +1067,9 @@ class StatusHandler(object):
 
         self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_to_removed))
 
-    def __calc_status_size_on_disk(self, full_status):
+    def __calc_status_size_on_disk(self, status_file_dumps):
         """ Calculate status file size in bytes on disk """
-        return len(json.dumps(full_status).encode("utf-8"))
+        return len(status_file_dumps.encode("utf-8"))
 
     def __calc_package_payload_size_on_disk(self, package_list):
         """ Calculate final package list size in bytes (because of escape chars) """
@@ -1075,16 +1080,14 @@ class StatusHandler(object):
         """ Get the size in bytes of the complete_status_file without packages data  """
         status_file_no_list_data = complete_status_file_payload
         if assessment_status_index is not None:
-            assessment_substatus_msg_copy = self.__get_substatus_msg_at_index(status_file_no_list_data, assessment_status_index)
-            assessment_msg_without_packages = self.__update_substatus_msg_patches_or_errors(substatus_msg=assessment_substatus_msg_copy, substatus_msg_patches=[], substatus_msg_errors=assessment_substatus_msg_copy['errors'])
+            assessment_msg_without_packages = self.__update_substatus_msg(substatus_msg=self.__assessment_substatus_msg_copy, substatus_msg_patches=[])
             status_file_no_list_data['status']['substatus'][assessment_status_index]['formattedMessage']['message'] = json.dumps(assessment_msg_without_packages)
 
         if installation_status_index is not None:
-            installation_substatus_msg_copy = self.__get_substatus_msg_at_index(status_file_no_list_data, installation_status_index)
-            installation_msg_without_packages = self.__update_substatus_msg_patches_or_errors(substatus_msg=installation_substatus_msg_copy, substatus_msg_patches=[], substatus_msg_errors=installation_substatus_msg_copy['errors'])
+            installation_msg_without_packages = self.__update_substatus_msg(substatus_msg=self.__installation_substatus_msg_copy, substatus_msg_patches=[])
             status_file_no_list_data['status']['substatus'][installation_status_index]['formattedMessage']['message'] = json.dumps(installation_msg_without_packages)
 
-        return self.__calc_status_size_on_disk(status_file_no_list_data)
+        return self.__calc_status_size_on_disk(json.dumps(status_file_no_list_data))
 
     def __get_substatus_index(self, substatus_name, substatus):
         """" Get substatus index from the current substatus """
@@ -1123,7 +1126,7 @@ class StatusHandler(object):
             # Todo need further requirements to decompose installation tombstone by classifications
             truncated_package_list.append(self.__create_installation_tombstone())
 
-        substatus_msg = self.__update_substatus_msg_patches_or_errors(substatus_msg=substatus_msg,
+        substatus_msg = self.__update_substatus_msg(substatus_msg=substatus_msg,
             substatus_msg_patches=truncated_package_list, substatus_msg_errors=truncated_errors_json)
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(substatus_msg)
 
@@ -1138,9 +1141,10 @@ class StatusHandler(object):
 
         return truncated_errors_json
 
-    def __update_substatus_msg_patches_or_errors(self, substatus_msg, substatus_msg_patches, substatus_msg_errors):
+    def __update_substatus_msg(self, substatus_msg, substatus_msg_patches, substatus_msg_errors=None):
         substatus_msg['patches'] = substatus_msg_patches
-        substatus_msg['errors'] = substatus_msg_errors
+        if substatus_msg_errors:
+            substatus_msg['errors'] = substatus_msg_errors
         return substatus_msg
 
     def __get_current_complete_status_errors(self, substatus_json):
