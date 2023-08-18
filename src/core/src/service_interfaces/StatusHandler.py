@@ -948,23 +948,24 @@ class StatusHandler(object):
             if len(packages_removed_from_assessment) > 0:
                 # Update current assessment # of removed packages
                 self.__assessment_packages_removed = packages_removed_from_assessment
+                packages_retained_in_assessment.extend(self.__create_assessment_tombstone_list(self.__assessment_packages_removed))     # Add assessment tombstone record
 
                 # Recompose truncated status file payload (assessment)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_assessment,
-                    count_total_errors=self.__assessment_total_error_count, substatus_msg=self.__assessment_substatus_msg_copy, substatus_name=Constants.PATCH_ASSESSMENT_SUMMARY,
-                    substatus_index=assessment_substatus_index)
+                    count_total_errors=self.__assessment_total_error_count, truncated_substatus_msg=self.__assessment_substatus_msg_copy, substatus_index=assessment_substatus_index)
 
             if len(packages_removed_from_installation) > 0:
                 # Update current installation # of removed packages
                 self.__installation_packages_removed = packages_removed_from_installation
+                # Todo need further requirements to decompose installation tombstone by classifications
+                packages_retained_in_installation.append(self.__create_installation_tombstone())    # Add installation tombstone record
 
                 # Recompose truncated status file payload (installation)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_installation,
-                    count_total_errors=self.__installation_total_error_count, substatus_msg=self.__installation_substatus_msg_copy,
-                    substatus_name=Constants.PATCH_INSTALLATION_SUMMARY, substatus_index=installation_substatus_index)
+                    count_total_errors=self.__installation_total_error_count, truncated_substatus_msg=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
 
             status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
-            size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # reduce the max packages byte size by tombstone, new error, and escape chars byte size
+            size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # Reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
         self.composite_logger.log_debug("End package list truncation")
         return truncated_status_file
@@ -988,7 +989,7 @@ class StatusHandler(object):
         """ Truncation function call split assessment method and apply truncation on assessment and installation packages """
         installation_low_pri = []
         installation_high_pri = installation_packages
-        # cut assessment list into [:5], [5:]
+        # Cut assessment list into [:5], [5:]
         min_assessment_patches_to_retain, assessment_patches_eligible_for_truncation = self.__split_assessment_list(assessment_packages)
 
         if len(min_assessment_patches_to_retain) > 0:
@@ -1096,10 +1097,10 @@ class StatusHandler(object):
                 return index
         return None
 
-    def __recompose_truncated_status_file(self, truncated_status_file, truncated_package_list, count_total_errors, substatus_msg, substatus_name, substatus_index):
+    def __recompose_truncated_status_file(self, truncated_status_file, truncated_package_list, count_total_errors, truncated_substatus_msg, substatus_index):
         """ Recompose final truncated status file version """
         truncated_detail_list = []
-        code, errors_details = self.__get_current_complete_status_errors(substatus_msg)
+        code, errors_details = self.__get_current_complete_status_errors(substatus_msg=truncated_substatus_msg)
 
         # Check for existing errors before recompose
         if code != Constants.PatchOperationTopLevelErrorCode.ERROR:
@@ -1107,35 +1108,16 @@ class StatusHandler(object):
         else:
             truncated_detail_list.extend(errors_details)
 
-        return self.__recompose_truncated_substatus_msg(truncated_status_file=truncated_status_file, truncated_package_list=truncated_package_list,
-            truncated_detail_list=truncated_detail_list, count_total_errors=count_total_errors, substatus_msg=substatus_msg,
-            substatus_name=substatus_name, substatus_index=substatus_index)
-
-    def __recompose_truncated_substatus_msg(self, truncated_status_file, truncated_package_list, truncated_detail_list, count_total_errors, substatus_msg, substatus_name, substatus_index):
-        """ Recompose truncated status file with new errors detail list, new errors message, and truncated packages  """
-        truncated_errors_json = self.__recompose_substatus_msg_errors(truncated_detail_list, count_total_errors)    # Recompose substatus message errors json
-
-        # Recompose assessment substatus message
-        if substatus_name == Constants.PATCH_ASSESSMENT_SUMMARY:
-            # Add assessment tombstone per classifications into packages_in_assessment
-            truncated_package_list.extend(self.__create_assessment_tombstone_list(self.__assessment_packages_removed))
-
-        # Recompose installation substatus message
-        if substatus_name == Constants.PATCH_INSTALLATION_SUMMARY:
-            # Add installation tombstone record
-            # Todo need further requirements to decompose installation tombstone by classifications
-            truncated_package_list.append(self.__create_installation_tombstone())
-
-        substatus_msg = self.__update_substatus_msg(substatus_msg=substatus_msg,
-            substatus_msg_patches=truncated_package_list, substatus_msg_errors=truncated_errors_json)
-        truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(substatus_msg)
+        truncated_msg_errors = self.__recompose_substatus_msg_errors(truncated_detail_list, count_total_errors)    # Recompose substatus msg errors
+        truncated_substatus_msg = self.__update_substatus_msg(substatus_msg=truncated_substatus_msg, substatus_msg_patches=truncated_package_list, substatus_msg_errors=truncated_msg_errors)
+        truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_msg)
 
         return truncated_status_file
 
     def __recompose_substatus_msg_errors(self, truncation_detail_list, count_total_errors):
         """ Recompose truncated substatus errors json """
         error_msg = Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
-        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_msg)      # Reuse the errors object set up
+        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, error_msg)  # Reuse the errors object set up
         self.__try_add_error(truncation_detail_list, truncated_error_detail)
         truncated_errors_json = self.__set_errors_json(count_total_errors, truncation_detail_list, True)    # True for truncated
 
@@ -1147,15 +1129,15 @@ class StatusHandler(object):
             substatus_msg['errors'] = substatus_msg_errors
         return substatus_msg
 
-    def __get_current_complete_status_errors(self, substatus_json):
+    def __get_current_complete_status_errors(self, substatus_msg):
         """ Get the complete status file errors code and errors details """
-        return substatus_json['errors']['code'], substatus_json['errors']['details']
+        return substatus_msg['errors']['code'], substatus_msg['errors']['details']
 
     def __create_assessment_tombstone_list(self, packages_removed_from_assessment):
         assessment_tombstone_map = {}
         tombstone_record_list = []
 
-        # map['classification', count]
+        # Map['classification', count]
         for package in packages_removed_from_assessment:
             classifications = package['classifications'][0]
             assessment_tombstone_map[classifications] = assessment_tombstone_map.get(classifications, 0) + 1
@@ -1190,5 +1172,4 @@ class StatusHandler(object):
             'patchInstallationState': 'NotSelected'
         }
     # endregion
-
 
