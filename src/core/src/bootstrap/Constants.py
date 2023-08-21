@@ -209,6 +209,7 @@ class Constants(object):
     MAX_IMDS_CONNECTION_RETRY_COUNT = 5
     MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT = 5
     MAX_BATCH_SIZE_FOR_PACKAGES = 3
+    MAX_COMPLETE_STATUS_FILES_TO_RETAIN = 10
 
     class PackageClassification(EnumBackport):
         UNCLASSIFIED = 'Unclassified'

@@ -337,7 +337,7 @@ class StatusHandler(object):
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
     def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
@@ -368,6 +368,7 @@ class StatusHandler(object):
         if self.vm_cloud_type == Constants.VMCloudType.ARC:
             substatus_message["patchAssessmentStatus"] = code
             substatus_message["patchAssessmentStatusString"] = status
+
         return substatus_message
 
     def __compose_assessment_substatus_msg(self, activity_id, reboot_pending, crit_patch_count, other_patch_count, assessment_packages, start_time, last_modified_time, started_by, errors):
@@ -394,7 +395,7 @@ class StatusHandler(object):
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
     def __new_installation_summary_json(self, installation_packages_json):
         """ Called by: set_installation_substatus_json
@@ -467,7 +468,7 @@ class StatusHandler(object):
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
         # wait period required in cases where we need to ensure HealthStore reads the status from GA
         if wait_after_update:
@@ -500,7 +501,7 @@ class StatusHandler(object):
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
     def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
@@ -608,10 +609,10 @@ class StatusHandler(object):
 
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
-        # Remove older complete status files
+        # Retain 10 complete status files, and remove older files
         self.__removed_older_complete_status_files(self.execution_config.status_folder)
 
-        # Verify the complete status file exists - if not, reset complete status file
+        # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.complete_status_file_path) and initial_load:
             self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()
@@ -672,6 +673,7 @@ class StatusHandler(object):
         return json.loads(status_file_data['status']['substatus'][substatus_index]['formattedMessage']['message'])
 
     def __load_complete_status_file_data(self, file_path):
+        # Read the status file - raise exception on persistent failure
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
             try:
                 with self.env_layer.file_system.open(file_path, 'r') as file_handle:
@@ -684,7 +686,7 @@ class StatusHandler(object):
                     raise
         return complete_status_file_data
 
-    def __write_complete_status_file(self):
+    def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
             This is usually the final call to compose and persist after an in-memory data update in a specialized method.
 
@@ -1051,22 +1053,21 @@ class StatusHandler(object):
 
     def __removed_older_complete_status_files(self, status_folder):
         """ Retain 10 latest status complete file and remove other .complete.status files """
-        files_to_removed = []
-        complete_status_files_list = glob.glob(status_folder + '/' + '*.complete.status')   # Glob return empty list if no file matched pattern
-        complete_status_files_list.sort(key=os.path.getmtime, reverse=True)
-
-        if len(complete_status_files_list) <= 10:
+        files_removed = []
+        all_complete_status_files = glob.glob(os.path.join(status_folder, '*.complete.status'))    # Glob return empty list if no file matched pattern
+        if len(all_complete_status_files) <= Constants.MAX_COMPLETE_STATUS_FILES_TO_RETAIN:
             return
 
-        for file in complete_status_files_list[10:]:
+        all_complete_status_files.sort(key=os.path.getmtime, reverse=True)
+        for complete_status_file in all_complete_status_files[Constants.MAX_COMPLETE_STATUS_FILES_TO_RETAIN:]:
             try:
-                if os.path.exists(file):
-                    os.remove(file)
-                    files_to_removed.append(file)
+                if os.path.exists(complete_status_file):
+                    os.remove(complete_status_file)
+                    files_removed.append(complete_status_file)
             except Exception as e:
-                self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(file), repr(e)))
+                self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(complete_status_file), repr(e)))
 
-        self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_to_removed))
+        self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_removed))
 
     def __calc_status_size_on_disk(self, status_file_dumps):
         """ Calculate status file size in bytes on disk """
