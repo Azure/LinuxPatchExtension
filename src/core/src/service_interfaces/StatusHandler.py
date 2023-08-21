@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 import collections
+import glob
 import json
 import os
 import re
@@ -323,7 +324,7 @@ class StatusHandler(object):
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
     def __new_assessment_summary_json(self, assessment_packages_json, status, code):
         """ Called by: set_assessment_substatus_json
@@ -372,7 +373,7 @@ class StatusHandler(object):
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
     def __new_installation_summary_json(self, installation_packages_json):
         """ Called by: set_installation_substatus_json
@@ -434,7 +435,7 @@ class StatusHandler(object):
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
         # wait period required in cases where we need to ensure HealthStore reads the status from GA
         if wait_after_update:
@@ -467,7 +468,7 @@ class StatusHandler(object):
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
         # Update complete status on disk
-        self.__write_complete_status_file()
+        self.__write_status_file()
 
     def __new_configure_patching_summary_json(self, automatic_os_patch_state, auto_assessment_state, status, code):
         """ Called by: set_configure_patching_substatus_json
@@ -569,6 +570,9 @@ class StatusHandler(object):
 
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
+        # Remove older complete status files
+        self.__removed_older_complete_status_files(self.execution_config.status_folder)
+
         # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.complete_status_file_path) and initial_load:
             self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
@@ -591,8 +595,7 @@ class StatusHandler(object):
                 if self.execution_config.exec_auto_assess_only:
                     self.__installation_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                    self.__installation_summary_json = json.loads(message)
+                    self.__installation_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                     self.__installation_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
                     self.__installation_packages = list(self.__installation_packages_map.values())
                     self.__maintenance_window_exceeded = bool(self.__installation_summary_json['maintenanceWindowExceeded'])
@@ -602,8 +605,7 @@ class StatusHandler(object):
                         self.__installation_errors = errors['details']
                         self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
-                message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                self.__assessment_summary_json = json.loads(message)
+                self.__assessment_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                 self.__assessment_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
                 errors = self.__assessment_summary_json['errors']
@@ -614,18 +616,19 @@ class StatusHandler(object):
                 if self.execution_config.exec_auto_assess_only:
                     self.__metadata_for_healthstore_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                    self.__metadata_for_healthstore_summary_json = json.loads(message)
+                    self.__metadata_for_healthstore_summary_json = self.__get_substatus_message(complete_status_file_data, i)
             if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
                     self.__configure_patching_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    message = complete_status_file_data['status']['substatus'][i]['formattedMessage']['message']
-                    self.__configure_patching_summary_json = json.loads(message)
+                    self.__configure_patching_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                     errors = self.__configure_patching_summary_json['errors']
                     if errors is not None and errors['details'] is not None:
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
+
+    def __get_substatus_message(self, status_file_data, index):
+        return json.loads(status_file_data['status']['substatus'][index]['formattedMessage']['message'])
 
     def __load_complete_status_file_data(self, file_path):
         # Read the status file - raise exception on persistent failure
@@ -641,7 +644,7 @@ class StatusHandler(object):
                     raise
         return complete_status_file_data
 
-    def __write_complete_status_file(self):
+    def __write_status_file(self):
         """ Composes and writes the status file from **already up-to-date** in-memory data.
             This is usually the final call to compose and persist after an in-memory data update in a specialized method.
 
@@ -805,4 +808,22 @@ class StatusHandler(object):
             "message": message
         }
     # endregion
+
+    def __removed_older_complete_status_files(self, status_folder):
+        """ Retain 10 latest status complete file and remove other .complete.status files """
+        files_removed = []
+        all_complete_status_files = glob.glob(os.path.join(status_folder, '*.complete.status'))    # Glob return empty list if no file matched pattern
+        if len(all_complete_status_files) <= Constants.MAX_COMPLETE_STATUS_FILES_TO_RETAIN:
+            return
+
+        all_complete_status_files.sort(key=os.path.getmtime, reverse=True)
+        for complete_status_file in all_complete_status_files[Constants.MAX_COMPLETE_STATUS_FILES_TO_RETAIN:]:
+            try:
+                if os.path.exists(complete_status_file):
+                    os.remove(complete_status_file)
+                    files_removed.append(complete_status_file)
+            except Exception as e:
+                self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(complete_status_file), repr(e)))
+
+        self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_removed))
 
