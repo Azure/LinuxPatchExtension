@@ -503,7 +503,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.runtime.execution_config.complete_status_file_path))
         self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
         self.assertFalse(os.path.isfile(os.path.join(file_path, '1.complete_status')))
-        #self.assertIn("Cleaned up older complete status files", self.captured_output.getvalue())
+        self.__read_temp_log_and_assert("Cleaned up older complete status files")
 
     def test_remove_old_complete_status_files_throws_exception(self):
         file_path = self.runtime.execution_config.status_folder
@@ -514,7 +514,7 @@ class TestStatusHandler(unittest.TestCase):
         self.backup_os_remove = os.remove
         os.remove = self.__mock_os_remove
         self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
-        #self.assertIn("Error deleting complete status file", self.captured_output.getvalue())
+        self.__read_temp_log_and_assert("Error deleting complete status file")
 
         # reset os.remove() mock and remove *complete.status files
         os.remove = self.backup_os_remove
@@ -630,11 +630,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
         self.runtime.status_handler.log_truncated_packages()
-        # Read the contents of the temp file and assert
-        self.temp_stdout.flush()
-        with open(self.temp_stdout.name, 'r') as temp_file:
-            captured_output = temp_file.read()
-            self.assertIn("No packages truncated", captured_output)
+        self.__read_temp_log_and_assert("No packages truncated")
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -676,13 +672,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
         self.runtime.status_handler.log_truncated_packages()
-
-        # Read the contents of the temp file and assert
-        self.temp_stdout.flush()
-        with open(self.temp_stdout.name, 'r') as temp_file:
-            captured_output = temp_file.read()
-            self.assertIn("Packages removed from assessment packages list", captured_output)
-
+        self.__read_temp_log_and_assert("Packages removed from assessment packages list")
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -817,10 +807,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
         self.runtime.status_handler.log_truncated_packages()
-
-        with open(self.temp_stdout.name, 'r') as temp_file:
-            captured_output = temp_file.read()
-            self.assertIn("Packages removed from installation packages list", captured_output)
+        self.__read_temp_log_and_assert("Packages removed from installation packages list")
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -1030,6 +1017,12 @@ class TestStatusHandler(unittest.TestCase):
         # Format the result
         formatted_time = "%d days, %d hours, %d minutes, %.6f seconds" % (int(days), int(hours), int(minutes), seconds)
         return formatted_time
+
+    def __read_temp_log_and_assert(self, expected_string):
+        self.temp_stdout.flush()
+        with open(self.temp_stdout.name, 'r') as temp_file:
+            captured_log_output = temp_file.read()
+            self.assertIn(expected_string, captured_log_output)
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):
