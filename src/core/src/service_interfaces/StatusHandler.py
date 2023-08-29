@@ -634,7 +634,7 @@ class StatusHandler(object):
                 if self.execution_config.exec_auto_assess_only:
                     self.__installation_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    self.__installation_summary_json = self.__get_substatus_msg_at_index(complete_status_file_data, i)
+                    self.__installation_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                     # Reload patches into installation ordered map for fast look up
                     self.__installation_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__installation_summary_json['patches'])
                     self.__installation_packages = list(self.__installation_packages_map.values())
@@ -645,7 +645,7 @@ class StatusHandler(object):
                         self.__installation_errors = errors['details']
                         self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
             if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
-                self.__assessment_summary_json = self.__get_substatus_msg_at_index(complete_status_file_data, i)
+                self.__assessment_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                 # Reload patches into assessment ordered map for fast look up
                 self.__assessment_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
@@ -657,18 +657,18 @@ class StatusHandler(object):
                 if self.execution_config.exec_auto_assess_only:
                     self.__metadata_for_healthstore_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    self.__metadata_for_healthstore_summary_json = self.__get_substatus_msg_at_index(complete_status_file_data, i)
+                    self.__metadata_for_healthstore_summary_json = self.__get_substatus_message(complete_status_file_data, i)
             if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
                     self.__configure_patching_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
-                    self.__configure_patching_summary_json = self.__get_substatus_msg_at_index(complete_status_file_data, i)
+                    self.__configure_patching_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                     errors = self.__configure_patching_summary_json['errors']
                     if errors is not None and errors['details'] is not None:
                         self.__configure_patching_errors = errors['details']
                         self.__configure_patching_top_level_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
 
-    def __get_substatus_msg_at_index(self, status_file_data, substatus_index):
+    def __get_substatus_message(self, status_file_data, substatus_index):
         """ Get the substatus payload message by index """
         return json.loads(status_file_data['status']['substatus'][substatus_index]['formattedMessage']['message'])
 
@@ -897,11 +897,11 @@ class StatusHandler(object):
                 size_of_max_packages_allowed_in_status = 126kb - status_file_without_package_list_size 
                 
                 if assessment_index is not none:
-                    _substatus_msg_copy = __get_substatus_msg_at_index(truncated_status_file, _index)
+                    _substatus_msg_copy = __get_substatus_message(truncated_status_file, _index)
                     _packages_copy = _substatus_msg_copy['patches']
 
                 if installation_index is not none:
-                    _substatus_msg_copy = __get_substatus_msg_at_index(truncated_status_file, _index)
+                    _substatus_msg_copy = __get_substatus_message(truncated_status_file, _index)
                     _packages_copy = _substatus_msg_copy['patches']
                     low_pri_index = __get_installation_low_pri_index()
 
@@ -935,11 +935,11 @@ class StatusHandler(object):
         installation_substatus_index = self.__get_substatus_index(Constants.PATCH_INSTALLATION_SUMMARY, truncated_status_file['status']['substatus'])
 
         if assessment_substatus_index is not None:      # If assessment data exists
-            self.__assessment_substatus_msg_copy = self.__get_substatus_msg_at_index(truncated_status_file, assessment_substatus_index)
+            self.__assessment_substatus_msg_copy = self.__get_substatus_message(truncated_status_file, assessment_substatus_index)
             self.__assessment_packages_copy = self.__assessment_substatus_msg_copy['patches']
 
         if installation_substatus_index is not None:    # If installation data exists
-            self.__installation_substatus_msg_copy = self.__get_substatus_msg_at_index(truncated_status_file, installation_substatus_index)
+            self.__installation_substatus_msg_copy = self.__get_substatus_message(truncated_status_file, installation_substatus_index)
             self.__installation_packages_copy = self.__installation_substatus_msg_copy['patches']
             low_pri_index = self.__get_installation_low_pri_index(self.__installation_packages_copy)
 
