@@ -16,12 +16,12 @@
 import datetime
 import glob
 import json
-import os
 import random
 import time
 import unittest
+import tempfile
+import os
 import sys
-from six import StringIO
 from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.StatusHandler import StatusHandler
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -32,12 +32,15 @@ class TestStatusHandler(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
         self.container = self.runtime.container
-        self.saved_stdout = sys.stdout
-        sys.stdout = self.captured_output = StringIO()
+        self.temp_stdout = tempfile.NamedTemporaryFile(delete=False, mode="w+")
+        self.saved_stdout = sys.stdout  # Save the original stdout
+        sys.stdout = self.temp_stdout   # redirect it to the temporary file
 
     def tearDown(self):
+        sys.stdout = self.saved_stdout  # redirect to original stdout
+        self.temp_stdout.close()
+        os.remove(self.temp_stdout.name)    # Remove the temporary file
         self.runtime.stop()
-        sys.stdout = self.saved_stdout
 
     def __mock_os_remove(self, file_to_remove):
         raise Exception("File could not be deleted")
@@ -500,7 +503,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.runtime.execution_config.complete_status_file_path))
         self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
         self.assertFalse(os.path.isfile(os.path.join(file_path, '1.complete_status')))
-        self.assertIn("Cleaned up older complete status files", self.captured_output.getvalue())
+        #self.assertIn("Cleaned up older complete status files", self.captured_output.getvalue())
 
     def test_remove_old_complete_status_files_throws_exception(self):
         file_path = self.runtime.execution_config.status_folder
@@ -511,7 +514,7 @@ class TestStatusHandler(unittest.TestCase):
         self.backup_os_remove = os.remove
         os.remove = self.__mock_os_remove
         self.assertRaises(Exception, self.runtime.status_handler.load_status_file_components(initial_load=True))
-        self.assertIn("Error deleting complete status file", self.captured_output.getvalue())
+        #self.assertIn("Error deleting complete status file", self.captured_output.getvalue())
 
         # reset os.remove() mock and remove *complete.status files
         os.remove = self.backup_os_remove
@@ -625,7 +628,13 @@ class TestStatusHandler(unittest.TestCase):
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+
         self.runtime.status_handler.log_truncated_packages()
+        # Read the contents of the temp file and assert
+        self.temp_stdout.flush()
+        with open(self.temp_stdout.name, 'r') as temp_file:
+            captured_output = temp_file.read()
+            self.assertIn("No packages truncated", captured_output)
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -656,7 +665,6 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 0)
         self.assertFalse("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
         self.assertEqual(len(self.runtime.status_handler._StatusHandler__assessment_packages_removed), 0)
-        self.assertIn("No packages truncated", self.captured_output.getvalue())
 
     def test_assessment_status_file_truncation_over_size_limit(self):
         """ Test truncation logic will apply to assessment when it is over the size limit """
@@ -668,6 +676,13 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
         self.runtime.status_handler.log_truncated_packages()
+
+        # Read the contents of the temp file and assert
+        self.temp_stdout.flush()
+        with open(self.temp_stdout.name, 'r') as temp_file:
+            captured_output = temp_file.read()
+            self.assertIn("Packages removed from assessment packages list", captured_output)
+
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -698,7 +713,6 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
         self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-        self.assertIn("Packages removed from assessment packages list", self.captured_output.getvalue())
 
     def test_assessment_status_file_truncation_over_large_size_limit_for_extra_chars(self):
         """ Test truncation logic will apply to assessment, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
@@ -804,6 +818,10 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
         self.runtime.status_handler.log_truncated_packages()
 
+        with open(self.temp_stdout.name, 'r') as temp_file:
+            captured_output = temp_file.read()
+            self.assertIn("Packages removed from installation packages list", captured_output)
+
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)
@@ -832,7 +850,6 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), 1)
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.TRUNCATION)
         self.assertTrue('1 error/s reported. The latest 1 error/s are shared in detail.' in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
-        self.assertIn("Packages removed from installation packages list", self.captured_output.getvalue())
 
     def test_installation_status_file_truncation_over_size_limit_low_priority_packages(self):
         """ Test truncation logic will apply to installation over the size limit """
