@@ -998,7 +998,7 @@ class TestStatusHandler(unittest.TestCase):
         minutes, seconds = divmod(remainder, 60)  # 60 seconds in a minute
 
         # Format the result
-        formatted_time = f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes, {seconds:.6f} seconds"
+        formatted_time = "%d days, %d hours, %d minutes, %.6f seconds" % (int(days), int(hours), int(minutes), seconds)
         return formatted_time
 
     # Setup functions to populate packages and versions for truncation
