@@ -245,6 +245,10 @@ class YumPackageManager(PackageManager):
 
         self.composite_logger.log_debug("[FAIL SAFE MODE] UPDATING PACKAGES USING COMMAND: " + cmd)
         self.invoke_package_manager(cmd)
+
+    def accept_eula_for_patches(self):
+        """ Accepts eula for patches based on the config provided by customers """
+        pass
     # endregion
 
     # region Package Information

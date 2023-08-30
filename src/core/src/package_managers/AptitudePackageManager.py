@@ -51,6 +51,9 @@ class AptitudePackageManager(PackageManager):
         # --only-upgrade: upgrade only single package (only if it is installed)
         self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive apt-get -y --only-upgrade true install '''
 
+        # Accept EULA (End User License Agreement) as per the EULA settings set by user
+        self.accept_eula_for_patches()
+
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
 
@@ -288,6 +291,29 @@ class AptitudePackageManager(PackageManager):
 
     def install_updates_fail_safe(self, excluded_packages):
         return
+
+    def accept_eula_for_patches(self):
+        """ Accepts eula for patches based on the config provided by customers """
+        # read settings file
+        # if not exists, do nothing
+        # if exists, look for concerned setting
+        # if exists and set to true, add eccept EULA in cmd
+
+        if not os.path.exists(Constants.Paths.EULA_SETTINGS):
+            self.composite_logger.log_warning("NOT accepting EULA for any patch as no corresponding EULA Settings found on the VM")
+            return
+
+        eula_settings = self.env_layer.read_with_retry(Constants.Paths.EULA_SETTINGS, raise_if_not_found=False)
+        if Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES not in eula_settings \
+                or (eula_settings[Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES]).lower() != 'true':
+            self.composite_logger.log_warning("NOT accepting EULA for any patch as no corresponding acceptance for EULA found on the VM")
+            return
+
+        else:
+            self.composite_logger.log_debug("Accepting EULA for all patches as per the EULA setting found on VM")
+            self.single_package_upgrade_simulation_cmd += " ACCEPT_EULA=Y"
+            self.single_package_dependency_resolution_template += " ACCEPT_EULA=Y"
+            self.single_package_upgrade_cmd += " ACCEPT_EULA=Y"
     # endregion
 
     # region Package Information

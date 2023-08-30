@@ -53,6 +53,7 @@ class Constants(object):
 
     class Paths(EnumBackport):
         SYSTEMD_ROOT = "/etc/systemd/system/"
+        EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -76,6 +77,11 @@ class Constants(object):
         PATCH_MODE = 'patchMode'
         ASSESSMENT_MODE = 'assessmentMode'
         MAXIMUM_ASSESSMENT_INTERVAL = 'maximumAssessmentInterval'
+
+    class EulaSettings(EnumBackport):
+        ACCEPT_EULA_FOR_ALL_PATCHES = 'AcceptEULAForAllPatches'
+        ACCEPTED_BY = 'AcceptedBy'
+        LAST_MODIFIED = 'LastModified'
 
     TEMP_FOLDER_DIR_NAME = "tmp"
     TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list"]
