@@ -298,17 +298,21 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_warning("NOT accepting EULA for any patch as no corresponding EULA Settings found on the VM")
             return
 
-        eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.Paths.EULA_SETTINGS, raise_if_not_found=False))
+        try:
+            eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.Paths.EULA_SETTINGS, raise_if_not_found=False) or 'null')
 
-        if Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES not in eula_settings \
-                or (eula_settings[Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES]).lower() != 'true':
-            self.composite_logger.log_warning("NOT accepting EULA for any patch as no corresponding acceptance for EULA found on the VM")
-            return
-        else:
-            self.composite_logger.log_debug("Accepting EULA for all patches as per the EULA setting found on VM")
-            self.single_package_upgrade_simulation_cmd += " ACCEPT_EULA=Y"
-            self.single_package_dependency_resolution_template += " ACCEPT_EULA=Y"
-            self.single_package_upgrade_cmd += " ACCEPT_EULA=Y"
+            if eula_settings is not None \
+                    and Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES in eula_settings \
+                    and eula_settings[Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES] is True:
+                self.composite_logger.log_debug("Accepting EULA for all patches as per the EULA setting found on VM")
+                self.single_package_upgrade_simulation_cmd += " ACCEPT_EULA=Y"
+                self.single_package_dependency_resolution_template += " ACCEPT_EULA=Y"
+                self.single_package_upgrade_cmd += " ACCEPT_EULA=Y"
+            else:
+                self.composite_logger.log_warning("NOT accepting EULA for any patch as no corresponding acceptance for EULA found on the VM")
+                return
+        except Exception as error:
+            self.composite_logger.log_warning("Error occurred while reading and parsing EULA settings. Not accepting EULA for any patch. Error=[{0}]".format(repr(error)))
 
     # endregion
 

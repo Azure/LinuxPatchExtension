@@ -570,7 +570,7 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         # EULA accepted in settings and commands updated accordingly
         eula_settings = {
-            "AcceptEULAForAllPatches": "true",
+            "AcceptEULAForAllPatches": True,
             "AcceptedBy": "TestSetup",
             "LastModified": "2023-08-29"
         }
@@ -589,10 +589,45 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         # EULA not accepted in settings and corresponding patch update commands do not contain EULA acceptance
         eula_settings = {
-            "AcceptEULAForAllPatches": "false",
+            "AcceptEULAForAllPatches": False,
             "AcceptedBy": "TestSetup",
             "LastModified": "2023-08-29"
         }
+        self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
+        package_manager.accept_eula_for_patches()
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
+
+        # EULA not accepted in settings and corresponding patch update commands do not contain EULA acceptance
+        eula_settings = {
+            "AcceptEULAForAllPatches": "test incorrect value",
+            "AcceptedBy": "TestSetup",
+            "LastModified": "2023-08-29"
+        }
+        self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
+        package_manager.accept_eula_for_patches()
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
+
+    def test_empty_eula_settings(self):
+        package_manager = self.container.get('package_manager')
+        # EULA not accepted by default
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
+
+        # Empty eula settings file
+        eula_settings = ''
+        self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
+        package_manager.accept_eula_for_patches()
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
+
+        # Empty eula settings file
+        eula_settings = None
         self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
         package_manager.accept_eula_for_patches()
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
