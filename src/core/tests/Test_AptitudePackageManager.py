@@ -63,7 +63,7 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_get_security_updates_return_empty_list(self):
         return [], []
 
-    #endregion Mocks
+    # endregion Mocks
 
     def test_package_manager_no_updates(self):
         """Unit test for aptitude package manager with no updates"""
@@ -560,6 +560,44 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
         package_manager.ubuntu_pro_client.is_pro_working = backup_ubuntu_pro_client_is_pro_working
+
+    def test_eula_acceptance_for_patches(self):
+        package_manager = self.container.get('package_manager')
+        # EULA not accepted by default
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
+
+        # EULA accepted in settings and commands updated accordingly
+        eula_settings = {
+            "AcceptEULAForAllPatches": "true",
+            "AcceptedBy": "TestSetup",
+            "LastModified": "2023-08-29"
+        }
+        self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
+        package_manager.accept_eula_for_patches()
+        self.assertTrue("ACCEPT_EULA=Y" in package_manager.single_package_upgrade_simulation_cmd)
+        self.assertTrue("ACCEPT_EULA=Y" in package_manager.single_package_dependency_resolution_template)
+        self.assertTrue("ACCEPT_EULA=Y" in package_manager.single_package_upgrade_cmd)
+
+    def test_eula_not_accepted_for_patches(self):
+        package_manager = self.container.get('package_manager')
+        # EULA not accepted by default
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
+
+        # EULA not accepted in settings and corresponding patch update commands do not contain EULA acceptance
+        eula_settings = {
+            "AcceptEULAForAllPatches": "false",
+            "AcceptedBy": "TestSetup",
+            "LastModified": "2023-08-29"
+        }
+        self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
+        package_manager.accept_eula_for_patches()
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
+        self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
 
 
 if __name__ == '__main__':
