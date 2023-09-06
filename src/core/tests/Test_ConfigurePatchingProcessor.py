@@ -308,6 +308,34 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # stop test runtime
         runtime.stop()
 
+    def test_patch_mode_disabled_for_configure_patching_with_no_os_patch_configuration_settings_file(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
+        argument_composer.assessment_mode = "LetsThrowAnException"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.set_legacy_test_type('HappyPath')
+
+        # Execute main
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 2)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)   # assessment is now part of the CP flow
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
+        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)
+
+        runtime.stop()
+
     def __check_telemetry_events(self, runtime):
         all_events = os.listdir(runtime.telemetry_writer.events_folder_path)
         self.assertTrue(len(all_events) > 0)
