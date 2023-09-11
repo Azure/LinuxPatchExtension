@@ -163,7 +163,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
-    def test_operation_fail_for_configure_patching_request_for_apt(self):
+    def test_operation_success_for_configure_patching_request_for_apt(self):
         # default auto OS updates config file not found on the machine
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.CONFIGURE_PATCHING
@@ -183,7 +183,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)   # assessment is now part of the CP flow
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
     def test_patch_mode_set_failure_for_configure_patching(self):
