@@ -20,6 +20,7 @@ import json
 import os
 import re
 import shutil
+from datetime import datetime
 import time
 from core.src.bootstrap.Constants import Constants
 
@@ -92,6 +93,9 @@ class StatusHandler(object):
         self.__os_name_and_version = self.get_os_name_and_version()
 
         self.__current_operation = None
+
+        self.__truncation_timestamp = None
+        self.__is_file_truncated = False
 
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
         if (execution_config.maintenance_run_id is not None or execution_config.health_store_id is not None) and execution_config.operation.lower() == Constants.INSTALLATION.lower():
@@ -336,6 +340,9 @@ class StatusHandler(object):
         # Wrap assessment summary into assessment substatus
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
+        # Set force truncation true when final status is success or error
+        self.__set_force_truncation_true(status)
+
         # Update complete status on disk
         self.__write_status_file()
 
@@ -393,6 +400,9 @@ class StatusHandler(object):
 
         # Wrap deployment summary into installation substatus
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
+
+        # Set force truncation true when final status is success or error
+        self.__set_force_truncation_true(status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -467,6 +477,9 @@ class StatusHandler(object):
         # Wrap healthstore summary into healthstore substatus
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
+        # Set force truncation true when final status is success or error
+        self.__set_force_truncation_true(status)
+
         # Update complete status on disk
         self.__write_status_file()
 
@@ -499,6 +512,9 @@ class StatusHandler(object):
 
         # Wrap configure patching summary into configure patching substatus
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
+
+        # Set force truncation true when final status is success or error
+        self.__set_force_truncation_true(status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -743,10 +759,13 @@ class StatusHandler(object):
         self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(status_file_payload_json_dumps), mode='w+')
 
         if Constants.StatusTruncationConfig.TURN_ON_TRUNCATION:
-            status_file_payload_json_dumps = self.__check_file_byte_size_for_truncation(status_file_payload_json_dumps)
+            truncated_status_file_json_dumps = self.__validate_status_file_for_truncation(status_file_payload_json_dumps)
 
         # Write status file <seq.no>.status
-        self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(status_file_payload_json_dumps), mode='w+')
+        if self.__is_file_truncated:
+            self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(truncated_status_file_json_dumps), mode='w+')
+        else:
+            self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(status_file_payload_json_dumps), mode='w+')
     # endregion
 
     # region - Error objects
@@ -878,11 +897,29 @@ class StatusHandler(object):
         if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
             self.composite_logger.log_debug("No packages truncated")
 
-    def __check_file_byte_size_for_truncation(self, status_file_payload_json_dumps):
+    def check_one_minute_timestamp(self, truncation_timestamp):
+        if truncation_timestamp is None:
+            truncation_timestamp = datetime.now()
+
+        return (datetime.now() - truncation_timestamp).total_seconds() >= 60
+
+    def __set_force_truncation_true(self, status):
+        if self.__is_file_truncated and (status == Constants.STATUS_SUCCESS or status == Constants.STATUS_ERROR):
+            Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True
+
+    def __validate_status_file_for_truncation(self, status_file_payload_json_dumps):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload byte size on disk
+
         if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
-            truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
-            status_file_payload_json_dumps = json.dumps(truncated_status_file)
+            is_one_minute_passed = self.check_one_minute_timestamp(self.__truncation_timestamp)
+
+            if is_one_minute_passed or Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION:
+                truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
+                status_file_payload_json_dumps = json.dumps(truncated_status_file)
+
+            if is_one_minute_passed:
+                self.__truncation_timestamp = datetime.now()    # Set timestamp to newer time and check for next 1 min interval
+
         return status_file_payload_json_dumps
 
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload):
@@ -972,6 +1009,7 @@ class StatusHandler(object):
             status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
             size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # Reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
+        self.__is_file_truncated = True  # set true to track if file needs truncation
         self.composite_logger.log_debug("End package list truncation")
         return truncated_status_file
 

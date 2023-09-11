@@ -32,14 +32,8 @@ class TestStatusHandler(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
         self.container = self.runtime.container
-        self.temp_stdout = tempfile.NamedTemporaryFile(delete=False, mode="w+")
-        self.saved_stdout = sys.stdout  # Save the original stdout
-        sys.stdout = self.temp_stdout   # redirect it to the temporary file
 
     def tearDown(self):
-        sys.stdout = self.saved_stdout  # redirect to original stdout
-        self.temp_stdout.close()
-        os.remove(self.temp_stdout.name)    # Remove the temporary file
         self.runtime.stop()
 
     def __mock_os_remove(self, file_to_remove):
@@ -488,6 +482,9 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_remove_old_complete_status_files(self):
         """ Create dummy files in status folder and check if the complete_status_file_path is the latest file and delete those dummy files """
+        # Set up create temp file for log and set sys.stdout to it
+        self.__create_temp_file_and_set_stdout()
+
         file_path = self.runtime.execution_config.status_folder
         for i in range(1, 15):
             with open(os.path.join(file_path, str(i + 100) + '.complete.status'), 'w') as f:
@@ -505,7 +502,13 @@ class TestStatusHandler(unittest.TestCase):
         self.assertFalse(os.path.isfile(os.path.join(file_path, '1.complete_status')))
         self.__read_temp_log_and_assert("Cleaned up older complete status files")
 
+        # Reset sys.stdout, close and delete tmp
+        self.__remove_temp_file_reset_stdout()
+
     def test_remove_old_complete_status_files_throws_exception(self):
+        # Set up create temp file for log and set sys.stdout to it
+        self.__create_temp_file_and_set_stdout()
+
         file_path = self.runtime.execution_config.status_folder
         for i in range(1, 16):
             with open(os.path.join(file_path, str(i + 100) + '.complete.status'), 'w') as f:
@@ -520,6 +523,9 @@ class TestStatusHandler(unittest.TestCase):
         os.remove = self.backup_os_remove
         self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
         self.assertFalse(os.path.isfile(os.path.join(file_path, '1.complete_status')))
+
+        # Reset sys.stdout, close and delete tmp
+        self.__remove_temp_file_reset_stdout()
 
     def test_assessment_packages_map(self):
         patch_count_for_test = 5
@@ -620,6 +626,54 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
         self.runtime.env_layer.file_system.delete_files_from_dir(self.runtime.status_handler.status_file_path, '*.complete.status')
 
+    def test_log_truncated_packages_assert_no_truncation(self):
+        # Set up create temp file for log and set sys.stdout to it
+        self.__create_temp_file_and_set_stdout()
+
+        # Assert no truncation log output
+        patch_count_for_test = 500
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        self.runtime.status_handler.log_truncated_packages()
+        self.__read_temp_log_and_assert("No packages truncated")
+
+        # Reset sys.stdout, close and delete tmp
+        self.__remove_temp_file_reset_stdout()
+
+    def test_log_truncated_packages_assert_assessment_truncation(self):
+        # Set up create temp file for log and set sys.stdout to it
+        self.__create_temp_file_and_set_stdout()
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True
+
+        # Assert assessment truncation log output
+        patch_count_for_test = random.randint(780, 1000)
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        self.runtime.status_handler.log_truncated_packages()
+        self.__read_temp_log_and_assert("Packages removed from assessment packages list")
+
+        # Reset sys.stdout, close and delete tmp
+        self.__remove_temp_file_reset_stdout()
+
+    def test_log_truncated_packages_assert_installation_truncation(self):
+        # Set up create temp file for log and set sys.stdout to it
+        self.__create_temp_file_and_set_stdout()
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True
+
+        # Assert installation truncation log output
+        patch_count_for_test = random.randint(780, 1000)
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+        self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+        self.runtime.status_handler.log_truncated_packages()
+        self.__read_temp_log_and_assert("Packages removed from installation packages list")
+
+        # Reset sys.stdout, close and delete tmp
+        self.__remove_temp_file_reset_stdout()
+
+
     def test_assessment_status_file_truncation_under_size_limit(self):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
@@ -628,9 +682,6 @@ class TestStatusHandler(unittest.TestCase):
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-
-        self.runtime.status_handler.log_truncated_packages()
-        self.__read_temp_log_and_assert("No packages truncated")
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -664,6 +715,7 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_assessment_status_file_truncation_over_size_limit(self):
         """ Test truncation logic will apply to assessment when it is over the size limit """
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -671,8 +723,6 @@ class TestStatusHandler(unittest.TestCase):
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-        self.runtime.status_handler.log_truncated_packages()
-        self.__read_temp_log_and_assert("Packages removed from assessment packages list")
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -706,6 +756,7 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_assessment_status_file_truncation_over_large_size_limit_for_extra_chars(self):
         """ Test truncation logic will apply to assessment, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -744,6 +795,7 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_assessment_status_file_truncation_over_size_limit_with_errors(self):
         """ Test truncation logic will apply to assessment with errors over the size limit """
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -799,6 +851,7 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_installation_status_file_truncation_over_size_limit(self):
         """ Test truncation logic will apply to installation over the size limit """
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -806,8 +859,6 @@ class TestStatusHandler(unittest.TestCase):
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
-        self.runtime.status_handler.log_truncated_packages()
-        self.__read_temp_log_and_assert("Packages removed from installation packages list")
 
         # Test Complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
@@ -840,6 +891,7 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_installation_status_file_truncation_over_size_limit_low_priority_packages(self):
         """ Test truncation logic will apply to installation over the size limit """
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -880,6 +932,7 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_installation_status_file_truncation_over_large_size_limit_with_extra_chars(self):
         """ Test truncation logic will apply to installation, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -920,6 +973,7 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_installation_status_file_truncation_over_size_limit_with_error(self):
         """ Test truncation logic will apply to installation with errors over the size limit """
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -993,6 +1047,7 @@ class TestStatusHandler(unittest.TestCase):
 
         # Start truncation performance test
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = True
+        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True
         truncate_start_time = time.time()
         for i in range(0, 301):
             test_packages, test_package_versions = self.__set_up_packages_func(500)
@@ -1017,6 +1072,18 @@ class TestStatusHandler(unittest.TestCase):
         # Format the result
         formatted_time = "%d days, %d hours, %d minutes, %.6f seconds" % (int(days), int(hours), int(minutes), seconds)
         return formatted_time
+
+    # Setup functions for writing log to temp and read output
+    def __create_temp_file_and_set_stdout(self):
+        # Set up create temp file for log and set sys.stdout to it
+        self.temp_stdout = tempfile.NamedTemporaryFile(delete=False, mode="w+")
+        self.saved_stdout = sys.stdout  # Save the original stdout
+        sys.stdout = self.temp_stdout   # set it to the temporary file
+
+    def __remove_temp_file_reset_stdout(self):
+        sys.stdout = self.saved_stdout  # redirect to original stdout
+        self.temp_stdout.close()
+        os.remove(self.temp_stdout.name)    # Remove the temporary file
 
     def __read_temp_log_and_assert(self, expected_string):
         self.temp_stdout.flush()
