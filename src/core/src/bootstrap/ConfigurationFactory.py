@@ -102,7 +102,7 @@ class ConfigurationFactory(object):
                 'component_args': ['env_layer', 'composite_logger'],
                 'component_kwargs': {
                     'execution_parameters': str(argv),
-                    'accept_package_eula': self.accept_package_eula(),
+                    'accept_package_eula': self.is_package_eula_accepted(),
                 }
             }
         }
@@ -301,7 +301,7 @@ class ConfigurationFactory(object):
                     print("Failed to connect IMDS end point after 5 retries. This is expected in Arc VMs. VMCloudType is set to Arc.\n")
                     return Constants.VMCloudType.ARC
 
-    def accept_package_eula(self):
+    def is_package_eula_accepted(self):
         """ Reads customer provided config on EULA acceptance from disk and returns a boolean.
             NOTE: This is a temporary solution and will be deprecated no later than TBD date"""
         if not os.path.exists(Constants.Paths.EULA_SETTINGS):
