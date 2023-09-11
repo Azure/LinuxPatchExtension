@@ -23,7 +23,7 @@ from core.src.bootstrap.Constants import Constants
 
 
 class ExecutionConfig(object):
-    def __init__(self, env_layer, composite_logger, execution_parameters):
+    def __init__(self, env_layer, composite_logger, execution_parameters, accept_package_eula):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.execution_parameters = eval(execution_parameters)
@@ -85,6 +85,9 @@ class ExecutionConfig(object):
             self.__transform_execution_config_for_auto_assessment()
         else:
             self.composite_logger.log_debug("Not executing in auto-assessment mode.")
+
+        # EULA config
+        self.accept_package_eula = accept_package_eula
 
     def __transform_execution_config_for_auto_assessment(self):
         self.activity_id = str(uuid.uuid4())

@@ -415,10 +415,6 @@ class ZypperPackageManager(PackageManager):
 
     def install_updates_fail_safe(self, excluded_packages):
         return
-
-    def accept_eula_for_patches(self):
-        """ Accepts eula for patches based on the config provided by customers """
-        pass
     # endregion
 
     # region Package Information

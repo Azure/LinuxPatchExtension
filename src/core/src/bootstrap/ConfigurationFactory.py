@@ -16,6 +16,8 @@
 
 """ Configure factory. This module populates configuration based on package manager and environment, e.g. TEST/DEV/PROD"""
 from __future__ import print_function
+
+import json
 import os
 import time
 from core.src.bootstrap.Constants import Constants
@@ -91,8 +93,7 @@ class ConfigurationFactory(object):
         configuration_key = str.lower('{0}_config'.format(str(env)))
         return self.bootstrap_configurations[configuration_key]
 
-    @staticmethod
-    def get_arguments_configuration(argv):
+    def get_arguments_configuration(self, argv):
         """ Composes the configuration with the passed in arguments. """
         arguments_config = {
             'execution_arguments': str(argv),
@@ -100,7 +101,8 @@ class ConfigurationFactory(object):
                 'component': ExecutionConfig,
                 'component_args': ['env_layer', 'composite_logger'],
                 'component_kwargs': {
-                    'execution_parameters': str(argv)
+                    'execution_parameters': str(argv),
+                    'accept_package_eula': self.accept_package_eula(),
                 }
             }
         }
@@ -298,4 +300,56 @@ class ConfigurationFactory(object):
                 else:
                     print("Failed to connect IMDS end point after 5 retries. This is expected in Arc VMs. VMCloudType is set to Arc.\n")
                     return Constants.VMCloudType.ARC
+
+    def accept_package_eula(self):
+        """ Reads customer provided config on EULA acceptance from disk and returns a boolean.
+            NOTE: This is a temporary solution and will be deprecated no later than TBD date"""
+        if not os.path.exists(Constants.Paths.EULA_SETTINGS):
+            print("NOT accepting EULA for any patch as no corresponding EULA Settings found on the VM")
+            return False
+
+        try:
+            eula_settings = json.loads(self.read_with_retry(Constants.Paths.EULA_SETTINGS) or 'null')
+            if eula_settings is not None \
+                    and Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES in eula_settings \
+                    and eula_settings[Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES] is True:
+                print("Accept EULA set to True in customer config")
+                return True
+            else:
+                print("Accept EULA not found to be set to True in customer config")
+                return False
+        except Exception as error:
+            print("Error occurred while reading and parsing EULA settings. Not accepting EULA for any patch. Error=[{0}]".format(repr(error)))
+            return False
+
+    @staticmethod
+    def open(file_path, mode):
+        """ Provides a file handle to the file_path requested using implicit redirection where required """
+        for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
+            try:
+                return open(file_path, mode)
+            except Exception as error:
+                if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
+                    time.sleep(i + 1)
+                else:
+                    raise Exception("Unable to open {0} (retries exhausted). Error: {1}.".format(str(file_path), repr(error)))
+
+    def __obtain_file_handle(self, file_path_or_handle, mode='a+'):
+        """ Pass-through for handle. For path, resolution and handle open with retry. """
+        is_path = False
+        if isinstance(file_path_or_handle, str) or not (hasattr(file_path_or_handle, 'read') and hasattr(file_path_or_handle, 'write')):
+            is_path = True
+            file_path_or_handle = self.open(file_path_or_handle, mode)
+        file_handle = file_path_or_handle
+        return file_handle, is_path
+
+    def read_with_retry(self, file_path_or_handle):
+        """ Reads all content from a given file path in a single operation """
+        if isinstance(file_path_or_handle, str):
+            file_handle, was_path = self.__obtain_file_handle(file_path_or_handle, 'r')
+            value = file_handle.read()
+            if was_path:  # what was passed in was not a file handle, so close the handle that was init here
+                file_handle.close()
+            return value
+        return None
     # endregion

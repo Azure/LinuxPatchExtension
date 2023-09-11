@@ -34,6 +34,10 @@ class AptitudePackageManager(PackageManager):
         super(AptitudePackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
 
         security_list_guid = str(uuid.uuid4())
+
+        # Accept EULA (End User License Agreement) as per the EULA settings set by user
+        optional_accept_eula_in_cmd = "ACCEPT_EULA=Y" if execution_config.accept_package_eula else ""
+
         # Repo refresh
         self.repo_refresh = 'sudo apt-get -q update'
 
@@ -44,15 +48,12 @@ class AptitudePackageManager(PackageManager):
         self.single_package_check_versions = 'apt-cache madison <PACKAGE-NAME>'
         self.single_package_find_installed_dpkg = 'sudo dpkg -s <PACKAGE-NAME>'
         self.single_package_find_installed_apt = 'sudo apt list --installed <PACKAGE-NAME>'
-        self.single_package_upgrade_simulation_cmd = '''DEBIAN_FRONTEND=noninteractive apt-get -y --only-upgrade true -s install '''
-        self.single_package_dependency_resolution_template = 'DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 apt-get -y --only-upgrade true -s install <PACKAGE-NAME> '
+        self.single_package_upgrade_simulation_cmd = '''DEBIAN_FRONTEND=noninteractive ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true -s install '''
+        self.single_package_dependency_resolution_template = 'DEBIAN_FRONTEND=noninteractive ' + optional_accept_eula_in_cmd + ' LANG=en_US.UTF8 apt-get -y --only-upgrade true -s install <PACKAGE-NAME> '
 
         # Install update
         # --only-upgrade: upgrade only single package (only if it is installed)
-        self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive apt-get -y --only-upgrade true install '''
-
-        # Accept EULA (End User License Agreement) as per the EULA settings set by user
-        self.accept_eula_for_patches()
+        self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true install '''
 
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
@@ -291,28 +292,6 @@ class AptitudePackageManager(PackageManager):
 
     def install_updates_fail_safe(self, excluded_packages):
         return
-
-    def accept_eula_for_patches(self):
-        """ Accepts eula for patches based on the config provided by customers """
-        if not os.path.exists(Constants.Paths.EULA_SETTINGS):
-            self.composite_logger.log_warning("NOT accepting EULA for any patch as no corresponding EULA Settings found on the VM")
-            return
-
-        try:
-            eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.Paths.EULA_SETTINGS, raise_if_not_found=False) or 'null')
-
-            if eula_settings is not None \
-                    and Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES in eula_settings \
-                    and eula_settings[Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES] is True:
-                self.composite_logger.log_debug("Accepting EULA for all patches as per the EULA setting found on VM")
-                self.single_package_upgrade_simulation_cmd += " ACCEPT_EULA=Y"
-                self.single_package_dependency_resolution_template += " ACCEPT_EULA=Y"
-                self.single_package_upgrade_cmd += " ACCEPT_EULA=Y"
-            else:
-                self.composite_logger.log_warning("NOT accepting EULA for any patch as no corresponding acceptance for EULA found on the VM")
-                return
-        except Exception as error:
-            self.composite_logger.log_warning("Error occurred while reading and parsing EULA settings. Not accepting EULA for any patch. Error=[{0}]".format(repr(error)))
 
     # endregion
 

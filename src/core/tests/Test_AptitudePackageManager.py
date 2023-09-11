@@ -26,7 +26,8 @@ from core.src.package_managers import AptitudePackageManager, UbuntuProClient
 
 class TestAptitudePackageManager(unittest.TestCase):
     def setUp(self):
-        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        self.argument_composer = ArgumentComposer().get_composed_arguments()
+        self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
         self.container = self.runtime.container
 
     def tearDown(self):
@@ -575,10 +576,13 @@ class TestAptitudePackageManager(unittest.TestCase):
             "LastModified": "2023-08-29"
         }
         self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
-        package_manager.accept_eula_for_patches()
-        self.assertTrue("ACCEPT_EULA=Y" in package_manager.single_package_upgrade_simulation_cmd)
-        self.assertTrue("ACCEPT_EULA=Y" in package_manager.single_package_dependency_resolution_template)
-        self.assertTrue("ACCEPT_EULA=Y" in package_manager.single_package_upgrade_cmd)
+        self.runtime_for_test = RuntimeCompositor(self.argument_composer, True, Constants.APT)
+        self.container_for_test = self.runtime_for_test.container
+        package_manager_for_test = self.container_for_test.get('package_manager')
+
+        self.assertTrue("ACCEPT_EULA=Y" in package_manager_for_test.single_package_upgrade_simulation_cmd)
+        self.assertTrue("ACCEPT_EULA=Y" in package_manager_for_test.single_package_dependency_resolution_template)
+        self.assertTrue("ACCEPT_EULA=Y" in package_manager_for_test.single_package_upgrade_cmd)
 
     def test_eula_not_accepted_for_patches(self):
         package_manager = self.container.get('package_manager')
@@ -594,7 +598,8 @@ class TestAptitudePackageManager(unittest.TestCase):
             "LastModified": "2023-08-29"
         }
         self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
-        package_manager.accept_eula_for_patches()
+        self.runtime_for_test = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        self.container_for_test = self.runtime_for_test.container
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
@@ -606,7 +611,8 @@ class TestAptitudePackageManager(unittest.TestCase):
             "LastModified": "2023-08-29"
         }
         self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
-        package_manager.accept_eula_for_patches()
+        self.runtime_for_test = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        self.container_for_test = self.runtime_for_test.container
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
@@ -621,7 +627,8 @@ class TestAptitudePackageManager(unittest.TestCase):
         # Empty eula settings file
         eula_settings = ''
         self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
-        package_manager.accept_eula_for_patches()
+        self.runtime_for_test = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        self.container_for_test = self.runtime_for_test.container
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)
@@ -629,7 +636,8 @@ class TestAptitudePackageManager(unittest.TestCase):
         # Empty eula settings file
         eula_settings = None
         self.runtime.env_layer.file_system.write_with_retry(Constants.Paths.EULA_SETTINGS, '{0}'.format(json.dumps(eula_settings)), mode='w+')
-        package_manager.accept_eula_for_patches()
+        self.runtime_for_test = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
+        self.container_for_test = self.runtime_for_test.container
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_simulation_cmd)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager.single_package_upgrade_cmd)

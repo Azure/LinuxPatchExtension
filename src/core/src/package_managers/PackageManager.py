@@ -329,10 +329,6 @@ class PackageManager(object):
         install_result = self.get_installation_status(code, out, exec_cmd, package_and_dependencies[0], package_and_dependency_versions[0], simulate)
         return install_result
 
-    def accept_eula_for_patches(self):
-        """ Accepts eula for patches based on the config provided by customers """
-        pass
-
     # endregion
 
     # region Package Information
