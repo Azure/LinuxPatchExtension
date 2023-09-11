@@ -1224,6 +1224,7 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
         # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
+        self.__set_up_timestamp_two_minute_behind(runtime)
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Critical")
@@ -1276,6 +1277,7 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"libgcc_5.60.7-8.1_Ubuntu_16.04\", \"name\": \"libgcc\", \"version\": \"5.60.7-8.1\", \"classifications\": [\"Other\"]},
         # {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
+        self.__set_up_timestamp_two_minute_behind(runtime)
         patch_count_for_test = 99997
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Security")
@@ -1327,6 +1329,7 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
         #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
+        self.__set_up_timestamp_two_minute_behind(runtime)
         patch_count_for_assessment = random.randint(798, 1100)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
@@ -1473,6 +1476,7 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
         #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
+        self.__set_up_timestamp_two_minute_behind(runtime)
         patch_count_for_assessment = 3
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
@@ -1551,6 +1555,7 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
         #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
+        self.__set_up_timestamp_two_minute_behind(runtime)
         patch_count_for_assessment = 7
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
@@ -1627,6 +1632,7 @@ class TestCoreMain(unittest.TestCase):
         # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Other\"]},
         #  {\"patchId\": \"libgoa-1_0-0_3.20.5-9.6_Ubuntu_16.04\", \"name\": \"libgoa-1_0-0\", \"version\": \"3.20.5-9.6\", \"classifications\": [\"Other\"]}
 
+        self.__set_up_timestamp_two_minute_behind(runtime)
         patch_count_for_assessment = 19998
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
@@ -1700,6 +1706,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.set_legacy_test_type('HappyPath')
         CoreMain(argument_composer.get_composed_arguments())
 
+        self.__set_up_timestamp_two_minute_behind(runtime)
         patch_count_for_assessment = random.randint(950, 1200)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
@@ -1784,6 +1791,7 @@ class TestCoreMain(unittest.TestCase):
         # Test code add 2 additional packages
         # {\"patchId\": \"kernel-default_4.4.49-92.11.1_Ubuntu_16.04\", \"name\": \"kernel-default\", \"version\": \"4.4.49-92.11.1\", \"classifications\": [\"Security\"]},
 
+        self.__set_up_timestamp_two_minute_behind(runtime)
         patch_count_for_assessment = 598
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_assessment)
         runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
@@ -1864,6 +1872,10 @@ class TestCoreMain(unittest.TestCase):
             test_package_versions.append('2:4.4.5+dfsg-2ubuntu5.4')
 
         return test_packages, test_package_versions
+
+    def __set_up_timestamp_two_minute_behind(self, runtime):
+        current_time = datetime.datetime.now() - datetime.timedelta(minutes=2)
+        runtime.status_handler.check_one_minute_timestamp(current_time)
 
 if __name__ == '__main__':
     unittest.main()

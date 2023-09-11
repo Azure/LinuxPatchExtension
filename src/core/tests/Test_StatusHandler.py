@@ -673,7 +673,6 @@ class TestStatusHandler(unittest.TestCase):
         # Reset sys.stdout, close and delete tmp
         self.__remove_temp_file_reset_stdout()
 
-
     def test_assessment_status_file_truncation_under_size_limit(self):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
@@ -715,9 +714,10 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_assessment_status_file_truncation_over_size_limit(self):
         """ Test truncation logic will apply to assessment when it is over the size limit """
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
+        # Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+        self.__set_up_timestamp_two_minute_behind()
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -759,6 +759,7 @@ class TestStatusHandler(unittest.TestCase):
         Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+        self.__set_up_timestamp_two_minute_behind()
 
         patch_count_for_test = 100000
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -798,6 +799,7 @@ class TestStatusHandler(unittest.TestCase):
         Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+        self.__set_up_timestamp_two_minute_behind()
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -854,6 +856,7 @@ class TestStatusHandler(unittest.TestCase):
         Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.__set_up_timestamp_two_minute_behind()
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -894,6 +897,7 @@ class TestStatusHandler(unittest.TestCase):
         Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.__set_up_timestamp_two_minute_behind()
 
         patch_count_for_test = random.randint(780, 1100)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -935,6 +939,7 @@ class TestStatusHandler(unittest.TestCase):
         Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.__set_up_timestamp_two_minute_behind()
 
         patch_count_for_test = 100000
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -976,6 +981,7 @@ class TestStatusHandler(unittest.TestCase):
         Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.__set_up_timestamp_two_minute_behind()
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -1090,6 +1096,10 @@ class TestStatusHandler(unittest.TestCase):
         with open(self.temp_stdout.name, 'r') as temp_file:
             captured_log_output = temp_file.read()
             self.assertIn(expected_string, captured_log_output)
+
+    def __set_up_timestamp_two_minute_behind(self):
+        current_time = datetime.datetime.now() - datetime.timedelta(minutes=2)
+        self.runtime.status_handler.check_one_minute_timestamp(current_time)
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):

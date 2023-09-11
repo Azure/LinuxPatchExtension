@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import datetime
 import collections
 import copy
 import glob
@@ -20,7 +21,6 @@ import json
 import os
 import re
 import shutil
-from datetime import datetime
 import time
 from core.src.bootstrap.Constants import Constants
 
@@ -897,11 +897,14 @@ class StatusHandler(object):
         if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
             self.composite_logger.log_debug("No packages truncated")
 
-    def check_one_minute_timestamp(self, truncation_timestamp):
-        if truncation_timestamp is None:
-            truncation_timestamp = datetime.now()
+    def set_truncation_timestamp(self, timestamp):
+        return timestamp
 
-        return (datetime.now() - truncation_timestamp).total_seconds() >= 60
+    def check_one_minute_timestamp(self, timestamp):
+        if self.__truncation_timestamp is None:
+            self.__truncation_timestamp = self.set_truncation_timestamp(timestamp)
+
+        return (timestamp - self.__truncation_timestamp).total_seconds() >= 60
 
     def __set_force_truncation_true(self, status):
         if self.__is_file_truncated and (status == Constants.STATUS_SUCCESS or status == Constants.STATUS_ERROR):
@@ -911,14 +914,14 @@ class StatusHandler(object):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload byte size on disk
 
         if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
-            is_one_minute_passed = self.check_one_minute_timestamp(self.__truncation_timestamp)
+            is_one_minute_passed = self.check_one_minute_timestamp(datetime.datetime.now())
 
             if is_one_minute_passed or Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION:
                 truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
                 status_file_payload_json_dumps = json.dumps(truncated_status_file)
 
             if is_one_minute_passed:
-                self.__truncation_timestamp = datetime.now()    # Set timestamp to newer time and check for next 1 min interval
+                self.__truncation_timestamp = datetime.datetime.now()    # Set timestamp to newer time and check for next 1 min interval
 
         return status_file_payload_json_dumps
 
