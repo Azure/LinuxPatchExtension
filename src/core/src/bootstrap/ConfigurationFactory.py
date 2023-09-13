@@ -16,8 +16,6 @@
 
 """ Configure factory. This module populates configuration based on package manager and environment, e.g. TEST/DEV/PROD"""
 from __future__ import print_function
-
-import json
 import os
 import time
 from core.src.bootstrap.Constants import Constants
@@ -93,7 +91,8 @@ class ConfigurationFactory(object):
         configuration_key = str.lower('{0}_config'.format(str(env)))
         return self.bootstrap_configurations[configuration_key]
 
-    def get_arguments_configuration(self, argv):
+    @staticmethod
+    def get_arguments_configuration(argv):
         """ Composes the configuration with the passed in arguments. """
         arguments_config = {
             'execution_arguments': str(argv),
@@ -101,7 +100,7 @@ class ConfigurationFactory(object):
                 'component': ExecutionConfig,
                 'component_args': ['env_layer', 'composite_logger'],
                 'component_kwargs': {
-                    'execution_parameters': str(argv),
+                    'execution_parameters': str(argv)
                 }
             }
         }

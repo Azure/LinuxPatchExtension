@@ -292,7 +292,6 @@ class AptitudePackageManager(PackageManager):
 
     def install_updates_fail_safe(self, excluded_packages):
         return
-
     # endregion
 
     # region Package Information
