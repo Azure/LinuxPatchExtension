@@ -186,20 +186,23 @@ class ExecutionConfig(object):
         """ Reads customer provided config on EULA acceptance from disk and returns a boolean.
             NOTE: This is a temporary solution and will be deprecated no later than TBD date"""
         if not os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS):
-            print("NOT accepting EULA for any patch as no corresponding EULA Settings found on the VM")
+            self.composite_logger.log_debug("NOT accepting EULA for any patch as no corresponding EULA Settings found on the VM")
             return False
 
         try:
             eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.EULA_SETTINGS) or 'null')
+            self.composite_logger.log_debug("EULA config values read from disk: AcceptEULAForAllPatches=[{0}] AcceptedBy=[{1}] LastModified=[{2}]"
+                                            .format(str(Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES), str(Constants.EulaSettings.ACCEPTED_BY),
+                                                    str(Constants.EulaSettings.LAST_MODIFIED)))
             if eula_settings is not None \
                     and Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES in eula_settings \
                     and eula_settings[Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES] is True:
-                print("Accept EULA set to True in customer config")
+                self.composite_logger.log_debug("Accept EULA set to True in customer config")
                 return True
             else:
-                print("Accept EULA not found to be set to True in customer config")
+                self.composite_logger.log_debug("Accept EULA not found to be set to True in customer config")
                 return False
         except Exception as error:
-            print("Error occurred while reading and parsing EULA settings. Not accepting EULA for any patch. Error=[{0}]".format(repr(error)))
+            self.composite_logger.log_debug("Error occurred while reading and parsing EULA settings. Not accepting EULA for any patch. Error=[{0}]".format(repr(error)))
             return False
 
