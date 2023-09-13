@@ -64,9 +64,7 @@ class TestConfigurationFactory(unittest.TestCase):
         self.assertEqual(config['config_env'], Constants.DEV)
 
     def test_eula_acceptance_file_read_success(self):
-        bootstrapper = Bootstrapper(self.argument_composer, capture_stdout=False)
-        config_factory = bootstrapper.configuration_factory
-        self.assertTrue(config_factory)
+        self.runtime.stop()
 
         # Accept EULA set to true
         eula_settings = {
@@ -74,54 +72,67 @@ class TestConfigurationFactory(unittest.TestCase):
             "AcceptedBy": "TestSetup",
             "LastModified": "2023-08-29"
         }
-        f = open(Constants.Paths.EULA_SETTINGS, "w+")
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
         f.write(json.dumps(eula_settings))
         f.close()
-        config = config_factory.get_arguments_configuration(self.argument_composer)
-        self.assertEqual(config['execution_config']['component_kwargs']['accept_package_eula'], True)
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, True)
+        runtime.stop()
 
-        # Accept EULA set to true
+        # Accept EULA set to false
         eula_settings = {
             "AcceptEULAForAllPatches": False,
             "AcceptedBy": "TestSetup",
             "LastModified": "2023-08-29"
         }
-        f = open(Constants.Paths.EULA_SETTINGS, "w+")
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
         f.write(json.dumps(eula_settings))
         f.close()
-        config = config_factory.get_arguments_configuration(self.argument_composer)
-        self.assertEqual(config['execution_config']['component_kwargs']['accept_package_eula'], False)
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        runtime.stop()
 
     def test_eula_acceptance_file_read_when_no_data_found(self):
-        bootstrapper = Bootstrapper(self.argument_composer, capture_stdout=False)
-        config_factory = bootstrapper.configuration_factory
-        self.assertTrue(config_factory)
+        self.runtime.stop()
 
         # EULA file does not exist
-        config = config_factory.get_arguments_configuration(self.argument_composer)
-        self.assertEqual(config['execution_config']['component_kwargs']['accept_package_eula'], False)
-        self.assertFalse(os.path.exists(Constants.Paths.EULA_SETTINGS))
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        self.assertFalse(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        runtime.stop()
 
         # EULA settings set to None
         eula_settings = None
-        f = open(Constants.Paths.EULA_SETTINGS, "w+")
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
         f.write(json.dumps(eula_settings))
         f.close()
-        config = config_factory.get_arguments_configuration(self.argument_composer)
-        self.assertEqual(config['execution_config']['component_kwargs']['accept_package_eula'], False)
-        self.assertTrue(os.path.exists(Constants.Paths.EULA_SETTINGS))
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        runtime.stop()
 
         # AcceptEULAForAllPatches not set in config
         eula_settings = {
             "AcceptedBy": "TestSetup",
             "LastModified": "2023-08-29"
         }
-        f = open(Constants.Paths.EULA_SETTINGS, "w+")
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
         f.write(json.dumps(eula_settings))
         f.close()
-        config = config_factory.get_arguments_configuration(self.argument_composer)
-        self.assertEqual(config['execution_config']['component_kwargs']['accept_package_eula'], False)
-        self.assertTrue(os.path.exists(Constants.Paths.EULA_SETTINGS))
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        runtime.stop()
 
         # AcceptEULAForAllPatches not set to a boolean
         eula_settings = {
@@ -129,17 +140,23 @@ class TestConfigurationFactory(unittest.TestCase):
             "AcceptedBy": "TestSetup",
             "LastModified": "2023-08-29"
         }
-        f = open(Constants.Paths.EULA_SETTINGS, "w+")
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
         f.write(json.dumps(eula_settings))
         f.close()
-        config = config_factory.get_arguments_configuration(self.argument_composer)
-        self.assertEqual(config['execution_config']['component_kwargs']['accept_package_eula'], False)
-        self.assertTrue(os.path.exists(Constants.Paths.EULA_SETTINGS))
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        runtime.stop()
 
-        self.backup_read_with_retry = config_factory.read_with_retry
-        config_factory.read_with_retry = self.mock_read_with_retry_raise_exception
-        self.assertTrue(os.path.exists(Constants.Paths.EULA_SETTINGS))
-        self.assertRaises(Exception, config_factory.get_arguments_configuration(self.argument_composer))
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        self.backup_read_with_retry = runtime.env_layer.file_system.read_with_retry
+        runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
+        self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        self.assertRaises(Exception, container.get('execution_config'))
+        runtime.stop()
 
 
 if __name__ == '__main__':

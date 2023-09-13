@@ -51,8 +51,10 @@ class Constants(object):
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
     MAX_AUTO_ASSESSMENT_WAIT_FOR_MAIN_CORE_EXEC_IN_MINUTES = 3 * 60
 
-    class Paths(EnumBackport):
+    class SystemPaths(EnumBackport):
         SYSTEMD_ROOT = "/etc/systemd/system/"
+
+    class AzGPSPaths(EnumBackport):
         EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
 
     class EnvSettings(EnumBackport):

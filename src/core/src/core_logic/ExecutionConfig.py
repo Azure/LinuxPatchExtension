@@ -23,7 +23,7 @@ from core.src.bootstrap.Constants import Constants
 
 
 class ExecutionConfig(object):
-    def __init__(self, env_layer, composite_logger, execution_parameters, accept_package_eula):
+    def __init__(self, env_layer, composite_logger, execution_parameters):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.execution_parameters = eval(execution_parameters)
@@ -87,7 +87,7 @@ class ExecutionConfig(object):
             self.composite_logger.log_debug("Not executing in auto-assessment mode.")
 
         # EULA config
-        self.accept_package_eula = accept_package_eula
+        self.accept_package_eula = self.__is_package_eula_accepted()
 
     def __transform_execution_config_for_auto_assessment(self):
         self.activity_id = str(uuid.uuid4())
@@ -181,4 +181,25 @@ class ExecutionConfig(object):
         if not os.path.exists(self.temp_folder):
             self.composite_logger.log_debug("Temp folder does not exist, creating one from extension core. [Path={0}]".format(str(self.temp_folder)))
             os.mkdir(self.temp_folder)
+
+    def __is_package_eula_accepted(self):
+        """ Reads customer provided config on EULA acceptance from disk and returns a boolean.
+            NOTE: This is a temporary solution and will be deprecated no later than TBD date"""
+        if not os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS):
+            print("NOT accepting EULA for any patch as no corresponding EULA Settings found on the VM")
+            return False
+
+        try:
+            eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.EULA_SETTINGS) or 'null')
+            if eula_settings is not None \
+                    and Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES in eula_settings \
+                    and eula_settings[Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES] is True:
+                print("Accept EULA set to True in customer config")
+                return True
+            else:
+                print("Accept EULA not found to be set to True in customer config")
+                return False
+        except Exception as error:
+            print("Error occurred while reading and parsing EULA settings. Not accepting EULA for any patch. Error=[{0}]".format(repr(error)))
+            return False
 
