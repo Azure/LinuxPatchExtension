@@ -579,6 +579,102 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_upgrade_cmd)
 
+    def test_eula_acceptance_file_read_success(self):
+        self.runtime.stop()
+
+        # Accept EULA set to true
+        eula_settings = {
+            "AcceptEULAForAllPatches": True,
+            "AcceptedBy": "TestSetup",
+            "LastModified": "2023-08-29"
+        }
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
+        f.write(json.dumps(eula_settings))
+        f.close()
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, True)
+        runtime.stop()
+
+        # Accept EULA set to false
+        eula_settings = {
+            "AcceptEULAForAllPatches": False,
+            "AcceptedBy": "TestSetup",
+            "LastModified": "2023-08-29"
+        }
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
+        f.write(json.dumps(eula_settings))
+        f.close()
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        runtime.stop()
+
+    def test_eula_acceptance_file_read_when_no_data_found(self):
+        self.runtime.stop()
+
+        # EULA file does not exist
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        self.assertFalse(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        runtime.stop()
+
+        # EULA settings set to None
+        eula_settings = None
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
+        f.write(json.dumps(eula_settings))
+        f.close()
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        runtime.stop()
+
+        # AcceptEULAForAllPatches not set in config
+        eula_settings = {
+            "AcceptedBy": "TestSetup",
+            "LastModified": "2023-08-29"
+        }
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
+        f.write(json.dumps(eula_settings))
+        f.close()
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        runtime.stop()
+
+        # AcceptEULAForAllPatches not set to a boolean
+        eula_settings = {
+            "AcceptEULAForAllPatches": "test",
+            "AcceptedBy": "TestSetup",
+            "LastModified": "2023-08-29"
+        }
+        f = open(Constants.AzGPSPaths.EULA_SETTINGS, "w+")
+        f.write(json.dumps(eula_settings))
+        f.close()
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        container = runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.accept_package_eula, False)
+        self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        runtime.stop()
+
+        # EULA not accepted for cases where file read raises an Exception
+        runtime = RuntimeCompositor(self.argument_composer, True, package_manager_name=Constants.APT)
+        self.backup_read_with_retry = runtime.env_layer.file_system.read_with_retry
+        runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
+        exec_config = ExecutionConfig(runtime.env_layer, runtime.composite_logger, str(self.argument_composer))
+        self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
+        self.assertEqual(exec_config.accept_package_eula, False)
+        runtime.stop()
+
 
 if __name__ == '__main__':
     unittest.main()
