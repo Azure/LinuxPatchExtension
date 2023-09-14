@@ -214,6 +214,15 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue('APT::Periodic::Update-Package-Lists "0"' in os_patch_configuration_settings)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in os_patch_configuration_settings)
 
+    def test_get_current_auto_os_updates_with_no_os_patch_configuration_settings_file(self):
+        # os_patch_configuration_settings_file does not exist, hence current os patch state is marked as Disabled
+        package_manager = self.container.get('package_manager')
+        package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
+
+        self.assertTrue(package_manager.get_current_auto_os_patch_state() == Constants.AutomaticOSPatchStates.DISABLED)
+
+        package_manager.get_current_auto_os_patch_state = self.runtime.get_current_auto_os_patch_state
+
     def test_disable_auto_os_update_failure(self):
         # disable with non existing log file
         package_manager = self.container.get('package_manager')
