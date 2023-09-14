@@ -31,7 +31,7 @@ class SystemctlManager(object):
         self.service_desc = service_info.service_desc
         self.service_exec_path = service_info.service_exec_path
 
-        self.__systemd_path = Constants.Paths.SYSTEMD_ROOT
+        self.__systemd_path = Constants.SystemPaths.SYSTEMD_ROOT
         self.systemctl_daemon_reload_cmd = "sudo systemctl daemon-reload"
         self.systemctl_version = "systemctl --version"
 
