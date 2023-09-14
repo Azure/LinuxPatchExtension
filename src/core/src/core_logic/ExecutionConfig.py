@@ -87,7 +87,7 @@ class ExecutionConfig(object):
             self.composite_logger.log_debug("Not executing in auto-assessment mode.")
 
         # EULA config
-        self.accept_package_eula = self.__is_package_eula_accepted()
+        self.accept_package_eula = self.__is_eula_accepted_for_all_patches()
 
     def __transform_execution_config_for_auto_assessment(self):
         self.activity_id = str(uuid.uuid4())
@@ -182,27 +182,31 @@ class ExecutionConfig(object):
             self.composite_logger.log_debug("Temp folder does not exist, creating one from extension core. [Path={0}]".format(str(self.temp_folder)))
             os.mkdir(self.temp_folder)
 
-    def __is_package_eula_accepted(self):
+    def __is_eula_accepted_for_all_patches(self):
         """ Reads customer provided config on EULA acceptance from disk and returns a boolean.
-            NOTE: This is a temporary solution and will be deprecated no later than TBD date"""
-        if not os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS):
-            self.composite_logger.log_debug("NOT accepting EULA for any patch as no corresponding EULA Settings found on the VM")
-            return False
-
+            NOTE: This is a temporary solution and will be deprecated soon """
+        is_eula_accepted = False
         try:
-            eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.EULA_SETTINGS) or 'null')
-            self.composite_logger.log_debug("EULA config values read from disk: AcceptEULAForAllPatches=[{0}] AcceptedBy=[{1}] LastModified=[{2}]"
-                                            .format(str(Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES), str(Constants.EulaSettings.ACCEPTED_BY),
-                                                    str(Constants.EulaSettings.LAST_MODIFIED)))
-            if eula_settings is not None \
-                    and Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES in eula_settings \
-                    and eula_settings[Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES] is True:
-                self.composite_logger.log_debug("Accept EULA set to True in customer config")
-                return True
+            if os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS):
+                eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.EULA_SETTINGS) or 'null')
+                accept_eula_for_all_patches = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES)
+                accepted_by = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPTED_BY)
+                last_modified = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
+                if accept_eula_for_all_patches is not None and accept_eula_for_all_patches is True:
+                    is_eula_accepted = True
+                self.composite_logger.log_debug("EULA config values from disk: [AcceptEULAForAllPatches={0}] [AcceptedBy={1}] [LastModified={2}]. Computed value of [IsEULAAccepted={3}]"
+                                                .format(str(accept_eula_for_all_patches), str(accepted_by), str(last_modified), str(is_eula_accepted)))
             else:
-                self.composite_logger.log_debug("Accept EULA not found to be set to True in customer config")
-                return False
+                self.composite_logger.log_debug("No EULA Settings found on the VM. Computed value of [IsEULAAccepted={0}]".format(str(is_eula_accepted)))
         except Exception as error:
             self.composite_logger.log_debug("Error occurred while reading and parsing EULA settings. Not accepting EULA for any patch. Error=[{0}]".format(repr(error)))
-            return False
+
+        return is_eula_accepted
+
+    @staticmethod
+    def __fetch_specific_eula_setting(settings_source, setting_to_fetch):
+        """ Returns the specific setting value from eula_settings_source or None if not found """
+        if settings_source is not None and setting_to_fetch is not None and setting_to_fetch in settings_source:
+            return settings_source[setting_to_fetch]
+        return None
 
