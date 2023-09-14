@@ -192,7 +192,7 @@ class ExecutionConfig(object):
                 accept_eula_for_all_patches = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES)
                 accepted_by = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPTED_BY)
                 last_modified = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
-                if accept_eula_for_all_patches is not None and accept_eula_for_all_patches is True:
+                if accept_eula_for_all_patches is not None and accept_eula_for_all_patches in [True, 'True', 'true', '1', 1]:
                     is_eula_accepted = True
                 self.composite_logger.log_debug("EULA config values from disk: [AcceptEULAForAllPatches={0}] [AcceptedBy={1}] [LastModified={2}]. Computed value of [IsEULAAccepted={3}]"
                                                 .format(str(accept_eula_for_all_patches), str(accepted_by), str(last_modified), str(is_eula_accepted)))
