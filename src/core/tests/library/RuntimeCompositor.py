@@ -41,7 +41,7 @@ except ImportError:
 
 
 class RuntimeCompositor(object):
-    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE):
+    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE, test_type="HappyPath"):
         # Init data
         self.current_env = Constants.DEV
         os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
@@ -72,7 +72,7 @@ class RuntimeCompositor(object):
         # Reconfigure env layer for legacy mode tests
         self.env_layer = bootstrapper.env_layer
         if legacy_mode:
-            self.legacy_env_layer_extensions = LegacyEnvLayerExtensions(package_manager_name)
+            self.legacy_env_layer_extensions = LegacyEnvLayerExtensions(package_manager_name, test_type)
             self.reconfigure_env_layer_to_legacy_mode()
 
         # Core components

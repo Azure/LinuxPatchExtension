@@ -54,6 +54,9 @@ class YumPackageManager(PackageManager):
         self.yum_ps_prerequisite = 'sudo yum -y install yum-plugin-ps'
         self.yum_ps = 'sudo yum ps'
 
+        # check yum version
+        self.yum_version_check = "sudo yum --version"
+
         # auto OS updates
         self.current_auto_os_update_service = None
         self.os_patch_configuration_settings_file_path = ''
@@ -96,6 +99,8 @@ class YumPackageManager(PackageManager):
                                        "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
         
         self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
+
+        self.yum_version = self.get_yum_version()
 
     def refresh_repo(self):
         pass  # Refresh the repo is no ops in YUM
@@ -282,7 +287,141 @@ class YumPackageManager(PackageManager):
 
         return False
 
-    def extract_dependencies(self, output, packages):
+    def extract_dependencies_yum_4_or_higher(self, output, packages):
+        # Sample 1 (Updates are available and there is no new package installation required):
+        # Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
+        #
+        #Last metadata expiration check: 0:08:56 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
+        #Package selinux-policy-3.14.3-95.el8_6.6.noarch is already installed.
+        #Dependencies resolved.
+        #==================================================================================================
+        # Package                   Arch    Version           Repository                               Size
+        #==================================================================================================
+        #Upgrading:
+        # selinux-policy            noarch  3.14.3-95.el8_6.8 rhel-8-for-x86_64-baseos-eus-rhui-rpms  651 k
+        # selinux-policy-targeted   noarch  3.14.3-95.el8_6.8 rhel-8-for-x86_64-baseos-eus-rhui-rpms   15 M
+        #
+        #Transaction Summary
+        #==================================================================================================
+        #Upgrade  2 Packages
+        #
+        #Total download size: 16 M
+        #Operation aborted..
+        
+        # Sample 2 (There are no new updates but there are new package installations):
+        # Sample output for the cmd 'sudo yum update --assumeno kernel-modules.x86_64' is :
+        #
+        #Last metadata expiration check: 0:09:14 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
+        #Package kernel-modules-4.18.0-372.9.1.el8.x86_64 is already installed.
+        #Package kernel-modules-4.18.0-372.52.1.el8_6.x86_64 is already installed.
+        #Dependencies resolved.
+        #=============================================================================================
+        # Package          Arch    Version               Repository                               Size
+        #=============================================================================================
+        #Installing dependencies:
+        # kernel-core      x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   40 M
+        # kernel-modules   x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   32 M
+        #
+        #Transaction Summary
+        #=============================================================================================
+        #Install  2 Packages
+        #
+        #Total download size: 72 M
+        #Installed size: 93 M
+        #Operation aborted.
+        
+        # In sample1, the starting delimeter is "Upgrading:" and in sample2, the starting delimeter is "Installing dependencies:"
+        # If there are combinations of updates and new installations, one of the above delimeters will come first and the below logic will work.
+        # Following is the example when both "Upgrading:" and "Installing dependencies:" are present:
+        #
+        #Last metadata expiration check: 0:01:56 ago on Tue 25 Jul 2023 12:01:47 PM UTC.
+        #Dependencies resolved.
+        #================================================================================================
+        # Package             Arch    Version               Repository                               Size
+        #================================================================================================
+        #Upgrading:
+        # kernel-tools        x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.4 M
+        # kernel-tools-libs   x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.2 M
+        # openssl             x86_64  1:1.1.1k-9.el8_6      rhel-8-for-x86_64-baseos-eus-rhui-rpms  710 k
+        # openssl-libs        x86_64  1:1.1.1k-9.el8_6      rhel-8-for-x86_64-baseos-eus-rhui-rpms  1.5 M
+        #Installing dependencies:
+        # kernel-core         x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   40 M
+        # kernel-modules      x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   32 M
+        #
+        #Transaction Summary
+        #================================================================================================
+        #Install  2 Packages
+        #Upgrade  4 Packages
+        
+        # There is one edge scenario which is also handled in the below parsing logic i.e., the package detail spills over to two lines:
+        # Sample output for the cmd 'sudo yum update --assumeno polkit.x86_64' is :
+        #
+        #Last metadata expiration check: 0:08:47 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
+        #Package polkit-0.115-13.el8_5.2.x86_64 is already installed.
+        #Dependencies resolved.
+        #================================================================================
+        # Package   Arch   Version          Repository                              Size
+        #================================================================================
+        #Upgrading:
+        # polkit    x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms 154 k
+        # polkit-libs
+        #           x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms  77 k
+        #
+        #Transaction Summary
+        #================================================================================
+        #Upgrade  2 Packages
+        #
+        #Total download size: 231 k
+        #Operation aborted.
+
+        package_extensions = ["x86_64", "noarch", "i686"]
+        dependencies = []
+        lines = output.strip().split('\n')
+        upgrading_or_installing_flag = False
+
+        for line_index in range(0, len(lines)):
+            line = lines[line_index]
+            if not upgrading_or_installing_flag:
+                if not line.startswith("Upgrading:") and not line.startswith("Installing dependencies:"):
+                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    continue
+                else:
+                    upgrading_or_installing_flag = True
+                    self.composite_logger.log_debug(" - Packages list started: " + str(line))
+                    continue
+
+            if line.startswith("Transaction Summary"):
+                break
+
+            updates_line = re.split(r'\s+', line.strip())
+            dependent_package_name = ""
+
+            if len(updates_line) == 6 and updates_line[1] in package_extensions:
+                dependent_package_name = updates_line[0] + "." + updates_line[1]
+            elif len(updates_line) == 5 and line_index > 0 and updates_line[0] in package_extensions:
+                # Handling the scenario when package detail is spill over to 2 lines
+                prev_line = lines[line_index-1]
+                prev_updates_line = re.split(r'\s+', prev_line.strip())
+                if len(prev_updates_line) == 1:
+                    # Taking package name from previuos line and package extension from current line.
+                    dependent_package_name = prev_updates_line[0] + "." + updates_line[0]
+                else:
+                    # This is unexpected scenario.
+                    # If update details are divided in two lines then first line should contain package name and second should contain rest of the details.
+                    # Hence previous line should contain package name and current line should contain other 5 details.
+                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    continue
+            else:
+                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                continue
+
+            if len(dependent_package_name) != 0 and dependent_package_name not in packages:
+                self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
+                dependencies.append(dependent_package_name)
+
+        return dependencies
+
+    def extract_dependencies_yum_3_or_lower(self, output, packages):
         # Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
         #
         # Loaded plugins: langpacks, product-id, search-disabled-repos
@@ -319,6 +458,25 @@ class YumPackageManager(PackageManager):
 
         return dependencies
 
+    def get_yum_version(self):
+        # Sample output for the cmd "sudo yum --version"
+        #4.7.0
+        #  Installed: dnf-0:4.7.0-8.el8.noarch at Mon 29 May 2023 02:58:31 PM GMT
+        #  Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Fri 18 Mar 2022 03:21:28 PM GMT
+        #
+        #  Installed: rpm-0:4.14.3-24.el8_6.x86_64 at Mon 29 May 2023 05:07:36 PM GMT
+        #  Built    : Red Hat, Inc. <http://bugzilla.redhat.com/bugzilla> at Wed 14 Sep 2022 09:12:50 AM GMT
+        try:
+            output = self.invoke_package_manager(self.yum_version_check)
+            lines = output.strip().split('\n')
+            version_fields = lines[0].strip().split('.')
+            version = int(version_fields[0])
+            self.composite_logger.log_debug('Yum version is: ' + str(version))
+            return version
+        except Exception as error:
+            self.composite_logger.log_debug("Error while checking yum version: " + repr(error))
+            return 0
+
     def get_dependent_list(self, packages):
         package_names = ""
         for index, package in enumerate(packages):
@@ -328,7 +486,13 @@ class YumPackageManager(PackageManager):
 
         self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + package_names))
         output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_names)
-        dependencies = self.extract_dependencies(output, packages)
+        dependencies = []
+
+        if self.yum_version >= 4:
+            dependencies = self.extract_dependencies_yum_4_or_higher(output, packages)
+        else:
+            dependencies = self.extract_dependencies_yum_3_or_lower(output, packages)
+
         self.composite_logger.log_debug(str(len(dependencies)) + " dependent packages were found for packages '" + str(packages) + "'.")
         return dependencies
 
