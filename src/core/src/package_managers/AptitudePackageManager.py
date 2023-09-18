@@ -34,6 +34,10 @@ class AptitudePackageManager(PackageManager):
         super(AptitudePackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
 
         security_list_guid = str(uuid.uuid4())
+
+        # Accept EULA (End User License Agreement) as per the EULA settings set by user
+        optional_accept_eula_in_cmd = "ACCEPT_EULA=Y" if execution_config.accept_package_eula else ""
+
         # Repo refresh
         self.repo_refresh = 'sudo apt-get -q update'
 
@@ -44,12 +48,12 @@ class AptitudePackageManager(PackageManager):
         self.single_package_check_versions = 'apt-cache madison <PACKAGE-NAME>'
         self.single_package_find_installed_dpkg = 'sudo dpkg -s <PACKAGE-NAME>'
         self.single_package_find_installed_apt = 'sudo apt list --installed <PACKAGE-NAME>'
-        self.single_package_upgrade_simulation_cmd = '''DEBIAN_FRONTEND=noninteractive apt-get -y --only-upgrade true -s install '''
-        self.single_package_dependency_resolution_template = 'DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 apt-get -y --only-upgrade true -s install <PACKAGE-NAME> '
+        self.single_package_upgrade_simulation_cmd = '''DEBIAN_FRONTEND=noninteractive ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true -s install '''
+        self.single_package_dependency_resolution_template = 'DEBIAN_FRONTEND=noninteractive ' + optional_accept_eula_in_cmd + ' LANG=en_US.UTF8 apt-get -y --only-upgrade true -s install <PACKAGE-NAME> '
 
         # Install update
         # --only-upgrade: upgrade only single package (only if it is installed)
-        self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive apt-get -y --only-upgrade true install '''
+        self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true install '''
 
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
@@ -476,8 +480,9 @@ class AptitudePackageManager(PackageManager):
     def get_current_auto_os_patch_state(self):
         """ Gets the current auto OS update patch state on the machine """
         self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
-        self.__get_current_auto_os_updates_setting_on_machine()
-        if int(self.unattended_upgrade_value) == 0:
+        if os.path.exists(self.os_patch_configuration_settings_file_path):
+            self.__get_current_auto_os_updates_setting_on_machine()
+        if not os.path.exists(self.os_patch_configuration_settings_file_path) or int(self.unattended_upgrade_value) == 0:
             current_auto_os_patch_state = Constants.AutomaticOSPatchStates.DISABLED
         elif int(self.unattended_upgrade_value) == 1:
             current_auto_os_patch_state = Constants.AutomaticOSPatchStates.ENABLED

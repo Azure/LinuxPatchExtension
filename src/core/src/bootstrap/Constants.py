@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.47"
+    EXT_VERSION = "1.6.48"
 
     # Runtime environments
     TEST = 'Test'
@@ -51,8 +51,11 @@ class Constants(object):
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
     MAX_AUTO_ASSESSMENT_WAIT_FOR_MAIN_CORE_EXEC_IN_MINUTES = 3 * 60
 
-    class Paths(EnumBackport):
+    class SystemPaths(EnumBackport):
         SYSTEMD_ROOT = "/etc/systemd/system/"
+
+    class AzGPSPaths(EnumBackport):
+        EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -76,6 +79,11 @@ class Constants(object):
         PATCH_MODE = 'patchMode'
         ASSESSMENT_MODE = 'assessmentMode'
         MAXIMUM_ASSESSMENT_INTERVAL = 'maximumAssessmentInterval'
+
+    class EulaSettings(EnumBackport):
+        ACCEPT_EULA_FOR_ALL_PATCHES = 'AcceptEULAForAllPatches'
+        ACCEPTED_BY = 'AcceptedBy'
+        LAST_MODIFIED = 'LastModified'
 
     TEMP_FOLDER_DIR_NAME = "tmp"
     TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list"]
@@ -201,6 +209,7 @@ class Constants(object):
     MAX_IMDS_CONNECTION_RETRY_COUNT = 5
     MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT = 5
     MAX_BATCH_SIZE_FOR_PACKAGES = 3
+    MAX_COMPLETE_STATUS_FILES_TO_RETAIN = 10
 
     class PackageClassification(EnumBackport):
         UNCLASSIFIED = 'Unclassified'
