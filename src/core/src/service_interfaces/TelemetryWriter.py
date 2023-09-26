@@ -28,6 +28,7 @@ from core.src.bootstrap.Constants import Constants
 class TelemetryWriter(object):
     """Class for writing telemetry data to data transports"""
 
+    TELEMETRY_BUFFER_DELIMETER= "\n|\t"
 
     def __init__(self, env_layer, composite_logger, events_folder_path, telemetry_supported):
         self.env_layer = env_layer
@@ -48,6 +49,9 @@ class TelemetryWriter(object):
         self.write_event('Started Linux patch core operation.', Constants.TelemetryEventLevel.Informational)
         self.machine_info = None
         self.set_and_write_machine_config_info()
+        self.telemetry_buffer_store = ""
+        self.last_telemetry_event_level = None
+
 
     def write_config_info(self, config_info, config_type='unknown'):
         # Configuration info
@@ -155,6 +159,38 @@ class TelemetryWriter(object):
         except Exception as e:
             self.composite_logger.log_telemetry_module_error("Error occurred while formatting message for a telemetry event. [Error={0}]".format(repr(e)))
             raise
+
+    def write_event_with_buffer(self, message, event_level, buffer_msg):
+        if buffer_msg == Constants.BufferMessage.TRUE and (event_level == self.last_telemetry_event_level or self.last_telemetry_event_level is None):
+            if self.telemetry_buffer_store != "":
+                self.telemetry_buffer_store = self.telemetry_buffer_store + self.TELEMETRY_BUFFER_DELIMETER + message
+            else:
+                self.telemetry_buffer_store = message
+
+            self.last_telemetry_event_level = event_level
+
+        elif buffer_msg == Constants.BufferMessage.FALSE or event_level != self.last_telemetry_event_level:
+            if self.telemetry_buffer_store != "":
+                self.write_event(self.telemetry_buffer_store, self.last_telemetry_event_level)
+            self.write_event(message, event_level)
+
+            self.last_telemetry_event_level = None
+            self.telemetry_buffer_store = ""
+
+        elif buffer_msg == Constants.BufferMessage.FLUSH:
+            if self.telemetry_buffer_store != "":
+                if event_level == self.last_telemetry_event_level:
+                    self.telemetry_buffer_store = self.telemetry_buffer_store + self.TELEMETRY_BUFFER_DELIMETER + message
+                    self.write_event(self.telemetry_buffer_store, self.last_telemetry_event_level)
+                else:
+                    self.write_event(self.telemetry_buffer_store, self.last_telemetry_event_level)
+                    self.write_event(message, event_level)
+
+            else:
+                self.write_event(message, event_level)
+
+            self.last_telemetry_event_level = None
+            self.telemetry_buffer_store = ""
 
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TelemetryTaskName.UNKNOWN, is_event_file_throttling_needed=True):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached
