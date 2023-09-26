@@ -1144,6 +1144,21 @@ class LegacyEnvLayerExtensions():
                             entry = template.replace('<PACKAGE>', package)
                             entry = entry.replace('<VERSION>', version)
                             output += entry
+            elif self.legacy_test_type == 'ObsoletePackages':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("check-update") > -1:
+                        code = 100
+                        output = "\n" + \
+                                 "grub2-tools.x86_64                                              " + \
+                                 "1:2.02-142.el8                                      " + \
+                                 "rhel-8-baseos-rhui-rpms\n" + \
+                                 "Obsoleting Packages\n" + \
+                                 "grub2-tools.x86_64                                     " + \
+                                 "1:2.02-123.el8_6.8                                      " + \
+                                 "rhel-8-baseos-rhui-rpms\n" + \
+                                 "    grub2-tools.x86_64                                      " + \
+                                 "1:2.02-123.el8                                      " + \
+                                 "@System\n"
 
             major_version = self.get_python_major_version()
             if major_version == 2:

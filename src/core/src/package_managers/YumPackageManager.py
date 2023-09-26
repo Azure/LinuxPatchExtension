@@ -202,6 +202,10 @@ class YumPackageManager(PackageManager):
         lines = output.strip().split('\n')
 
         for line_index in range(0, len(lines)):
+            # Do not install Obsoleting Packages. The obsoleting packages list comes towards end in the output.
+            if lines[line_index].strip().startswith("Obsoleting Packages"):
+                break
+
             line = re.split(r'\s+', lines[line_index].strip())
             next_line = []
 
