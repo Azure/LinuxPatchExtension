@@ -179,13 +179,8 @@ class TelemetryWriter(object):
 
         elif buffer_msg == Constants.BufferMessage.FLUSH:
             if self.telemetry_buffer_store != "":
-                if event_level == self.last_telemetry_event_level:
-                    self.telemetry_buffer_store = self.telemetry_buffer_store + self.TELEMETRY_BUFFER_DELIMETER + message
-                    self.write_event(self.telemetry_buffer_store, self.last_telemetry_event_level)
-                else:
-                    self.write_event(self.telemetry_buffer_store, self.last_telemetry_event_level)
-                    self.write_event(message, event_level)
-
+                self.telemetry_buffer_store = self.telemetry_buffer_store + self.TELEMETRY_BUFFER_DELIMETER + message
+                self.write_event(self.telemetry_buffer_store, self.last_telemetry_event_level)
             else:
                 self.write_event(message, event_level)
 
