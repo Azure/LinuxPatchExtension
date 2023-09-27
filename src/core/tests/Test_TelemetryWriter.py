@@ -215,6 +215,75 @@ class TestTelemetryWriter(unittest.TestCase):
         self.runtime.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         os.listdir = backup_os_listdir
 
+    def test_write_event_with_buffer_true_and_then_flush(self):
+        self.runtime.telemetry_writer.write_event_with_buffer("Message 1", Constants.TelemetryEventLevel.Verbose,
+                                                              Constants.BufferMessage.TRUE)
+        self.runtime.telemetry_writer.write_event_with_buffer("Message 2", Constants.TelemetryEventLevel.Verbose,
+                                                              Constants.BufferMessage.TRUE)
+        self.runtime.telemetry_writer.write_event_with_buffer("Message 3", Constants.TelemetryEventLevel.Verbose,
+                                                              Constants.BufferMessage.FLUSH)
+
+        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                             re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
+            text_found = re.search('TC=([0-9]+)', events[-1]['Message'])
+            f.close()
+            self.assertTrue(text_found.string.startswith("Message 1 | Message 2 | Message 3"))
+
+    def test_write_event_with_buffer_only_flush(self):
+        self.runtime.telemetry_writer.write_event_with_buffer("Message 1", Constants.TelemetryEventLevel.Verbose,
+                                                              Constants.BufferMessage.FLUSH)
+
+        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                             re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
+            text_found = re.search('TC=([0-9]+)', events[-1]['Message'])
+            f.close()
+            self.assertTrue(text_found.string.startswith("Message 1"))
+
+    def test_write_event_with_buffer_false(self):
+        self.runtime.telemetry_writer.write_event_with_buffer("Message 1", Constants.TelemetryEventLevel.Verbose,
+                                                              Constants.BufferMessage.FALSE)
+
+        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                             re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
+            text_found = re.search('TC=([0-9]+)', events[-1]['Message'])
+            f.close()
+            self.assertTrue(text_found.string.startswith("Message 1"))
+
+    def test_write_event_with_buffer_true_and_then_flush_but_different_telemetry_event_level(self):
+        self.runtime.telemetry_writer.write_event_with_buffer("Message 1", Constants.TelemetryEventLevel.Verbose,
+                                                              Constants.BufferMessage.TRUE)
+
+        self.runtime.telemetry_writer.write_event_with_buffer("Message 2", Constants.TelemetryEventLevel.Informational,
+                                                              Constants.BufferMessage.FLUSH)
+
+        # As the messages are with different TelemetryEventLevel, they will be written separately
+        # even though flush is used.
+        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                             re.search('^[0-9]+.json$', pos_json)][-2]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
+            text_found = re.search('TC=([0-9]+)', events[-1]['Message'])
+            f.close()
+            self.assertTrue(text_found.string.startswith("Message 1"))
+
+        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                             re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
+            text_found = re.search('TC=([0-9]+)', events[-1]['Message'])
+            f.close()
+            self.assertTrue(text_found.string.startswith("Message 2"))
 
 if __name__ == '__main__':
     unittest.main()
