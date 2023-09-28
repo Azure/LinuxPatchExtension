@@ -94,8 +94,9 @@ class StatusHandler(object):
 
         self.__current_operation = None
 
-        self.__truncation_timestamp = None
+        self.__track_truncation_timestamp = None
         self.__is_file_truncated = False
+        self.__force_truncation_on = False
 
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
         if (execution_config.maintenance_run_id is not None or execution_config.health_store_id is not None) and execution_config.operation.lower() == Constants.INSTALLATION.lower():
@@ -897,31 +898,30 @@ class StatusHandler(object):
         if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
             self.composite_logger.log_debug("No packages truncated")
 
-    def set_truncation_timestamp(self, timestamp):
-        return timestamp
+    def __check_if_truncation_time_passed_by_x_sec(self, track_truncation_timestamp):
+        """ check current sys time is more than truncation time stamp by x constant seconds"""
+        if track_truncation_timestamp is None:
+            track_truncation_timestamp = datetime.datetime.now()
 
-    def check_one_minute_timestamp(self, timestamp):
-        if self.__truncation_timestamp is None:
-            self.__truncation_timestamp = self.set_truncation_timestamp(timestamp)
-
-        return (timestamp - self.__truncation_timestamp).total_seconds() >= 60
+        curr_timestamp = datetime.datetime.now()
+        return (curr_timestamp - track_truncation_timestamp).total_seconds() >= Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC
 
     def __set_force_truncation_true(self, status):
         if self.__is_file_truncated and (status == Constants.STATUS_SUCCESS or status == Constants.STATUS_ERROR):
-            Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True
+            self.__force_truncation_on = True
 
     def __validate_status_file_for_truncation(self, status_file_payload_json_dumps):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload byte size on disk
 
         if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
-            is_one_minute_passed = self.check_one_minute_timestamp(datetime.datetime.now())
+            is_delay_truncation_by_x_sec = self.__check_if_truncation_time_passed_by_x_sec(self.__track_truncation_timestamp)
 
-            if is_one_minute_passed or Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION:
+            if is_delay_truncation_by_x_sec or self.__force_truncation_on:
                 truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
                 status_file_payload_json_dumps = json.dumps(truncated_status_file)
 
-            if is_one_minute_passed:
-                self.__truncation_timestamp = datetime.datetime.now()    # Set timestamp to newer time and check for next 1 min interval
+            if is_delay_truncation_by_x_sec:
+                self.__track_truncation_timestamp = datetime.datetime.now()    # Set timestamp to newer time and check for next 1 min interval
 
         return status_file_payload_json_dumps
 

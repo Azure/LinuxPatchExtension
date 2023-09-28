@@ -645,7 +645,7 @@ class TestStatusHandler(unittest.TestCase):
     def test_log_truncated_packages_assert_assessment_truncation(self):
         # Set up create temp file for log and set sys.stdout to it
         self.__create_temp_file_and_set_stdout()
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
 
         # Assert assessment truncation log output
         patch_count_for_test = random.randint(780, 1000)
@@ -660,7 +660,7 @@ class TestStatusHandler(unittest.TestCase):
     def test_log_truncated_packages_assert_installation_truncation(self):
         # Set up create temp file for log and set sys.stdout to it
         self.__create_temp_file_and_set_stdout()
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
 
         # Assert installation truncation log output
         patch_count_for_test = random.randint(780, 1000)
@@ -714,10 +714,9 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_assessment_status_file_truncation_over_size_limit(self):
         """ Test truncation logic will apply to assessment when it is over the size limit """
-        # Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
-        self.__set_up_timestamp_two_minute_behind()
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -756,10 +755,9 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_assessment_status_file_truncation_over_large_size_limit_for_extra_chars(self):
         """ Test truncation logic will apply to assessment, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
-        self.__set_up_timestamp_two_minute_behind()
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
 
         patch_count_for_test = 100000
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -796,10 +794,9 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_assessment_status_file_truncation_over_size_limit_with_errors(self):
         """ Test truncation logic will apply to assessment with errors over the size limit """
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
-        self.__set_up_timestamp_two_minute_behind()
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -853,10 +850,9 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_installation_status_file_truncation_over_size_limit(self):
         """ Test truncation logic will apply to installation over the size limit """
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        self.__set_up_timestamp_two_minute_behind()
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -894,10 +890,9 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_installation_status_file_truncation_over_size_limit_low_priority_packages(self):
         """ Test truncation logic will apply to installation over the size limit """
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        self.__set_up_timestamp_two_minute_behind()
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1100)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -936,10 +931,9 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_installation_status_file_truncation_over_large_size_limit_with_extra_chars(self):
         """ Test truncation logic will apply to installation, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        self.__set_up_timestamp_two_minute_behind()
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
 
         patch_count_for_test = 100000
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -978,10 +972,9 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_installation_status_file_truncation_over_size_limit_with_error(self):
         """ Test truncation logic will apply to installation with errors over the size limit """
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True  # skip 1 minute wait time
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        self.__set_up_timestamp_two_minute_behind()
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -1038,6 +1031,7 @@ class TestStatusHandler(unittest.TestCase):
     def test_truncation_method_time_performance(self):
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.__create_temp_file_and_set_stdout()    # set tmp file for storing sys.stout()
 
         # Start no truncation performance test
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = False
@@ -1053,7 +1047,7 @@ class TestStatusHandler(unittest.TestCase):
 
         # Start truncation performance test
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = True
-        Constants.StatusTruncationConfig.FORCE_WRITE_TRUNCATION = True
+        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
         truncate_start_time = time.time()
         for i in range(0, 301):
             test_packages, test_package_versions = self.__set_up_packages_func(500)
@@ -1063,8 +1057,13 @@ class TestStatusHandler(unittest.TestCase):
         truncate_end_time = time.time()
         truncate_performance_time = truncate_end_time - truncate_start_time
         truncate_performance_time_formatted = self.__convert_test_performance_to_date_time(truncate_performance_time)
-        print('no_truncate_performance_time_formatted', no_truncate_performance_time_formatted)
-        print('truncate_performance_time_formatted', truncate_performance_time_formatted)
+
+        self.__remove_temp_file_reset_stdout()  # remove and reset tmp file for storing sys.stout()
+
+        self.runtime.status_handler.composite_logger.log_debug('no_truncate_performance_time_formatted' + no_truncate_performance_time_formatted)
+        self.runtime.status_handler.composite_logger.log_debug('truncate_performance_time_formatted' + truncate_performance_time_formatted)
+        self.assertTrue(no_truncate_performance_time < truncate_performance_time)
+
 
     # Setup functions for truncation
     def __convert_test_performance_to_date_time(self, performance_time):
@@ -1096,10 +1095,6 @@ class TestStatusHandler(unittest.TestCase):
         with open(self.temp_stdout.name, 'r') as temp_file:
             captured_log_output = temp_file.read()
             self.assertIn(expected_string, captured_log_output)
-
-    def __set_up_timestamp_two_minute_behind(self):
-        current_time = datetime.datetime.now() - datetime.timedelta(minutes=2)
-        self.runtime.status_handler.check_one_minute_timestamp(current_time)
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):
