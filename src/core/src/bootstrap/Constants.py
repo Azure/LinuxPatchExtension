@@ -344,3 +344,8 @@ class Constants(object):
         MAX_OS_MAJOR_VERSION_SUPPORTED = 18
         MINIMUM_CLIENT_VERSION = "27.14.4"
 
+    class BufferMessage(EnumBackport):
+        TRUE = 0
+        FALSE = 1
+        FLUSH = 2
+

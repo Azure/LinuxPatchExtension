@@ -35,12 +35,12 @@ class CompositeLogger(object):
         self.current_env = current_env
         self.NEWLINE_REPLACE_CHAR = " "
 
-    def log(self, message, message_type=Constants.TelemetryEventLevel.Informational):
+    def log(self, message, message_type=Constants.TelemetryEventLevel.Informational, buffer_msg=Constants.BufferMessage.FALSE):
         """log output"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = message.strip()
         if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None and self.current_env != Constants.DEV:  # turned off for dev environment as it severely slows down execution
-            self.telemetry_writer.write_event(message, message_type)
+            self.telemetry_writer.write_event_with_buffer(message, message_type, buffer_msg)
         if self.current_env in (Constants.DEV, Constants.TEST):
             for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
                 print(line)
@@ -60,12 +60,12 @@ class CompositeLogger(object):
         message = self.WARNING + (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         self.log(message, message_type=Constants.TelemetryEventLevel.Warning)
 
-    def log_debug(self, message):
+    def log_debug(self, message, buffer_msg=Constants.BufferMessage.FALSE):
         """log debug"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = message.strip()
         if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None and self.current_env not in (Constants.DEV, Constants.TEST):
-            self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Verbose)
+            self.telemetry_writer.write_event_with_buffer(message, Constants.TelemetryEventLevel.Verbose, buffer_msg)
         if self.current_env in (Constants.DEV, Constants.TEST):
             self.log(self.current_env + ": " + str(self.env_layer.datetime.datetime_utcnow()) + ": " + message, Constants.TelemetryEventLevel.Verbose)  # send to standard output if dev or test env
         elif self.file_logger is not None:
@@ -102,4 +102,3 @@ class CompositeLogger(object):
         if substring in message:
             message = message.replace("[{0}]".format(Constants.ERROR_ADDED_TO_STATUS), "")
         return message
-
