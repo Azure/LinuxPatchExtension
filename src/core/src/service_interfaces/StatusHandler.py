@@ -624,6 +624,10 @@ class StatusHandler(object):
         self.__configure_patching_errors = []
         self.__configure_patching_auto_assessment_errors = []
 
+        self.__track_truncation_timestamp = None
+        self.__is_file_truncated = False
+        self.__force_truncation_on = False
+
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
         # Retain 10 complete status files, and remove older files
@@ -898,7 +902,7 @@ class StatusHandler(object):
         if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
             self.composite_logger.log_debug("No packages truncated")
 
-    def __check_if_truncation_time_passed_by_x_sec(self, track_truncation_timestamp):
+    def __check_truncation_time_passed_by_x_sec(self, track_truncation_timestamp):
         """ check current sys time is more than truncation time stamp by x constant seconds"""
         if track_truncation_timestamp is None:
             track_truncation_timestamp = datetime.datetime.now()
@@ -907,6 +911,7 @@ class StatusHandler(object):
         return (curr_timestamp - track_truncation_timestamp).total_seconds() >= Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC
 
     def __set_force_truncation_true(self, status):
+        """ status file needs truncation and last operation is either success or error, then force truncation on last operation"""
         if self.__is_file_truncated and (status == Constants.STATUS_SUCCESS or status == Constants.STATUS_ERROR):
             self.__force_truncation_on = True
 
@@ -914,7 +919,7 @@ class StatusHandler(object):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload byte size on disk
 
         if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
-            is_delay_truncation_by_x_sec = self.__check_if_truncation_time_passed_by_x_sec(self.__track_truncation_timestamp)
+            is_delay_truncation_by_x_sec = self.__check_truncation_time_passed_by_x_sec(self.__track_truncation_timestamp)
 
             if is_delay_truncation_by_x_sec or self.__force_truncation_on:
                 truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
@@ -1012,7 +1017,7 @@ class StatusHandler(object):
             status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
             size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # Reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
-        self.__is_file_truncated = True  # set true to track if file needs truncation
+        self.__is_file_truncated = True  # set true to track file is truncated and allowed for force truncation
         self.composite_logger.log_debug("End package list truncation")
         return truncated_status_file
 
@@ -1074,12 +1079,13 @@ class StatusHandler(object):
         left_index = 0
         right_index = len(package_list) - 1
 
-        # Empty list after 2xjson.dumps have 4-5 bytes, might cause to lose 1 extra package in truncation process
+        # Empty list after 2xjson.dumps have 4-5 bytes, no truncation, keep list capacity as it is
         if len(package_list) == 0:
             return [], [], capacity
+        # check if package list byte size <= list capacity, then returns it (no truncation needed)
         if self.__calc_package_payload_size_on_disk(package_list) <= capacity:
             return package_list, [], capacity - self.__calc_package_payload_size_on_disk(package_list)
-        # Check if first element in the list is > list capacity, then remove the rest
+        # Check if first element byte size in the list > remaining list capacity, then add package_list to packages_removed_from_list
         if self.__calc_package_payload_size_on_disk(package_list[0]) > capacity:
             return [], package_list, capacity
 
