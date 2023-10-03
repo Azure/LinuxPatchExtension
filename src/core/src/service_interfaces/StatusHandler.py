@@ -342,7 +342,7 @@ class StatusHandler(object):
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true(status)
+        self.__set_force_truncation_true_for_terminal_status(status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -403,7 +403,7 @@ class StatusHandler(object):
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true(status)
+        self.__set_force_truncation_true_for_terminal_status(status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -479,7 +479,7 @@ class StatusHandler(object):
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true(status)
+        self.__set_force_truncation_true_for_terminal_status(status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -515,7 +515,7 @@ class StatusHandler(object):
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true(status)
+        self.__set_force_truncation_true_for_terminal_status(status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -764,7 +764,7 @@ class StatusHandler(object):
         self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(status_file_payload_json_dumps), mode='w+')
 
         if Constants.StatusTruncationConfig.TURN_ON_TRUNCATION:
-            truncated_status_file_json_dumps = self.__validate_status_file_for_truncation(status_file_payload_json_dumps)
+            truncated_status_file_json_dumps = self.__check_status_file_size_perform_truncation_if_needed(status_file_payload_json_dumps)
 
         # Write status file <seq.no>.status
         if self.__is_file_truncated:
@@ -910,12 +910,12 @@ class StatusHandler(object):
         curr_timestamp = datetime.datetime.now()
         return (curr_timestamp - track_truncation_timestamp).total_seconds() >= Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC
 
-    def __set_force_truncation_true(self, status):
+    def __set_force_truncation_true_for_terminal_status(self, status):
         """ status file needs truncation and last operation is either success or error, then force truncation on last operation"""
         if self.__is_file_truncated and (status == Constants.STATUS_SUCCESS or status == Constants.STATUS_ERROR):
             self.__force_truncation_on = True
 
-    def __validate_status_file_for_truncation(self, status_file_payload_json_dumps):
+    def __check_status_file_size_perform_truncation_if_needed(self, status_file_payload_json_dumps):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload byte size on disk
 
         if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
