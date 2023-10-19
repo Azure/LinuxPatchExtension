@@ -902,13 +902,13 @@ class StatusHandler(object):
         if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
             self.composite_logger.log_debug("No packages truncated")
 
-    def __check_truncation_time_passed_by_x_sec(self, track_truncation_timestamp):
+    def __check_truncation_time_passed_by_x_sec(self):
         """ check current sys time is more than truncation time stamp by x constant seconds"""
-        if track_truncation_timestamp is None:
-            track_truncation_timestamp = datetime.datetime.now()
+        if self.__track_truncation_timestamp is None:
+            self.__track_truncation_timestamp = datetime.datetime.now()
 
         curr_timestamp = datetime.datetime.now()
-        return (curr_timestamp - track_truncation_timestamp).total_seconds() >= Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC
+        return (curr_timestamp - self.__track_truncation_timestamp).total_seconds() >= Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC
 
     def __set_force_truncation_true_for_terminal_status(self, status):
         """ status file needs truncation and last operation is either success or error, then force truncation on last operation"""
@@ -919,7 +919,7 @@ class StatusHandler(object):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload byte size on disk
 
         if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
-            is_delay_truncation_by_x_sec = self.__check_truncation_time_passed_by_x_sec(self.__track_truncation_timestamp)
+            is_delay_truncation_by_x_sec = self.__check_truncation_time_passed_by_x_sec()
 
             if is_delay_truncation_by_x_sec or self.__force_truncation_on:
                 truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
