@@ -1000,7 +1000,8 @@ class StatusHandler(object):
             if len(packages_removed_from_assessment) > 0:
                 # Update current assessment # of removed packages
                 self.__assessment_packages_removed = packages_removed_from_assessment
-                packages_retained_in_assessment.extend(self.__create_assessment_tombstone_list(self.__assessment_packages_removed))     # Add assessment tombstone record
+                assessment_tombstone_records = self.__create_assessment_tombstone_list(self.__assessment_packages_removed)
+                packages_retained_in_assessment.extend(assessment_tombstone_records)     # Add assessment tombstone record
 
                 # Recompose truncated status file payload (assessment)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_assessment,
@@ -1010,7 +1011,8 @@ class StatusHandler(object):
                 # Update current installation # of removed packages
                 self.__installation_packages_removed = packages_removed_from_installation
                 # Todo need further requirements to decompose installation tombstone by classifications
-                packages_retained_in_installation.append(self.__create_installation_tombstone())    # Add installation tombstone record
+                installation_tombstone_record = self.__create_installation_tombstone()
+                packages_retained_in_installation.append(installation_tombstone_record)    # Add installation tombstone record
 
                 # Recompose truncated status file payload (installation)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_installation,
