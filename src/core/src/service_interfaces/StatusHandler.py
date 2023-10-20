@@ -766,7 +766,7 @@ class StatusHandler(object):
         self.env_layer.file_system.write_with_retry_using_temp_file(self.complete_status_file_path, '[{0}]'.format(status_file_payload_json_dumps), mode='w+')
 
         if Constants.StatusTruncationConfig.TURN_ON_TRUNCATION:
-            status_file_payload_json_dumps = self.__check_status_file_size_perform_truncation_if_needed(status_file_payload_json_dumps)
+            status_file_payload_json_dumps = self.__check_file_size_and_timestamp_for_truncation(status_file_payload_json_dumps)
 
         # Write status file <seq.no>.status
         self.env_layer.file_system.write_with_retry_using_temp_file(self.status_file_path, '[{0}]'.format(status_file_payload_json_dumps), mode='w+')
@@ -901,31 +901,32 @@ class StatusHandler(object):
         if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
             self.composite_logger.log_debug("No packages truncated")
 
-    def __check_truncation_time_passed_by_x_sec(self):
-        """ check current sys time is more than truncation time stamp by x constant seconds"""
+    def __check_sys_and_truncation_time_by_x_sec(self):
+        """ check current sys time is more than truncation time stamp by x constant seconds to allow truncation """
         if self.__track_truncation_timestamp is None:
             self.__track_truncation_timestamp = datetime.datetime.now()
 
         curr_timestamp = datetime.datetime.now()
-        return (curr_timestamp - self.__track_truncation_timestamp).total_seconds() >= Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC
+
+        return (curr_timestamp - self.__track_truncation_timestamp).total_seconds() > Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC
 
     def __set_force_truncation_true_for_terminal_status(self, status):
         """ status file needs truncation and last operation is either success or error, then force truncation on last operation"""
         if self.__is_file_truncated and (status == Constants.STATUS_SUCCESS or status == Constants.STATUS_ERROR):
             self.__force_truncation_on = True
 
-    def __check_status_file_size_perform_truncation_if_needed(self, status_file_payload_json_dumps):
+    def __check_file_size_and_timestamp_for_truncation(self, status_file_payload_json_dumps):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload byte size on disk
 
         if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
-            is_delay_truncation_by_x_sec = self.__check_truncation_time_passed_by_x_sec()
+            is_truncation_allowed = self.__check_sys_and_truncation_time_by_x_sec()
 
-            if is_delay_truncation_by_x_sec or self.__force_truncation_on:
+            if is_truncation_allowed or self.__force_truncation_on:
                 truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
                 self.__truncated_status_file_json_dumps = json.dumps(truncated_status_file)
 
-            if is_delay_truncation_by_x_sec:
-                self.__track_truncation_timestamp = datetime.datetime.now()    # Set timestamp to newer time and check for next 1 min interval
+            if is_truncation_allowed:
+                self.__track_truncation_timestamp = datetime.datetime.now()    # Reset timestamp for new 1 min interval
 
         if self.__is_file_truncated:
             return self.__truncated_status_file_json_dumps
@@ -1001,7 +1002,7 @@ class StatusHandler(object):
                 # Update current assessment # of removed packages
                 self.__assessment_packages_removed = packages_removed_from_assessment
                 assessment_tombstone_records = self.__create_assessment_tombstone_list(self.__assessment_packages_removed)
-                packages_retained_in_assessment.extend(assessment_tombstone_records)     # Add assessment tombstone record
+                packages_retained_in_assessment.extend(assessment_tombstone_records)     # Add assessment tombstone records
 
                 # Recompose truncated status file payload (assessment)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_assessment,
@@ -1012,7 +1013,7 @@ class StatusHandler(object):
                 self.__installation_packages_removed = packages_removed_from_installation
                 # Todo need further requirements to decompose installation tombstone by classifications
                 installation_tombstone_record = self.__create_installation_tombstone()
-                packages_retained_in_installation.append(installation_tombstone_record)    # Add installation tombstone record
+                packages_retained_in_installation.append(installation_tombstone_record)    # Add installation tombstone records
 
                 # Recompose truncated status file payload (installation)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_installation,
@@ -1021,8 +1022,9 @@ class StatusHandler(object):
             status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
             size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # Reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
-        self.__is_file_truncated = True  # set true to track file is truncated and allowed for force truncation
+        self.__is_file_truncated = True  # Set true flag status file needs to remain truncated
         self.composite_logger.log_debug("End package list truncation")
+
         return truncated_status_file
 
     def __get_new_size_in_bytes_after_truncation(self, truncated_status_file):
@@ -1071,6 +1073,7 @@ class StatusHandler(object):
             package_state = package['patchInstallationState']
             if Constants.PENDING in package_state or Constants.EXCLUDED in package_state or Constants.NOT_SELECTED in package_state:
                 return index
+
         return None
 
     def __apply_truncation(self, package_list, capacity):
@@ -1103,6 +1106,7 @@ class StatusHandler(object):
         truncated_list = package_list[:left_index - 1]
         packages_removed_from_list = package_list[left_index - 1:]
         truncated_list_byte_size = self.__calc_package_payload_size_on_disk(truncated_list)
+
         return truncated_list, packages_removed_from_list, capacity - truncated_list_byte_size
 
     def __removed_older_complete_status_files(self, status_folder):
@@ -1130,6 +1134,7 @@ class StatusHandler(object):
     def __calc_package_payload_size_on_disk(self, package_list):
         """ Calculate final package list size in bytes (because of escape chars) """
         first_json_dump = json.dumps(package_list)
+
         return len(json.dumps(first_json_dump).encode("utf-8"))
 
     def size_of_constant_status_data(self, complete_status_file_payload, assessment_status_index, installation_status_index):
@@ -1150,6 +1155,7 @@ class StatusHandler(object):
         for substatus_index, substatus_name in enumerate(substatus_list):
             if substatus_name['name'] == substatus_list_name:
                 return substatus_index
+
         return None
 
     def __recompose_truncated_status_file(self, truncated_status_file, truncated_package_list, count_total_errors, truncated_substatus_msg, substatus_index):
@@ -1182,6 +1188,7 @@ class StatusHandler(object):
         substatus_msg['patches'] = substatus_msg_patches
         if substatus_msg_errors:
             substatus_msg['errors'] = substatus_msg_errors
+
         return substatus_msg
 
     def __get_current_complete_status_errors(self, substatus_msg):

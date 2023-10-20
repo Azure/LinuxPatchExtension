@@ -645,7 +645,7 @@ class TestStatusHandler(unittest.TestCase):
     def test_log_truncated_packages_assert_assessment_truncation(self):
         # Set up create temp file for log and set sys.stdout to it
         self.__create_temp_file_and_set_stdout()
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = -1
 
         # Assert assessment truncation log output
         patch_count_for_test = random.randint(780, 1000)
@@ -660,7 +660,7 @@ class TestStatusHandler(unittest.TestCase):
     def test_log_truncated_packages_assert_installation_truncation(self):
         # Set up create temp file for log and set sys.stdout to it
         self.__create_temp_file_and_set_stdout()
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = 0
 
         # Assert installation truncation log output
         patch_count_for_test = random.randint(780, 1000)
@@ -716,7 +716,7 @@ class TestStatusHandler(unittest.TestCase):
         """ Test truncation logic will apply to assessment when it is over the size limit """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -757,7 +757,7 @@ class TestStatusHandler(unittest.TestCase):
         """ Test truncation logic will apply to assessment, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = 0
 
         patch_count_for_test = 100000
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -796,7 +796,7 @@ class TestStatusHandler(unittest.TestCase):
         """ Test truncation logic will apply to assessment with errors over the size limit """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -852,7 +852,7 @@ class TestStatusHandler(unittest.TestCase):
         """ Test truncation logic will apply to installation over the size limit """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -892,7 +892,7 @@ class TestStatusHandler(unittest.TestCase):
         """ Test truncation logic will apply to installation over the size limit """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1100)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -933,7 +933,7 @@ class TestStatusHandler(unittest.TestCase):
         """ Test truncation logic will apply to installation, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = 0
 
         patch_count_for_test = 100000
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -974,7 +974,7 @@ class TestStatusHandler(unittest.TestCase):
         """ Test truncation logic will apply to installation with errors over the size limit """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = 0
 
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
@@ -1047,7 +1047,7 @@ class TestStatusHandler(unittest.TestCase):
 
         # Start truncation performance test
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = True
-        Constants.StatusTruncationConfig.SKIP_TRUNCATION_LOGIC_IN_X_SEC = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = 0
         truncate_start_time = time.time()
         for i in range(0, 301):
             test_packages, test_package_versions = self.__set_up_packages_func(500)

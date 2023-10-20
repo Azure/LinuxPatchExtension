@@ -183,7 +183,7 @@ class Constants(object):
         MIN_ASSESSMENT_PACKAGE_TO_RETAIN = 5
         TRUNCATION_WARNING_MESSAGE = "Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists."
         TURN_ON_TRUNCATION = True
-        SKIP_TRUNCATION_LOGIC_IN_X_SEC = 60
+        NO_TRUNCATION_IN_X_SEC = 60
 
     # Wrapper-core handshake files
     EXT_STATE_FILE = 'ExtState.json'
