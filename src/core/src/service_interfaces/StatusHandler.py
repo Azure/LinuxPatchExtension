@@ -53,6 +53,7 @@ class StatusHandler(object):
         self.__installation_packages_map = collections.OrderedDict()
         self.__installation_substatus_msg_copy = None
         self.__installation_packages_copy = []
+        self.__installation_packages_removed = []
 
         # Internal in-memory representation of Patch Assessment data
         self.__assessment_substatus_json = None
@@ -63,6 +64,7 @@ class StatusHandler(object):
         self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_substatus_msg_copy = None
         self.__assessment_packages_copy = []
+        self.__assessment_packages_removed = []
 
         # Internal in-memory representation of Patch Metadata for HealthStore
         self.__metadata_for_healthstore_substatus_json = None
@@ -115,6 +117,7 @@ class StatusHandler(object):
         self.__assessment_errors = []
         self.__assessment_total_error_count = 0
         self.__assessment_packages_map = collections.OrderedDict()
+        self.__assessment_packages_removed = []
         self.__assessment_packages_copy = []
         self.__assessment_substatus_msg_copy = None
 
@@ -586,6 +589,7 @@ class StatusHandler(object):
         self.__installation_packages_map = collections.OrderedDict()
         self.__installation_substatus_msg_copy = None
         self.__installation_packages_copy = []
+        self.__installation_packages_removed = []
 
         self.__assessment_substatus_json = None
         self.__assessment_summary_json = None
@@ -594,6 +598,7 @@ class StatusHandler(object):
         self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_substatus_msg_copy = None
         self.__assessment_packages_copy = []
+        self.__assessment_packages_removed = []
 
         self.__metadata_for_healthstore_substatus_json = None
         self.__metadata_for_healthstore_summary_json = None
@@ -941,11 +946,22 @@ class StatusHandler(object):
                 self.__apply_truncation_process(self.__assessment_packages_copy, self.__installation_packages_copy, size_of_max_packages_allowed_in_status, low_pri_index)
 
             if len(packages_removed_from_assessment) > 0:
+                # Update current assessment # of removed packages
+                self.__assessment_packages_removed = packages_removed_from_assessment
+                assessment_tombstone_records = self.__create_assessment_tombstone_list(self.__assessment_packages_removed)
+                packages_retained_in_assessment.extend(assessment_tombstone_records)     # Add assessment tombstone records
+
                 # Recompose truncated status file payload (assessment)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_assessment,
                     count_total_errors=self.__assessment_total_error_count, truncated_substatus_msg=self.__assessment_substatus_msg_copy, substatus_index=assessment_substatus_index)
 
             if len(packages_removed_from_installation) > 0:
+                # Update current installation # of removed packages
+                self.__installation_packages_removed = packages_removed_from_installation
+                # Todo need further requirements to decompose installation tombstone by classifications
+                installation_tombstone_record = self.__create_installation_tombstone()
+                packages_retained_in_installation.append(installation_tombstone_record)    # Add installation tombstone records
+
                 # Recompose truncated status file payload (installation)
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_installation,
                     count_total_errors=self.__installation_total_error_count, truncated_substatus_msg=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
@@ -1124,5 +1140,44 @@ class StatusHandler(object):
     def __get_current_complete_status_errors(self, substatus_msg):
         """ Get the complete status file errors code and errors details """
         return substatus_msg['errors']['code'], substatus_msg['errors']['details']
+
+    def __create_assessment_tombstone_list(self, packages_removed_from_assessment):
+        assessment_tombstone_map = {}
+        tombstone_record_list = []
+
+        # Map['classification', count]
+        for package in packages_removed_from_assessment:
+            classifications = package['classifications'][0]
+            assessment_tombstone_map[classifications] = assessment_tombstone_map.get(classifications, 0) + 1
+
+        # Add assessment tombstone record per classifications except unclassified
+        for tombstone_classification, tombstone_package_count in assessment_tombstone_map.items():
+            if not tombstone_classification == Constants.PackageClassification.UNCLASSIFIED:
+                tombstone_record_list.append(self.__create_assessment_tombstone(tombstone_package_count, tombstone_classification))
+
+        return tombstone_record_list
+
+    def __create_assessment_tombstone(self, tombstone_packages_count, tombstone_classification):
+        """ Tombstone record for truncated assessment
+            Patch Name: 20 additional updates of classification <Classification> reported.
+            Classification: [Critical, Security, Other]
+        """
+        tombstone_name = str(tombstone_packages_count) + ' additional updates of classification ' + tombstone_classification + ' reported',
+        return {
+            'patchId': 'Truncated_patch_list_id',
+            'name': tombstone_name,
+            'version': '0.0.0',
+            'classifications': [tombstone_classification]
+        }
+
+    def __create_installation_tombstone(self):
+        """ Tombstone record for truncated installation """
+        return {
+            'patchId': 'Truncated_patch_list_id',
+            'name': 'Truncated_patch_list',
+            'version': '0.0.0',
+            'classifications': ['Other'],
+            'patchInstallationState': 'NotSelected'
+        }
     # endregion
 
