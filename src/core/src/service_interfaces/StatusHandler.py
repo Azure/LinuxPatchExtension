@@ -953,7 +953,6 @@ class StatusHandler(object):
             status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
             size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # Reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
-        self.__is_file_truncated = True  # Set true flag status file needs to remain truncated
         self.composite_logger.log_debug("End package list truncation")
 
         return truncated_status_file
