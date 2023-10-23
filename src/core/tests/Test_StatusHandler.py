@@ -626,6 +626,53 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue('Critical' in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
         self.runtime.env_layer.file_system.delete_files_from_dir(self.runtime.status_handler.status_file_path, '*.complete.status')
 
+    def test_log_truncated_packages_assert_no_truncation(self):
+        # Set up create temp file for log and set sys.stdout to it
+        self.__create_temp_file_and_set_stdout()
+
+        # Assert no truncation log output
+        patch_count_for_test = 500
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+
+        self.runtime.status_handler.log_truncated_packages()
+        self.__read_temp_log_and_assert("No packages truncated")
+
+        # Reset sys.stdout, close and delete tmp
+        self.__remove_temp_file_reset_stdout()
+
+    def test_log_truncated_packages_assert_assessment_truncation(self):
+        # Set up create temp file for log and set sys.stdout to it
+        self.__create_temp_file_and_set_stdout()
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = -1
+
+        # Assert assessment truncation log output
+        patch_count_for_test = random.randint(780, 1000)
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+        self.runtime.status_handler.log_truncated_packages()
+        self.__read_temp_log_and_assert("Packages removed from assessment packages list")
+
+        # Reset sys.stdout, close and delete tmp
+        self.__remove_temp_file_reset_stdout()
+
+    def test_log_truncated_packages_assert_installation_truncation(self):
+        # Set up create temp file for log and set sys.stdout to it
+        self.__create_temp_file_and_set_stdout()
+        Constants.StatusTruncationConfig.NO_TRUNCATION_IN_X_SEC = -1
+
+        # Assert installation truncation log output
+        patch_count_for_test = random.randint(780, 1000)
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
+        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+        self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+        self.runtime.status_handler.log_truncated_packages()
+        self.__read_temp_log_and_assert("Packages removed from installation packages list")
+
+        # Reset sys.stdout, close and delete tmp
+        self.__remove_temp_file_reset_stdout()
+
     def test_assessment_status_file_truncation_under_size_limit(self):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)

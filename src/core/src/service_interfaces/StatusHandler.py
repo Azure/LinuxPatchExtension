@@ -870,6 +870,15 @@ class StatusHandler(object):
     # endregion
 
     # region - Patch Truncation
+    def log_truncated_packages(self):
+        """ log the removed packages from patches in CoreMain after main operation are marked completed """
+        if not len(self.__assessment_packages_removed) == 0:
+            self.composite_logger.log_debug("Packages removed from assessment packages list: {0}".format(self.__assessment_packages_removed))
+        if not len(self.__installation_packages_removed) == 0:
+            self.composite_logger.log_debug("Packages removed from installation packages list: {0}".format(self.__installation_packages_removed))
+        if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
+            self.composite_logger.log_debug("No packages truncated")
+
     def __check_file_size_and_timestamp_for_truncation(self, status_file_payload_json_dumps):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload byte size on disk
 
