@@ -838,18 +838,15 @@ class StatusHandler(object):
 
     def __set_errors_json(self, error_count_by_operation, errors_by_operation, truncated=False):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
-        success_code = Constants.PatchOperationTopLevelErrorCode.SUCCESS
-        error_code = Constants.PatchOperationTopLevelErrorCode.ERROR
-        error_count = error_count_by_operation
-        code = success_code if error_count_by_operation == 0 else error_code
+        code = Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR
 
         # Update the errors json to include truncation detail
         if truncated:
-            error_count += 1    # add 1 because of truncation
-            code = Constants.PatchOperationTopLevelErrorCode.WARNING if code != error_code else error_code
+            error_count_by_operation += 1    # add 1 because of truncation
+            code = Constants.PatchOperationTopLevelErrorCode.WARNING if code != Constants.PatchOperationTopLevelErrorCode.ERROR else Constants.PatchOperationTopLevelErrorCode.ERROR
 
-        message = "{0} error/s reported.".format(error_count)
-        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count > 0 else ""
+        message = "{0} error/s reported.".format(error_count_by_operation)
+        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
         return {
             "code": code,
             "details": errors_by_operation,
