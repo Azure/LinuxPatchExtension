@@ -843,18 +843,15 @@ class StatusHandler(object):
 
     def __set_errors_json(self, error_count_by_operation, errors_by_operation, truncated=False):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
-        success_code = Constants.PatchOperationTopLevelErrorCode.SUCCESS
-        error_code = Constants.PatchOperationTopLevelErrorCode.ERROR
-        error_count = error_count_by_operation
-        code = success_code if error_count_by_operation == 0 else error_code
+        code = Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR
 
         # Update the errors json to include truncation detail
         if truncated:
-            error_count += 1    # add 1 because of truncation
-            code = Constants.PatchOperationTopLevelErrorCode.WARNING if code != error_code else error_code
+            error_count_by_operation += 1    # add 1 because of truncation
+            code = Constants.PatchOperationTopLevelErrorCode.WARNING if code != Constants.PatchOperationTopLevelErrorCode.ERROR else Constants.PatchOperationTopLevelErrorCode.ERROR
 
-        message = "{0} error/s reported.".format(error_count)
-        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count > 0 else ""
+        message = "{0} error/s reported.".format(error_count_by_operation)
+        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
         return {
             "code": code,
             "details": errors_by_operation,
@@ -966,19 +963,13 @@ class StatusHandler(object):
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_installation,
                     count_total_errors=self.__installation_total_error_count, truncated_substatus_msg=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
 
-            status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
+            status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
+            status_file_agent_size_diff = status_file_size_in_bytes - self.__internal_file_capacity
             size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # Reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
         self.composite_logger.log_debug("End package list truncation")
 
         return truncated_status_file
-
-    def __get_new_size_in_bytes_after_truncation(self, truncated_status_file):
-        """ Get new size in bytes for status_file,and difference of status file - 126kb """
-        status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
-        status_file_agent_size_diff = status_file_size_in_bytes - self.__internal_file_capacity
-
-        return status_file_size_in_bytes, status_file_agent_size_diff
 
     def __split_assessment_list(self, assessment_packages):
         """ Split package list, keep 5 minimum packages, and remaining packages for truncation """
