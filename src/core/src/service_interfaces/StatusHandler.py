@@ -947,19 +947,13 @@ class StatusHandler(object):
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_installation,
                     count_total_errors=self.__installation_total_error_count, truncated_substatus_msg=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
 
-            status_file_size_in_bytes, status_file_agent_size_diff = self.__get_new_size_in_bytes_after_truncation(truncated_status_file)
+            status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
+            status_file_agent_size_diff = status_file_size_in_bytes - self.__internal_file_capacity
             size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # Reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
         self.composite_logger.log_debug("End package list truncation")
 
         return truncated_status_file
-
-    def __get_new_size_in_bytes_after_truncation(self, truncated_status_file):
-        """ Get new size in bytes for status_file,and difference of status file - 126kb """
-        status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
-        status_file_agent_size_diff = status_file_size_in_bytes - self.__internal_file_capacity
-
-        return status_file_size_in_bytes, status_file_agent_size_diff
 
     def __split_assessment_list(self, assessment_packages):
         """ Split package list, keep 5 minimum packages, and remaining packages for truncation """
