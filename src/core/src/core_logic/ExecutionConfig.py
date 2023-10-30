@@ -58,6 +58,7 @@ class ExecutionConfig(object):
         self.included_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_INCLUDE, [])
         self.excluded_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_EXCLUDE, [])
         self.maintenance_run_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAINTENANCE_RUN_ID)
+        self.max_patch_publish_date = self.
         self.health_store_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.HEALTH_STORE_ID)
         if self.operation == Constants.INSTALLATION:
             self.reboot_setting = self.config_settings[Constants.ConfigSettings.REBOOT_SETTING]     # expected to throw if not present
@@ -98,6 +99,9 @@ class ExecutionConfig(object):
         self.reboot_setting = Constants.REBOOT_NEVER
         self.patch_mode = None
         self.composite_logger.log_debug("Setting execution configuration values for auto assessment. [GeneratedActivityId={0}][StartTime={1}]".format(self.activity_id, str(self.start_time)))
+
+    def __get_max_patch_publish_date(self, maintenance_run_id):
+        return maintenance_run_id
 
     @staticmethod
     def __get_value_from_argv(argv, key, default_value=Constants.DEFAULT_UNSPECIFIED_VALUE):
