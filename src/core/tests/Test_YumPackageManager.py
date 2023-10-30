@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -197,7 +197,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for successfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.PackageStatus.INSTALLED)
 
     def test_install_package_failure(self):
         """Unit test for install package failure"""
@@ -209,7 +209,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.PackageStatus.FAILED)
 
     def test_install_package_obsoleted(self):
         """Unit test for install package failure"""
@@ -221,7 +221,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('rdma.noarch', '7.3_4.7_rc2-6.el7_3', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('rdma.noarch', '7.3_4.7_rc2-6.el7_3', simulate=True), Constants.PackageStatus.INSTALLED)
 
     def test_install_package_replaced(self):
         """Unit test for install package failure"""
@@ -233,7 +233,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('python-rhsm.x86_64', '1.19.10-1.el7_4', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('python-rhsm.x86_64', '1.19.10-1.el7_4', simulate=True), Constants.PackageStatus.INSTALLED)
 
     def test_get_product_name(self):
         """Unit test for retrieving product Name"""
@@ -484,121 +484,121 @@ class TestYumPackageManager(unittest.TestCase):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
-        package_manager.disable_auto_os_update()
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        package_manager.patch_mode_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
 
         # validating backup for yum-cron
         self.assertTrue(Constants.YumAutoOSUpdateServices.YUM_CRON in image_default_patch_configuration_backup)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_download_updates_identifier_text], "")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_apply_updates_identifier_text], "")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_enable_on_reboot_identifier_text], False)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_installation_state_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.patch_mode_manager.yum_cron_download_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.patch_mode_manager.yum_cron_apply_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.patch_mode_manager.yum_cron_enable_on_reboot_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.patch_mode_manager.yum_cron_installation_state_identifier_text], False)
 
         # validating backup for dnf-automatic
         self.assertTrue(Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC in image_default_patch_configuration_backup)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_download_updates_identifier_text], "")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_apply_updates_identifier_text], "")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_enable_on_reboot_identifier_text], False)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_installation_state_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.patch_mode_manager.dnf_automatic_download_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.patch_mode_manager.dnf_automatic_apply_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.patch_mode_manager.dnf_automatic_enable_on_reboot_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.patch_mode_manager.dnf_automatic_installation_state_identifier_text], False)
 
         # validating backup for packagekit
         self.assertTrue(Constants.YumAutoOSUpdateServices.PACKAGEKIT in image_default_patch_configuration_backup)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_download_updates_identifier_text], "")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_apply_updates_identifier_text], "")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_enable_on_reboot_identifier_text], False)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_installation_state_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.patch_mode_manager.packagekit_download_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.patch_mode_manager.packagekit_apply_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.patch_mode_manager.packagekit_enable_on_reboot_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.patch_mode_manager.packagekit_installation_state_identifier_text], False)
 
     def test_disable_auto_os_updates_with_installed_services(self):
         # all services are installed and contain valid configurations. expected o/p All services will be disabled and backup file should reflect default settings for all
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
 
-        package_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
+        package_manager.patch_mode_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
         yum_cron_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
-        self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
 
-        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        package_manager.patch_mode_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
         dnf_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
-        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
 
-        package_manager.packagekit_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "PackageKit.conf")
+        package_manager.patch_mode_manager.packagekit_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "PackageKit.conf")
         packagekit_os_patch_configuration_settings = 'WritePreparedUpdates = true\nGetPreparedUpdates = true\n'
-        self.runtime.write_to_file(package_manager.packagekit_configuration_file_path, packagekit_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.packagekit_configuration_file_path, packagekit_os_patch_configuration_settings)
 
-        package_manager.disable_auto_os_update()
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        package_manager.patch_mode_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
 
         # validating backup for yum-cron
         self.assertTrue(Constants.YumAutoOSUpdateServices.YUM_CRON in image_default_patch_configuration_backup)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_download_updates_identifier_text], "yes")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_apply_updates_identifier_text], "yes")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_enable_on_reboot_identifier_text], True)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.yum_cron_installation_state_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.patch_mode_manager.yum_cron_download_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.patch_mode_manager.yum_cron_apply_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.patch_mode_manager.yum_cron_enable_on_reboot_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON][package_manager.patch_mode_manager.yum_cron_installation_state_identifier_text], True)
 
         # validating backup for dnf-automatic
         self.assertTrue(Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC in image_default_patch_configuration_backup)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_download_updates_identifier_text], "yes")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_apply_updates_identifier_text], "yes")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_enable_on_reboot_identifier_text], True)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.dnf_automatic_installation_state_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.patch_mode_manager.dnf_automatic_download_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.patch_mode_manager.dnf_automatic_apply_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.patch_mode_manager.dnf_automatic_enable_on_reboot_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC][package_manager.patch_mode_manager.dnf_automatic_installation_state_identifier_text], True)
 
         # validating backup for packagekit
         self.assertTrue(Constants.YumAutoOSUpdateServices.PACKAGEKIT in image_default_patch_configuration_backup)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_download_updates_identifier_text], "true")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_apply_updates_identifier_text], "true")
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_enable_on_reboot_identifier_text], True)
-        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.packagekit_installation_state_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.patch_mode_manager.packagekit_download_updates_identifier_text], "true")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.patch_mode_manager.packagekit_apply_updates_identifier_text], "true")
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.patch_mode_manager.packagekit_enable_on_reboot_identifier_text], True)
+        self.assertEqual(image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT][package_manager.patch_mode_manager.packagekit_installation_state_identifier_text], True)
 
     def test_disable_auto_os_update_failure(self):
-        # disable with non existing log file
+        # disable with non-existing log file
         package_manager = self.container.get('package_manager')
 
-        self.assertRaises(Exception, package_manager.disable_auto_os_update)
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertRaises(Exception, package_manager.patch_mode_manager.disable_auto_os_update)
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
 
     def test_update_image_default_patch_mode(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = package_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = package_manager.patch_mode_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
 
-        # disable apply_udpates when enabled by default
+        # disable apply_updates when enabled by default
         yum_cron_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
-        self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
 
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.yum_cron_apply_updates_identifier_text, "no", package_manager.yum_cron_config_pattern_match_text)
-        yum_cron_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.yum_cron_configuration_settings_file_path)
+        package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting(package_manager.patch_mode_manager.yum_cron_apply_updates_identifier_text, "no", package_manager.patch_mode_manager.yum_cron_config_pattern_match_text)
+        yum_cron_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.yum_cron_configuration_settings_file_path)
         self.assertTrue(yum_cron_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('apply_updates = no' in yum_cron_os_patch_configuration_settings_file_path_read)
         self.assertTrue('download_updates = yes' in yum_cron_os_patch_configuration_settings_file_path_read)
 
         # disable download_updates when enabled by default
         yum_cron_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.yum_cron_download_updates_identifier_text, "no", package_manager.yum_cron_config_pattern_match_text)
-        yum_cron_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+        package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting(package_manager.patch_mode_manager.yum_cron_download_updates_identifier_text, "no", package_manager.patch_mode_manager.yum_cron_config_pattern_match_text)
+        yum_cron_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(yum_cron_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('apply_updates = yes' in yum_cron_os_patch_configuration_settings_file_path_read)
         self.assertTrue('download_updates = no' in yum_cron_os_patch_configuration_settings_file_path_read)
 
         # disable apply_updates when default patch mode settings file is empty
         yum_cron_os_patch_configuration_settings = ''
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.yum_cron_apply_updates_identifier_text, "no", package_manager.yum_cron_config_pattern_match_text)
-        yum_cron_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+        package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting(package_manager.patch_mode_manager.yum_cron_apply_updates_identifier_text, "no", package_manager.patch_mode_manager.yum_cron_config_pattern_match_text)
+        yum_cron_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(yum_cron_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('download_updates' not in yum_cron_os_patch_configuration_settings_file_path_read)
         self.assertTrue('apply_updates = no' in yum_cron_os_patch_configuration_settings_file_path_read)
 
     def test_update_image_default_patch_mode_raises_exception(self):
         package_manager = self.container.get('package_manager')
-        package_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
+        package_manager.patch_mode_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
         yum_cron_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
-        self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
-        self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
+        self.assertRaises(Exception, package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting)
 
     def test_is_reboot_pending_return_true_when_exception_raised(self):
         package_manager = self.container.get('package_manager')

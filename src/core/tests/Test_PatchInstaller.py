@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -584,34 +584,34 @@ class TestPatchInstaller(unittest.TestCase):
 
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": True}), True, Constants.YUM)
         runtime.set_legacy_test_type('SuccessInstallPath')
-        runtime.patch_installer.lifecycle_manager.get_vm_cloud_type = lambda: Constants.VMCloudType.ARC
+        runtime.patch_installer.lifecycle_manager.get_cloud_type = lambda: Constants.CloudType.ARC
         runtime.patch_installer.raise_if_telemetry_unsupported()
         runtime.stop()
 
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": False}), True, Constants.YUM)
         runtime.set_legacy_test_type('SuccessInstallPath')
-        runtime.patch_installer.lifecycle_manager.get_vm_cloud_type = lambda: Constants.VMCloudType.ARC
+        runtime.patch_installer.lifecycle_manager.get_cloud_type = lambda: Constants.CloudType.ARC
         self.assertRaises(Exception, runtime.patch_installer.raise_if_telemetry_unsupported)
         runtime.stop()
 
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": True}), True, Constants.YUM)
         runtime.set_legacy_test_type('SuccessInstallPath')
-        runtime.patch_installer.lifecycle_manager.get_vm_cloud_type = lambda: Constants.VMCloudType.ARC
-        runtime.patch_installer.execution_config.operation = Constants.CONFIGURE_PATCHING
+        runtime.patch_installer.lifecycle_manager.get_cloud_type = lambda: Constants.CloudType.ARC
+        runtime.patch_installer.execution_config.operation = Constants.Op.CONFIGURE_PATCHING
         runtime.patch_installer.raise_if_telemetry_unsupported()
         runtime.stop()
 
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": False}), True, Constants.YUM)
         runtime.set_legacy_test_type('SuccessInstallPath')
-        runtime.patch_installer.lifecycle_manager.get_vm_cloud_type = lambda: Constants.VMCloudType.ARC
-        runtime.patch_installer.execution_config.operation = Constants.CONFIGURE_PATCHING
+        runtime.patch_installer.lifecycle_manager.get_cloud_type = lambda: Constants.CloudType.ARC
+        runtime.patch_installer.execution_config.operation = Constants.Op.CONFIGURE_PATCHING
         # Should not raise an exception because it is an ARC VM and it is not installation or assessment
         runtime.patch_installer.raise_if_telemetry_unsupported()
         runtime.stop()
 
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": True}), True, Constants.YUM)
         runtime.set_legacy_test_type('SuccessInstallPath')
-        runtime.patch_installer.execution_config.operation = Constants.CONFIGURE_PATCHING
+        runtime.patch_installer.execution_config.operation = Constants.Op.CONFIGURE_PATCHING
         runtime.patch_installer.raise_if_telemetry_unsupported()
         runtime.stop()
 
@@ -624,7 +624,7 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue(runtime.patch_installer.stopwatch.task_details is not None)
         self.assertTrue(runtime.patch_installer.stopwatch.start_time <= runtime.patch_installer.stopwatch.end_time)
         self.assertTrue(runtime.patch_installer.stopwatch.time_taken_in_secs >= 0)
-        task_info = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.INSTALLATION))
+        task_info = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.Op.INSTALLATION))
         self.assertTrue(task_info in str(runtime.patch_installer.stopwatch.task_details))
         task_status = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
         self.assertTrue(task_status in str(runtime.patch_installer.stopwatch.task_details))
@@ -649,21 +649,24 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = "PT0H"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True)
-        self.assertTrue(runtime.patch_installer.write_installer_perf_logs(True, 1, 1, runtime.maintenance_window, False, Constants.TaskStatus.SUCCEEDED, ""))
+        runtime.patch_installer.stopwatch.start()
+        runtime.patch_installer.set_additional_operation_specific_perf_logs(installed_patch_count=1, maintenance_window_exceeded=False)
+        self.assertTrue(runtime.patch_installer.write_operation_perf_logs(retry_count=1) is None)
         runtime.stop()
 
     def test_raise_if_min_python_version_not_met(self):
         runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), legacy_mode=True)
+        runtime.core_exec.check_minimum_environment_requirements_and_report = runtime.backup_check_minimum_environment_requirements_and_report
         original_version = sys.version_info
         sys.version_info = (2, 6)
         # Assert that an exception is raised
         with self.assertRaises(Exception) as context:
-            runtime.patch_installer.start_installation()
-        self.assertEqual(str(context.exception), Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info))
-
+            runtime.core_exec.check_minimum_environment_requirements_and_report(patch_operation_requested=Constants.Op.INSTALLATION)
+        self.assertEqual(str(context.exception), Constants.PatchOperationErrorCodes.CL_PYTHON_TOO_OLD.format(sys.version_info))
         # reset sys.version to original
         sys.version_info = original_version
         runtime.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,10 +46,10 @@ class PackageFilter(object):
         self.global_excluded_packages = [x for x in self.global_excluded_packages if x not in packages_to_clear_from_global]
 
         # Logging
-        self.composite_logger.log("\nAzure globally-excluded packages: " + str(self.global_excluded_packages))
-        self.composite_logger.log("Included package classifications: " + ', '.join(self.installation_included_classifications))
-        self.composite_logger.log("Included packages: " + str(self.installation_included_package_masks))
-        self.composite_logger.log("Excluded packages: " + str(self.installation_excluded_packages))
+        self.composite_logger.log_verbose("\n[PF] AzGPS globally-excluded packages: " + str(self.global_excluded_packages))
+        self.composite_logger.log_verbose("[PF] Included package classifications: " + ', '.join(self.installation_included_classifications))
+        self.composite_logger.log_verbose("[PF] Included packages: " + str(self.installation_included_package_masks))
+        self.composite_logger.log_verbose("[PF] Excluded packages: " + str(self.installation_excluded_packages))
         if '=' in str(self.installation_excluded_package_masks):
             self.composite_logger.log_error("\n /!\\ Package exclusions do not support version matching in the filter today. "
                                             "Due to this, more packages than expected may be excluded from this update deployment.")

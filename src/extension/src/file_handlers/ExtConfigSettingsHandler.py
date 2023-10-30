@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -92,7 +92,7 @@ class ExtConfigSettingsHandler(object):
                     if re.match('^\d+' + self.file_ext + '$', file):
                         cur_seq_no = int(os.path.basename(file).split('.')[0])
                         file_modified_time = os.path.getmtime(os.path.join(self.config_folder, file))
-                        self.logger.log("Sequence number being considered and the corresponding file modified time. [Sequence No={0}] [Modified={1}]".format(str(cur_seq_no), str(file_modified_time)))
+                        self.logger.log("Sequence number being considered and the corresponding file modified time. [Sequence No={0}][Modified={1}]".format(str(cur_seq_no), str(file_modified_time)))
                         if freshest_time is None:
                             freshest_time = file_modified_time
                             seq_no = cur_seq_no
@@ -140,7 +140,7 @@ class ExtConfigSettingsHandler(object):
                 config_invalid_due_to = "no content found in the file" if config_settings_json is None else "settings not in expected format"
                 raise Exception("Config Settings json file invalid due to " + config_invalid_due_to)
         except Exception as error:
-            error_msg = "Error processing config settings file. [Sequence Number={0}] [Exception= {1}]".format(seq_no, repr(error))
+            error_msg = "Error processing config settings file. [Sequence Number={0}][Exception= {1}]".format(seq_no, repr(error))
             self.logger.log_error(error_msg)
             raise
 

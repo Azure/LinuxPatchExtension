@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,11 +28,11 @@ class TestRebootManager(unittest.TestCase):
         pass
 
     def test_reboot_settings(self):
-        self.test_reboot_setting('Never', Constants.REBOOT_NEVER)
-        self.test_reboot_setting('IfRequired', Constants.REBOOT_IF_REQUIRED)
-        self.test_reboot_setting('Always', Constants.REBOOT_ALWAYS)
+        self.test_reboot_setting('Never', Constants.RebootSettings.NEVER)
+        self.test_reboot_setting('IfRequired', Constants.RebootSettings.IF_REQUIRED)
+        self.test_reboot_setting('Always', Constants.RebootSettings.ALWAYS)
 
-    def test_reboot_setting(self, reboot_setting_in_api='Never', reboot_setting_in_code=Constants.REBOOT_NEVER):
+    def test_reboot_setting(self, reboot_setting_in_api='Never', reboot_setting_in_code=Constants.RebootSettings.NEVER):
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = reboot_setting_in_api
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
@@ -45,7 +45,7 @@ class TestRebootManager(unittest.TestCase):
         argument_composer.reboot_setting = ""
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         reboot_manager = runtime.reboot_manager
-        self.assertEqual(reboot_manager.is_setting(Constants.REBOOT_IF_REQUIRED), True)
+        self.assertEqual(reboot_manager.is_setting(Constants.RebootSettings.IF_REQUIRED), True)
         runtime.stop()
 
     def test_reboot_time_available(self):
@@ -98,6 +98,7 @@ class TestRebootManager(unittest.TestCase):
         runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.REQUIRED)
         runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
         runtime.status_handler.is_reboot_pending = False
+        runtime.package_manager.is_reboot_pending = lambda: False
         runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)
 
         # no further reboot should be required

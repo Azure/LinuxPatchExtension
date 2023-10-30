@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,15 +23,26 @@ import uuid
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
-from core.src.package_managers.UbuntuProClient import UbuntuProClient
+from package_managers.apt.UbuntuProClient import UbuntuProClient
+
+# do not instantiate directly - these are exclusively for type hinting support
+from core.src.bootstrap.EnvLayer import EnvLayer
+from core.src.core_logic.ExecutionConfig import ExecutionConfig
+from core.src.local_loggers.CompositeLogger import CompositeLogger
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
+from core.src.service_interfaces.StatusHandler import StatusHandler
+from core.src.package_managers.PatchModeManager import PatchModeManager
+from core.src.package_managers.SourcesManager import SourcesManager
+from core.src.package_managers.HealthManager import HealthManager
 
 
-class AptitudePackageManager(PackageManager):
+class AptPackageManager(PackageManager):
     """Implementation of Debian/Ubuntu based package management operations"""
 
     # For more details, try `man apt-get` on any Debian/Ubuntu based box.
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
-        super(AptitudePackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, patch_mode_manager, sources_manager, health_manager, package_manager_name):
+        # type: (EnvLayer, ExecutionConfig, CompositeLogger, TelemetryWriter, StatusHandler, PatchModeManager, SourcesManager, HealthManager, str) -> None
+        super(AptPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler, patch_mode_manager, sources_manager, health_manager, package_manager_name)
 
         security_list_guid = str(uuid.uuid4())
 
@@ -58,13 +69,6 @@ class AptitudePackageManager(PackageManager):
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
 
-        # auto OS updates
-        self.update_package_list = 'APT::Periodic::Update-Package-Lists'
-        self.unattended_upgrade = 'APT::Periodic::Unattended-Upgrade'
-        self.os_patch_configuration_settings_file_path = '/etc/apt/apt.conf.d/20auto-upgrades'
-        self.update_package_list_value = ""
-        self.unattended_upgrade_value = ""
-
         # Miscellaneous
         os.environ['DEBIAN_FRONTEND'] = 'noninteractive'  # Avoid a config prompt
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.APT)
@@ -80,59 +84,39 @@ class AptitudePackageManager(PackageManager):
         self.ubuntu_pro_client_all_updates_versions_cached = []
 
     def refresh_repo(self):
-        self.composite_logger.log("\nRefreshing local repo...")
+        self.composite_logger.log_verbose("[APM] Refreshing local repo.")
         self.invoke_package_manager(self.repo_refresh)
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
-        self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
+        self.composite_logger.log_verbose('[APM] Invoking package manager. [Command={0}]'.format(command))
         code, out = self.env_layer.run_command_output(command, False, False)
 
         if code != self.apt_exitcode_ok and self.STR_DPKG_WAS_INTERRUPTED in out:
-            self.composite_logger.log_error('[ERROR] YOU NEED TO TAKE ACTION TO PROCEED. The package manager on this machine is not in a healthy state, and '
-                                            'Patch Management cannot proceed successfully. Before the next Patch Operation, please run the following '
-                                            'command and perform any configuration steps necessary on the machine to return it to a healthy state: '
-                                            'sudo dpkg --configure -a')
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            if raise_on_exception:
-                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            self.composite_logger.log_error("[ERROR] YOU NEED TO TAKE ACTION TO PROCEED. The package manager on this machine is not in a healthy state, and Azure Guest Patching Service cannot proceed successfully. Before the next Patch Operation, please run the following command and perform any configuration steps necessary on the machine to return it to a healthy state: 'sudo dpkg --configure -a'")
+            self.status_handler.add_error_to_status_and_log_error(message="Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a",
+                                                                  raise_exception=bool(raise_on_exception), error_code=Constants.PatchOperationErrorCodes.CL_PACKAGE_MANAGER_FAILURE)
         elif code != self.apt_exitcode_ok:
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            if raise_on_exception:
-                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-            # more known return codes should be added as appropriate
-        else:  # verbose diagnostic log
-            self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_verbose("==========================================================================\n\n")
+            self.composite_logger.log_error("[APM] Package Manager ERROR. [Command={0}][Code={1}][Output={2}]".format(command, str(code), str(out)))
+            self.status_handler.add_error_to_status_and_log_error(message="Unexpected return code from package manager. [Code={0}][Command={1}]".format(str(code), command),
+                                                                  raise_exception=bool(raise_on_exception), error_code=Constants.PatchOperationErrorCodes.CL_PACKAGE_MANAGER_FAILURE)
+        else:
+            self.composite_logger.log_verbose("[APM] Package Manager SUCCESS. [Command={0}][Code={1}][Output={2}]".format(command, str(code), str(out)))
+
         return out, code
 
     def invoke_apt_cache(self, command):
         """Invoke apt-cache using the command input"""
-        self.composite_logger.log_debug('Invoking apt-cache using: ' + command)
+        self.composite_logger.log_verbose('[APM] Invoking apt-cache using: ' + command)
         code, out = self.env_layer.run_command_output(command, False, False)
         if code != 0:
-            self.composite_logger.log('[ERROR] apt-cache was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from apt-cache: " + str(code))
-            self.composite_logger.log_warning(" - Output from apt-cache: \n|\t" + "\n|\t".join(out.splitlines()))
-            error_msg = 'Unexpected return code (' + str(code) + ') from apt-cache on command: ' + command
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-            # more known return codes should be added as appropriate
+            self.composite_logger.log_error("[APM] apt-cache ERROR. [Command={0}][Code={1}][Output={2}]".format(command, str(code), str(out)))
+            self.status_handler.add_error_to_status_and_log_error(message="Unexpected return code from apt-cache. [Code={0}][Command={1}]".format(str(code), command),
+                                                                  raise_exception=True, error_code=Constants.PatchOperationErrorCodes.CL_PACKAGE_MANAGER_FAILURE)
         else:  # verbose diagnostic log
-            self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from apt-cache: " + str(code))
-            self.composite_logger.log_debug(" - Output from apt-cache: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_verbose("==========================================================================\n\n")
+            self.composite_logger.log_verbose("[APM] apt-cache SUCCESS. [Command={0}][Code={1}][Output={2}]".format(command, str(code), str(out)))
+
         return out
 
     # region Classification-based (incl. All) update check
@@ -248,7 +232,7 @@ class AptitudePackageManager(PackageManager):
         # Inst python3-update-manager [1:16.10.7] (1:16.10.8 Ubuntu:16.10/yakkety-updates [all]) [update-manager-core:amd64 ]
         # Inst update-manager-core [1:16.10.7] (1:16.10.8 Ubuntu:16.10/yakkety-updates [all])
 
-        self.composite_logger.log_debug("\nExtracting package and version data...")
+        self.composite_logger.log_verbose("[APM] Extracting package and version data...")
         packages = []
         versions = []
 
@@ -260,7 +244,7 @@ class AptitudePackageManager(PackageManager):
             packages.append(package[0])
             versions.append(package[1])
 
-        self.composite_logger.log_debug(" - Extracted package and version data for " + str(len(packages)) + " packages [BASIC].")
+        self.composite_logger.log_verbose("[APM] Extracted package and version data for " + str(len(packages)) + " packages [BASIC].")
 
         # Discovering ESM packages - Distro versions with extended security maintenance
         lines = output.strip().split('\n')
@@ -271,7 +255,7 @@ class AptitudePackageManager(PackageManager):
 
             if not esm_marker_found:
                 if self.ESM_MARKER in line:
-                   esm_marker_found = True
+                    esm_marker_found = True
                 continue
 
             esm_packages = line.split()
@@ -280,7 +264,7 @@ class AptitudePackageManager(PackageManager):
         for package in esm_packages:
             packages.append(package)
             versions.append(Constants.UA_ESM_REQUIRED)
-        self.composite_logger.log_debug(" - Extracted package and version data for " + str(len(packages)) + " packages [TOTAL].")
+        self.composite_logger.log_verbose("[APM] Extracted package and version data for " + str(len(packages)) + " packages [TOTAL].")
 
         return packages, versions
     # endregion
@@ -303,6 +287,7 @@ class AptitudePackageManager(PackageManager):
         #      bash | 4.3-14ubuntu1 | http://us.archive.ubuntu.com/ubuntu xenial/main amd64 Packages
 
         package_versions = []
+        debug_log = str()
 
         cmd = self.single_package_check_versions.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_apt_cache(cmd)
@@ -311,11 +296,12 @@ class AptitudePackageManager(PackageManager):
         for line in lines:
             package_details = line.split(' |')
             if len(package_details) == 3:
-                self.composite_logger.log_debug(" - Applicable line: " + str(line))
+                debug_log += "[A] {0}\n".format(str(line))  # applicable
                 package_versions.append(package_details[1].strip())
             else:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                debug_log += "[N] {0}\n".format(str(line))  # not applicable
 
+        self.composite_logger.log_debug("[APM] Debug log on get all available versions of package: {0}".format(debug_log))
         return package_versions
 
     def is_package_version_installed(self, package_name, package_version):
@@ -343,7 +329,7 @@ class AptitudePackageManager(PackageManager):
                 else:
                     self.composite_logger.log_debug("    - Inapplicable line: " + str(line))
 
-            self.telemetry_writer.write_event("[Installed check] Return code: 1. Unable to verify package not present on the system: " + str(output), Constants.TelemetryEventLevel.Verbose)
+            self.telemetry_writer.write_event("[Installed check] Return code: 1. Unable to verify package not present on the system: " + str(output), Constants.EventLevel.Verbose)
         elif code == 0:  # likely found
             # Sample output format ------------------------------------------
             # Package: mysql-server
@@ -365,31 +351,31 @@ class AptitudePackageManager(PackageManager):
                         composite_found_flag = composite_found_flag | 1
                     else:  # should never hit for the way this is invoked, hence telemetry
                         self.composite_logger.log_debug("    - Did not match name: " + str(package_name) + " (" + str(line) + ")")
-                        self.telemetry_writer.write_event("[Installed check] Name did not match: " + package_name + " (line=" + str(line) + ")(out=" + str(output) + ")", Constants.TelemetryEventLevel.Verbose)
+                        self.telemetry_writer.write_event("[Installed check] Name did not match: " + package_name + " (line=" + str(line) + ")(out=" + str(output) + ")", Constants.EventLevel.Verbose)
                     continue
                 if 'Version: ' in line:
                     if package_version in line:
                         composite_found_flag = composite_found_flag | 2
                     else:  # should never hit for the way this is invoked, hence telemetry
                         self.composite_logger.log_debug("    - Did not match version: " + str(package_version) + " (" + str(line) + ")")
-                        self.telemetry_writer.write_event("[Installed check] Version did not match: " + str(package_version) + " (line=" + str(line) + ")(out=" + str(output) + ")", Constants.TelemetryEventLevel.Verbose)
+                        self.telemetry_writer.write_event("[Installed check] Version did not match: " + str(package_version) + " (line=" + str(line) + ")(out=" + str(output) + ")", Constants.EventLevel.Verbose)
                     continue
                 if 'Status: ' in line:
                     if 'install ok installed' in line:
                         composite_found_flag = composite_found_flag | 4
                     else:  # should never hit for the way this is invoked, hence telemetry
                         self.composite_logger.log_debug("    - Did not match status: " + str(package_name) + " (" + str(line) + ")")
-                        self.telemetry_writer.write_event("[Installed check] Status did not match: 'install ok installed' (line=" + str(line) + ")(out=" + str(output) + ")", Constants.TelemetryEventLevel.Verbose)
+                        self.telemetry_writer.write_event("[Installed check] Status did not match: 'install ok installed' (line=" + str(line) + ")(out=" + str(output) + ")", Constants.EventLevel.Verbose)
                     continue
                 if composite_found_flag & 7 == 7:  # whenever this becomes true, the exact package version is installed
                     self.composite_logger.log_debug("    - Package, Version and Status matched. Package is detected as 'Installed'.")
                     return True
                 self.composite_logger.log_debug("    - Inapplicable line: " + str(line))
             self.composite_logger.log_debug("    - Install status check did NOT find the package installed: (composite_found_flag=" + str(composite_found_flag) + ")")
-            self.telemetry_writer.write_event("Install status check did NOT find the package installed: (composite_found_flag=" + str(composite_found_flag) + ")(output=" + output + ")", Constants.TelemetryEventLevel.Verbose)
+            self.telemetry_writer.write_event("Install status check did NOT find the package installed: (composite_found_flag=" + str(composite_found_flag) + ")(output=" + output + ")", Constants.EventLevel.Verbose)
         else:  # This is not expected to execute. If it does, the details will show up in telemetry. Improve this code with that information.
             self.composite_logger.log_debug("    - Unexpected return code from dpkg: " + str(code) + ". Output: " + str(output))
-            self.telemetry_writer.write_event("Unexpected return code from dpkg: Cmd=" + str(cmd) + ". Code=" + str(code) + ". Output=" + str(output), Constants.TelemetryEventLevel.Verbose)
+            self.telemetry_writer.write_event("Unexpected return code from dpkg: Cmd=" + str(cmd) + ". Code=" + str(code) + ". Output=" + str(output), Constants.EventLevel.Verbose)
 
         # SECONDARY METHOD - Fallback
         # Sample output format
@@ -417,7 +403,7 @@ class AptitudePackageManager(PackageManager):
                     self.composite_logger.log_debug("      - Did not find status: " + str(package_details[3] + " (" + str(package_details[3]) + ")"))
                     continue
                 self.composite_logger.log_debug("      - Package version specified was determined to be installed.")
-                self.telemetry_writer.write_event("[Installed check] Fallback code disagreed with dpkg.", Constants.TelemetryEventLevel.Verbose)
+                self.telemetry_writer.write_event("[Installed check] Fallback code disagreed with dpkg.", Constants.EventLevel.Verbose)
                 return True
 
         self.composite_logger.log_debug("   - Package version specified was determined to NOT be installed.")
@@ -476,129 +462,6 @@ class AptitudePackageManager(PackageManager):
             return Constants.UNKNOWN_PACKAGE_SIZE
     # endregion
 
-    # region auto OS updates
-    def get_current_auto_os_patch_state(self):
-        """ Gets the current auto OS update patch state on the machine """
-        self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
-        if os.path.exists(self.os_patch_configuration_settings_file_path):
-            self.__get_current_auto_os_updates_setting_on_machine()
-        if not os.path.exists(self.os_patch_configuration_settings_file_path) or int(self.unattended_upgrade_value) == 0:
-            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.DISABLED
-        elif int(self.unattended_upgrade_value) == 1:
-            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.ENABLED
-        else:
-            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
-
-        self.composite_logger.log_debug("Current Auto OS Patch State is [State={0}]".format(str(current_auto_os_patch_state)))
-        return current_auto_os_patch_state
-
-    def __get_current_auto_os_updates_setting_on_machine(self):
-        """ Gets all the update settings related to auto OS updates currently set on the machine """
-        try:
-            image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
-            settings = image_default_patch_configuration.strip().split('\n')
-            for setting in settings:
-                if self.update_package_list in str(setting):
-                    self.update_package_list_value = re.search(self.update_package_list + ' *"(.*?)".', str(setting)).group(1)
-                if self.unattended_upgrade in str(setting):
-                    self.unattended_upgrade_value = re.search(self.unattended_upgrade + ' *"(.*?)".', str(setting)).group(1)
-
-            if self.update_package_list_value == "":
-                self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.update_package_list)))
-
-            if self.unattended_upgrade_value == "":
-                self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.unattended_upgrade)))
-
-        except Exception as error:
-            raise Exception("Error occurred in fetching default auto OS updates from the machine. [Exception={0}]".format(repr(error)))
-
-    def disable_auto_os_update(self):
-        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
-        try:
-            self.composite_logger.log_debug("Disabling auto OS updates if they are enabled")
-            self.backup_image_default_patch_configuration_if_not_exists()
-            self.update_os_patch_configuration_sub_setting(self.update_package_list, "0")
-            self.update_os_patch_configuration_sub_setting(self.unattended_upgrade, "0")
-            self.composite_logger.log("Successfully disabled auto OS updates")
-        except Exception as error:
-            self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
-            raise
-
-    def backup_image_default_patch_configuration_if_not_exists(self):
-        """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
-        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
-        try:
-            image_default_patch_configuration_backup = {}
-            image_default_patch_configuration_backup_exists = self.image_default_patch_configuration_backup_exists()
-
-            # read existing backup since it also contains backup from other update services. We need to preserve any existing data with backup file
-            if image_default_patch_configuration_backup_exists:
-                try:
-                    image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
-                except Exception as error:
-                    self.composite_logger.log_error("Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
-
-            # verify if existing backup is valid if not, write to backup
-            is_backup_valid = image_default_patch_configuration_backup_exists and self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
-            if is_backup_valid:
-                self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]"
-                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
-            else:
-                self.composite_logger.log_debug("Since the backup is invalid or does not exist, will add a new backup with the current auto OS update settings")
-                self.__get_current_auto_os_updates_setting_on_machine()
-
-                backup_image_default_patch_configuration_json = {
-                    self.update_package_list: self.update_package_list_value,
-                    self.unattended_upgrade: self.unattended_upgrade_value
-                }
-
-                self.composite_logger.log_debug("Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
-                                                .format(str(backup_image_default_patch_configuration_json), self.image_default_patch_configuration_backup_path))
-                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)), mode='w+')
-        except Exception as error:
-            error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
-            self.composite_logger.log_error(error_message)
-            self.status_handler.add_error_to_status(error_message, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            raise
-
-    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
-        if self.update_package_list in image_default_patch_configuration_backup and self.unattended_upgrade in image_default_patch_configuration_backup:
-            self.composite_logger.log_debug("Extension already has a valid backup of the default system configuration settings for auto OS updates.")
-            return True
-        else:
-            self.composite_logger.log_error("Extension does not have a valid backup of the default system configuration settings for auto OS updates.")
-            return False
-
-    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="0", patch_configuration_sub_setting_pattern_to_match=""):
-        """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
-        try:
-            # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
-            self.composite_logger.log("Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
-            os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
-            patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + ' "' + value + '";'
-            patch_configuration_sub_setting_found_in_file = False
-            updated_patch_configuration_sub_setting = ""
-            settings = os_patch_configuration_settings.strip().split('\n')
-
-            # update value of existing setting
-            for i in range(len(settings)):
-                if patch_configuration_sub_setting in settings[i]:
-                    settings[i] = patch_configuration_sub_setting_to_update
-                    patch_configuration_sub_setting_found_in_file = True
-                updated_patch_configuration_sub_setting += settings[i] + "\n"
-
-            # add setting to configuration file, since it doesn't exist
-            if not patch_configuration_sub_setting_found_in_file:
-                updated_patch_configuration_sub_setting += patch_configuration_sub_setting_to_update + "\n"
-
-            self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path, '{0}'.format(updated_patch_configuration_sub_setting.lstrip()), mode='w+')
-        except Exception as error:
-            error_msg = "Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error))
-            self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            raise
-    # endregion
-
     # region Reboot Management
     def do_processes_require_restart(self):
         """ Fulfilling base class contract """
@@ -649,13 +512,13 @@ class AptitudePackageManager(PackageManager):
         """Set the security-ESM classification for the esm packages."""
         security_esm_update_query_success, security_esm_updates, security_esm_updates_versions = self.get_security_esm_updates()
         if self.__pro_client_prereq_met and security_esm_update_query_success and len(security_esm_updates) > 0:
-            self.telemetry_writer.write_event("set Security-ESM package status:[Operation={0}][Updates={1}]".format(operation, str(security_esm_updates)), Constants.TelemetryEventLevel.Verbose)
-            if operation == Constants.ASSESSMENT:
+            self.telemetry_writer.write_event("set Security-ESM package status:[Operation={0}][Updates={1}]".format(operation, str(security_esm_updates)), Constants.EventLevel.Verbose)
+            if operation == Constants.Op.ASSESSMENT:
                 self.status_handler.set_package_assessment_status(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
                 # If the Ubuntu Pro Client is not attached, set the error with the code UA_ESM_REQUIRED. This will be used in portal to mark the VM as unattached to pro.
                 if not self.ubuntu_pro_client.is_ubuntu_pro_client_attached:
                     self.status_handler.add_error_to_status("{0} patches requires Ubuntu Pro for Infrastructure with Extended Security Maintenance".format(len(security_esm_updates)), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED)
-            elif operation == Constants.INSTALLATION:
+            elif operation == Constants.Op.INSTALLATION:
                 if security_esm_update_query_success:
                     esm_packages_selected_to_install = [package for package in packages if package in security_esm_updates]
                     self.composite_logger.log_debug("Setting security ESM package status. [SelectedEsmPackagesCount={0}]".format(len(esm_packages_selected_to_install)))

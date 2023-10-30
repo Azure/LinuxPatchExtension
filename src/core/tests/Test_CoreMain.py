@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -67,13 +67,13 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 3)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_operation_fail_for_autopatching_request(self):
@@ -90,18 +90,18 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertTrue(substatus_file_data_patch_metadata_summary["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
         self.assertFalse(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_operation_success_for_non_autopatching_request(self):
@@ -117,12 +117,12 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 3)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_operation_success_for_autopatching_request(self):
@@ -141,17 +141,17 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_operation_success_for_autopatching_request_with_security_classification(self):
@@ -172,10 +172,10 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
         self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
@@ -183,13 +183,13 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["name"], "samba-libs")
         self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["classifications"]))
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_invalid_maintenance_run_id(self):
@@ -208,17 +208,17 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())       # "invalid" maintenance ids are okay in the new contract
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())       # "invalid" maintenance ids are okay in the new contract
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
         # test with a random string for maintenance run id
@@ -236,22 +236,22 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], maintenance_run_id)
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_assessment_operation_success(self):
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -263,15 +263,15 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_assessment_operation_fail(self):
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('ExceptionPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -283,32 +283,33 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 2)
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.ERROR.lower())
+        self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_assessment_operation_fail_due_to_no_telemetry(self):
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         argument_composer.events_folder = None
         composed_arguments = argument_composer.get_composed_arguments(dict(telemetrySupported=False))
         runtime = RuntimeCompositor(composed_arguments, True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
+        runtime.core_exec.check_minimum_environment_requirements_and_report = runtime.backup_check_minimum_environment_requirements_and_report
         CoreMain(composed_arguments)
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.ERROR.lower())
+        self.assertTrue(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_installation_operation_fail_due_to_telemetry_unsupported_no_events_folder(self):
@@ -323,27 +324,27 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertFalse(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertFalse(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue("Installation failed due to assessment failure. Please refer the error details in assessment substatus" in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_installation_operation_fail_due_to_no_telemetry(self):
         # telemetry not supported
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.INSTALLATION
+        argument_composer.operation = Constants.Op.INSTALLATION
         argument_composer.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings={"telemetrySupported": False}), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
@@ -355,39 +356,40 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.ERROR.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 2)
-        self.assertFalse(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertFalse(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue("Installation failed due to assessment failure. Please refer the error details in assessment substatus" in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_assessment_operation_fail_on_arc_due_to_no_telemetry(self):
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         argument_composer.events_folder = None
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER, Constants.VMCloudType.ARC)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER, Constants.CloudType.ARC)
         runtime.set_legacy_test_type('HappyPath')
+        runtime.core_exec.check_minimum_environment_requirements_and_report = runtime.backup_check_minimum_environment_requirements_and_report
         CoreMain(argument_composer.get_composed_arguments())
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.ERROR.lower())
+        self.assertTrue(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_installation_operation_fail_on_arc_due_to_no_telemetry(self):
@@ -395,28 +397,28 @@ class TestCoreMain(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         argument_composer.events_folder = None
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER,Constants.VMCloudType.ARC)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER, Constants.CloudType.ARC)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
 
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertFalse(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertFalse(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         self.assertTrue("Installation failed due to assessment failure. Please refer the error details in assessment substatus" in json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.ERROR.lower())
         self.assertEqual(len(json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"]), 1)
-        self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
+        self.assertTrue(Constants.Errors.NO_TELEMETRY_SUPPORT_AT_AGENT in json.loads(substatus_file_data[3]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
         runtime.stop()
 
     def test_install_all_packages_for_centos_autopatching(self):
@@ -442,10 +444,10 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         self.assertTrue(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["installedPatchCount"] == 5)
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "selinux-policy.noarch")
         self.assertTrue("Other" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
@@ -457,13 +459,13 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue("libgcc.i686_4.8.5-28.el7_CentOS Linux_7.9.2009" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
         self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchInstallationState"])
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
@@ -492,10 +494,10 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_WARNING.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.WARNING.lower())
         self.assertTrue(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["installedPatchCount"] == 5)
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "selinux-policy.noarch")
         self.assertTrue("Other" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
@@ -507,13 +509,13 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue("libgcc.i686_4.8.5-28.el7_CentOS Linux_7.9.2009" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
         self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchInstallationState"])
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
@@ -541,10 +543,10 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         self.assertTrue(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["installedPatchCount"] == 1)
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "selinux-policy.noarch")
         self.assertTrue("Other" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
@@ -562,13 +564,13 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue("libgcc.i686_4.8.5-28.el7_Red Hat Enterprise Linux Server_7.5" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
         self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchInstallationState"])
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
@@ -597,10 +599,10 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_WARNING.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.WARNING.lower())
         self.assertTrue(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["installedPatchCount"] == 1)
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "selinux-policy.noarch")
         self.assertTrue("Other" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
@@ -618,13 +620,13 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue("libgcc.i686_4.8.5-28.el7_Red Hat Enterprise Linux Server_7.5" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
         self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchInstallationState"])
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
         self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
@@ -634,7 +636,7 @@ class TestCoreMain(unittest.TestCase):
         """Unit test for auto assessment request with configure patching completed on the sequence before. Result: should retain prev substatus and update only PatchAssessmentSummary"""
         # operation #1: ConfigurePatching
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.operation = Constants.Op.CONFIGURE_PATCHING
         argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
         argument_composer.assessment_mode = Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
@@ -645,11 +647,11 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
-        self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
+        self.assertTrue(status_file_data["operation"] == Constants.Op.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
@@ -663,7 +665,7 @@ class TestCoreMain(unittest.TestCase):
         argument_composer.maintenance_run_id = None
         argument_composer.start_time = runtime.env_layer.datetime.standard_datetime_to_utc(datetime.datetime.utcnow())
         argument_composer.duration = Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION
-        argument_composer.reboot_setting = Constants.REBOOT_NEVER
+        argument_composer.reboot_setting = Constants.RebootSettings.NEVER
         argument_composer.patch_mode = None
         argument_composer.exec_auto_assess_only = True
         runtime.execution_config.exec_auto_assess_only = True
@@ -672,16 +674,16 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
         # verifying the original operation name is preserved
-        self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
+        self.assertTrue(status_file_data["operation"] == Constants.Op.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check started by set to 'Platform'
         self.assertTrue(json.loads(substatus_file_data[0]["formattedMessage"]["message"])['startedBy'], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
         # verifying the older operation summary is preserved
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
@@ -694,20 +696,20 @@ class TestCoreMain(unittest.TestCase):
         # operation #1: ConfigurePatching
         # Here it should skip agent compatibility check as operation is configure patching [ not assessment or installation]
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.operation = Constants.Op.CONFIGURE_PATCHING
         argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
         argument_composer.assessment_mode = Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT, Constants.VMCloudType.ARC)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT, Constants.CloudType.ARC)
         runtime.set_legacy_test_type("SuccessInstallPath")
         CoreMain(argument_composer.get_composed_arguments())
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
-        self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
+        self.assertTrue(status_file_data["operation"] == Constants.Op.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
@@ -721,7 +723,7 @@ class TestCoreMain(unittest.TestCase):
         argument_composer.maintenance_run_id = None
         argument_composer.start_time = runtime.env_layer.datetime.standard_datetime_to_utc(datetime.datetime.utcnow())
         argument_composer.duration = Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION
-        argument_composer.reboot_setting = Constants.REBOOT_NEVER
+        argument_composer.reboot_setting = Constants.RebootSettings.NEVER
         argument_composer.patch_mode = None
         argument_composer.exec_auto_assess_only = True
         runtime.execution_config.exec_auto_assess_only = True
@@ -732,16 +734,16 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
         # verifying the original operation name is preserved
-        self.assertTrue(status_file_data["operation"] == Constants.CONFIGURE_PATCHING)
+        self.assertTrue(status_file_data["operation"] == Constants.Op.CONFIGURE_PATCHING)
         substatus_file_data = status_file_data["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check started by set to 'Platform'
         self.assertTrue(json.loads(substatus_file_data[0]["formattedMessage"]["message"])['startedBy'], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
         # verifying the older operation summary is preserved
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
         # check status file for configure patching assessment state
@@ -754,7 +756,7 @@ class TestCoreMain(unittest.TestCase):
         """Unit test for auto assessment request with assessment completed on the sequence before. Result: should contain PatchAssessmentSummary with an updated timestamp and ConfigurePatchingSummary from the first Assessment operation"""
         # operation #1: Assessment
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type("SuccessInstallPath")
         CoreMain(argument_composer.get_composed_arguments())
@@ -763,21 +765,21 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
-        self.assertTrue(status_file_data["operation"] == Constants.ASSESSMENT)
+        self.assertTrue(status_file_data["operation"] == Constants.Op.ASSESSMENT)
         substatus_file_data = status_file_data["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check started by set to 'User'
         self.assertTrue(json.loads(substatus_file_data[0]["formattedMessage"]["message"])['startedBy'], Constants.PatchAssessmentSummaryStartedBy.USER)
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
+        self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment is reported as disabled (if not explicitly asked for)
 
         # operation #2: Auto Assessment
         argument_composer.activity_id = str(uuid.uuid4())
@@ -785,7 +787,7 @@ class TestCoreMain(unittest.TestCase):
         argument_composer.maintenance_run_id = None
         argument_composer.start_time = runtime.env_layer.datetime.standard_datetime_to_utc(datetime.datetime.utcnow())
         argument_composer.duration = Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION
-        argument_composer.reboot_setting = Constants.REBOOT_NEVER
+        argument_composer.reboot_setting = Constants.RebootSettings.NEVER
         argument_composer.patch_mode = None
         argument_composer.exec_auto_assess_only = True
         runtime.execution_config.exec_auto_assess_only = True
@@ -797,16 +799,16 @@ class TestCoreMain(unittest.TestCase):
             status_file_data = json.load(file_handle)[0]["status"]
 
         # verifying the original operation name is preserved
-        self.assertTrue(status_file_data["operation"] == Constants.ASSESSMENT)
+        self.assertTrue(status_file_data["operation"] == Constants.Op.ASSESSMENT)
         substatus_file_data = status_file_data["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check started by set to 'Platform'
         self.assertTrue(json.loads(substatus_file_data[0]["formattedMessage"]["message"])['startedBy'], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
         # verifying the older operation summary is preserved
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
@@ -821,7 +823,7 @@ class TestCoreMain(unittest.TestCase):
         Result: should contain PatchAssessmentSummary with an updated timestamp after auto assessment, and retain PatchInstallationSummary, ConfigurePatchingSummary and PatchMetadatForHealthStoreSummary from the installation(Auto Patching) operation"""
         # operation #1: Assessment
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.INSTALLATION
+        argument_composer.operation = Constants.Op.INSTALLATION
         argument_composer.maintenance_run_id = "8/27/2021 02:00:00 PM +00:00"
         argument_composer.classifications_to_include = ["Security", "Critical"]
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
@@ -832,20 +834,20 @@ class TestCoreMain(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             status_file_data = json.load(file_handle)[0]["status"]
-        self.assertTrue(status_file_data["operation"] == Constants.INSTALLATION)
+        self.assertTrue(status_file_data["operation"] == Constants.Op.INSTALLATION)
         substatus_file_data = status_file_data["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check started by set to 'User'
         self.assertTrue(json.loads(substatus_file_data[0]["formattedMessage"]["message"])['startedBy'], Constants.PatchAssessmentSummaryStartedBy.USER)
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         last_modified_time_from_installation_substatus_after_user_initiated_installation = json.loads(substatus_file_data[1]["formattedMessage"]["message"])["lastModifiedTime"]
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor, this is tested in Test-ConfigurePatchingProcessor
@@ -859,7 +861,7 @@ class TestCoreMain(unittest.TestCase):
         argument_composer.maintenance_run_id = None
         argument_composer.start_time = runtime.env_layer.datetime.standard_datetime_to_utc(datetime.datetime.utcnow())
         argument_composer.duration = Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION
-        argument_composer.reboot_setting = Constants.REBOOT_NEVER
+        argument_composer.reboot_setting = Constants.RebootSettings.NEVER
         argument_composer.patch_mode = None
         argument_composer.exec_auto_assess_only = True
         runtime.execution_config.exec_auto_assess_only = True
@@ -871,23 +873,23 @@ class TestCoreMain(unittest.TestCase):
             status_file_data = json.load(file_handle)[0]["status"]
 
         # verifying the original operation name is preserved
-        self.assertTrue(status_file_data["operation"] == Constants.INSTALLATION)
+        self.assertTrue(status_file_data["operation"] == Constants.Op.INSTALLATION)
         substatus_file_data = status_file_data["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check started by set to 'Platform'
         self.assertTrue(json.loads(substatus_file_data[0]["formattedMessage"]["message"])['startedBy'], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
         # verifying the older operation summary is preserved
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
         # validate lastModifiedTime in InstallationSummary is preserved from the user initiated installation operation
         last_modified_time_from_installation_substatus_after_platform_initiated_assessment = json.loads(substatus_file_data[1]["formattedMessage"]["message"])["lastModifiedTime"]
         self.assertEqual(last_modified_time_from_installation_substatus_after_user_initiated_installation, last_modified_time_from_installation_substatus_after_platform_initiated_assessment)
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.Status.SUCCESS.lower())
         # check status file for configure patching auto updates state
         message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
         self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
@@ -899,7 +901,7 @@ class TestCoreMain(unittest.TestCase):
 
     def test_assessment_operation_fail_after_package_manager_reboot(self):
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('ExceptionPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -924,17 +926,17 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 3)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_TRANSITIONING.lower())
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.ERROR.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.TRANSITIONING.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_assessment_operation_success_after_package_manager_reboot(self):
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('ExceptionPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -960,12 +962,12 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 3)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_TRANSITIONING.lower())
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.INSTALLATION)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.TRANSITIONING.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.Status.SUCCESS.lower())
         runtime.stop()
 
     def test_assessment_superseded(self):
@@ -973,7 +975,7 @@ class TestCoreMain(unittest.TestCase):
         Result: Assessment should terminate with a superseded error message."""
         # Step 1: Run assessment normally to generate 0.status and ExtState.json
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -985,10 +987,10 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
 
         scratch_path = os.path.join(os.path.curdir, "scratch")
 
@@ -1024,11 +1026,11 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED in substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.ERROR.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.SUCCESS.lower())
+        self.assertTrue(Constants.PatchOperationErrorCodes.CL_NEWER_OPERATION_SUPERSEDED in substatus_file_data[0]["formattedMessage"]["message"])
 
         runtime.stop()
 
@@ -1036,7 +1038,7 @@ class TestCoreMain(unittest.TestCase):
         # temp_folder is set with a path in environment settings but the dir does not exist
         argument_composer = ArgumentComposer()
         shutil.rmtree(argument_composer.temp_folder)
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         # validate temp_folder is created
         self.assertTrue(runtime.execution_config.temp_folder is not None)
@@ -1047,7 +1049,7 @@ class TestCoreMain(unittest.TestCase):
         argument_composer = ArgumentComposer()
         shutil.rmtree(argument_composer.temp_folder)
         argument_composer.temp_folder = None
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         # validate temp_folder is created
         self.assertTrue(runtime.execution_config.temp_folder is not None)
@@ -1058,7 +1060,7 @@ class TestCoreMain(unittest.TestCase):
         argument_composer = ArgumentComposer()
         shutil.rmtree(argument_composer.temp_folder)
         argument_composer.temp_folder = None
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         # mock path exists check to return False on config_folder exists check
         backup_os_path_exists = os.path.exists
         os.path.exists = self.mock_os_path_exists
@@ -1074,7 +1076,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertEqual(argument_composer.temp_folder, os.path.abspath(os.path.join(os.path.curdir, "scratch", "tmp")))
 
         # delete temp content
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('HappyPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -1087,7 +1089,7 @@ class TestCoreMain(unittest.TestCase):
 
     def test_delete_temp_folder_contents_when_none_exists(self):
         argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         shutil.rmtree(runtime.execution_config.temp_folder)
 
@@ -1109,7 +1111,7 @@ class TestCoreMain(unittest.TestCase):
         self.backup_os_remove = os.remove
         os.remove = self.mock_os_remove
 
-        argument_composer.operation = Constants.ASSESSMENT
+        argument_composer.operation = Constants.Op.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
 
         # delete temp content attempt #1, throws exception

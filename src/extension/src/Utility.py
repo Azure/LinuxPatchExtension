@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -39,10 +39,10 @@ class Utility(object):
                     os.remove(file_path)
                     return True
                 except Exception as e:
-                    error_msg = "Trial {0}: Could not delete file. [File={1}] [Exception={2}]".format(retry+1, file, repr(e))
+                    error_msg = "Trial {0}: Could not delete file. [File={1}][Exception={2}]".format(retry+1, file, repr(e))
                     self.logger.log_warning(error_msg)
 
-            error_msg = "Failed to delete file after {0} tries. [File={1}] [Exception={2}]".format(self.retry_count, file, error_msg)
+            error_msg = "Failed to delete file after {0} tries. [File={1}][Exception={2}]".format(self.retry_count, file, error_msg)
             self.logger.log_error(error_msg)
         else:
             error_msg = "File Not Found: [File={0}] in [path={1}]".format(file, dir_path)

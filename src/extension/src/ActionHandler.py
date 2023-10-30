@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -169,9 +169,7 @@ class ActionHandler(object):
         else:
             telemetry_info += "[AgentVer=Unknown][GoalStateVer=Unknown]"
 
-        if telemetry_supported is True:
-            self.logger.log("{0} {1}".format(Constants.TELEMETRY_AT_AGENT_COMPATIBLE_MSG, telemetry_info))
-        else:
+        if not telemetry_supported:
             error_msg = "{0} {1}".format(Constants.TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG, telemetry_info)
             self.logger.log_error(error_msg)
 
@@ -181,14 +179,14 @@ class ActionHandler(object):
             install_command_handler = InstallCommandHandler(self.logger, self.ext_env_handler)
             exit_code_from_executing_install = install_command_handler.execute_handler_action()
             if exit_code_from_executing_install == Constants.ExitCode.Okay or exit_code_from_executing_install is None:
-                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
+                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.SUCCESS.lower())
             else:
-                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension install", code=exit_code_from_executing_install)
+                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message="Error occurred during extension install", code=exit_code_from_executing_install)
             return exit_code_from_executing_install
 
         except Exception as error:
             self.logger.log_error("Error occurred during extension install. [Error={0}]".format(repr(error)))
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension install", code=Constants.ExitCode.HandlerFailed)
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message="Error occurred during extension install", code=Constants.ExitCode.HandlerFailed)
             return Constants.ExitCode.HandlerFailed
 
         finally:
@@ -219,7 +217,7 @@ class ActionHandler(object):
                 # b) after all artifacts from the preceding versions have been deleted
                 error_msg = "No earlier versions for the extension found on the machine. So, could not copy any references to the current version."
                 self.logger.log_error(error_msg)
-                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message=error_msg, code=Constants.ExitCode.HandlerFailed)
+                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message=error_msg, code=Constants.ExitCode.HandlerFailed)
                 return Constants.ExitCode.HandlerFailed
 
             # identify the version preceding current
@@ -230,7 +228,7 @@ class ActionHandler(object):
                 error_msg = "Could not find path where preceding extension version artifacts are stored. Hence, cannot copy the required artifacts to the latest version. "\
                             "[Preceding extension version path={0}]".format(str(preceding_version_path))
                 self.logger.log_error(error_msg)
-                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message=error_msg, code=Constants.ExitCode.HandlerFailed)
+                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message=error_msg, code=Constants.ExitCode.HandlerFailed)
                 return Constants.ExitCode.HandlerFailed
 
             self.logger.log("Preceding version path. [Path={0}]".format(str(preceding_version_path)))
@@ -242,12 +240,12 @@ class ActionHandler(object):
             self.ext_env_handler.delete_temp_folder()
 
             self.logger.log("All update actions from extension handler completed.")
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.SUCCESS.lower())
             return Constants.ExitCode.Okay
 
         except Exception as error:
             self.logger.log_error("Error occurred during extension update. [Error={0}]".format(repr(error)))
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension update", code=Constants.ExitCode.HandlerFailed)
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message="Error occurred during extension update", code=Constants.ExitCode.HandlerFailed)
             return Constants.ExitCode.HandlerFailed
 
         finally:
@@ -279,14 +277,14 @@ class ActionHandler(object):
         for file_to_copy in files_to_copy:
             for i in range(0, Constants.MAX_IO_RETRIES):
                 try:
-                    self.logger.log("Copying file. [Source={0}] [Destination={1}]".format(str(file_to_copy), str(dst)))
+                    self.logger.log("Copying file. [Source={0}][Destination={1}]".format(str(file_to_copy), str(dst)))
                     shutil.copy(file_to_copy, dst)
                     break
                 except Exception as error:
                     if i < Constants.MAX_IO_RETRIES - 1:
                         time.sleep(i + 1)
                     else:
-                        error_msg = "Failed to copy file after {0} tries. [Source={1}] [Destination={2}] [Exception={3}]".format(Constants.MAX_IO_RETRIES, str(file_to_copy), str(dst), repr(error))
+                        error_msg = "Failed to copy file after {0} tries. [Source={1}][Destination={2}][Exception={3}]".format(Constants.MAX_IO_RETRIES, str(file_to_copy), str(dst), repr(error))
                         self.logger.log_error(error_msg)
                         if raise_if_not_copied:
                             raise Exception(error_msg)
@@ -300,12 +298,12 @@ class ActionHandler(object):
             # Delete temp_folder
             self.ext_env_handler.delete_temp_folder()
 
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.SUCCESS.lower())
             return Constants.ExitCode.Okay
 
         except Exception as error:
             self.logger.log_error("Error occurred during extension uninstall. [Error={0}]".format(repr(error)))
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension uninstall", code=Constants.ExitCode.HandlerFailed)
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message="Error occurred during extension uninstall", code=Constants.ExitCode.HandlerFailed)
             return Constants.ExitCode.HandlerFailed
 
         finally:
@@ -317,12 +315,12 @@ class ActionHandler(object):
             enable_command_handler = EnableCommandHandler(self.logger, self.telemetry_writer, self.utility, self.env_health_manager, self.runtime_context_handler, self.ext_env_handler, self.ext_config_settings_handler, self.core_state_handler, self.ext_state_handler, self.ext_output_status_handler, self.process_handler, self.cmd_exec_start_time)
             exit_code_returned_from_executing_enable = enable_command_handler.execute_handler_action()
             if exit_code_returned_from_executing_enable is not None and exit_code_returned_from_executing_enable != Constants.ExitCode.Okay:
-                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension enable", code=exit_code_returned_from_executing_enable)
+                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message="Error occurred during extension enable", code=exit_code_returned_from_executing_enable)
             return Constants.ExitCode.Okay if exit_code_returned_from_executing_enable is None else exit_code_returned_from_executing_enable
 
         except Exception as error:
             self.logger.log_error("Error occurred during extension enable. [Error={0}]".format(repr(error)))
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension enable", code=Constants.ExitCode.HandlerFailed)
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message="Error occurred during extension enable", code=Constants.ExitCode.HandlerFailed)
             return Constants.ExitCode.HandlerFailed
         finally:
             self.tear_down()
@@ -356,12 +354,12 @@ class ActionHandler(object):
             # End of temporary auto-assessment disablement
 
             self.logger.log("Extension disabled successfully")
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.SUCCESS.lower())
             return Constants.ExitCode.Okay
 
         except Exception as error:
             self.logger.log_error("Error occurred during extension disable. [Error={0}]".format(repr(error)))
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension disable", code=Constants.ExitCode.HandlerFailed)
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message="Error occurred during extension disable", code=Constants.ExitCode.HandlerFailed)
             return Constants.ExitCode.HandlerFailed
         finally:
             self.tear_down()
@@ -375,12 +373,12 @@ class ActionHandler(object):
             # Clear temp folder
             self.ext_env_handler.delete_temp_folder_contents()
 
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.SUCCESS.lower())
             return Constants.ExitCode.Okay
 
         except Exception as error:
             self.logger.log_error("Error occurred during extension reset. [Error={0}]".format(repr(error)))
-            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension reset", code=Constants.ExitCode.HandlerFailed)
+            self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.ERROR.lower(), message="Error occurred during extension reset", code=Constants.ExitCode.HandlerFailed)
             return Constants.ExitCode.HandlerFailed
         finally:
             self.tear_down()

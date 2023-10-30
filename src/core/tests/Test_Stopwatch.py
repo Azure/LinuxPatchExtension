@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -91,8 +91,6 @@ class TestStopwatch(unittest.TestCase):
         self.assertTrue(stopwatch.end_time is not None)
         self.assertTrue(stopwatch.time_taken_in_secs is not None)
         self.assertTrue(stopwatch.task_details is None)
-        stopwatch.set_task_details("test")
-        self.assertTrue(stopwatch.task_details is not None)
 
     # test start Stopwatch twice
     def test_started_already(self):

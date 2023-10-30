@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -63,7 +63,7 @@ class InstallCommandHandler(object):
         if is_required:
             # Required key doesn't exist in config file
             if key not in config_type:
-                error_msg = "Config not found in file. [Config={0}] [File={1}]".format(key, file)
+                error_msg = "Config not found in file. [Config={0}][File={1}]".format(key, file)
                 self.logger.log_error_and_raise_new_exception(error_msg, Exception)
             # Required key doesn't have value
             elif data_type is not bool and not config_type[key]:

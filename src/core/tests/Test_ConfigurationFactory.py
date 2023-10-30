@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,29 +35,29 @@ class TestConfigurationFactory(unittest.TestCase):
         config_factory = bootstrapper.configuration_factory
         self.assertTrue(config_factory)
 
-        config = config_factory.get_configuration(Constants.PROD, Constants.YUM)
+        config = config_factory.get_configuration(Constants.ExecEnv.PROD, Constants.YUM)
 
         self.assertEqual(config['package_manager_name'], Constants.YUM)
-        self.assertEqual(config['config_env'], Constants.PROD)
+        self.assertEqual(config['config_env'], Constants.ExecEnv.PROD)
 
     def test_get_test_config_correctly(self):
         bootstrapper = Bootstrapper(self.argument_composer, capture_stdout=False)
         config_factory = bootstrapper.configuration_factory
         self.assertTrue(config_factory)
-        config = config_factory.get_configuration(Constants.TEST, Constants.APT)
+        config = config_factory.get_configuration(Constants.ExecEnv.TEST, Constants.APT)
 
         self.assertEqual(config['package_manager_name'], Constants.APT)
-        self.assertEqual(config['config_env'], Constants.TEST)
+        self.assertEqual(config['config_env'], Constants.ExecEnv.TEST)
 
     def test_get_dev_config_correctly(self):
         bootstrapper = Bootstrapper(self.argument_composer, capture_stdout=False)
         config_factory = bootstrapper.configuration_factory
         self.assertTrue(config_factory)
 
-        config = config_factory.get_configuration(Constants.DEV, Constants.APT)
+        config = config_factory.get_configuration(Constants.ExecEnv.DEV, Constants.APT)
 
         self.assertEqual(config['package_manager_name'], Constants.APT)
-        self.assertEqual(config['config_env'], Constants.DEV)
+        self.assertEqual(config['config_env'], Constants.ExecEnv.DEV)
 
 
 if __name__ == '__main__':

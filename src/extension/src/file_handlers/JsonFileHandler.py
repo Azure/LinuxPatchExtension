@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,13 +38,13 @@ class JsonFileHandler(object):
                     file_contents = file_handle.read()
                     return json.loads(file_contents)
             except ValueError as e:
-                error_msg = "Incorrect file format. [File={0}] [Location={1}] [Exception={2}]".format(file_name, str(file_path), repr(e))
+                error_msg = "Incorrect file format. [File={0}][Location={1}][Exception={2}]".format(file_name, str(file_path), repr(e))
                 self.logger.log_warning(error_msg)
             except Exception as e:
-                error_msg = "Trial {0}: Could not read file. [File={1}] [Location={2}] [Exception={3}]".format(retry + 1, file_name, str(file_path), repr(e))
+                error_msg = "Trial {0}: Could not read file. [File={1}][Location={2}][Exception={3}]".format(retry + 1, file_name, str(file_path), repr(e))
                 self.logger.log_warning(error_msg)
 
-        error_msg = "Failed to read file after {0} tries. [File={1}] [Location={2}] [Exception={3}]".format(self.retry_count, file_name, str(file_path), error_msg)
+        error_msg = "Failed to read file after {0} tries. [File={1}][Location={2}][Exception={3}]".format(self.retry_count, file_name, str(file_path), error_msg)
         self.logger.log_warning(error_msg)
         if raise_if_not_found:
             self.logger.log_error("Extension cannot continue without this file. [File={0}]".format(file_name))
@@ -68,7 +68,7 @@ class JsonFileHandler(object):
         if os.path.exists(dir_path):
             file_path = os.path.join(dir_path, file_name)
             error_message = ""
-            self.logger.log("Writing JSON file. [File={0}] [Content={1}]".format(file_name, str(content)))
+            self.logger.log("Writing JSON file. [File={0}][Content={1}]".format(file_name, str(content)))
             for retry in range(0, self.retry_count):
                 try:
                     time.sleep(retry)
@@ -76,10 +76,10 @@ class JsonFileHandler(object):
                         json.dump(content, json_file, default=self.json_default_converter)
                         return
                 except Exception as error:
-                    error_message = "Trial {0}: Could not write to file. [File={1}] [Location={2}] [Exception={3}]".format(retry+1, file_name, str(file_path), error)
+                    error_message = "Trial {0}: Could not write to file. [File={1}][Location={2}][Exception={3}]".format(retry+1, file_name, str(file_path), error)
                     self.logger.log_warning(error_message)
 
-            error_msg = "Failed to write to file after {0} tries. [File={1}] [Location={2}] [Exception={3}]".format(self.retry_count, file_name, str(file_path), error_message)
+            error_msg = "Failed to write to file after {0} tries. [File={1}][Location={2}][Exception={3}]".format(self.retry_count, file_name, str(file_path), error_message)
             self.logger.log_error_and_raise_new_exception(error_msg, Exception)
         else:
             error_msg = "Directory Not Found: [Directory={0}]".format(dir_path)

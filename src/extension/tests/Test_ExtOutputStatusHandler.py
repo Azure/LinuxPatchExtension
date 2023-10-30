@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,15 +46,15 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         dir_path = tempfile.mkdtemp()
         operation = "Assessment"
         ext_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
-        ext_status_handler.write_status_file(operation, file_name, self.status.Transitioning.lower())
+        ext_status_handler.write_status_file(operation, file_name, self.status.TRANSITIONING.lower())
 
         with open(dir_path + "\\" + file_name + ext_status_handler.file_ext) as status_file:
             content = json.load(status_file)
             parent_key = self.status_file_fields.status
             self.assertTrue(content is not None)
-            self.assertEqual(content[0][parent_key][self.status_file_fields.status_name], "Azure Patch Management")
+            self.assertEqual(content[0][parent_key][self.status_file_fields.status_name], "Azure Guest Patching Service")
             self.assertEqual(content[0][parent_key][self.status_file_fields.status_operation], operation)
-            self.assertEqual(content[0][parent_key][self.status_file_fields.status_status], self.status.Transitioning.lower())
+            self.assertEqual(content[0][parent_key][self.status_file_fields.status_status], self.status.TRANSITIONING.lower())
         shutil.rmtree(dir_path)
 
     def test_read_file(self):
@@ -63,12 +63,12 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         operation = "Assessment"
 
         ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
-        ext_output_status_handler.write_status_file(operation, file_name, self.status.Transitioning.lower())
+        ext_output_status_handler.write_status_file(operation, file_name, self.status.TRANSITIONING.lower())
         status_json = ext_output_status_handler.read_file(file_name)
         parent_key = self.status_file_fields.status
-        self.assertEqual(status_json[0][parent_key][self.status_file_fields.status_name], "Azure Patch Management")
+        self.assertEqual(status_json[0][parent_key][self.status_file_fields.status_name], "Azure Guest Patching Service")
         self.assertEqual(status_json[0][parent_key][self.status_file_fields.status_operation], operation)
-        self.assertEqual(status_json[0][parent_key][self.status_file_fields.status_status], self.status.Transitioning.lower())
+        self.assertEqual(status_json[0][parent_key][self.status_file_fields.status_status], self.status.TRANSITIONING.lower())
         shutil.rmtree(dir_path)
 
     def test_update_file(self):
@@ -80,7 +80,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         operation = "Assessment"
 
         ext_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
-        ext_status_handler.write_status_file(operation, file_name, self.status.Success.lower())
+        ext_status_handler.write_status_file(operation, file_name, self.status.SUCCESS.lower())
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         prev_modified_time = stat_file_name.st_mtime
 
@@ -94,19 +94,19 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         modified_time = stat_file_name.st_mtime
         self.assertNotEqual(prev_modified_time, modified_time)  # Fails here on GitHub
         updated_status_json = ext_status_handler.read_file(file_name)
-        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_status], self.status.Transitioning.lower())
-        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_name], "Azure Patch Management")
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_status], self.status.TRANSITIONING.lower())
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_name], "Azure Guest Patching Service")
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_operation], "Assessment")
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_code], Constants.ExitCode.Okay)
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_formatted_message][self.status_file_fields.status_formatted_message_message], "")
 
-        ext_status_handler.update_file(file_name, Constants.Status.Success.lower(), Constants.ExitCode.Okay, "Test message")
+        ext_status_handler.update_file(file_name, Constants.Status.SUCCESS.lower(), Constants.ExitCode.Okay, "Test message")
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         modified_time = stat_file_name.st_mtime
         self.assertNotEqual(prev_modified_time, modified_time)
         updated_status_json = ext_status_handler.read_file(file_name)
-        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_status], self.status.Success.lower())
-        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_name], "Azure Patch Management")
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_status], self.status.SUCCESS.lower())
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_name], "Azure Guest Patching Service")
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_operation], "Assessment")
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_code], Constants.ExitCode.Okay)
         self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_formatted_message][self.status_file_fields.status_formatted_message_message], "Test message")
@@ -116,16 +116,16 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         file_name = "test"
         dir_path = tempfile.mkdtemp()
         ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
-        ext_output_status_handler.set_current_operation(Constants.NOOPERATION)
+        ext_output_status_handler.set_current_operation(Constants.Op.NO_OPERATION)
         self.logger.file_logger = FileLogger(dir_path, "test.log")
         ext_output_status_handler.read_file(file_name)
         # Unexpected input
         self.assertTrue(ext_output_status_handler.add_error_to_status(None) is None)
 
         ext_output_status_handler.add_error_to_status("Adding test exception", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        ext_output_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, activity_id="", start_time="", seq_no=file_name, status=self.status.Success.lower())
+        ext_output_status_handler.set_nooperation_substatus_json(Constants.Op.NO_OPERATION, activity_id="", start_time="", seq_no=file_name, status=self.status.SUCCESS.lower())
         updated_status_json = ext_output_status_handler.read_file(file_name)
-        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.OpSummary.NO_OPERATION)
         self.assertNotEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"], None)
         self.assertEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["code"], 1)
         self.assertEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"][0]["code"], Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
@@ -136,9 +136,9 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         ext_output_status_handler.add_error_to_status("exception4", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_output_status_handler.add_error_to_status("exception5", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_output_status_handler.add_error_to_status("exception6", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        ext_output_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, activity_id="", start_time="", seq_no=file_name, status=self.status.Success.lower())
+        ext_output_status_handler.set_nooperation_substatus_json(Constants.Op.NO_OPERATION, activity_id="", start_time="", seq_no=file_name, status=self.status.SUCCESS.lower())
         updated_status_json = ext_output_status_handler.read_file(file_name)
-        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.OpSummary.NO_OPERATION)
         self.assertNotEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"], None)
         self.assertEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["code"], 1)
         self.assertEqual(len(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"]), 5)
@@ -150,7 +150,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         file_name = "test"
         dir_path = tempfile.mkdtemp()
         ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
-        ext_output_status_handler.set_current_operation(Constants.NOOPERATION)
+        ext_output_status_handler.set_current_operation(Constants.Op.NO_OPERATION)
         self.logger.file_logger = FileLogger(dir_path, "test.log")
         ext_output_status_handler.read_file(file_name)
         # Unexpected input
@@ -163,9 +163,9 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         ext_output_status_handler.add_error_to_status("exception3", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_output_status_handler.add_error_to_status("exception2: extra details", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
         ext_output_status_handler.add_error_to_status("exception2", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-        ext_output_status_handler.set_nooperation_substatus_json(Constants.NOOPERATION, activity_id="", start_time="", seq_no=file_name, status=self.status.Success.lower())
+        ext_output_status_handler.set_nooperation_substatus_json(Constants.Op.NO_OPERATION, activity_id="", start_time="", seq_no=file_name, status=self.status.SUCCESS.lower())
         updated_status_json = ext_output_status_handler.read_file(file_name)
-        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.PATCH_NOOPERATION_SUMMARY)
+        self.assertEqual(updated_status_json[0][self.status_file_fields.status][self.status_file_fields.status_substatus][0][self.status_file_fields.status_name], Constants.OpSummary.NO_OPERATION)
         self.assertNotEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"], None)
         self.assertEqual(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["code"], 1)
         self.assertEqual(len(json.loads(updated_status_json[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"]), 3)

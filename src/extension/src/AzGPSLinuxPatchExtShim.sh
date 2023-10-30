@@ -6,7 +6,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,10 +17,10 @@
 # Requires Python 2.7+
 
 # Keeping the default command
-COMMAND="MsftLinuxPatchExt.py"
+COMMAND="AzGPSLinuxPatchExt.py"
 PYTHON=""
 
-USAGE="$(basename "$0") [-h] [-i|--install] [-u|--uninstall] [-d|--disable] [-e|--enable] [-p|--update] [-r|--reset]
+USAGE="$(basename "$0") [-h][-i|--install][-u|--uninstall][-d|--disable][-e|--enable][-p|--update][-r|--reset]
 Program to find the installed python on the box and invoke a Python extension script.
 where:
     -h|--help       show this help text

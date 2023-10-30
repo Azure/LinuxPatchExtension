@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,9 +14,9 @@
 #
 # Requires Python 2.7+
 
-""" Merges individual python modules from src to the PatchMicrosoftOMSLinuxComputer.py and MsftLinuxPatchCore.py files in the out directory.
-Relative source and destination paths for the patch runbook are auto-detected if the optional src parameter is not present.
-How to use: python Package.py <optional: full path to runbook 'src' folder>"""
+""" Merges individual python modules from src to the AzGPSLinuxPatchCore.py files in the out directory.
+Relative source and destination paths for the extension Core are auto-detected if the optional src parameter is not present.
+How to use: python Package-Core.py <optional: full path to runbook 'src' folder>"""
 
 from __future__ import print_function
 
@@ -25,6 +25,7 @@ import sys
 import os
 import errno
 import datetime
+import xml.etree.ElementTree as et
 
 
 # imports in VERY_FIRST_IMPORTS, order should be kept
@@ -62,15 +63,16 @@ def write_merged_code(code, merged_file_full_path):
 
 
 def insert_copyright_notice(merged_file_full_path, merged_file_name):
-    notice = '# --------------------------------------------------------------------------------------------------------------------\n'
+    notice = '# coding=utf-8\n'
+    notice += '# --------------------------------------------------------------------------------------------------------------------\n'
     notice += '# <copyright file="' + merged_file_name + '" company="Microsoft">\n'
-    notice += '#   Copyright 2020 Microsoft Corporation\n' \
+    notice += '#   Copyright ' + str(datetime.date.today().year) + ' Microsoft Corporation\n' \
               '#\n' \
               '#   Licensed under the Apache License, Version 2.0 (the "License");\n' \
               '#   you may not use this file except in compliance with the License.\n' \
               '#   You may obtain a copy of the License at\n' \
               '#\n' \
-              '#     http://www.apache.org/licenses/LICENSE-2.0\n' \
+              '#     https://www.apache.org/licenses/LICENSE-2.0\n' \
               '#\n' \
               '#   Unless required by applicable law or agreed to in writing, software\n' \
               '#   distributed under the License is distributed on an "AS IS" BASIS,\n' \
@@ -107,7 +109,7 @@ def prepend_content_to_file(content, file_name):
     os.rename(temp_file, file_name)
 
 
-def generate_compiled_script(source_code_path, merged_file_full_path, merged_file_name, environment):
+def generate_compiled_script(source_code_path, merged_file_full_path, merged_file_name, environment, new_version):
     try:
         print('\n\n=============================== GENERATING ' + merged_file_name + '... =============================================================\n')
 
@@ -128,7 +130,7 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
                     continue
                 elif 'external_dependencies' in file_path:
                     continue
-                elif os.path.basename(file_path) in ('PackageManager.py', 'Constants.py', 'LifecycleManager.py', 'SystemctlManager.py'):
+                elif os.path.basename(file_path) in ('PatchOperator.py', 'PackageManager.py', 'Constants.py', 'LifecycleManager.py', 'SystemctlManager.py'):
                     modules_to_be_merged.insert(0, file_path)
                 else:
                     if len(modules_to_be_merged) > 0 and '__main__.py' in modules_to_be_merged[-1]:
@@ -149,8 +151,9 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
         print('========== Set Copyright, Version and Environment. Also enforce UNIX-style line endings.\n')
         insert_copyright_notice(merged_file_full_path, merged_file_name)
         timestamp = datetime.datetime.utcnow().strftime("%y%m%d-%H%M")
-        replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name.split('.')[0])
-        replace_text_in_file(merged_file_full_path, '[%exec_sub_ver%]', timestamp)
+        replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name)
+        replace_text_in_file(merged_file_full_path, '[%exec_ver%]', str(new_version))
+        replace_text_in_file(merged_file_full_path, '[%exec_build_timestamp%]', timestamp)
         replace_text_in_file(merged_file_full_path, '\r\n', '\n')
 
         print("========== Merged core code was saved to:\n{0}\n".format(merged_file_full_path))
@@ -217,11 +220,22 @@ def main(argv):
             if e.errno != errno.EEXIST:
                 raise
 
+        # Get version from manifest for code
+        new_version = None
+        manifest_xml_file_path = os.path.join(working_directory, 'extension', 'src', 'manifest.xml')
+        manifest_tree = et.parse(manifest_xml_file_path)
+        manifest_root = manifest_tree.getroot()
+        for i in range(0, len(manifest_root)):
+            if 'Version' in str(manifest_root[i]):
+                new_version = manifest_root[i].text
+        if new_version is None:
+            raise Exception("Unable to determine target version.")
+
         # Generated compiled scripts at the destination
-        merged_file_details = [('MsftLinuxPatchCore.py', 'Constants.PROD')]
+        merged_file_details = [('AzGPSLinuxPatchCore.py', 'Constants.ExecEnv.PROD')]
         for merged_file_detail in merged_file_details:
             merged_file_destination = os.path.join(working_directory, 'out', merged_file_detail[0])
-            generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1])
+            generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1], new_version)
 
         # add all dependencies under core/src/external_dependencies to destination directory
         external_dependencies_destination = os.path.join(merge_file_directory, 'external_dependencies')

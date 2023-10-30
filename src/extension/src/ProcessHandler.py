@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -163,7 +163,7 @@ class ProcessHandler(object):
                 self.logger.log("Exception from process.communicate() while getting output from core process. Exception:{0}".format(repr(error)))
 
             self.logger.log("Process not running for [sequence={0}]".format(seq_no))
-            self.logger.log("Output and error for the inactive process: [Output={0}] [Error={1}]".format(str(output), str(unused_err)))
+            self.logger.log("Output and error for the inactive process: [Output={0}][Error={1}]".format(str(output), str(unused_err)))
 
         return did_process_start
 
@@ -201,8 +201,8 @@ class ProcessHandler(object):
                 self.logger.log("Terminating process: [PID={0}]".format(str(pid)))
                 os.kill(pid, signal.SIGTERM)
         except OSError as error:
-            self.logger.log_error("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)))
-            self.ext_output_status_handler.add_error_to_status("Error terminating process. [Process ID={0}] [Error={1}]".format(pid, repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.logger.log_error("Error terminating process. [Process ID={0}][Error={1}]".format(pid, repr(error)))
+            self.ext_output_status_handler.add_error_to_status("Error terminating process. [Process ID={0}][Error={1}]".format(pid, repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                 error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             raise

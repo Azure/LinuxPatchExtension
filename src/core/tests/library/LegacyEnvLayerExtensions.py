@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -63,7 +63,10 @@ class LegacyEnvLayerExtensions():
             code = 0
 
             if self.legacy_test_type == 'HappyPath':
-                if cmd.find("cat /proc/cpuinfo | grep name") > -1:
+                if cmd.find("sudo timeout 10 id && echo True || echo False") > -1:
+                    code = 0
+                    output = "uid=0(root) gid=0(root) groups=0(root)\nTrue"
+                elif cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
                     output = "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz\n" + \
                              "model name	: Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz\n" + \

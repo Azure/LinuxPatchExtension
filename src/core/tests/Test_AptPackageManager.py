@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,10 +22,10 @@ from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequire
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
-from core.src.package_managers import AptitudePackageManager, UbuntuProClient
+from package_managers.apt import AptPackageManager, UbuntuProClient
 
 
-class TestAptitudePackageManager(unittest.TestCase):
+class TestAptPackageManager(unittest.TestCase):
     def setUp(self):
         self.argument_composer = ArgumentComposer().get_composed_arguments()
         self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
@@ -119,7 +119,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for successfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)  # needs to be fixed
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.PackageStatus.INSTALLED)  # needs to be fixed
 
     def test_is_installed_check_with_dpkg(self):
         self.runtime.set_legacy_test_type('SuccessInstallPath')
@@ -135,24 +135,24 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('FailInstallPath')
 
         package_manager = self.container.get('package_manager')
-        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.runtime.status_handler.set_current_operation(Constants.Op.INSTALLATION)
         self.assertIsNotNone(package_manager)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.PackageStatus.FAILED)
         self.assertRaises(Exception, lambda: package_manager.invoke_package_manager('sudo apt-get -y --only-upgrade true install force-dpkg-failure'))
 
         # ensure that error message appears in substatus properly
         substatus_file_data = []
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             status = json.load(file_handle)
-            self.assertEqual(status[0]["status"]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+            self.assertEqual(status[0]["status"]["status"].lower(), Constants.Status.SUCCESS.lower())
             substatus_file_data = status[0]["status"]["substatus"][0]
 
         error_msg = 'Package manager on machine is not healthy. To fix, please run: sudo dpkg --configure -a'
         self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
         self.assertTrue(error_msg in str(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]))
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(substatus_file_data["name"], Constants.OpSummary.INSTALLATION)
 
     def test_reboot_always_runs_only_once_if_no_reboot_is_required(self):
         argument_composer = ArgumentComposer()
@@ -178,40 +178,40 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('iucode-tool', '1.5.1-1ubuntu0.1', True), Constants.PENDING)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('iucode-tool', '1.5.1-1ubuntu0.1', True), Constants.PackageStatus.PENDING)
 
     def test_disable_auto_os_update_with_two_patch_modes_enabled_success(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
 
         # disable with both update package lists and unattended upgrades enabled on the system
         os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
-        package_manager.disable_auto_os_update()
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        package_manager.patch_mode_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Update-Package-Lists'] == "1")
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Unattended-Upgrade'] == "1")
-        os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(os_patch_configuration_settings is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "0"' in os_patch_configuration_settings)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in os_patch_configuration_settings)
 
     def test_disable_auto_os_update_with_one_patch_mode_enabled_success(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
 
         # disable with only one patch mode enabled on the system
         os_patch_configuration_settings = 'APT::Periodic::Unattended-Upgrade "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
-        package_manager.disable_auto_os_update()
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        package_manager.patch_mode_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Update-Package-Lists'] == "")
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Unattended-Upgrade'] == "1")
-        os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(os_patch_configuration_settings is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "0"' in os_patch_configuration_settings)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in os_patch_configuration_settings)
@@ -221,7 +221,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
 
-        self.assertTrue(package_manager.get_current_auto_os_patch_state() == Constants.AutomaticOSPatchStates.DISABLED)
+        self.assertTrue(package_manager.patch_mode_manager.get_current_auto_os_patch_state() == Constants.AutomaticOSPatchStates.DISABLED)
 
         package_manager.get_current_auto_os_patch_state = self.runtime.get_current_auto_os_patch_state
 
@@ -229,17 +229,17 @@ class TestAptitudePackageManager(unittest.TestCase):
         # disable with non existing log file
         package_manager = self.container.get('package_manager')
 
-        self.assertRaises(Exception, package_manager.disable_auto_os_update)
-        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
-        self.assertTrue(not os.path.exists(package_manager.os_patch_configuration_settings_file_path))
+        self.assertRaises(Exception, package_manager.patch_mode_manager.disable_auto_os_update)
+        self.assertFalse(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
+        self.assertTrue(not os.path.exists(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path))
 
         # disable with existing log file
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
         os_patch_mode_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_mode_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_mode_settings)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
-        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertFalse(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
 
     def test_image_default_patch_mode_backup_exists(self):
         package_manager = self.container.get('package_manager')
@@ -251,22 +251,22 @@ class TestAptitudePackageManager(unittest.TestCase):
         }
         self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
-        self.assertTrue(package_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup))
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
+        self.assertTrue(package_manager.patch_mode_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup))
 
         # invalid mode backup
         image_default_patch_configuration_backup = '[]'
         self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
-        self.assertFalse(package_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup))
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
+        self.assertFalse(package_manager.patch_mode_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup))
 
     def test_image_default_patch_mode_backup_does_not_exist(self):
         package_manager = self.container.get('package_manager')
 
         # file does not exist
         package_manager.image_default_patch_mode_backup_path = "tests"
-        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertFalse(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
 
     def test_is_image_default_patch_mode_backup_valid_true(self):
         package_manager = self.container.get('package_manager')
@@ -275,7 +275,7 @@ class TestAptitudePackageManager(unittest.TestCase):
             'APT::Periodic::Update-Package-Lists': "1",
             'APT::Periodic::Unattended-Upgrade': "1"
         }
-        self.assertTrue(package_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_mode_backup))
+        self.assertTrue(package_manager.patch_mode_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_mode_backup))
 
     def test_is_image_default_patch_mode_backup_valid_false(self):
         package_manager = self.container.get('package_manager')
@@ -283,14 +283,14 @@ class TestAptitudePackageManager(unittest.TestCase):
         image_default_patch_mode_backup = {
             'test': "1",
         }
-        self.assertFalse(package_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_mode_backup))
+        self.assertFalse(package_manager.patch_mode_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_mode_backup))
 
         # with one valid patch mode setting
         image_default_patch_mode_backup = {
             'APT::Periodic::Update-Package-Lists': "1",
             'test': "1"
         }
-        self.assertFalse(package_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_mode_backup))
+        self.assertFalse(package_manager.patch_mode_manager.is_image_default_patch_configuration_backup_valid(image_default_patch_mode_backup))
 
     def test_overwrite_existing_image_default_patch_mode_backup(self):
         package_manager = self.container.get('package_manager')
@@ -299,7 +299,7 @@ class TestAptitudePackageManager(unittest.TestCase):
             "APT::Periodic::Unattended-Upgrade": "1"
         }
         self.runtime.env_layer.file_system.write_with_retry(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
-        package_manager.backup_image_default_patch_configuration_if_not_exists()
+        package_manager.patch_mode_manager.backup_image_default_patch_configuration_if_not_exists()
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Update-Package-Lists'] == "0")
@@ -307,12 +307,12 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def test_backup_image_default_patch_mode_with_default_patch_mode_set(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
 
         # default system patch mode is set, write to log
         os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
-        package_manager.backup_image_default_patch_configuration_if_not_exists()
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        package_manager.patch_mode_manager.backup_image_default_patch_configuration_if_not_exists()
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Update-Package-Lists'] == "1")
@@ -320,18 +320,18 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def test_backup_image_default_patch_mode_overwrite_backup_if_original_backup_was_invalid(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
 
         # backup file exists but the content is invalid, function should overwrite the file with valid content
         os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
 
         existing_image_default_backup_configuration = '[]'
         self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, existing_image_default_backup_configuration)
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
-        self.assertFalse(package_manager.is_image_default_patch_configuration_backup_valid(existing_image_default_backup_configuration))
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
+        self.assertFalse(package_manager.patch_mode_manager.is_image_default_patch_configuration_backup_valid(existing_image_default_backup_configuration))
 
-        package_manager.backup_image_default_patch_configuration_if_not_exists()
+        package_manager.patch_mode_manager.backup_image_default_patch_configuration_if_not_exists()
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Update-Package-Lists'] == "1")
@@ -339,11 +339,11 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def test_backup_image_default_patch_mode_with_default_patch_mode_not_set(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
         # default system patch mode is not set, write empty values to log
         os_patch_mode_settings = ''
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_mode_settings)
-        package_manager.backup_image_default_patch_configuration_if_not_exists()
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_mode_settings)
+        package_manager.patch_mode_manager.backup_image_default_patch_configuration_if_not_exists()
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
         self.assertTrue(image_default_patch_configuration_backup['APT::Periodic::Update-Package-Lists'] == "")
@@ -351,49 +351,49 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def test_backup_image_default_patch_mode_raises_exception(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
         # default system patch mode is set, write to log
         os_patch_mode_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_mode_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_mode_settings)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
-        self.assertRaises(Exception, package_manager.backup_image_default_patch_configuration_if_not_exists)
+        self.assertRaises(Exception, package_manager.patch_mode_manager.backup_image_default_patch_configuration_if_not_exists)
 
     def test_update_image_default_patch_mode(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
 
         # disable update package lists when enabled by default
         os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
-        package_manager.update_os_patch_configuration_sub_setting('APT::Periodic::Update-Package-Lists', "0")
-        os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting('APT::Periodic::Update-Package-Lists', "0")
+        os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "0"' in os_patch_configuration_settings_file_path_read)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in os_patch_configuration_settings_file_path_read)
 
         # disable unattended upgrades when enabled by default
         os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
-        package_manager.update_os_patch_configuration_sub_setting('APT::Periodic::Unattended-Upgrade', "0")
-        os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting('APT::Periodic::Unattended-Upgrade', "0")
+        os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in os_patch_configuration_settings_file_path_read)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in os_patch_configuration_settings_file_path_read)
 
         # disable unattended upgrades when default patch mode settings file is empty
         os_patch_configuration_settings = ''
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
-        package_manager.update_os_patch_configuration_sub_setting('APT::Periodic::Unattended-Upgrade', "0")
-        os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting('APT::Periodic::Unattended-Upgrade', "0")
+        os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists' not in os_patch_configuration_settings_file_path_read)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in os_patch_configuration_settings_file_path_read)
 
         # disable unattended upgrades when it does not exist in default patch mode settings file
         os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\n'
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
-        package_manager.update_os_patch_configuration_sub_setting('APT::Periodic::Unattended-Upgrade', "0")
-        os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+        package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting('APT::Periodic::Unattended-Upgrade', "0")
+        os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in os_patch_configuration_settings_file_path_read)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in os_patch_configuration_settings_file_path_read)
@@ -405,11 +405,11 @@ class TestAptitudePackageManager(unittest.TestCase):
         image_default_patch_mode = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
         self.runtime.write_to_file(package_manager.image_default_patch_mode_file_path, image_default_patch_mode)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
-        self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
+        self.assertRaises(Exception, package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting)
 
     def test_is_reboot_pending_prerequisite_not_met_should_return_false(self):
         package_manager = self.container.get('package_manager')
-        package_manager._AptitudePackageManager__pro_client_prereq_met = False
+        package_manager._AptPackageManager__pro_client_prereq_met = False
 
         self.assertFalse(package_manager.is_reboot_pending())
 
@@ -417,7 +417,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         reboot_mock = MockRebootRequiredResult()
         reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
         package_manager = self.container.get('package_manager')
-        package_manager._AptitudePackageManager__pro_client_prereq_met = True
+        package_manager._AptPackageManager__pro_client_prereq_met = True
 
         self.assertTrue(package_manager.is_reboot_pending())
 
@@ -439,13 +439,13 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         backup_package_manager_ubuntu_pro_client_is_pro_working = package_manager.ubuntu_pro_client.is_pro_working
         package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
-        backup_package_manager_is_minimum_required_python_installed = package_manager._AptitudePackageManager__is_minimum_required_python_installed
-        package_manager._AptitudePackageManager__is_minimum_required_python_installed = self.mock_minimum_required_python_installed_return_true
+        backup_package_manager_is_minimum_required_python_installed = package_manager._AptPackageManager__is_minimum_required_python_installed
+        package_manager._AptPackageManager__is_minimum_required_python_installed = self.mock_minimum_required_python_installed_return_true
 
         self.assertTrue(package_manager.check_pro_client_prerequisites())
 
         package_manager.ubuntu_pro_client.is_pro_working = backup_package_manager_ubuntu_pro_client_is_pro_working
-        package_manager._AptitudePackageManager__is_minimum_required_python_installed = backup_package_manager_is_minimum_required_python_installed
+        package_manager._AptPackageManager__is_minimum_required_python_installed = backup_package_manager_is_minimum_required_python_installed
 
     def test_package_manager_instance_created_even_when_exception_thrown_in_pro(self):
         package_manager = self.container.get('package_manager')
@@ -453,7 +453,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         backup_package_manager_ubuntu_pro_client_install_or_update_pro = UbuntuProClient.UbuntuProClient.install_or_update_pro
         UbuntuProClient.UbuntuProClient.install_or_update_pro = self.mock_install_or_update_pro_raise_exception
 
-        obj = AptitudePackageManager.AptitudePackageManager(package_manager.env_layer, execution_config, package_manager.composite_logger, package_manager.telemetry_writer, package_manager.status_handler)
+        obj = AptPackageManager.AptPackageManager(package_manager.env_layer, execution_config, package_manager.composite_logger, package_manager.telemetry_writer, package_manager.status_handler)
 
         self.assertIsNotNone(obj)
         self.assertIsNotNone(obj.ubuntu_pro_client)
@@ -468,13 +468,13 @@ class TestAptitudePackageManager(unittest.TestCase):
         runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('UA_ESM_Required')
 
-        backup_AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+        backup_AptPackageManager__pro_client_prereq_met = runtime.package_manager._AptPackageManager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = True
 
         packages, versions = runtime.package_manager.get_other_updates()
         self.assertEqual(1, len(packages))
 
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = backup_AptPackageManager__pro_client_prereq_met
         obj.mock_unimport_uaclient_version_module()
         updates_obj.mock_unimport_uaclient_update_module()
 
@@ -496,15 +496,15 @@ class TestAptitudePackageManager(unittest.TestCase):
         updates_obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_all_update_types')
         runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('UA_ESM_Required')
-        backup_aptitudepackagemanager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+        backup_AptPackageManager__pro_client_prereq_met = runtime.package_manager._AptPackageManager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = True
 
         runtime.patch_assessor.start_assessment()
         status = ""
         error_set = False
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             status = json.load(file_handle)
-            self.assertEqual(status[0]["status"]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+            self.assertEqual(status[0]["status"]["status"].lower(), Constants.Status.SUCCESS.lower())
             self.assertEqual(status[0]["status"]["substatus"][0]["name"], "PatchAssessmentSummary")
 
         # Parse the assessment data to check if we have logged the error details for esm_required.
@@ -516,7 +516,7 @@ class TestAptitudePackageManager(unittest.TestCase):
                 break
         self.assertTrue(error_set)
 
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_aptitudepackagemanager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = backup_AptPackageManager__pro_client_prereq_met
         obj.mock_unimport_uaclient_version_module()
         updates_obj.mock_unimport_uaclient_update_module()
 
@@ -524,25 +524,25 @@ class TestAptitudePackageManager(unittest.TestCase):
         reboot_mock = MockRebootRequiredResult()
         reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_no')
         runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
-        backup_AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+        backup_AptPackageManager__pro_client_prereq_met = runtime.package_manager._AptPackageManager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = True
         self.assertFalse(runtime.package_manager.is_reboot_pending())
 
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup_AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = backup_AptPackageManager__pro_client_prereq_met
         reboot_mock.mock_unimport_uaclient_reboot_required_module()
 
     def test_is_reboot_pending_test_mismatch(self):
         reboot_mock = MockRebootRequiredResult()
         reboot_mock.mock_import_uaclient_reboot_required_module('reboot_required', 'mock_reboot_required_return_yes')
         runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
-        backup__AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+        backup__AptPackageManager__pro_client_prereq_met = runtime.package_manager._AptPackageManager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = True
 
         # test should return true as we fall back to Ubuntu Pro Client api`s result.
         self.assertTrue(runtime.package_manager.is_reboot_pending())
 
         reboot_mock.mock_unimport_uaclient_reboot_required_module()
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup__AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = backup__AptPackageManager__pro_client_prereq_met
 
     def test_is_reboot_pending_test_raises_exception(self):
         runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
@@ -550,15 +550,15 @@ class TestAptitudePackageManager(unittest.TestCase):
         runtime.package_manager.do_processes_require_restart = self.mock_do_processes_require_restart_raises_exception
         backup_package_manager_is_reboot_pending = runtime.package_manager.ubuntu_pro_client.is_reboot_pending
         runtime.package_manager.ubuntu_pro_client.is_reboot_pending = self.mock_is_reboot_pending_returns_False
-        backup__AptitudePackageManager__pro_client_prereq_met = runtime.package_manager._AptitudePackageManager__pro_client_prereq_met
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = True
+        backup__AptPackageManager__pro_client_prereq_met = runtime.package_manager._AptPackageManager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = True
 
         # test returns true because, we return True if there is exception.
         self.assertTrue(runtime.package_manager.is_reboot_pending())
 
         runtime.package_manager.do_processes_require_restart = backup_package_manager_do_processes_require_restart
         runtime.package_manager.ubuntu_pro_client.is_reboot_pending = backup_package_manager_is_reboot_pending
-        runtime.package_manager._AptitudePackageManager__pro_client_prereq_met = backup__AptitudePackageManager__pro_client_prereq_met
+        runtime.package_manager._AptPackageManager__pro_client_prereq_met = backup__AptPackageManager__pro_client_prereq_met
 
     def test_check_pro_client_prerequisites_should_return_false(self):
         package_manager = self.container.get('package_manager')
@@ -575,7 +575,7 @@ class TestAptitudePackageManager(unittest.TestCase):
     def test_eula_accepted_for_patches(self):
         # EULA accepted in settings and commands updated accordingly
         self.runtime.execution_config.accept_package_eula = True
-        package_manager_for_test = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
+        package_manager_for_test = AptPackageManager.AptPackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
         self.assertTrue("ACCEPT_EULA=Y" in package_manager_for_test.single_package_upgrade_simulation_cmd)
         self.assertTrue("ACCEPT_EULA=Y" in package_manager_for_test.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" in package_manager_for_test.single_package_upgrade_cmd)
@@ -583,7 +583,7 @@ class TestAptitudePackageManager(unittest.TestCase):
     def test_eula_not_accepted_for_patches(self):
         # EULA accepted in settings and commands updated accordingly
         self.runtime.execution_config.accept_package_eula = False
-        package_manager_for_test = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
+        package_manager_for_test = AptPackageManager.AptPackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_upgrade_simulation_cmd)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_upgrade_cmd)

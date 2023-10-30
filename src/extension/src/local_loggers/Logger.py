@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,7 +36,7 @@ class Logger(object):
         """log output"""
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
-            self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Informational)
+            self.telemetry_writer.write_event(message, Constants.EventLevel.Info)
         for line in message.splitlines():  # allows the extended file logger to strip unnecessary white space
             if self.file_logger is not None:
                 self.file_logger.write("\n" + line)
@@ -48,7 +48,7 @@ class Logger(object):
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
-            self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error)
+            self.telemetry_writer.write_event(message, Constants.EventLevel.Error)
         if self.file_logger is not None:
             self.file_logger.write("\n" + self.ERROR + " " + message)
         else:
@@ -65,7 +65,7 @@ class Logger(object):
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = (self.NEWLINE_REPLACE_CHAR.join(message.split(os.linesep))).strip()
         if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
-            self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Warning)
+            self.telemetry_writer.write_event(message, Constants.EventLevel.Warning)
         if self.file_logger is not None:
             self.file_logger.write("\n" + self.WARNING + " " + message)
         else:
@@ -76,7 +76,7 @@ class Logger(object):
         message = self.__remove_substring_from_message(message, Constants.ERROR_ADDED_TO_STATUS)
         message = message.strip()
         if self.telemetry_writer is not None and self.telemetry_writer.events_folder_path is not None:
-            self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Verbose)
+            self.telemetry_writer.write_event(message, Constants.EventLevel.Verbose)
         if self.current_env in (Constants.DEV, Constants.TEST):
             print(self.current_env + ": " + message)  # send to standard output if dev or test env
         if self.file_logger is not None:

@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,11 +36,11 @@ class TestPatchAssessor(unittest.TestCase):
         self.runtime.stop()
 
     def test_assessment_success(self):
-        self.assertTrue(self.runtime.patch_assessor.start_assessment())
+        self.assertTrue(self.runtime.patch_assessor.start_operation_with_retries())
 
     def test_assessment_fail(self):
         self.runtime.set_legacy_test_type('UnalignedPath')
-        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        self.assertFalse(self.runtime.patch_assessor.start_operation_with_retries())
 
     def test_get_all_updates_fail(self):
         self.runtime.set_legacy_test_type('UnalignedPath')
@@ -53,22 +53,22 @@ class TestPatchAssessor(unittest.TestCase):
     def test_assessment_fail_with_status_update(self):
         self.runtime.package_manager.refresh_repo = self.mock_refresh_repo
         self.runtime.set_legacy_test_type('UnalignedPath')
-        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        self.assertFalse(self.runtime.patch_assessor.start_operation_with_retries())
         with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             file_contents = json.loads(file_handle.read())
-            self.assertTrue('Unexpected return code (100) from package manager on command: LANG=en_US.UTF8 sudo apt-get -s dist-upgrade' in str(file_contents))
+            self.assertTrue('Unexpected return code from package manager. [Code=100]' in str(file_contents))
 
     def test_assessment_telemetry_fail(self):
         backup_telemetry_writer = self.runtime.telemetry_writer
         telemetry_writer = TelemetryWriter(self.runtime.env_layer, self.runtime.composite_logger, events_folder_path=None, telemetry_supported=False)
         self.runtime.patch_assessor.telemetry_writer = telemetry_writer
-        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        self.assertTrue(self.runtime.patch_assessor.start_operation_with_retries())
         telemetry_writer = TelemetryWriter(self.runtime.env_layer, self.runtime.composite_logger, events_folder_path="events", telemetry_supported=False)
         self.runtime.patch_assessor.telemetry_writer = telemetry_writer
-        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        self.assertTrue(self.runtime.patch_assessor.start_operation_with_retries())
         telemetry_writer = TelemetryWriter(self.runtime.env_layer, self.runtime.composite_logger, events_folder_path=None, telemetry_supported=True)
         self.runtime.patch_assessor.telemetry_writer = telemetry_writer
-        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        self.assertTrue(self.runtime.patch_assessor.start_operation_with_retries())
         self.runtime.patch_assessor.telemetry_writer = backup_telemetry_writer
 
     def test_assessment_state_file(self):
@@ -151,35 +151,27 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertRaises(Exception, lambda: self.runtime.patch_assessor.convert_iso8601_duration_to_total_seconds(''))
 
     def test_write_assessment_perf_logs(self):
-        self.runtime.patch_assessor.start_assessment()
+        self.runtime.patch_assessor.start_operation_with_retries()
         self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken_in_secs is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time <= self.runtime.patch_assessor.stopwatch.end_time)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken_in_secs >= 0)
-        task_info = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.ASSESSMENT))
+        task_info = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK), str(Constants.Op.ASSESSMENT))
         self.assertTrue(task_info in str(self.runtime.patch_assessor.stopwatch.task_details))
-        task_status = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.TaskStatus.SUCCEEDED))
+        task_status = "{0}={1}".format(str(Constants.PerfLogTrackerParams.TASK_STATUS), str(Constants.Status.SUCCESS))
         self.assertTrue(task_status in str(self.runtime.patch_assessor.stopwatch.task_details))
         err_msg = "{0}=".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
         self.assertTrue(err_msg in str(self.runtime.patch_assessor.stopwatch.task_details))
 
-
     def test_stopwatch_properties_assessment_fail(self):
         self.runtime.set_legacy_test_type('UnalignedPath')
-        self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
+        self.assertFalse(self.runtime.patch_assessor.start_operation_with_retries())
         self.assertTrue(self.runtime.patch_assessor.stopwatch.start_time is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.end_time is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.time_taken_in_secs is not None)
         self.assertTrue(self.runtime.patch_assessor.stopwatch.task_details is not None)
-
-    def test_raise_if_min_python_version_not_met(self):
-        sys.version_info = (2, 6)
-        # Assert that an exception is raised
-        with self.assertRaises(Exception) as context:
-            self.runtime.patch_assessor.start_assessment()
-        self.assertEqual(str(context.exception), Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info))
 
     def raise_ex(self):
         raise Exception()

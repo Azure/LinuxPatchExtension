@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +16,9 @@
 
 import json
 import os
-import shutil
 import time
 from core.src.bootstrap.Constants import Constants
-from core.src.service_interfaces.LifecycleManager import LifecycleManager
+from service_interfaces.lifecycle_managers.LifecycleManager import LifecycleManager
 
 class LifecycleManagerArc(LifecycleManager):
     """Class for managing the core code's lifecycle within the extension wrapper"""
@@ -28,8 +27,8 @@ class LifecycleManagerArc(LifecycleManager):
         super(LifecycleManagerArc,self).__init__(env_layer,execution_config,composite_logger,telemetry_writer, status_handler)
 
         # Handshake file paths
-        self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.EXT_STATE_FILE)
-        self.core_state_file_path = os.path.join(self.execution_config.config_folder, Constants.CORE_STATE_FILE)
+        self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.StateFiles.EXT)
+        self.core_state_file_path = os.path.join(self.execution_config.config_folder, Constants.StateFiles.CORE)
         # Writing to log
         self.composite_logger.log_debug("Initializing LifecycleManagerArc")
         # Variables
@@ -89,20 +88,20 @@ class LifecycleManagerArc(LifecycleManager):
                         self.env_layer.exit(0)
                     else:
                         self.composite_logger.file_logger.flush()
-                        self.composite_logger.log_warning("Auto-assessment is NOT safe to start yet. Waiting to retry (up to set timeout). [LastHeartbeat={0}][Operation={1}][ElapsedTimeInMinutes={2}][TotalWaitRequiredInMinutes={3}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action']), str(elapsed_time_in_minutes), str(Constants.REBOOT_BUFFER_IN_MINUTES)))
+                        self.composite_logger.log_warning("Auto-assessment is NOT safe to start yet. Waiting to retry (up to set timeout). [LastHeartbeat={0}][Operation={1}][ElapsedTimeInMinutes={2}][TotalWaitRequiredInMinutes={3}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action']), str(elapsed_time_in_minutes), str(Constants.Config.REBOOT_BUFFER_IN_MINUTES)))
                         self.composite_logger.file_logger.flush()
                         time.sleep(30)
                         continue
 
                 # MAYBE SAFE TO START. Safely timeout if wait for any core restart events (from a potential reboot) has exceeded the maximum reboot buffer
-                if elapsed_time_in_minutes > Constants.REBOOT_BUFFER_IN_MINUTES:
+                if elapsed_time_in_minutes > Constants.Config.REBOOT_BUFFER_IN_MINUTES:
                     self.composite_logger.log_debug("Auto-assessment is now considered SAFE to start as Core timed-out in reporting completion mark. [LastHeartbeat={0}][Operation={1}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action'])))
                     self.read_only_mode = False
                     break
 
                 # Briefly pause execution to re-check all states (including reboot buffer) again
                 self.composite_logger.file_logger.flush()
-                self.composite_logger.log_debug("Auto-assessment is waiting for Core state completion mark (up to set timeout). [LastHeartbeat={0}][Operation={1}][ElapsedTimeInMinutes={2}][TotalWaitRequiredInMinutes={3}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action']), str(elapsed_time_in_minutes), str(Constants.REBOOT_BUFFER_IN_MINUTES)))
+                self.composite_logger.log_debug("Auto-assessment is waiting for Core state completion mark (up to set timeout). [LastHeartbeat={0}][Operation={1}][ElapsedTimeInMinutes={2}][TotalWaitRequiredInMinutes={3}]".format(str(core_sequence['lastHeartbeat']), str(core_sequence['action']), str(elapsed_time_in_minutes), str(Constants.Config.REBOOT_BUFFER_IN_MINUTES)))
                 self.composite_logger.file_logger.flush()
                 time.sleep(30)
 
@@ -166,7 +165,7 @@ class LifecycleManagerArc(LifecycleManager):
                     return core_sequence
             except Exception as error:
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    self.composite_logger.log_warning("Exception on arc core sequence read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    self.composite_logger.log_warning("Exception on arc core sequence read. [Exception={0}][RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i + 1)
                 else:
                     self.composite_logger.log_error("Unable to read arc core state file (retries exhausted). [Exception={0}]".format(repr(error)))
@@ -193,7 +192,7 @@ class LifecycleManagerArc(LifecycleManager):
     # End region State checkers 
 
     # region - Identity
-    def get_vm_cloud_type(self):
-        return Constants.VMCloudType.ARC
+    def get_cloud_type(self):
+        return Constants.CloudType.ARC
     # endregion
 

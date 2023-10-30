@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,8 +32,8 @@ class LifecycleManager(object):
         self.status_handler = status_handler
 
         # Handshake file paths
-        self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.EXT_STATE_FILE)
-        self.core_state_file_path = os.path.join(self.execution_config.config_folder, Constants.CORE_STATE_FILE)
+        self.ext_state_file_path = os.path.join(self.execution_config.config_folder, Constants.StateFiles.EXT)
+        self.core_state_file_path = os.path.join(self.execution_config.config_folder, Constants.StateFiles.CORE)
 
         self.read_only_mode = True  # safety valve on contention with redundancy
 
@@ -47,7 +47,7 @@ class LifecycleManager(object):
 
     # region - State management
     def read_extension_sequence(self):
-        self.composite_logger.log_debug("Reading extension sequence...")
+        self.composite_logger.log_verbose("[LM] Reading extension sequence...")
         if not os.path.exists(self.ext_state_file_path) or not os.path.isfile(self.ext_state_file_path):
             raise Exception("Extension state file not found.")
 
@@ -58,33 +58,33 @@ class LifecycleManager(object):
                     return json.load(file_handle)['extensionSequence']
             except Exception as error:
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    self.composite_logger.log_warning("Exception on extension sequence read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    self.composite_logger.log_verbose("[LM] Exception on extension sequence read. [Exception={0}][RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i+1)
                 else:
-                    self.composite_logger.log_error("Unable to read extension state file (retries exhausted). [Exception={0}]".format(repr(error)))
+                    self.composite_logger.log_error("[LM] Unable to read extension state file (retries exhausted). [Exception={0}]".format(repr(error)))
                     raise
 
     def identify_and_mitigate_core_sequence_issues(self):
-        """ Checks for issues with the core sequence file (file not exists, is dir, etc) and attempts to mitigate them. """
+        """ Checks for issues with the core sequence file (file not exists, is dir, etc.) and attempts to mitigate them. """
         if not os.path.exists(self.core_state_file_path) or not os.path.isfile(self.core_state_file_path):
             # Neutralizes directories
             if os.path.isdir(self.core_state_file_path):
-                self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+                self.composite_logger.log_error("[LM] Core state file path returned a directory. Attempting to reset.")
                 shutil.rmtree(self.core_state_file_path)
             # Writes a vanilla core sequence file
-            self.composite_logger.log_warning("Core state file did not exist. Attempting to reset.")
+            self.composite_logger.log_warning("[LM] Core state file did not exist. Attempting to reset.")
             self.read_only_mode = False
             self.update_core_sequence()
         elif os.path.exists(self.core_state_file_path) and os.path.isfile(self.core_state_file_path) and os.stat(self.core_state_file_path).st_size == 0:
             # Core sequence file exists but is empty (unexpected state that will result in a JSON decode error)
             # Write a vanilla core sequence file to correct empty file
-            self.composite_logger.log_warning("Core state file existed but was empty. Attempting to reset.")
+            self.composite_logger.log_warning("[LM] Core state file existed but was empty. Attempting to reset.")
             self.read_only_mode = False
             self.update_core_sequence()
 
     def read_core_sequence(self):
         """ Reads the core sequence file, but additionally establishes if this class is allowed to write to it when the freshest data is evaluated. """
-        self.composite_logger.log_debug("Reading core sequence...")
+        self.composite_logger.log_verbose("[LM] Reading core sequence...")
         self.identify_and_mitigate_core_sequence_issues()
 
         # Read (with retries for only IO Errors)
@@ -104,15 +104,15 @@ class LifecycleManager(object):
                     if core_sequence['completed'].lower() == 'true' or len(self.identify_running_processes(core_sequence['processIds'])) == 0:
                         # Short-circuit for re-enable for completed non-auto-assess operations that should not run
                         if not self.execution_config.exec_auto_assess_only and core_sequence['number'] == self.execution_config.sequence_number and core_sequence['completed'].lower() == 'true':
-                            self.composite_logger.log_debug("Not attempting to take ownership of core sequence since the sequence number as it's already done and this is the main process.")
+                            self.composite_logger.log_verbose("[LM] Not attempting to take ownership of core sequence since the sequence number as it's already done and this is the main process.")
                             return core_sequence
 
                         # Auto-assess over non-auto-assess is not a trivial override and is short-circuited to be evaluated in detail later
                         if self.execution_config.exec_auto_assess_only and not core_sequence["autoAssessment"].lower() == 'true':
-                            self.composite_logger.log_debug("Auto-assessment cannot supersede the main core process trivially.")
+                            self.composite_logger.log_verbose("[LM] Auto-assessment cannot supersede the main core process trivially.")
                             return core_sequence
 
-                        self.composite_logger.log_debug("Attempting to take ownership of core sequence.")
+                        self.composite_logger.log_verbose("[LM] Attempting to take ownership of core sequence.")
                         self.read_only_mode = False
                         self.update_core_sequence()
                         self.read_only_mode = True
@@ -122,13 +122,13 @@ class LifecycleManager(object):
                             core_sequence = json.load(file_handle)['coreSequence']
 
                     if os.getpid() in core_sequence['processIds']:
-                        self.composite_logger.log_debug("Successfully took ownership of core sequence.")
+                        self.composite_logger.log_debug("[LM] Successfully took ownership of core sequence.")
                         self.read_only_mode = False
 
                 return core_sequence
             except Exception as error:
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    self.composite_logger.log_warning("Exception on core sequence read. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    self.composite_logger.log_verbose("[LM] Exception on core sequence read. [Exception={0}][RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i + 1)
                 else:
                     self.composite_logger.log_error("Unable to read core state file (retries exhausted). [Exception={0}]".format(repr(error)))
@@ -136,10 +136,10 @@ class LifecycleManager(object):
 
     def update_core_sequence(self, completed=False):
         if self.read_only_mode:
-            self.composite_logger.log_debug("Core sequence will not be updated to avoid contention... [DesiredCompletedValue={0}]".format(str(completed)))
+            self.composite_logger.log_debug("[LM] Core sequence will not be updated to avoid contention... [DesiredCompletedValue={0}]".format(str(completed)))
             return
 
-        self.composite_logger.log_debug("Updating core sequence... [Completed={0}]".format(str(completed)))
+        self.composite_logger.log_debug("[LM] Updating core sequence... [Completed={0}]".format(str(completed)))
         core_sequence = {'number': self.execution_config.sequence_number,
                          'action': self.execution_config.operation,
                          'completed': str(completed),
@@ -149,7 +149,7 @@ class LifecycleManager(object):
         core_state_payload = json.dumps({"coreSequence": core_sequence})
 
         if os.path.isdir(self.core_state_file_path):
-            self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+            self.composite_logger.log_debug("[LM] Core state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.core_state_file_path)
 
         for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
@@ -158,13 +158,13 @@ class LifecycleManager(object):
                     file_handle.write(core_state_payload)
             except Exception as error:
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
-                    self.composite_logger.log_warning("Exception on core sequence update. [Exception={0}] [RetryCount={1}]".format(repr(error), str(i)))
+                    self.composite_logger.log_verbose("[LM] Exception on core sequence update. [Exception={0}][RetryCount={1}]".format(repr(error), str(i)))
                     time.sleep(i + 1)
                 else:
-                    self.composite_logger.log_error("Unable to write to core state file (retries exhausted). [Exception={0}]".format(repr(error)))
+                    self.composite_logger.log_error("[LM] Unable to write to core state file (retries exhausted). [Exception={0}]".format(repr(error)))
                     raise
 
-        self.composite_logger.log_debug("Completed updating core sequence.")
+        self.composite_logger.log_verbose("[LM] Completed updating core sequence.")
     # endregion
 
     # region - Process Management
@@ -176,7 +176,7 @@ class LifecycleManager(object):
                 process_id = int(process_id)
                 if self.is_process_running(process_id):
                     running_process_ids.append(process_id)
-        self.composite_logger.log("Processes still running from the previous request: [PIDsFound={0}][PreviousPIDs={1}]".format(str(running_process_ids) if len(running_process_ids)!=0 else 'None',str(process_ids)))
+        self.composite_logger.log_verbose("[LM] Processes still running from the previous request: [PIDsFound={0}][PreviousPIDs={1}]".format(str(running_process_ids) if len(running_process_ids) != 0 else 'None',str(process_ids)))
         return running_process_ids
 
     @staticmethod
@@ -199,7 +199,7 @@ class LifecycleManager(object):
     # endregion
 
     # region - Identity
-    def get_vm_cloud_type(self):
+    def get_cloud_type(self):
         pass
     # endregion
 

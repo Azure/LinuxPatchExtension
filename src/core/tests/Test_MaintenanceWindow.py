@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@ import datetime
 import unittest
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
+
 
 class TestMaintenanceWindow(unittest.TestCase):
     def setUp(self):
@@ -83,7 +84,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         argument_composer.start_time = (datetime.datetime.utcnow() - datetime.timedelta(hours=0, minutes=18)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer.maximum_duration = "PT3H"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
-        perc_maintenance_window_used = runtime.maintenance_window.get_percentage_maintenance_window_used()
+        perc_maintenance_window_used = runtime.maintenance_window.get_maintenance_window_used_as_percentage()
         # 18 minutes of maintenance window used out of 3 hours (180 minutes). So, it should be 10%.
         # The value should be slightly greater than 10 as it takes some time to trigger the method get_percentage_maintenance_window_used
         self.assertGreaterEqual(perc_maintenance_window_used, 10)
@@ -95,7 +96,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         # ZeroDivisionError should be thrown as duration is 0
         argument_composer.maximum_duration = "PT0H"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
-        self.assertRaises(Exception, runtime.maintenance_window.get_percentage_maintenance_window_used)
+        runtime.maintenance_window.get_maintenance_window_used_as_percentage()      # shouldn't throw an exception
         runtime.stop()
 
     def test_get_percentage_maintenance_window_used_start_time_greater_exception(self):
@@ -103,7 +104,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         # Setting start time 1 hour later than current time
         argument_composer.start_time = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
-        self.assertRaises(Exception, runtime.maintenance_window.get_percentage_maintenance_window_used)
+        runtime.maintenance_window.get_maintenance_window_used_as_percentage()      # shouldn't throw an exception
         runtime.stop()
 
     def test_is_package_install_time_available(self):
@@ -123,6 +124,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
         self.assertEqual(False, runtime.maintenance_window.is_package_install_time_available(remaining_time_in_minutes, number_of_packages))
         runtime.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

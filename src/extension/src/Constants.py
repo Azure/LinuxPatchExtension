@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,14 +27,12 @@ class Constants(object):
                     if item == self.__dict__[item]:
                         yield item
 
-    # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.48"
+    AZGPS_LPE_VERSION = "[%exec_ver%]"
 
     # Runtime environments
     TEST = 'Test'
     DEV = 'Dev'
     PROD = 'Prod'         # Azure Native Patch Management
-    UNKNOWN_ENV = 'Unknown'     # Non-functional code placeholder prior to compile
 
     # File Constants
     HANDLER_ENVIRONMENT_FILE = 'HandlerEnvironment.json'
@@ -44,8 +42,8 @@ class Constants(object):
     HANDLER_ENVIRONMENT_FILE_PATH = os.getcwd()
     CONFIG_SETTINGS_FILE_EXTENSION = '.settings'
     STATUS_FILE_EXTENSION = '.status'
-    CORE_CODE_FILE_NAME = 'MsftLinuxPatchCore.py'
-    CORE_AUTO_ASSESS_SH_FILE_NAME = "MsftLinuxPatchAutoAssess.sh"
+    CORE_CODE_FILE_NAME = 'AzGPSLinuxPatchCore.py'
+    CORE_AUTO_ASSESS_SH_FILE_NAME = "AzGPSLinuxPatchAutoAssess.sh"
     LOG_FILE_EXTENSION = '.log'
     LOG_FILES_TO_RETAIN = 15
     MAX_LOG_FILES_ALLOWED = 40
@@ -59,29 +57,31 @@ class Constants(object):
     ENABLE_MAX_RUNTIME = 3
     DISABLE_MAX_RUNTIME = 13
 
-    # Telemetry Settings
-    # Note: these limits are based on number of characters as confirmed with agent team
-    TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS = 3072
-    TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARS = 6144
-    TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = 4194304
-    TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = 41943040
-    TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS = 25  # buffer for the chars dropped text added at the end of the truncated telemetry message
+    class TelemetryConfig(EnumBackport):
+        """ Telemetry limits that are imposed by the Azure Linux Agent """
+        MSG_SIZE_LIMIT_IN_CHARS = 3072
+        EVENT_SIZE_LIMIT_IN_CHARS = 6144
+        EVENT_FILE_SIZE_LIMIT_IN_CHARS = 4194304
+        DIR_SIZE_LIMIT_IN_CHARS = 41943040
+        BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS = 25              # buffer for the chars dropped text added at the end of the truncated telemetry message
+        EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS = 15              # buffer for telemetry event counter text added at the end of every message sent to telemetry
+        MAX_EVENT_COUNT_THROTTLE = 72                           # increased by Agent team for AzGPS in 2023 (up from 60)
+        MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 60
 
-    TELEMETRY_ENABLED_AT_EXTENSION = True
     TELEMETRY_AT_AGENT_NOT_COMPATIBLE_ERROR_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was not met. Please update the Azure Linux Agent on this machine following instructions here: http://aka.ms/UpdateLinuxAgent"
-    TELEMETRY_AT_AGENT_COMPATIBLE_MSG = "The minimum Azure Linux Agent version prerequisite for Linux patching was met."
 
     AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES_ENV_VAR = 'AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES'
     TELEMETRY_EXTENSION_PIPELINE_SUPPORTED_KEY = 'ExtensionTelemetryPipeline'
 
     # Telemetry Event Level
-    class TelemetryEventLevel(EnumBackport):
-        Critical = "Critical"
+    class EventLevel(EnumBackport):
+        # Critical = "Critical"         # unused by AzGPS
         Error = "Error"
         Warning = "Warning"
-        Verbose = "Verbose"
-        Informational = "Informational"
-        LogAlways = "LogAlways"
+        Info = "Informational"
+        Debug = "Debug"
+        Verbose = "Verbose"             # do not log to telemetry - AzGPS override
+        # LogAlways = "LogAlways"       # unused by AzGPS
 
     TELEMETRY_TASK_NAME = "Handler"
 
@@ -93,15 +93,19 @@ class Constants(object):
     # Re-try limit for verifying core process has started successfully
     MAX_PROCESS_STATUS_CHECK_RETRIES = 5
 
-    # Operations
-    NOOPERATION = "NoOperation"
-    PATCH_NOOPERATION_SUMMARY = "PatchNoOperationSummary"
-    ASSESSMENT = "Assessment"
-    PATCH_ASSESSMENT_SUMMARY = "PatchAssessmentSummary"
-    INSTALLATION = "Installation"
-    PATCH_INSTALLATION_SUMMARY = "PatchInstallationSummary"
-    CONFIGURE_PATCHING = "ConfigurePatching"
-    CONFIGURE_PATCHING_SUMMARY = "ConfigurePatchingSummary"
+    class Op(EnumBackport):
+        NO_OPERATION = "NoOperation"     # only used in handler
+        ASSESSMENT = "Assessment"
+        INSTALLATION = "Installation"
+        CONFIGURE_PATCHING = "ConfigurePatching"
+        CONFIGURE_PATCHING_AUTO_ASSESSMENT = "ConfigurePatching_AutoAssessment"
+
+    class OpSummary(EnumBackport):
+        NO_OPERATION = "PatchNoOperationSummary"      # only used in handler
+        """ CONFIGURE_PATCHING = "ConfigurePatchingSummary"
+        ASSESSMENT = "PatchAssessmentSummary"
+        INSTALLATION = "PatchInstallationSummary"
+        PATCH_METADATA_FOR_HEALTHSTORE = "PatchMetadataForHealthStore" """
 
     # Handler actions
     ENABLE = "Enable"
@@ -121,7 +125,7 @@ class Constants(object):
 
     class PatchOperationErrorCodes(EnumBackport):
         # todo: finalize these error codes
-        PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
+        PACKAGE_MANAGER_FAILURE = "CL_PACKAGE_MANAGER_FAILURE"
         OPERATION_FAILED = "OPERATION_FAILED"
         DEFAULT_ERROR = "ERROR"  # default error code
 
@@ -198,10 +202,10 @@ class Constants(object):
 
     # Status values
     class Status(EnumBackport):
-        Transitioning = "Transitioning"
-        Error = "Error"
-        Success = "Success"
-        Warning = "Warning"
+        TRANSITIONING = "Transitioning"
+        ERROR = "Error"
+        SUCCESS = "Success"
+        WARNING = "Warning"
 
     class ExitCode(EnumBackport):
         Okay = 0

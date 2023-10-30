@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,27 +17,35 @@
 """ The patch install orchestrator """
 import datetime
 import math
-import sys
 import time
 from core.src.bootstrap.Constants import Constants
+from core_logic.patch_operators.PatchOperator import PatchOperator
 from core.src.core_logic.Stopwatch import Stopwatch
 
-class PatchInstaller(object):
+# do not instantiate directly - these are exclusively for type hinting support
+from core.src.bootstrap.EnvLayer import EnvLayer
+from core.src.core_logic.ExecutionConfig import ExecutionConfig
+from core.src.local_loggers.CompositeLogger import CompositeLogger
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
+from core.src.service_interfaces.StatusHandler import StatusHandler
+from core.src.service_interfaces.lifecycle_managers.LifecycleManager import LifecycleManager
+from core.src.package_managers.PackageManager import PackageManager
+from core.src.core_logic.PackageFilter import PackageFilter
+from core.src.core_logic.MaintenanceWindow import MaintenanceWindow
+from core.src.core_logic.RebootManager import RebootManager
+
+
+class PatchInstaller(PatchOperator):
     """" Wrapper class for a single patch installation operation """
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, lifecycle_manager, package_manager, package_filter, maintenance_window, reboot_manager):
-        self.env_layer = env_layer
-        self.execution_config = execution_config
-
-        self.composite_logger = composite_logger
-        self.telemetry_writer = telemetry_writer
-        self.status_handler = status_handler
-        self.lifecycle_manager = lifecycle_manager
-
-        self.package_manager = package_manager
-        self.package_manager_name = self.package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY)
+        # type: (EnvLayer, ExecutionConfig, CompositeLogger, TelemetryWriter, StatusHandler, LifecycleManager, PackageManager, PackageFilter, MaintenanceWindow, RebootManager) -> None
+        super(PatchInstaller, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, lifecycle_manager, operation_name=Constants.Op.INSTALLATION)
+        self.package_manager_name = self.package_manager.package_manager_name
         self.package_filter = package_filter
         self.maintenance_window = maintenance_window
         self.reboot_manager = reboot_manager
+
+        self.operation_successful_incl_assessment = False
 
         self.last_still_needed_packages = None  # Used for 'Installed' status records
         self.last_still_needed_package_versions = None
@@ -52,77 +60,112 @@ class PatchInstaller(object):
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
-    def start_installation(self, simulate=False):
-        """ Kick off a patch installation run """
-        self.status_handler.set_current_operation(Constants.INSTALLATION)
-        self.raise_if_telemetry_unsupported()
-        self.raise_if_min_python_version_not_met()
+    # region - PatchOperator interface implementations
+    def should_operation_run(self):
+        """ [Interface implementation] Performs evaluation of if the specific operation should be running at all """
+        self.lifecycle_manager.lifecycle_status_check()
+        return True
 
-        self.composite_logger.log('\nStarting patch installation...')
+    def start_retryable_operation_unit(self):
+        """ [Interface implementation] The core retryable actions for patch operation """
+        self.operation_successful = True
+        self.operation_exception_error = None
 
-        self.stopwatch.start()
+        self.start_installation()
 
-        self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.node())
-        self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
-        self.composite_logger.log("Operation request time: " + self.execution_config.start_time + ",               Maintenance Window Duration: " + self.execution_config.duration)
+        self.status_handler.set_installation_substatus_json(status=Constants.Status.SUCCESS)
+        self.set_final_operation_status()
 
-        maintenance_window = self.maintenance_window
-        package_manager = self.package_manager
-        reboot_manager = self.reboot_manager
+    def process_operation_terminal_exception(self, error):
+        """ [Interface implementation] Exception handling post all retries for the patch operation """
+        error_msg = "Error completing patch assessment. [Error={0}]".format(repr(error))
+        self.operation_successful = False
+        self.operation_exception_error = error_msg
+        self.status_handler.set_installation_substatus_json()(status=Constants.Status.ERROR)
+        self.status_handler.add_error_to_status_and_log_error(message=error_msg, raise_exception=False)
 
-        # Early reboot if reboot is allowed by settings and required by the machine
-        reboot_pending = self.package_manager.is_reboot_pending()
+    def set_final_operation_status(self):
+        """ [Interface implementation] Business logic to write the final status (implicitly covering external dependencies from external callers) """
+        """ Writes the final overall status after any pre-requisite operation is also in a terminal state - currently this is only assessment """
+        overall_status = Constants.Status.SUCCESS if self.operation_successful else Constants.Status.ERROR
+        self.set_operation_status(status=overall_status, error=self.operation_exception_error)
+
+    def set_operation_status(self, status=Constants.Status.TRANSITIONING, error=None):
+        """ [Interface implementation] Generic operation status setter """
+        self.operation_status = status
+        if error is not None:
+            self.status_handler.add_error_to_status_and_log_error(message="Error in patch assessment operation. [Error={0}]".format(repr(error)), raise_exception=False)
+        self.status_handler.set_assessment_substatus_json(status=status)
+    # endregion - PatchOperator interface implementations
+
+    def __process_pre_installation_reboot_state(self):
+        # type: () -> None
+        """ Write reboot status information & reboots the machine if needed and allowed """
+        reboot_pending = self.reboot_manager.is_reboot_pending()
         self.status_handler.set_reboot_pending(reboot_pending)
         if reboot_pending:
-            if reboot_manager.is_setting(Constants.REBOOT_NEVER):
-                self.composite_logger.log_warning("/!\\ There was a pending reboot on the machine before any package installations started.\n" +
-                                                  "    Consider re-running the patch installation after a reboot if any packages fail to install due to this.")
+            if self.reboot_manager.is_setting(Constants.RebootSettings.NEVER):
+                self.status_handler.add_error_to_status_and_log_warning(message="Required reboot blocked by customer configuration - higher failure probability! [RebootPending={0}][RebootSetting={1}]".format(str(reboot_pending),Constants.RebootSettings.NEVER))
             else:
-                self.composite_logger.log_debug("Attempting to reboot the machine prior to patch installation as there is a reboot pending...")
-                reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
+                self.reboot_manager.start_reboot_if_required_and_time_available(self.maintenance_window.get_remaining_time_in_minutes())
+
+    def start_installation(self, simulate=False):
+        """ Kick off a patch installation run """
+        self.__process_pre_installation_reboot_state()
 
         # Install Updates
-        installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
+        installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(self.maintenance_window, self.package_manager, simulate)
         retry_count = 1
         # Repeat patch installation if flagged as required and time is available
-        if not maintenance_window_exceeded and package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):
+        if not maintenance_window_exceeded and self.package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):
             self.composite_logger.log("\nInstalled update count (first round): " + str(installed_update_count))
             self.composite_logger.log("\nPatch installation run will be repeated as the package manager recommended it --------------------------------------------->")
-            package_manager.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False)  # Resetting
-            new_installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
+            self.package_manager.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False)  # Resetting
+            new_installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(self.maintenance_window, self.package_manager, simulate)
             installed_update_count += new_installed_update_count
             retry_count = retry_count + 1
 
-            if package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # We should not see this again
+            if self.package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # We should not see this again
                 error_msg = "Unexpected repeated package manager update occurred. Please re-run the update deployment."
-                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                self.write_installer_perf_logs(update_run_successful, installed_update_count, retry_count, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.FAILED, error_msg)
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CL_PACKAGE_MANAGER_FAILURE)
+                self.write_installer_perf_logs(update_run_successful, installed_update_count, retry_count, self.maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.FAILED, error_msg)
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         self.composite_logger.log("\nInstalled update count: " + str(installed_update_count) + " (including dependencies)")
 
-        self.write_installer_perf_logs(update_run_successful, installed_update_count, retry_count, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.SUCCEEDED, "")
+        self.write_installer_perf_logs(update_run_successful, installed_update_count, retry_count, self.maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.SUCCEEDED, "")
 
         # Reboot as per setting and environment state
-        reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
-        maintenance_window_exceeded = maintenance_window_exceeded or reboot_manager.maintenance_window_exceeded_flag
+        self.reboot_manager.start_reboot_if_required_and_time_available(self.maintenance_window.get_remaining_time_in_minutes())
+        maintenance_window_exceeded = maintenance_window_exceeded or self.reboot_manager.maintenance_window_exceeded_flag
 
         # Combining maintenance
         overall_patch_installation_successful = bool(update_run_successful and not maintenance_window_exceeded)
         # NOTE: Not updating installation substatus at this point because we need to wait for the implicit/second assessment to complete first, as per CRP's instructions
 
+        self.composite_logger.log("|\nCOMPLETED PATCH INSTALLATION.")
+
         return overall_patch_installation_successful
+
+    def set_additional_operation_specific_perf_logs(self, installed_patch_count, maintenance_window_exceeded):
+        # type: (int, bool) -> None
+        """ Sets internal state for additional operation specific performance logs. This will be appended when logged. """
+        self.additional_operation_specific_perf_logs = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}]".format(
+                                                 Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT, str(installed_patch_count),
+                                                       Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW, str(self.maintenance_window.duration),
+                                                       Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_USED_PERCENT, str(self.maintenance_window.get_maintenance_window_used_as_percentage()),
+                                                       Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_EXCEEDED, str(maintenance_window_exceeded))
 
     def write_installer_perf_logs(self, patch_operation_successful, installed_patch_count, retry_count, maintenance_window, maintenance_window_exceeded, task_status, error_msg):
         perc_maintenance_window_used = -1
 
         try:
-            perc_maintenance_window_used = maintenance_window.get_percentage_maintenance_window_used()
+            perc_maintenance_window_used = maintenance_window.get_maintenance_window_used_as_percentage()
         except Exception as error:
             self.composite_logger.log_debug("Error in writing patch installation performance logs. Error is: " + repr(error))
 
         patch_installation_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}][{16}={17}][{18}={19}][{20}={21}]".format(
-                                       Constants.PerfLogTrackerParams.TASK, Constants.INSTALLATION, Constants.PerfLogTrackerParams.TASK_STATUS, str(task_status), Constants.PerfLogTrackerParams.ERROR_MSG, error_msg,
+                                       Constants.PerfLogTrackerParams.TASK, Constants.Op.INSTALLATION, Constants.PerfLogTrackerParams.TASK_STATUS, str(task_status), Constants.PerfLogTrackerParams.ERROR_MSG, error_msg,
                                        Constants.PerfLogTrackerParams.PACKAGE_MANAGER, self.package_manager_name, Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_operation_successful),
                                        Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT, str(installed_patch_count), Constants.PerfLogTrackerParams.RETRY_COUNT, str(retry_count),
                                        Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW, str(maintenance_window.duration), Constants.PerfLogTrackerParams.MAINTENANCE_WINDOW_USED_PERCENT, str(perc_maintenance_window_used),
@@ -130,37 +173,19 @@ class PatchInstaller(object):
         self.stopwatch.stop_and_write_telemetry(patch_installation_perf_log)
         return True
 
-    def raise_if_telemetry_unsupported(self):
-        if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
-            self.composite_logger.log("Skipping telemetry compatibility check for Arc cloud type when operation is not manual")
-            return
-        if not self.telemetry_writer.is_telemetry_supported():
-            error_msg = "{0}".format(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG)
-            self.composite_logger.log_error(error_msg)
-            raise Exception(error_msg)
-
-        self.composite_logger.log("{0}".format(Constants.TELEMETRY_COMPATIBLE_MSG))
-
-    def raise_if_min_python_version_not_met(self):
-        if sys.version_info < (2, 7):
-            error_msg = Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info)
-            self.composite_logger.log_error(error_msg)
-            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
-            raise Exception(error_msg)
-
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""
         self.composite_logger.log("\n\nGetting available updates...")
         package_manager.refresh_repo()
 
         packages, package_versions = package_manager.get_available_updates(self.package_filter)  # Initial, ignoring exclusions
-        self.telemetry_writer.write_event("Initial package list: " + str(packages), Constants.TelemetryEventLevel.Verbose)
+        self.telemetry_writer.write_event("Initial package list: " + str(packages), Constants.EventLevel.Verbose)
 
         not_included_packages, not_included_package_versions = self.get_not_included_updates(package_manager, packages)
-        self.telemetry_writer.write_event("Not Included package list: " + str(not_included_packages), Constants.TelemetryEventLevel.Verbose)
+        self.telemetry_writer.write_event("Not Included package list: " + str(not_included_packages), Constants.EventLevel.Verbose)
 
         excluded_packages, excluded_package_versions = self.get_excluded_updates(package_manager, packages, package_versions)
-        self.telemetry_writer.write_event("Excluded package list: " + str(excluded_packages), Constants.TelemetryEventLevel.Verbose)
+        self.telemetry_writer.write_event("Excluded package list: " + str(excluded_packages), Constants.EventLevel.Verbose)
 
         packages, package_versions = self.filter_out_excluded_updates(packages, package_versions, excluded_packages)  # honoring exclusions
 
@@ -170,22 +195,22 @@ class PatchInstaller(object):
         # Adding this after filtering excluded packages, so we don`t un-intentionally mark excluded esm-package status as failed.
         packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found_without_attach = package_manager.separate_out_esm_packages(packages, package_versions)
 
-        self.telemetry_writer.write_event("Final package list: " + str(packages), Constants.TelemetryEventLevel.Verbose)
+        self.telemetry_writer.write_event("Final package list: " + str(packages), Constants.EventLevel.Verbose)
 
         # Set initial statuses
         if not package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):  # 'Not included' list is not accurate when a repeat is required
-            self.status_handler.set_package_install_status(not_included_packages, not_included_package_versions, Constants.NOT_SELECTED)
-        self.status_handler.set_package_install_status(excluded_packages, excluded_package_versions, Constants.EXCLUDED)
-        self.status_handler.set_package_install_status(packages, package_versions, Constants.PENDING)
-        self.status_handler.set_package_install_status(self.skipped_esm_packages, self.skipped_esm_package_versions, Constants.FAILED)
+            self.status_handler.set_package_install_status(not_included_packages, not_included_package_versions, Constants.PackageStatus.NOT_SELECTED)
+        self.status_handler.set_package_install_status(excluded_packages, excluded_package_versions, Constants.PackageStatus.EXCLUDED)
+        self.status_handler.set_package_install_status(packages, package_versions, Constants.PackageStatus.PENDING)
+        self.status_handler.set_package_install_status(self.skipped_esm_packages, self.skipped_esm_package_versions, Constants.PackageStatus.FAILED)
         self.composite_logger.log("\nList of packages to be updated: \n" + str(packages))
 
         sec_packages, sec_package_versions = self.package_manager.get_security_updates()
-        self.telemetry_writer.write_event("Security packages out of the final package list: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
+        self.telemetry_writer.write_event("Security packages out of the final package list: " + str(sec_packages), Constants.EventLevel.Verbose)
         self.status_handler.set_package_install_status_classification(sec_packages, sec_package_versions, classification="Security")
 
         # Set the security-esm package status.
-        package_manager.set_security_esm_package_status(Constants.INSTALLATION, packages)
+        package_manager.set_security_esm_package_status(Constants.Op.INSTALLATION, packages)
 
         self.composite_logger.log("\nNote: Packages that are neither included nor excluded may still be installed if an included package has a dependency on it.")
         # We will see this as packages going from NotSelected --> Installed. We could remove them preemptively from not_included_packages, but we're explicitly choosing not to.
@@ -196,7 +221,7 @@ class PatchInstaller(object):
         patch_installation_successful = True
         maintenance_window_exceeded = False
         all_packages, all_package_versions = package_manager.get_all_updates(True)  # cached is fine
-        self.telemetry_writer.write_event("All available packages list: " + str(all_packages), Constants.TelemetryEventLevel.Verbose)
+        self.telemetry_writer.write_event("All available packages list: " + str(all_packages), Constants.EventLevel.Verbose)
         self.last_still_needed_packages = list(all_packages)
         self.last_still_needed_package_versions = list(all_package_versions)
 
@@ -271,11 +296,11 @@ class PatchInstaller(object):
             self.include_dependencies(package_manager, [package], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # parent package install (+ dependencies) and parent package result management
-            install_result = Constants.FAILED
+            install_result = Constants.PackageStatus.FAILED
             for i in range(0, Constants.MAX_INSTALLATION_RETRY_COUNT):
                 install_result = package_manager.install_update_and_dependencies_and_get_status(package_and_dependencies, package_and_dependency_versions, simulate)
 
-                if install_result != Constants.INSTALLED:
+                if install_result != Constants.PackageStatus.INSTALLED:
                     if i < Constants.MAX_INSTALLATION_RETRY_COUNT - 1:
                         time.sleep(i + 1)
                         self.composite_logger.log_warning("Retrying installation of package. [Package={0}]".format(package_manager.get_product_name(package_and_dependencies[0])))
@@ -285,12 +310,12 @@ class PatchInstaller(object):
             # Update reboot pending status in status_handler
             self.status_handler.set_reboot_pending(self.package_manager.is_reboot_pending())
 
-            if install_result == Constants.FAILED:
-                self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.FAILED)
+            if install_result == Constants.PackageStatus.FAILED:
+                self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.PackageStatus.FAILED)
                 self.failed_parent_package_install_count += 1
                 patch_installation_successful = False
-            elif install_result == Constants.INSTALLED:
-                self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.INSTALLED)
+            elif install_result == Constants.PackageStatus.INSTALLED:
+                self.status_handler.set_package_install_status(package_manager.get_product_name(str(package_and_dependencies[0])), str(package_and_dependency_versions[0]), Constants.PackageStatus.INSTALLED)
                 self.successful_parent_package_install_count += 1
                 if package in self.last_still_needed_packages:
                     index = self.last_still_needed_packages.index(package)
@@ -308,7 +333,7 @@ class PatchInstaller(object):
 
                 if package_manager.is_package_version_installed(dependency, dependency_version):
                     self.composite_logger.log_debug(" - Marking dependency as succeeded: " + str(dependency) + "(" + str(dependency_version) + ")")
-                    self.status_handler.set_package_install_status(package_manager.get_product_name(str(dependency)), str(dependency_version), Constants.INSTALLED)
+                    self.status_handler.set_package_install_status(package_manager.get_product_name(str(dependency)), str(dependency_version), Constants.PackageStatus.INSTALLED)
                     index = self.last_still_needed_packages.index(dependency)
                     self.last_still_needed_packages.pop(index)
                     self.last_still_needed_package_versions.pop(index)
@@ -362,11 +387,15 @@ class PatchInstaller(object):
         self.composite_logger.log(progress_status)
 
         if not patch_installation_successful or maintenance_window_exceeded:
-            message = "\n\nOperation status was marked as failed because: "
-            message += "[X] a failure occurred during the operation  " if not patch_installation_successful else ""
-            message += "[X] maintenance window exceeded " if maintenance_window_exceeded else ""
-            self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
-            self.composite_logger.log_error(message)
+            message = "\n\nOperation status was set to FAILED because "
+            if patch_installation_successful and maintenance_window_exceeded:
+                message += "maintenance window was exceeded."
+            elif not patch_installation_successful and not maintenance_window_exceeded:
+                message += "one or more errors occurred."
+            else:
+                message += "one or more errors occurred, and maintenance window was exceeded."
+
+            self.status_handler.add_error_to_status_and_log_error(message, raise_exception=False, error_code=Constants.PatchOperationErrorCodes.OPERATION_FAILED)
 
     def include_dependencies(self, package_manager, packages_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
@@ -503,10 +532,10 @@ class PatchInstaller(object):
             for package,version in zip(package_and_dependencies, package_and_dependency_versions):
                 install_result = package_manager.get_installation_status(code, out, exec_cmd, package, version, simulate)
 
-                if install_result == Constants.FAILED:
+                if install_result == Constants.PackageStatus.FAILED:
                     if package in packages_in_batch:
                         # parent package
-                        self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.FAILED)
+                        self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.PackageStatus.FAILED)
                         self.failed_parent_package_install_count += 1
                         patch_installation_successful = False
                         parent_packages_failed_in_batch_count += 1
@@ -515,8 +544,8 @@ class PatchInstaller(object):
                     else:
                         # dependent package
                         number_of_dependencies_failed +=1
-                elif install_result == Constants.INSTALLED:
-                    self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.INSTALLED)
+                elif install_result == Constants.PackageStatus.INSTALLED:
+                    self.status_handler.set_package_install_status(package_manager.get_product_name(str(package)), str(version), Constants.PackageStatus.INSTALLED)
                     if package in packages_in_batch:
                         # parent package
                         self.successful_parent_package_install_count += 1
@@ -561,19 +590,19 @@ class PatchInstaller(object):
     def mark_installation_completed(self):
         """ Marks Installation operation as completed by updating the status of PatchInstallationSummary as success and patch metadata to be sent to healthstore.
         This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as completed only after the implicit (2nd) assessment operation """
-        self.status_handler.set_current_operation(Constants.INSTALLATION)  # Required for status handler to log errors, that occur during marking installation completed, in installation substatus
+        self.status_handler.set_current_operation(Constants.Op.INSTALLATION)  # Required for status handler to log errors, that occur during marking installation completed, in installation substatus
 
         # RebootNever is selected and pending, set status warning else success
-        if self.reboot_manager.reboot_setting == Constants.REBOOT_NEVER and self.reboot_manager.is_reboot_pending():
+        if self.reboot_manager.reboot_setting == Constants.RebootSettings.NEVER and self.reboot_manager.is_reboot_pending():
             # Set error details inline with windows extension when setting warning status. This message will be shown in portal.
             self.status_handler.add_error_to_status("Machine is Required to reboot. However, the customer-specified reboot setting doesn't allow reboots.", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
+            self.status_handler.set_installation_substatus_json(status=Constants.Status.WARNING)
         else:
-            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+            self.status_handler.set_installation_substatus_json(status=Constants.Status.SUCCESS)
 
         # If esm packages are found, set the status as warning. This will show up in portal along with the error message we already set.
         if self.esm_packages_found_without_attach:
-            self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
+            self.status_handler.set_installation_substatus_json(status=Constants.Status.WARNING)
 
         # Update patch metadata in status for auto patching request, to be reported to healthStore
         # When available, HealthStoreId always takes precedence over the 'overriden' Maintenance Run Id that is being re-purposed for other reasons
@@ -598,7 +627,7 @@ class PatchInstaller(object):
         """Periodically based on the condition check, writes out success records as required; returns count of detected installs.
            This is mostly to capture the dependencies that get silently installed recorded.
            VERY IMPORTANT NOTE: THIS ONLY WORKS IF EACH DEPENDENCY INSTALLED WAS THE VERY LATEST VERSION AVAILABLE.
-           So it's only here as a fall back method and shouldn't normally be required with newer code - it will be removed in the future."""
+           So it's only here as a fallback method and shouldn't normally be required with newer code - it will be removed in the future."""
         if not condition:
             return 0
 
@@ -612,7 +641,7 @@ class PatchInstaller(object):
                 successful_packages.append(self.last_still_needed_packages[i])
                 successful_package_versions.append(self.last_still_needed_package_versions[i])
 
-        self.status_handler.set_package_install_status(successful_packages, successful_package_versions, Constants.INSTALLED)
+        self.status_handler.set_package_install_status(successful_packages, successful_package_versions, Constants.PackageStatus.INSTALLED)
         self.last_still_needed_packages = still_needed_packages
         self.last_still_needed_package_versions = still_needed_package_versions
         self.composite_logger.log_debug("Completed status reconciliation. Time taken: " + str(time.time() - start_time) + " seconds.")

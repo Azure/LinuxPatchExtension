@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,7 +26,7 @@ For the extension wrapper, the status structure is simply the following (no subs
     "version": 1.0,
     "timestampUTC": "2019-07-20T12:12:14Z",
     "status": {
-        "name": "Azure Patch Management",
+        "name": "Azure Guest Patching Service",
         "operation": "Assessment / Installation / NoOperation / ConfigurePatching",
         "status": "transitioning / error / success / warning",
         "code": 0,
@@ -62,7 +62,7 @@ class ExtOutputStatusHandler(object):
         #ToDo: move it to some other location, since seq no is not available at load
         # self.read_file()
 
-    def write_status_file(self, operation, seq_no, status=Constants.Status.Transitioning.lower(), message="", code=Constants.ExitCode.Okay):
+    def write_status_file(self, operation, seq_no, status=Constants.Status.TRANSITIONING.lower(), message="", code=Constants.ExitCode.Okay):
         if seq_no is None:
             self.logger.log_error("Cannot write status file since sequence number is not available. [Sequence={0}]".format(str(seq_no)))
             return
@@ -81,7 +81,7 @@ class ExtOutputStatusHandler(object):
             self.file_keys.version: 1.0,
             self.file_keys.timestamp_utc: str(self.utility.get_str_from_datetime(datetime.datetime.utcnow())),
             self.file_keys.status: {
-                self.file_keys.status_name: "Azure Patch Management",
+                self.file_keys.status_name: "Azure Guest Patching Service",
                 self.file_keys.status_operation: str(operation),
                 self.file_keys.status_status: status.lower(),
                 self.file_keys.status_code: code,
@@ -108,7 +108,7 @@ class ExtOutputStatusHandler(object):
 
         for i in range(0, len(status_json[0]['status']['substatus'])):
             name = status_json[0]['status']['substatus'][i]['name']
-            if name == Constants.PATCH_NOOPERATION_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
+            if name == Constants.OpSummary.NO_OPERATION:     # if it exists, it must be to spec, or an exception will get thrown
                 message = status_json[0]['status']['substatus'][i]['formattedMessage']['message']
                 self.__nooperation_summary_json = json.loads(message)
                 errors = self.__nooperation_summary_json['errors']
@@ -128,7 +128,7 @@ class ExtOutputStatusHandler(object):
                 else:
                     self.logger.log_error("Error updating config value in status file. [Config={0}]".format(key))
 
-    def update_file(self, seq_no, status=Constants.Status.Transitioning.lower(), code=Constants.ExitCode.Okay, message=""):
+    def update_file(self, seq_no, status=Constants.Status.TRANSITIONING.lower(), code=Constants.ExitCode.Okay, message=""):
         """ Reseting status, code and message with latest timestamp, while retaining all other values"""
         try:
             file_name = self.__get_status_file_name(seq_no)
@@ -151,13 +151,13 @@ class ExtOutputStatusHandler(object):
     def __get_status_file_name(self, seq_no):
         return str(seq_no) + self.file_ext
 
-    def set_nooperation_substatus_json(self, operation, activity_id, start_time, seq_no, status=Constants.Status.Transitioning, code=Constants.ExitCode.Okay):
+    def set_nooperation_substatus_json(self, operation, activity_id, start_time, seq_no, status=Constants.Status.TRANSITIONING, code=Constants.ExitCode.Okay):
         """ Prepare the nooperation substatus json including the message containing nooperation summary """
         # Wrap patches into nooperation summary
         self.__nooperation_summary_json = self.new_nooperation_summary_json(activity_id, start_time)
 
         # Wrap nooperation summary into nooperation substatus
-        self.__nooperation_substatus_json = self.new_substatus_json_for_operation(Constants.PATCH_NOOPERATION_SUMMARY, status, code, json.dumps(self.__nooperation_summary_json))
+        self.__nooperation_substatus_json = self.new_substatus_json_for_operation(Constants.OpSummary.NO_OPERATION, status, code, json.dumps(self.__nooperation_summary_json))
 
         # Update status on disk
         self.write_status_file(operation, seq_no, status=status)
@@ -209,7 +209,7 @@ class ExtOutputStatusHandler(object):
             "message": str(formatted_message)
         }
 
-        if self.__current_operation == Constants.NOOPERATION:
+        if self.__current_operation == Constants.Op.NO_OPERATION:
             if self.__try_add_error(self.__nooperation_errors, error_detail):
                 self.__nooperation_total_error_count += 1
         else:
