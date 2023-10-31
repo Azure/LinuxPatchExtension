@@ -50,6 +50,11 @@ class RuntimeCompositor(object):
         Constants.SystemPaths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
         self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
 
+        # speed up test execution
+        Constants.MAX_FILE_OPERATION_RETRY_COUNT = 1
+        Constants.MAX_IMDS_CONNECTION_RETRY_COUNT = 1
+        Constants.WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS = 0
+
         if self.is_github_runner:
             def mkdtemp_runner():
                 temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
@@ -141,6 +146,8 @@ class RuntimeCompositor(object):
         self.env_layer.platform = self.legacy_env_layer_extensions.LegacyPlatform()
         self.env_layer.set_legacy_test_mode()
         self.env_layer.run_command_output = self.legacy_env_layer_extensions.run_command_output
+        if os.name == 'nt':
+            self.env_layer.etc_environment_file_path = os.getcwd()
 
     def reconfigure_reboot_manager(self):
         self.reboot_manager.start_reboot = self.start_reboot

@@ -59,6 +59,7 @@ class ExecutionConfig(object):
         self.excluded_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_EXCLUDE, [])
         self.maintenance_run_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAINTENANCE_RUN_ID)
         self.health_store_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.HEALTH_STORE_ID)
+        self.max_patch_publish_date = self.__get_max_patch_publish_date(self.health_store_id)
         if self.operation == Constants.INSTALLATION:
             self.reboot_setting = self.config_settings[Constants.ConfigSettings.REBOOT_SETTING]     # expected to throw if not present
         else:
@@ -98,6 +99,18 @@ class ExecutionConfig(object):
         self.reboot_setting = Constants.REBOOT_NEVER
         self.patch_mode = None
         self.composite_logger.log_debug("Setting execution configuration values for auto assessment. [GeneratedActivityId={0}][StartTime={1}]".format(self.activity_id, str(self.start_time)))
+
+    def __get_max_patch_publish_date(self, health_store_id):
+        # type: (str) -> object
+        """ Obtains implicit date ceiling for published date - converts pub_off_sku_2024.04.01 to 20240401T000000Z """
+        max_patch_publish_date = str()
+        if health_store_id is not None and health_store_id != "":
+            split = health_store_id.split("_")
+            if len(split) == 4 and len(split[3]) == 10:
+                max_patch_publish_date = "{0}T000000Z".format(split[3].replace(".", ""))
+
+        self.composite_logger.log_debug("[EC] Getting max patch publish date. [MaxPatchPublishDate={0}][HealthStoreId={1}]".format(str(max_patch_publish_date), str(health_store_id)))
+        return max_patch_publish_date
 
     @staticmethod
     def __get_value_from_argv(argv, key, default_value=Constants.DEFAULT_UNSPECIFIED_VALUE):

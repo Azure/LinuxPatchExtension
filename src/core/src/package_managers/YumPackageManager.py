@@ -174,6 +174,9 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log("Discovered " + str(len(other_packages)) + " 'other' package entries.")
         return other_packages, other_package_versions
 
+    def set_max_patch_publish_date(self, max_patch_publish_date=str()):
+        pass
+
     def install_yum_security_prerequisite(self):
         """Not installed by default in versions prior to RHEL 7. This step is idempotent and fast, so we're not writing more complex code."""
         self.composite_logger.log_debug('Ensuring RHEL yum-plugin-security is present.')
@@ -249,6 +252,9 @@ class YumPackageManager(PackageManager):
 
         self.composite_logger.log_debug("[FAIL SAFE MODE] UPDATING PACKAGES USING COMMAND: " + cmd)
         self.invoke_package_manager(cmd)
+
+    def install_security_updates_azgps_coordinated(self):
+        pass
     # endregion
 
     # region Package Information

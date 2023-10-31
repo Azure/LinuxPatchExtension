@@ -150,6 +150,7 @@ class Constants(object):
 
     # Public Settings within Config Settings
     class ConfigPublicSettingsFields(EnumBackport):
+        cloud_type = "cloudType"
         operation = "operation"
         activity_id = "activityId"
         start_time = "startTime"
