@@ -251,6 +251,15 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: not enough time to use
         runtime.stop()
 
+        argument_composer.maximum_duration = "PT235M"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+        runtime.package_manager.install_security_updates_azgps_coordinated = lambda: (1, "Failed")
+        self.assertFalse(runtime.patch_installer.start_installation())
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: not enough time to use
+        runtime.stop()
+
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         runtime.set_legacy_test_type('HappyPath')
         self.assertTrue(runtime.patch_installer.start_installation())

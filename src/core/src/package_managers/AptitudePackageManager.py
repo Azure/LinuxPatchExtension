@@ -342,7 +342,7 @@ class AptitudePackageManager(PackageManager):
 
     def install_security_updates_azgps_coordinated(self):
         command = self.__generate_command(self.install_security_updates_azgps_coordinated_cmd, self.__get_custom_sources_to_spec(self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification="security")))
-        code, out = self.invoke_package_manager_advanced(command, raise_on_exception=False)
+        out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
     # endregion
 

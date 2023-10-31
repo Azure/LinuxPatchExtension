@@ -206,6 +206,8 @@ class PatchInstaller(object):
                     if i < Constants.MAX_INSTALLATION_RETRY_COUNT - 1:
                         time.sleep(i * 5)
                         self.composite_logger.log_warning("[PI][AzGPS-Coordinated] Non-zero return. Retrying. [RetryCount={0}][TimeRemainingInMins={1}][Code={2}][Output={3}]".format(str(i), str(remaining_time), str(code), out))
+                    else:
+                        raise Exception("AzGPS Strict SDP retries exhausted. [RetryCount={0}]".format(str(i)))
                 else:
                     patch_installation_successful = True
                     break
