@@ -460,7 +460,13 @@ class LegacyEnvLayerExtensions():
                                  "Ubuntu:16.10/yakkety-security [amd64]) []\n" + \
                                  "Inst samba-libs [2:4.4.5+dfsg-2ubuntu5.2] (2:4.4.5+dfsg-2ubuntu5.4 " + \
                                  "Ubuntu:16.10/yakkety-updates, Ubuntu:16.10/yakkety-security [amd64]) []\n"
-                    elif cmd.find("--only-upgrade true -s install") > -1:
+                    elif cmd.find("grep -hR security /etc/apt/sources.list") > -1 or cmd.find("grep -hR \"\" /etc/apt/sources.list") > -1:
+                        code = 0
+                        output = "deb-src http://azure.archive.ubuntu.com/ubuntu/ jammy-security main restricted\n" + \
+                                 "deb-src http://azure.archive.ubuntu.com/ubuntu/ jammy-security universe\n" + \
+                                 "deb-src http://azure.archive.ubuntu.com/ubuntu/ jammy-security multiverse"
+                        self.write_to_file(os.path.join(self.temp_folder_path, "temp2.list"), output)
+                    elif cmd.find("--only-upgrade true -s install") > -1 or cmd.find("apt-get -y --only-upgrade true upgrade") > -1:
                         code = 0
                         output = "NOTE: This is only a simulation!\n" + \
                                  "      apt-get needs root privileges for real execution.\n" + \

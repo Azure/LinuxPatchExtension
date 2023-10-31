@@ -81,8 +81,17 @@ class PatchInstaller(object):
                 self.composite_logger.log_debug("Attempting to reboot the machine prior to patch installation as there is a reboot pending...")
                 reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
 
-        # Install Updates
-        installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
+        if self.execution_config.max_patch_publish_date != str():
+            self.package_manager.set_max_patch_publish_date(self.execution_config.max_patch_publish_date)
+
+        if self.package_manager.max_patch_publish_date != str():
+            """ Strict SDP with the package manager that supports it """
+            installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates_azgps_coordinated(maintenance_window, package_manager, simulate)
+            package_manager.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, bool(not update_run_successful))
+        else:
+            """ Regular patch installation flow - non-AzGPS-coordinated and (AzGPS-coordinated without strict SDP)"""
+            installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
+
         retry_count = 1
         # Repeat patch installation if flagged as required and time is available
         if not maintenance_window_exceeded and package_manager.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, False):
@@ -147,6 +156,64 @@ class PatchInstaller(object):
             self.composite_logger.log_error(error_msg)
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
             raise Exception(error_msg)
+
+    def install_updates_azgps_coordinated(self, maintenance_window, package_manager, simulate=False):
+        """ Special-casing installation as it meets the following criteria:
+            - Maintenance window is always guaranteed to be nearly 4 hours (235 minutes). Customer-facing maintenance windows are much larger (system limitation).
+            - Barring reboot, the core Azure customer-base moving to coordinated, unattended upgrades is currently on a 24x7 MW.
+            - Built in service-level retries and management of outcomes. Reboot will only happen within the core maintenance window (and won't be delayed).
+            - Corner-case transient failures are immaterial to the overall functioning of AzGPS coordinated upgrades (eventual consistency).
+            - Only security updates (no other configuration) - simplistic execution flow; no advanced evaluation is desired or necessary.
+        """
+        installed_update_count = 0  # includes dependencies
+        patch_installation_successful = True
+        maintenance_window_exceeded = False
+        remaining_time = maintenance_window.get_remaining_time_in_minutes()
+
+        try:
+            all_packages, all_package_versions = package_manager.get_all_updates(True)
+            packages, package_versions = package_manager.get_security_updates()
+            self.last_still_needed_packages = list(all_packages)
+            self.last_still_needed_package_versions = list(all_package_versions)
+
+            not_included_packages, not_included_package_versions = self.get_not_included_updates(package_manager, packages)
+            packages, package_versions, self.skipped_esm_packages, self.skipped_esm_package_versions, self.esm_packages_found_without_attach = package_manager.separate_out_esm_packages(packages, package_versions)
+
+            self.status_handler.set_package_install_status(not_included_packages, not_included_package_versions, Constants.NOT_SELECTED)
+            self.status_handler.set_package_install_status(packages, package_versions, Constants.PENDING)
+            self.status_handler.set_package_install_status(self.skipped_esm_packages, self.skipped_esm_package_versions, Constants.FAILED)
+
+            self.status_handler.set_package_install_status_classification(packages, package_versions, classification="Security")
+            package_manager.set_security_esm_package_status(Constants.INSTALLATION, packages)
+
+            installed_update_count = 0  # includes dependencies
+            patch_installation_successful = True
+            maintenance_window_exceeded = False
+
+            install_result = Constants.FAILED
+            for i in range(0, Constants.MAX_INSTALLATION_RETRY_COUNT):
+                code, out = package_manager.install_security_updates_azgps_coordinated()
+                installed_update_count += self.perform_status_reconciliation_conditionally(package_manager)
+
+                remaining_time = maintenance_window.get_remaining_time_in_minutes()
+                if remaining_time < 120:
+                    raise Exception("Not enough safety-buffer to continue strict safe deployment.")
+
+                if code != 0:   # will need to be modified for other package managers
+                    if i < Constants.MAX_INSTALLATION_RETRY_COUNT - 1:
+                        time.sleep(i * 5)
+                        self.composite_logger.log_warning("[PI][AzGPS-Coordinated] Non-zero return. Retrying. [RetryCount={0}][TimeRemainingInMins={1}][Code={2}][Output={3}]".format(str(i), str(remaining_time), str(code), out))
+                else:
+                    patch_installation_successful = True
+                    break
+        except Exception as error:
+            error_msg = "AzGPS strict safe deployment to target date hit a failure. Defaulting to regular upgrades. [MaxPatchPublishDate={0}]".format(self.execution_config.max_patch_publish_date)
+            self.composite_logger.log_error(error_msg + "[Error={0}]".format(repr(error)))
+            self.status_handler.add_error_to_status(error_msg)
+            self.package_manager.set_max_patch_publish_date()   # fall-back
+            patch_installation_successful = False
+
+        return installed_update_count, patch_installation_successful, maintenance_window_exceeded
 
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""
@@ -576,20 +643,10 @@ class PatchInstaller(object):
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
 
         # Update patch metadata in status for auto patching request, to be reported to healthStore
-        # When available, HealthStoreId always takes precedence over the 'overriden' Maintenance Run Id that is being re-purposed for other reasons
-        # In the future, maintenance run id will be completely deprecated for health store reporting.
-        patch_version_raw = self.execution_config.health_store_id if self.execution_config.health_store_id is not None else self.execution_config.maintenance_run_id
-        self.composite_logger.log_debug("Patch version raw value set. [Raw={0}][HealthStoreId={1}][MaintenanceRunId={2}]".format(str(patch_version_raw), str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))
-
-        if patch_version_raw is not None:
-            try:
-                patch_version = datetime.datetime.strptime(patch_version_raw.split(" ")[0], "%m/%d/%Y").strftime('%Y.%m.%d')
-            except ValueError as e:
-                patch_version = str(patch_version_raw) # CRP is supposed to guarantee that healthStoreId is always in the correct format; (Legacy) Maintenance Run Id may not be; what happens prior to this is just defensive coding
-                self.composite_logger.log_debug("Patch version _may_ be in an incorrect format. [CommonFormat=DateTimeUTC][Actual={0}][Error={1}]".format(str(self.execution_config.maintenance_run_id), repr(e)))
-
+        self.composite_logger.log_debug("[PI] Reviewing final healthstore record write. [HealthStoreId={0}][MaintenanceRunId={1}]".format(str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))
+        if self.execution_config.health_store_id is not None:
             self.status_handler.set_patch_metadata_for_healthstore_substatus_json(
-                patch_version=patch_version if patch_version is not None and patch_version != "" else Constants.PATCH_VERSION_UNKNOWN,
+                patch_version=self.execution_config.health_store_id,
                 report_to_healthstore=True,
                 wait_after_update=False)
 
@@ -602,7 +659,7 @@ class PatchInstaller(object):
         if not condition:
             return 0
 
-        self.composite_logger.log_debug("\nStarting status reconciliation...")
+        self.composite_logger.log_verbose("\nStarting status reconciliation...")
         start_time = time.time()
         still_needed_packages, still_needed_package_versions = package_manager.get_all_updates(False)  # do not use cache
         successful_packages = []
@@ -615,7 +672,7 @@ class PatchInstaller(object):
         self.status_handler.set_package_install_status(successful_packages, successful_package_versions, Constants.INSTALLED)
         self.last_still_needed_packages = still_needed_packages
         self.last_still_needed_package_versions = still_needed_package_versions
-        self.composite_logger.log_debug("Completed status reconciliation. Time taken: " + str(time.time() - start_time) + " seconds.")
+        self.composite_logger.log_verbose("Completed status reconciliation. Time taken: " + str(time.time() - start_time) + " seconds.")
         return len(successful_packages)
     # endregion
 

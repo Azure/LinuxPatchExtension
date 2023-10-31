@@ -50,6 +50,11 @@ class RuntimeCompositor(object):
         Constants.SystemPaths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
         self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
 
+        # speed up test execution
+        Constants.MAX_FILE_OPERATION_RETRY_COUNT = 1
+        Constants.MAX_IMDS_CONNECTION_RETRY_COUNT = 1
+        Constants.WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS = 0
+
         if self.is_github_runner:
             def mkdtemp_runner():
                 temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))

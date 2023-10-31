@@ -42,6 +42,9 @@ class PackageManager(object):
         # auto OS updates
         self.image_default_patch_configuration_backup_path = os.path.join(execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
 
+        # strict SDP
+        self.max_patch_publish_date = str()
+
         # Constants
         self.STR_NOTHING_TO_DO = "Error: Nothing to do"
         self.STR_ONLY_UPGRADES = "Skipping <PACKAGE>, it is not installed and only upgrades are requested."
@@ -107,6 +110,10 @@ class PackageManager(object):
 
     @abstractmethod
     def get_other_updates(self):
+        pass
+
+    @abstractmethod
+    def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         pass
     # endregion
 
@@ -329,6 +336,9 @@ class PackageManager(object):
         install_result = self.get_installation_status(code, out, exec_cmd, package_and_dependencies[0], package_and_dependency_versions[0], simulate)
         return install_result
 
+    @abstractmethod
+    def install_security_updates_azgps_coordinated(self):
+        pass
     # endregion
 
     # region Package Information

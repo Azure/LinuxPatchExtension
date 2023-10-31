@@ -16,6 +16,7 @@
 
 import datetime
 import json
+import os
 import sys
 import unittest
 from core.src.bootstrap.Constants import Constants
@@ -228,6 +229,25 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = backup_package_manager_ubuntu_pro_client_attached
         obj.mock_unimport_uaclient_update_module()
         version_obj.mock_unimport_uaclient_version_module()
+
+    def test_patch_installer_for_azgps_coordinated(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = "PT235M"
+        argument_composer.health_store_id = "pub_offer_sku_2024.04.01"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.custom_sources_list = os.path.join(argument_composer.temp_folder, "temp2.list")
+        # Path change
+        runtime.set_legacy_test_type('HappyPath')
+        self.assertTrue(runtime.patch_installer.start_installation())
+        self.assertEqual(runtime.execution_config.max_patch_publish_date,"20240401T000000Z")
+        runtime.stop()
+
+        argument_composer.maximum_duration = "PT30M"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+        self.assertFalse(runtime.patch_installer.start_installation())
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        runtime.stop()
 
     def test_mark_status_completed_esm_required(self):
         obj = MockUpdatesResult()
@@ -526,12 +546,7 @@ class TestPatchInstaller(unittest.TestCase):
     def test_healthstore_writes(self):
         self.healthstore_writes_helper("HealthStoreId", None, False, expected_patch_version="HealthStoreId")
         self.healthstore_writes_helper("HealthStoreId", "MaintenanceRunId", False, expected_patch_version="HealthStoreId")
-        self.healthstore_writes_helper(None, "MaintenanceRunId", False, expected_patch_version="MaintenanceRunId")
-        self.healthstore_writes_helper(None, "09/16/2021 08:24:42 AM +00:00", False, expected_patch_version="2021.09.16")
-        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", None, False, expected_patch_version="2021.09.16")
-        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", "09/17/2021 08:24:42 AM +00:00", False, expected_patch_version="2021.09.16")
-        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", "<some-guid>", False, expected_patch_version="2021.09.16")
-        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", "<some-guid>", True, expected_patch_version="2021.09.16")
+        self.healthstore_writes_helper("pub_offer_sku_2020.10.20", None, False, expected_patch_version="pub_offer_sku_2020.10.20")
 
     def healthstore_writes_helper(self, health_store_id, maintenance_run_id, is_force_reboot, expected_patch_version):
         current_time = datetime.datetime.utcnow()

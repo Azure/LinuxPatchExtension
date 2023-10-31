@@ -116,6 +116,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         argument_composer.maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
+        argument_composer.health_store_id = "pub_off_sku_2020.09.23"
         argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
@@ -158,7 +159,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
-        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
+        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "pub_off_sku_2020.09.23")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
         runtime.stop()
 

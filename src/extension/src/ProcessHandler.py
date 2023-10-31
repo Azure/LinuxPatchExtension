@@ -38,7 +38,8 @@ class ProcessHandler(object):
         public_config_settings = {}
         public_settings_keys = Constants.ConfigPublicSettingsFields
         if config_settings is not None:
-            public_config_settings.update({public_settings_keys.operation: config_settings.__getattribute__(public_settings_keys.operation),
+            public_config_settings.update({public_settings_keys.cloud_type: config_settings.__getattribute__(public_settings_keys.cloud_type),
+                                           public_settings_keys.operation: config_settings.__getattribute__(public_settings_keys.operation),
                                            public_settings_keys.activity_id: config_settings.__getattribute__(public_settings_keys.activity_id),
                                            public_settings_keys.start_time: config_settings.__getattribute__(public_settings_keys.start_time),
                                            public_settings_keys.maximum_duration: config_settings.__getattribute__(public_settings_keys.maximum_duration),
@@ -48,6 +49,7 @@ class ProcessHandler(object):
                                            public_settings_keys.exclude_patches: config_settings.__getattribute__(public_settings_keys.exclude_patches),
                                            public_settings_keys.internal_settings: config_settings.__getattribute__(public_settings_keys.internal_settings),
                                            public_settings_keys.maintenance_run_id: config_settings.__getattribute__(public_settings_keys.maintenance_run_id),
+                                           public_settings_keys.health_store_id: config_settings.__getattribute__(public_settings_keys.health_store_id),
                                            public_settings_keys.patch_mode: config_settings.__getattribute__(public_settings_keys.patch_mode),
                                            public_settings_keys.assessment_mode: config_settings.__getattribute__(public_settings_keys.assessment_mode),
                                            public_settings_keys.maximum_assessment_interval: config_settings.__getattribute__(public_settings_keys.maximum_assessment_interval)})
