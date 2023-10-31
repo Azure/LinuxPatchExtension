@@ -54,7 +54,7 @@ class AptitudePackageManager(PackageManager):
         # Install update
         # --only-upgrade: upgrade only single package (only if it is installed)
         self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true install '''
-        self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true upgrade '''
+        self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true upgrade <SOURCES> '''
 
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
@@ -85,6 +85,9 @@ class AptitudePackageManager(PackageManager):
         # type: (str, str) -> str
         """ Prepares the custom sources list for use in a command. Idempotent. """
         try:
+            if max_patch_published_date != str() and len(max_patch_published_date) != 16:
+                raise Exception("[APM] Invalid max patch published date received. [Value={0}]".format(str(max_patch_published_date)))
+
             formula = "F-[{0}]-[{1}]".format(max_patch_published_date, base_classification)
             if self.cached_customer_source_list_formula == formula:
                 return self.custom_sources_list
@@ -120,7 +123,7 @@ class AptitudePackageManager(PackageManager):
         return self.custom_sources_list
 
     def refresh_repo(self, sources=str()):
-        self.composite_logger.log("[APM] Refreshing local repo... [Sources={0}]".format(sources if sources != "" else "Default"))
+        self.composite_logger.log("[APM] Refreshing local repo... [Sources={0}]".format(sources if sources != str() else "Default"))
         self.invoke_package_manager(self.__generate_command(self.cmd_repo_refresh_template, sources))
 
     @staticmethod
@@ -341,7 +344,7 @@ class AptitudePackageManager(PackageManager):
         return
 
     def install_security_updates_azgps_coordinated(self):
-        command = self.__generate_command(self.install_security_updates_azgps_coordinated_cmd, self.__get_custom_sources_to_spec(self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification="security")))
+        command = self.__generate_command(self.install_security_updates_azgps_coordinated_cmd, self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification="security"))
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
     # endregion

@@ -197,7 +197,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.stop()
 
     def test_health_store_id_reporting(self):
-        # test with empty string for maintenence run id
+        # test with empty string for healthstoreid
         argument_composer = ArgumentComposer()
         health_store_id = "pub_offer_sku_wrong_123"
         argument_composer.health_store_id = health_store_id
@@ -226,7 +226,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         runtime.stop()
 
-        # test with a random string for maintenance run id
+        # test with healthstoreid
         argument_composer = ArgumentComposer()
         health_store_id = "publ_off_sku_2024.04.01"
         argument_composer.health_store_id = health_store_id

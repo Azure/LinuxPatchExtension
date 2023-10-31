@@ -249,6 +249,9 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertFalse(runtime.patch_installer.start_installation())                 # failure is in unrelated patch installation batch processing
         self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
         self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: not enough time to use
+
+        runtime.package_manager.max_patch_publish_date = "Wrong"
+        runtime.package_manager.get_security_updates()      # exercises an exception path on bad data without throwing an exception (graceful degradation to security)
         runtime.stop()
 
         argument_composer.maximum_duration = "PT235M"
@@ -257,7 +260,7 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.package_manager.install_security_updates_azgps_coordinated = lambda: (1, "Failed")
         self.assertFalse(runtime.patch_installer.start_installation())
         self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
-        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: not enough time to use
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: the strict SDP is forced to fail with the lambda above
         runtime.stop()
 
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)

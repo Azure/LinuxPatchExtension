@@ -107,7 +107,7 @@ class ExecutionConfig(object):
         if health_store_id is not None and health_store_id != "":
             split = health_store_id.split("_")
             if len(split) == 4 and len(split[3]) == 10:
-                max_patch_publish_date = "{0}T000000Z".format(str(split[3].replace(".", "")))
+                max_patch_publish_date = "{0}T000000Z".format(split[3].replace(".", ""))
 
         self.composite_logger.log_debug("[EC] Getting max patch publish date. [MaxPatchPublishDate={0}][HealthStoreId={1}]".format(str(max_patch_publish_date), str(health_store_id)))
         return max_patch_publish_date
