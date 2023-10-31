@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,7 @@ class FileLogger(object):
             self.log_file_path = os.path.join(log_folder, log_file)
             self.log_file_handle = open(self.log_file_path, "a")
         except Exception as error:
-            sys.stdout.write("FileLogger - Error opening file. [File={0}] [Exception={1}]".format(self.log_file_path, repr(error)))
+            sys.stdout.write("FileLogger - Error opening file. [File={0}][Exception={1}]".format(self.log_file_path, repr(error)))
 
         # Retaining 10 most recent log files, deleting others
         self.delete_older_log_files(log_folder)
@@ -83,7 +83,7 @@ class FileLogger(object):
         except ValueError as error:
             sys.stdout.write("FileLogger - [Error={0}]".format(repr(error)))
         except Exception as error:
-            sys.stdout.write("FileLogger - Error opening file. [File={0}] [Exception={1}]".format(self.log_file_path, repr(error)))
+            sys.stdout.write("FileLogger - Error opening file. [File={0}][Exception={1}]".format(self.log_file_path, repr(error)))
 
     def flush(self):
         if self.log_file_handle is not None:

@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,9 +14,10 @@
 #
 # Requires Python 2.7+
 
-""" Merges individual python modules from src to the MsftLinuxPatchExt files in the out directory.
+""" Merges individual python modules from src to the AzGPSLinuxPatchExt files in the out directory.
 Relative source and destination paths for the extension are auto-detected if the optional src parameter is not present.
-How to use: python Package.py <optional: full path to extension 'src' folder>"""
+How to use: python Package-All.py <optional: full path to extension 'src' folder>
+Note: Package-All.py internally invokes Package-Core.py to generate AzGPSLinuxPatchCore.py """
 
 from __future__ import print_function
 import sys
@@ -26,6 +27,7 @@ import datetime
 from shutil import copyfile
 from shutil import make_archive
 import subprocess
+import xml.etree.ElementTree as et
 
 # imports in VERY_FIRST_IMPORTS, order should be kept
 VERY_FIRST_IMPORTS = [
@@ -60,15 +62,16 @@ def write_merged_code(code, merged_file_full_path):
 
 
 def insert_copyright_notice(merged_file_full_path, merged_file_name):
-    notice = '# --------------------------------------------------------------------------------------------------------------------\n'
+    notice = '# coding=utf-8\n'
+    notice += '# --------------------------------------------------------------------------------------------------------------------\n'
     notice += '# <copyright file="' + merged_file_name + '" company="Microsoft">\n'
-    notice += '#   Copyright 2020 Microsoft Corporation\n' \
+    notice += '#   Copyright ' + str(datetime.date.today().year) + ' Microsoft Corporation\n' \
               '#\n' \
               '#   Licensed under the Apache License, Version 2.0 (the "License");\n' \
               '#   you may not use this file except in compliance with the License.\n' \
               '#   You may obtain a copy of the License at\n' \
               '#\n' \
-              '#     http://www.apache.org/licenses/LICENSE-2.0\n' \
+              '#     https://www.apache.org/licenses/LICENSE-2.0\n' \
               '#\n' \
               '#   Unless required by applicable law or agreed to in writing, software\n' \
               '#   distributed under the License is distributed on an "AS IS" BASIS,\n' \
@@ -105,7 +108,7 @@ def prepend_content_to_file(content, file_name):
     os.rename(temp_file, file_name)
 
 
-def generate_compiled_script(source_code_path, merged_file_full_path, merged_file_name, environment):
+def generate_compiled_script(source_code_path, merged_file_full_path, merged_file_name, environment, new_version):
     try:
         print('\n\n=============================== GENERATING ' + merged_file_name + '... =============================================================\n')
 
@@ -145,8 +148,9 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
         print('========== Set Copyright, Version and Environment. Also enforce UNIX-style line endings.\n')
         insert_copyright_notice(merged_file_full_path, merged_file_name)
         timestamp = datetime.datetime.utcnow().strftime("%y%m%d-%H%M")
-        replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name.split('.')[0])
-        replace_text_in_file(merged_file_full_path, '[%exec_sub_ver%]', timestamp)
+        replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name)
+        replace_text_in_file(merged_file_full_path, '[%exec_ver%]', str(new_version))
+        replace_text_in_file(merged_file_full_path, '[%exec_build_timestamp%]', timestamp)
         replace_text_in_file(merged_file_full_path, 'Constants.UNKNOWN_ENV', environment)
         replace_text_in_file(merged_file_full_path, '\r\n', '\n')
 
@@ -190,11 +194,22 @@ def main(argv):
         exec_core_build_path = os.path.join(working_directory, 'tools', 'Package-Core.py')
         subprocess.call('python ' + exec_core_build_path, shell=True)
 
+        # Get version from manifest for code
+        new_version = None
+        manifest_xml_file_path = os.path.join(working_directory, 'extension', 'src', 'manifest.xml')
+        manifest_tree = et.parse(manifest_xml_file_path)
+        manifest_root = manifest_tree.getroot()
+        for i in range(0, len(manifest_root)):
+            if 'Version' in str(manifest_root[i]):
+                new_version = manifest_root[i].text
+        if new_version is None:
+            raise Exception("Unable to determine target version.")
+
         # Generated compiled scripts at the destination
-        merged_file_details = [('MsftLinuxPatchExt.py', 'Constants.PROD')]
+        merged_file_details = [('AzGPSLinuxPatchExt.py', 'Constants.ExecEnv.PROD')]
         for merged_file_detail in merged_file_details:
             merged_file_destination = os.path.join(working_directory, 'out', merged_file_detail[0])
-            generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1])
+            generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1], new_version)
 
         # GENERATING EXTENSION
         print('\n\n=============================== GENERATING LinuxPatchExtension.zip... =============================================================\n')
@@ -214,7 +229,7 @@ def main(argv):
 
         # Copy extension files
         print('\n========== Copying extension files + enforcing UNIX style line endings.\n')
-        ext_files = ['HandlerManifest.json', 'manifest.xml', 'MsftLinuxPatchExtShim.sh']
+        ext_files = ['HandlerManifest.json', 'manifest.xml', 'AzGPSLinuxPatchExtShim.sh']
         for ext_file in ext_files:
             ext_file_src = os.path.join(working_directory, 'extension', 'src', ext_file)
             ext_file_destination = os.path.join(working_directory, 'out', ext_file)

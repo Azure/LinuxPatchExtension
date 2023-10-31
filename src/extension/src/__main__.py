@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -44,7 +44,7 @@ def main(argv):
     exit_code = None
     try:
         # initializing action handler
-        # args will have values install, uninstall, etc, as given in MsftLinuxPatchExtShim.sh in the operation var
+        # args will have values install, uninstall, etc, as given in AzGPSLinuxPatchExtShim.sh in the operation var
         cmd_exec_start_time = datetime.datetime.utcnow()
         utility = Utility(logger)
         runtime_context_handler = RuntimeContextHandler(logger)
@@ -67,7 +67,7 @@ def main(argv):
             exit_code = Constants.ExitCode.Okay if exit_code_from_handler_actions is None else exit_code_from_handler_actions
         else:
             error_cause = "No configuration provided in HandlerEnvironment" if ext_env_handler.handler_environment_json is None else "Path to config folder not specified in HandlerEnvironment"
-            error_msg = "Error processing file. [File={0}] [Error={1}]".format(Constants.HANDLER_ENVIRONMENT_FILE, error_cause)
+            error_msg = "Error processing file. [File={0}][Error={1}]".format(Constants.HANDLER_ENVIRONMENT_FILE, error_cause)
             raise Exception(error_msg)
     except Exception as error:
         logger.log_error(repr(error))

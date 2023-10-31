@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,7 +26,10 @@ from core.src.bootstrap.Constants import Constants
 class StatusHandler(object):
     """Class for managing the core code's lifecycle within the extension wrapper"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, vm_cloud_type):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, package_manager_name, cloud_type):
+        # Defaulting operation at init to Assessment always until explicitly initialized to ensure error logging defaults
+        self.__current_operation = Constants.Op.ASSESSMENT
+
         # Map supporting components for operation
         self.env_layer = env_layer
         self.execution_config = execution_config
@@ -35,7 +38,8 @@ class StatusHandler(object):
         self.complete_status_file_path = self.execution_config.complete_status_file_path
         self.status_file_path = self.execution_config.status_file_path
         self.__log_file_path = self.execution_config.log_file_path
-        self.vm_cloud_type = vm_cloud_type
+        self.package_manager_name = package_manager_name
+        self.cloud_type = cloud_type
 
         # Status components
         self.__high_level_status_message = ""
@@ -81,17 +85,14 @@ class StatusHandler(object):
         # Discovers OS name and version for package id composition
         self.__os_name_and_version = self.get_os_name_and_version()
 
-        self.__current_operation = None
-
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
-        if (execution_config.maintenance_run_id is not None or execution_config.health_store_id is not None) and execution_config.operation.lower() == Constants.INSTALLATION.lower():
+        if (execution_config.maintenance_run_id is not None or execution_config.health_store_id is not None) and execution_config.operation.lower() == Constants.Op.INSTALLATION.lower():
             if self.__installation_reboot_status != Constants.RebootStatus.STARTED:
                 self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=True, wait_after_update=True)
                 # updating metadata summary again with reporting to healthstore turned off
                 self.set_patch_metadata_for_healthstore_substatus_json(report_to_healthstore=False, wait_after_update=False)
             else:
-                self.composite_logger.log_debug("Since this is the previous patch operation re-triggered after a reboot, healthstore has the operation commencement details. "
-                                                "So, not sending another report to healthstore")
+                self.composite_logger.log_debug("[SH] Healthstore reporting skipped as VM is coming back from a reboot.")
 
         # Enable reboot completion status capture
         if self.__installation_reboot_status == Constants.RebootStatus.STARTED:
@@ -109,13 +110,13 @@ class StatusHandler(object):
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
-        self.composite_logger.log_debug("Setting package assessment status in bulk. [Count={0}]".format(str(len(package_names))))
+        self.composite_logger.log_verbose("[SH] Setting package assessment status in bulk. [Count={0}]".format(str(len(package_names))))
 
         for package_name, package_version in zip(package_names, package_versions):
             patch_already_saved = False
             patch_id = self.__get_patch_id(package_name, package_version)
 
-            # Match patch_id in map and update existing patch's classification i.e from other -> security
+            # Match patch_id in map and update existing patch's classification i.e. from other -> security
             if len(self.__assessment_packages_map) > 0 and patch_id in self.__assessment_packages_map:
                 self.__assessment_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
                 # self.__assessment_packages_map.setdefault(patch_id, {})['patchState'] = status
@@ -164,7 +165,7 @@ class StatusHandler(object):
 
     def set_package_install_status(self, package_names, package_versions, status="Pending", classification=None):
         """ Externally available method to set installation status for one or more packages of the **SAME classification and status** """
-        self.composite_logger.log_debug("Setting package installation status in bulk. [Count={0}]".format(str(len(package_names))))
+        self.composite_logger.log_verbose("[SH] Setting package installation status in bulk. [Count={0}]".format(str(len(package_names))))
         package_names, package_versions = self.validate_packages_being_installed(package_names, package_versions)
         package_install_status_summary = ""
 
@@ -191,9 +192,9 @@ class StatusHandler(object):
                 # Add new patch to ordered map
                 self.__installation_packages_map[patch_id] = record
 
-            package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
+            package_install_status_summary += "<P={0},V={1}> ".format(str(package_name), str(package_version))
 
-        self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
+        self.composite_logger.log_verbose("[SH] Completed setting package installation status in bulk. [Status={0}][Summary=\"{1}\"]" + package_install_status_summary.strip())
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
@@ -202,22 +203,22 @@ class StatusHandler(object):
     def validate_packages_being_installed(package_names, package_versions):
         # Data normalization and corruption guards - if these exceptions hit, a bug has been introduced elsewhere
         if isinstance(package_names, str) != isinstance(package_versions, str):
-            raise Exception("Internal error: Package name and version data corruption detected.")
+            raise Exception("[SH] Internal error: Package name and version data corruption detected.")
         if isinstance(package_names, str):
             package_names, package_versions = [package_names], [package_versions]
         if len(package_names) != len(package_versions):
-            raise Exception("Internal error: Bad package name and version data received for status reporting. [Names={0}][Versions={1}]".format(str(len(package_names)), str(len(package_versions))))
+            raise Exception("[SH] Internal error: Bad package name and version data received for status reporting. [Names={0}][Versions={1}]".format(str(len(package_names)), str(len(package_versions))))
         return package_names, package_versions
 
     def set_package_install_status_classification(self, package_names, package_versions, classification=None):
         """ Externally available method to set classification for one or more packages being installed """
         if classification is None:
-            self.composite_logger.log_debug("Classification not provided for the set of packages being installed. [Package Count={0}]".format(str(len(package_names))))
+            self.composite_logger.log_debug("[SH] Classification not provided for packages being installed. [PackageCount={0}]".format(str(len(package_names))))
             return
 
         self.validate_packages_being_installed(package_names, package_versions)
 
-        self.composite_logger.log_debug("Setting package installation classification in bulk. [Count={0}]".format(str(len(package_names))))
+        self.composite_logger.log_verbose("[SH] Setting package data in bulk. [Operation=Installation][Type=Classification][PackageCount={0}]".format(str(len(package_names))))
         package_classification_summary = ""
         for package_name, package_version in zip(package_names, package_versions):
             classification_matching_package_found = False
@@ -227,9 +228,9 @@ class StatusHandler(object):
                 self.__installation_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
                 classification_matching_package_found = True
 
-            package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
+            package_classification_summary += "<P={0},V={1},C={2}> ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
-        self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
+        self.composite_logger.log_verbose("[SH] Completed setting package data in bulk. [Operation=Installation][Type=Classification][Summary=\"{0}\"]" + package_classification_summary.strip())
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
@@ -241,11 +242,11 @@ class StatusHandler(object):
     def get_os_name_and_version(self):
         try:
             if self.env_layer.platform.system() != "Linux":
-                raise Exception("Unsupported OS type: {0}.".format(self.env_layer.platform.system()))
+                raise Exception("[SH] Unsupported OS type. [OSType={0}].".format(self.env_layer.platform.system()))
             platform_info = self.env_layer.platform.linux_distribution()
             return "{0}_{1}".format(platform_info[0], platform_info[1])
         except Exception as error:
-            self.composite_logger.log_error("Unable to determine platform information: {0}".format(repr(error)))
+            self.composite_logger.log_error("[SH] Unable to determine platform information. [Error={0}]".format(repr(error)))
             return "unknownDist_unknownVer"
     # endregion
 
@@ -257,7 +258,7 @@ class StatusHandler(object):
     def set_installation_reboot_status(self, new_reboot_status):
         """ Valid reboot statuses: NotNeeded, Required, Started, Failed, Completed """
         if new_reboot_status not in [Constants.RebootStatus.NOT_NEEDED, Constants.RebootStatus.REQUIRED, Constants.RebootStatus.STARTED, Constants.RebootStatus.FAILED, Constants.RebootStatus.COMPLETED]:
-            raise "Invalid reboot status specified. [Status={0}]".format(str(new_reboot_status))
+            raise Exception("[SH] Invalid reboot status specified. [Status={0}]".format(str(new_reboot_status)))
 
         # State transition validation
         if (new_reboot_status == Constants.RebootStatus.NOT_NEEDED and self.__installation_reboot_status not in [Constants.RebootStatus.NOT_NEEDED])\
@@ -265,26 +266,25 @@ class StatusHandler(object):
                 or (new_reboot_status == Constants.RebootStatus.STARTED and self.__installation_reboot_status not in [Constants.RebootStatus.NOT_NEEDED, Constants.RebootStatus.REQUIRED, Constants.RebootStatus.STARTED])\
                 or (new_reboot_status == Constants.RebootStatus.FAILED and self.__installation_reboot_status not in [Constants.RebootStatus.STARTED, Constants.RebootStatus.FAILED])\
                 or (new_reboot_status == Constants.RebootStatus.COMPLETED and self.__installation_reboot_status not in [Constants.RebootStatus.STARTED, Constants.RebootStatus.COMPLETED]):
-            self.composite_logger.log_error("Invalid reboot status transition attempted. [CurrentRebootStatus={0}] [NewRebootStatus={1}]".format(self.__installation_reboot_status, str(new_reboot_status)))
+            self.composite_logger.log_error("[SH] Invalid reboot status transition attempted. [CurrentRebootStatus={0}][NewRebootStatus={1}]".format(self.__installation_reboot_status, str(new_reboot_status)))
             return
 
         # Persisting new reboot status (with machine state incorporation)
-        self.composite_logger.log_debug("Setting new installation reboot status. [NewRebootStatus={0}] [CurrentRebootStatus={1}]".format(str(new_reboot_status), self.__installation_reboot_status))
+        self.composite_logger.log_debug("[SH] Setting new installation reboot status. [NewRebootStatus={0}][CurrentRebootStatus={1}]".format(str(new_reboot_status), self.__installation_reboot_status))
         self.__installation_reboot_status = new_reboot_status
         self.set_installation_substatus_json()
 
     def __refresh_installation_reboot_status(self):
         """ Discovers if the system needs a reboot. Never allows going back to NotNeeded (deliberate). ONLY called internally. """
-        self.composite_logger.log_debug("Checking if reboot status needs to reflect machine reboot status.")
         if self.__installation_reboot_status in [Constants.RebootStatus.NOT_NEEDED, Constants.RebootStatus.COMPLETED]:
             # Checks only if it's a state transition we allow
             reboot_needed = self.is_reboot_pending
             if reboot_needed:
-                self.composite_logger.log_debug("Machine reboot status has changed to 'Required'.")
+                self.composite_logger.log_debug("[SH] Machine reboot status has changed to 'Required'.")
                 self.__installation_reboot_status = Constants.RebootStatus.REQUIRED
 
     def set_reboot_pending(self, is_reboot_pending):
-        log_message = "Setting reboot pending status. [RebootPendingStatus={0}]".format(str(is_reboot_pending))
+        log_message = "[SH] Setting reboot pending status. [RebootPendingStatus={0}]".format(str(is_reboot_pending))
         self.composite_logger.log_debug(log_message)
         self.is_reboot_pending = is_reboot_pending
     # endregion
@@ -293,35 +293,47 @@ class StatusHandler(object):
     def report_sequence_number_changed_termination(self):
         """ Based on the current operation, adds an error status and sets the substatus to error """
         current_operation = self.execution_config.operation.lower()
-        error_code = Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED
+        error_code = Constants.PatchOperationErrorCodes.CL_NEWER_OPERATION_SUPERSEDED
         message = "Execution was stopped due to a newer operation taking precedence."
 
-        if current_operation == Constants.ASSESSMENT.lower() or self.execution_config.exec_auto_assess_only:
-            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.ASSESSMENT)
-            self.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
-        elif current_operation == Constants.CONFIGURE_PATCHING.lower() or current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT.lower():
-            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING)
-            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
-            self.set_configure_patching_substatus_json(status=Constants.STATUS_ERROR)
-        elif current_operation == Constants.INSTALLATION.lower():
-            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.INSTALLATION)
-            self.set_installation_substatus_json(status=Constants.STATUS_ERROR)
+        if current_operation == Constants.Op.ASSESSMENT.lower() or self.execution_config.exec_auto_assess_only:
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.Op.ASSESSMENT)
+            self.set_assessment_substatus_json(status=Constants.Status.ERROR)
+        elif current_operation == Constants.Op.CONFIGURE_PATCHING.lower() or current_operation == Constants.Op.CONFIGURE_PATCHING_AUTO_ASSESSMENT.lower():
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.Op.CONFIGURE_PATCHING)
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.Op.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
+            self.set_configure_patching_substatus_json(status=Constants.Status.ERROR)
+        elif current_operation == Constants.Op.INSTALLATION.lower():
+            self.add_error_to_status(message, error_code, current_operation_override_for_error=Constants.Op.INSTALLATION)
+            self.set_installation_substatus_json(status=Constants.Status.ERROR)
     # endregion - Terminal state management
 
     # region - Substatus generation
+    def set_operation_substatus_json(self, operation_name, status=Constants.Status.TRANSITIONING, code=0):
+        """ Sets the status of any managed first-class operation """
+        operation_name = operation_name.lower()
+        if operation_name == Constants.Op.CONFIGURE_PATCHING.lower():
+            self.set_configure_patching_substatus_json(status, code)
+        elif operation_name == Constants.Op.ASSESSMENT.lower():
+            self.set_assessment_substatus_json(status, code)
+        elif operation_name == Constants.Op.CONFIGURE_PATCHING.lower():
+            self.set_installation_substatus_json(status, code)
+        else:
+            self.composite_logger.log_debug("Invalid operation name for operation substatus set. [OperationName={0}]".format(str(operation_name)))
+
     def set_maintenance_window_exceeded(self, maintenance_windows_exceeded):
         self.__maintenance_window_exceeded = maintenance_windows_exceeded
         self.set_installation_substatus_json()
 
-    def set_assessment_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0):
+    def set_assessment_substatus_json(self, status=Constants.Status.TRANSITIONING, code=0):
         """ Prepare the assessment substatus json including the message containing assessment summary """
-        self.composite_logger.log_debug("Setting assessment substatus. [Substatus={0}]".format(str(status)))
+        self.composite_logger.log_debug("[SH] Setting assessment substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap patches into assessment summary
         self.__assessment_summary_json = self.__new_assessment_summary_json(self.__assessment_packages, status, code)
 
         # Wrap assessment summary into assessment substatus
-        self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
+        self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.OpSummary.ASSESSMENT, status, code, json.dumps(self.__assessment_summary_json))
 
         # Update complete status on disk
         self.__write_status_file()
@@ -351,26 +363,27 @@ class StatusHandler(object):
             "criticalAndSecurityPatchCount": critsec_patch_count,
             "otherPatchCount": other_patch_count,
             "patches": assessment_packages_json,
+            # "patchServiceUsed": str(self.package_manager_name),       # uncomment when service-side support is complete
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
             "startedBy": str(started_by),
             "errors": self.__set_errors_json(self.__assessment_total_error_count, self.__assessment_errors)
         }
 
-        if self.vm_cloud_type == Constants.VMCloudType.ARC:
+        if self.cloud_type == Constants.CloudType.ARC:
             substatus_message["patchAssessmentStatus"] = code
             substatus_message["patchAssessmentStatusString"] = status
         return substatus_message
 
-    def set_installation_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0):
+    def set_installation_substatus_json(self, status=Constants.Status.TRANSITIONING, code=0):
         """ Prepare the deployment substatus json including the message containing deployment summary """
-        self.composite_logger.log_debug("Setting installation substatus. [Substatus={0}]".format(str(status)))
+        self.composite_logger.log_debug("[SH] Setting installation substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap patches into installation summary
         self.__installation_summary_json = self.__new_installation_summary_json(self.__installation_packages)
 
         # Wrap deployment summary into installation substatus
-        self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
+        self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.OpSummary.INSTALLATION, status, code, json.dumps(self.__installation_summary_json))
 
         # Update complete status on disk
         self.__write_status_file()
@@ -388,18 +401,18 @@ class StatusHandler(object):
         failed_patch_count = 0
         for i in range(0, len(installation_packages_json)):
             patch_installation_state = installation_packages_json[i]['patchInstallationState']
-            if patch_installation_state == Constants.NOT_SELECTED:
+            if patch_installation_state == Constants.PackageStatus.NOT_SELECTED:
                 not_selected_patch_count += 1
-            elif patch_installation_state == Constants.EXCLUDED:
+            elif patch_installation_state == Constants.PackageStatus.EXCLUDED:
                 excluded_patch_count += 1
-            elif patch_installation_state == Constants.PENDING:
+            elif patch_installation_state == Constants.PackageStatus.PENDING:
                 pending_patch_count += 1
-            elif patch_installation_state == Constants.INSTALLED:
+            elif patch_installation_state == Constants.PackageStatus.INSTALLED:
                 installed_patch_count += 1
-            elif patch_installation_state == Constants.FAILED:
+            elif patch_installation_state == Constants.PackageStatus.FAILED:
                 failed_patch_count += 1
             else:
-                self.composite_logger.log_error("Unknown patch state recorded: {0}".format(str(patch_installation_state)))
+                self.composite_logger.log_error("[SH] Unknown patch state recorded. [State={0}]".format(str(patch_installation_state)))
 
         # Reboot status refresh
         self.__refresh_installation_reboot_status()
@@ -415,24 +428,25 @@ class StatusHandler(object):
             "installedPatchCount": installed_patch_count,
             "failedPatchCount": failed_patch_count,
             "patches": installation_packages_json,
+            # "patchServiceUsed": str(self.package_manager_name),       # uncomment when service-side support is complete
             "startTime": str(self.execution_config.start_time),
             "lastModifiedTime": str(self.env_layer.datetime.timestamp()),
             "maintenanceRunId": str(self.execution_config.maintenance_run_id) if self.execution_config.maintenance_run_id is not None else '',
             "errors": self.__set_errors_json(self.__installation_total_error_count, self.__installation_errors)
         }
 
-    def set_patch_metadata_for_healthstore_substatus_json(self, status=Constants.STATUS_SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False, wait_after_update=False):
+    def set_patch_metadata_for_healthstore_substatus_json(self, status=Constants.Status.SUCCESS, code=0, patch_version=Constants.PATCH_VERSION_UNKNOWN, report_to_healthstore=False, wait_after_update=False):
         """ Prepare the healthstore substatus json including message containing summary to be sent to healthstore """
         if self.execution_config.exec_auto_assess_only:
             raise Exception("Auto-assessment mode. Unexpected attempt to update healthstore status.")
 
-        self.composite_logger.log_debug("Setting patch metadata for healthstore substatus. [Substatus={0}] [Report to HealthStore={1}]".format(str(status), str(report_to_healthstore)))
+        self.composite_logger.log_debug("[SH] Setting healtstore substatus. [Substatus={0}][ReportToHealthStore={1}][WaitTimeInSecs={2}]".format(str(status), str(report_to_healthstore), str(Constants.WAIT_TIME_AFTER_HEALTHSTORE_STATUS_UPDATE_IN_SECS)))
 
         # Wrap patch metadata into healthstore summary
         self.__metadata_for_healthstore_summary_json = self.__new_patch_metadata_for_healthstore_json(patch_version, report_to_healthstore)
 
         # Wrap healthstore summary into healthstore substatus
-        self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
+        self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Update complete status on disk
         self.__write_status_file()
@@ -452,20 +466,20 @@ class StatusHandler(object):
             "shouldReportToHealthStore": report_to_healthstore
         }
 
-    def set_configure_patching_substatus_json(self, status=Constants.STATUS_TRANSITIONING, code=0,
+    def set_configure_patching_substatus_json(self, status=Constants.Status.TRANSITIONING, code=0,
                                               automatic_os_patch_state=Constants.AutomaticOSPatchStates.UNKNOWN,
                                               auto_assessment_state=Constants.AutoAssessmentStates.UNKNOWN):
         """ Prepare the configure patching substatus json including the message containing configure patching summary """
         if self.execution_config.exec_auto_assess_only:
             raise Exception("Auto-assessment mode. Unexpected attempt to update configure patching status.")
 
-        self.composite_logger.log_debug("Setting configure patching substatus. [Substatus={0}]".format(str(status)))
+        self.composite_logger.log_debug("[SH] Setting configure patching substatus. [Substatus={0}]".format(str(status)))
 
         # Wrap default automatic OS patch state on the machine, at the time of this request, into configure patching summary
         self.__configure_patching_summary_json = self.__new_configure_patching_summary_json(automatic_os_patch_state, auto_assessment_state, status, code)
 
         # Wrap configure patching summary into configure patching substatus
-        self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
+        self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.OpSummary.CONFIGURE_PATCHING, status, code, json.dumps(self.__configure_patching_summary_json))
 
         # Update complete status on disk
         self.__write_status_file()
@@ -487,7 +501,7 @@ class StatusHandler(object):
             },
             "errors": self.__set_errors_json(self.__configure_patching_top_level_error_count, self.__configure_patching_errors)
         }
-        if self.vm_cloud_type == Constants.VMCloudType.ARC:
+        if self.cloud_type == Constants.CloudType.ARC:
             substatus_message["configurePatchStatus"] = code
             substatus_message["configurePatchStatusString"] = status
         return substatus_message
@@ -519,7 +533,7 @@ class StatusHandler(object):
             "version": 1.0,
             "timestampUTC": str(self.env_layer.datetime.timestamp()),
             "status": {
-                "name": "Azure Patch Management",
+                "name": "Azure Guest Patching Service",
                 "operation": str(self.execution_config.operation),
                 "status": "success",
                 "code": 0,
@@ -568,30 +582,29 @@ class StatusHandler(object):
         self.__configure_patching_errors = []
         self.__configure_patching_auto_assessment_errors = []
 
-        self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
+        self.composite_logger.log_debug("[SH] Loading status file components [InitialLoad={0}].".format(str(initial_load)))
 
         # Remove older complete status files
         self.__removed_older_complete_status_files(self.execution_config.status_folder)
 
         # Verify the status file exists - if not, reset status file
         if not os.path.exists(self.complete_status_file_path) and initial_load:
-            self.composite_logger.log_warning("Status file not found at initial load. Resetting status file to defaults.")
+            self.composite_logger.log_debug("[SH] Status file not found at initial load. Resetting status file to defaults.")
             self.__reset_status_file()
             return
 
         # Load status data and sanity check structure - raise exception if data loss risk is detected on corrupt data
         complete_status_file_data = self.__load_complete_status_file_data(self.complete_status_file_path)
         if 'status' not in complete_status_file_data or 'substatus' not in complete_status_file_data['status']:
-            self.composite_logger.log_error("Malformed status file. Resetting status file for safety.")
+            self.composite_logger.log_error("[SH] Malformed status file. Resetting status file for safety.")
             self.__reset_status_file()
             return
 
         # Load portions of data that need to be built on for next write - raise exception if corrupt data is encountered
-        # todo: refactor
         self.__high_level_status_message = complete_status_file_data['status']['formattedMessage']['message']
         for i in range(0, len(complete_status_file_data['status']['substatus'])):
             name = complete_status_file_data['status']['substatus'][i]['name']
-            if name == Constants.PATCH_INSTALLATION_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
+            if name == Constants.OpSummary.INSTALLATION:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
                     self.__installation_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
@@ -604,7 +617,7 @@ class StatusHandler(object):
                     if errors is not None and errors['details'] is not None:
                         self.__installation_errors = errors['details']
                         self.__installation_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
-            if name == Constants.PATCH_ASSESSMENT_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
+            if name == Constants.OpSummary.ASSESSMENT:     # if it exists, it must be to spec, or an exception will get thrown
                 self.__assessment_summary_json = self.__get_substatus_message(complete_status_file_data, i)
                 self.__assessment_packages_map = collections.OrderedDict((package["patchId"], package) for package in self.__assessment_summary_json['patches'])
                 self.__assessment_packages = list(self.__assessment_packages_map.values())
@@ -612,12 +625,12 @@ class StatusHandler(object):
                 if errors is not None and errors['details'] is not None:
                     self.__assessment_errors = errors['details']
                     self.__assessment_total_error_count = self.__get_total_error_count_from_prev_status(errors['message'])
-            if name == Constants.PATCH_METADATA_FOR_HEALTHSTORE:     # if it exists, it must be to spec, or an exception will get thrown
+            if name == Constants.OpSummary.PATCH_METADATA_FOR_HEALTHSTORE:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
                     self.__metadata_for_healthstore_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
                     self.__metadata_for_healthstore_summary_json = self.__get_substatus_message(complete_status_file_data, i)
-            if name == Constants.CONFIGURE_PATCHING_SUMMARY:     # if it exists, it must be to spec, or an exception will get thrown
+            if name == Constants.OpSummary.CONFIGURE_PATCHING:     # if it exists, it must be to spec, or an exception will get thrown
                 if self.execution_config.exec_auto_assess_only:
                     self.__configure_patching_substatus_json = complete_status_file_data['status']['substatus'][i]
                 else:
@@ -640,7 +653,7 @@ class StatusHandler(object):
                 if i < Constants.MAX_FILE_OPERATION_RETRY_COUNT - 1:
                     time.sleep(i + 1)
                 else:
-                    self.composite_logger.log_error("Unable to read status file (retries exhausted). Error: {0}.".format(repr(error)))
+                    self.composite_logger.log_error("[SH] Unable to read status file (retries exhausted). [Error={0}].".format(repr(error)))
                     raise
         return complete_status_file_data
 
@@ -693,7 +706,7 @@ class StatusHandler(object):
         if self.__configure_patching_substatus_json is not None:
             complete_status_payload['status']['substatus'].append(self.__configure_patching_substatus_json)
         if os.path.isdir(self.complete_status_file_path):
-            self.composite_logger.log_error("Core state file path returned a directory. Attempting to reset.")
+            self.composite_logger.log_debug("[SH] Core state file path returned a directory. Attempting to reset.")
             shutil.rmtree(self.complete_status_file_path)
 
         # Write complete status file <seq.no>.complete.status
@@ -705,7 +718,7 @@ class StatusHandler(object):
 
     # region - Error objects
     def set_current_operation(self, operation):
-        if self.execution_config.exec_auto_assess_only and operation != Constants.ASSESSMENT:
+        if self.execution_config.exec_auto_assess_only and operation != Constants.Op.ASSESSMENT:
             raise Exception("Status reporting for a non-assessment operation was attempted when executing in auto-assessment mode. [Operation={0}]".format(str(operation)))
         self.__current_operation = operation
 
@@ -716,8 +729,20 @@ class StatusHandler(object):
         try:
             return int(re.search('(.+?) error/s reported.', error_message).group(1))
         except AttributeError:
-            self.composite_logger.log("Unable to fetch error count from error message reported in status. Attempted to read [Message={0}]".format(error_message))
+            self.composite_logger.log("[SH] Unable to parse error count from error message reported in status. [Message={0}]".format(error_message))
             return 0
+
+    def add_error_to_status_and_log_error(self, message, raise_exception=False, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR, current_operation_override_for_error=Constants.DEFAULT_UNSPECIFIED_VALUE):
+        """ Stitches together two commonly sequenced calls from the class guaranteed to be able to do it """
+        self.composite_logger.log_error(message)
+        self.add_error_to_status(message, error_code, current_operation_override_for_error)
+        if raise_exception:
+            raise Exception(message, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+
+    def add_error_to_status_and_log_warning(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR, current_operation_override_for_error=Constants.DEFAULT_UNSPECIFIED_VALUE):
+        """ Stitches together two commonly sequenced calls from the class guaranteed to be able to do it """
+        self.composite_logger.log_warning(message)
+        self.add_error_to_status(message, error_code, current_operation_override_for_error)
 
     def add_error_to_status(self, message, error_code=Constants.PatchOperationErrorCodes.DEFAULT_ERROR, current_operation_override_for_error=Constants.DEFAULT_UNSPECIFIED_VALUE):
         """ Add error to the respective error objects """
@@ -734,7 +759,7 @@ class StatusHandler(object):
         # determine if a current operation override has been requested
         current_operation = self.__current_operation if current_operation_override_for_error == Constants.DEFAULT_UNSPECIFIED_VALUE else current_operation_override_for_error
 
-        if current_operation == Constants.ASSESSMENT:
+        if current_operation == Constants.Op.ASSESSMENT:
             if self.__try_add_error(self.__assessment_errors, error_detail):
                 self.__assessment_total_error_count += 1
                 # retain previously set status and code for assessment substatus
@@ -742,7 +767,7 @@ class StatusHandler(object):
                     self.set_assessment_substatus_json(status=self.__assessment_substatus_json["status"], code=self.__assessment_substatus_json["code"])
                 else:
                     self.set_assessment_substatus_json()
-        elif current_operation == Constants.INSTALLATION:
+        elif current_operation == Constants.Op.INSTALLATION:
             if self.__try_add_error(self.__installation_errors, error_detail):
                 self.__installation_total_error_count += 1
                 # retain previously set status and code for installation substatus
@@ -750,8 +775,8 @@ class StatusHandler(object):
                     self.set_installation_substatus_json(status=self.__installation_substatus_json["status"], code=self.__installation_substatus_json["code"])
                 else:
                     self.set_installation_substatus_json()
-        elif current_operation == Constants.CONFIGURE_PATCHING or current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
-            if current_operation == Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
+        elif current_operation == Constants.Op.CONFIGURE_PATCHING or current_operation == Constants.Op.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
+            if current_operation == Constants.Op.CONFIGURE_PATCHING_AUTO_ASSESSMENT:
                 if self.__try_add_error(self.__configure_patching_auto_assessment_errors, error_detail):
                     self.__configure_patching_auto_assessment_error_count += 1
             else:
@@ -772,7 +797,7 @@ class StatusHandler(object):
 
     def __ensure_error_message_restriction_compliance(self, full_message):
         """ Removes line breaks, tabs and restricts message to a character limit """
-        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
+        message_size_limit = Constants.Config.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
         formatted_message = re.sub(r"\s+", " ", str(full_message))
         return formatted_message[:message_size_limit - 3] + '...' if len(formatted_message) > message_size_limit else formatted_message
 
@@ -791,19 +816,19 @@ class StatusHandler(object):
                 # All details contained from new message in an existing message already
                 return False
 
-        if len(error_list) >= Constants.STATUS_ERROR_LIMIT:
-            errors_to_remove = len(error_list) - Constants.STATUS_ERROR_LIMIT + 1
+        if len(error_list) >= Constants.Config.STATUS_ERROR_LIMIT:
+            errors_to_remove = len(error_list) - Constants.Config.STATUS_ERROR_LIMIT + 1
             for x in range(0, errors_to_remove):
                 error_list.pop()
         error_list.insert(0, detail)
         return True
 
-    def __set_errors_json(self, error_count_by_operation, errors_by_operation):
+    def __set_errors_json(self, total_error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
-        message = "{0} error/s reported.".format(error_count_by_operation)
-        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
+        message = "{0} error(s) occurred.".format(total_error_count_by_operation)
+        message += " {0} latest error details shared. Review log for all errors: {1}".format(len(errors_by_operation), self.__log_file_path) if total_error_count_by_operation > len(errors_by_operation) else ""
         return {
-            "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
+            "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if total_error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
             "details": errors_by_operation,
             "message": message
         }
@@ -823,7 +848,7 @@ class StatusHandler(object):
                     os.remove(complete_status_file)
                     files_removed.append(complete_status_file)
             except Exception as e:
-                self.composite_logger.log_debug("Error deleting complete status file. [File={0} [Exception={1}]]".format(repr(complete_status_file), repr(e)))
+                self.composite_logger.log_debug("[SH] Error deleting complete status file. [File={0}][Exception={1}]".format(complete_status_file, repr(e)))
 
-        self.composite_logger.log_debug("Cleaned up older complete status files: {0}".format(files_removed))
+        self.composite_logger.log_debug("[SH] Cleaned up older complete status files: {0}".format(files_removed))
 

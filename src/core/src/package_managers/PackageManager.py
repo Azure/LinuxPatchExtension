@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,21 +15,38 @@
 # Requires Python 2.7+
 
 """The is base package manager, which defines the package management relevant operations"""
-import json
 import os
+import time
 from abc import ABCMeta, abstractmethod
 from core.src.bootstrap.Constants import Constants
-import time
 
+# do not instantiate directly - these are exclusively for type hinting support
+from core.src.bootstrap.EnvLayer import EnvLayer
+from core.src.core_logic.ExecutionConfig import ExecutionConfig
+from core.src.local_loggers.CompositeLogger import CompositeLogger
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
+from core.src.service_interfaces.StatusHandler import StatusHandler
+from core.src.package_managers.PatchModeManager import PatchModeManager
+from core.src.package_managers.SourcesManager import SourcesManager
+from core.src.package_managers.HealthManager import HealthManager
 
 class PackageManager(object):
     """Base class of package manager"""
 
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, patch_mode_manager, sources_manager, health_manager, package_manager_name):
+        # type: (EnvLayer, ExecutionConfig, CompositeLogger, TelemetryWriter, StatusHandler, PatchModeManager, SourcesManager, HealthManager, str) -> None
         self.env_layer = env_layer
+        self.execution_config = execution_config
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
         self.status_handler = status_handler
+        self.package_manager_name = package_manager_name
+
+        # Package manager compartmentalization
+        self.patch_mode_manager = patch_mode_manager     # expects type of PatchModeManager
+        self.sources_manager = sources_manager           # expects type of SourcesManager
+        self.health_manager = health_manager             # expects type of HealthManager
+
         self.single_package_upgrade_cmd = ''
         self.single_package_upgrade_simulation_cmd = 'simulate-install'
         self.package_manager_settings = {}
@@ -40,7 +57,7 @@ class PackageManager(object):
         self.all_update_versions_cached = []
 
         # auto OS updates
-        self.image_default_patch_configuration_backup_path = os.path.join(execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        self.image_default_patch_configuration_backup_path = os.path.join(self.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
 
         # Constants
         self.STR_NOTHING_TO_DO = "Error: Nothing to do"
@@ -83,7 +100,7 @@ class PackageManager(object):
         if package_filter.is_invalid_classification_combination():
             error_msg = "Invalid classification combination selection detected. Please edit the update deployment configuration, " \
                             "unselect + reselect the desired classifications and save."
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CL_PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         if package_filter.is_msft_critsec_classification_only():
@@ -176,7 +193,7 @@ class PackageManager(object):
 
     # region Install Update
     def get_install_command(self, cmd, packages, package_versions):
-        """ Composes the install command for one or more packages with versions"""
+        """ Composes the installation command for one or more packages with versions"""
         composite_cmd = cmd
         for index, package in enumerate(packages):
             if index != 0:
@@ -242,13 +259,13 @@ class PackageManager(object):
         Returns:
         install_result (string): Package installation result
         """
-        install_result = Constants.INSTALLED
+        install_result = Constants.PackageStatus.INSTALLED
         package_no_longer_required = False
         code_path = "| Install"
         start_time = time.time()
 
         # special case of package no longer being required (or maybe even present on the system)
-        if code == 1 and self.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.YUM:
+        if code == 1 and self.package_manager_name == Constants.YUM:
             self.composite_logger.log_debug(" - Detecting if package is no longer required (as return code is 1):")
             if self.STR_NOTHING_TO_DO in out:
                 code_path += " > Nothing to do. (succeeded)"
@@ -265,23 +282,23 @@ class PackageManager(object):
                     # It is premature to fail this package. In the *unlikely* case it never gets picked up, it'll remain NotStarted.
                     # The NotStarted status must not be written again in the calling function (it's not at the time of this writing).
                     code_path += " > Package has no prior version. (no operation; return 'not started')"
-                    install_result = Constants.PENDING
+                    install_result = Constants.PackageStatus.PENDING
                     self.composite_logger.log_warning(" |- Package " + package + " (" + version + ") needs to already have an older version installed in order to be upgraded. " +
                                                    "\n |- Another upgradeable package requiring it as a dependency can cause it to get installed later. No action may be required.\n")
 
                 elif code == 0 and self.STR_OBSOLETED.replace('<PACKAGE>', self.get_composite_package_identifier(package, version)) in out:
                     # Package can be obsoleted by another package installed in the run (via dependencies)
                     code_path += " > Package obsoleted. (succeeded)"
-                    install_result = Constants.INSTALLED    # close approximation to obsoleted
+                    install_result = Constants.PackageStatus.INSTALLED    # close approximation to obsoleted
                     self.composite_logger.log_debug(" - Package was discovered to be obsoleted.")
 
                 elif code == 0 and len(out.split(self.STR_REPLACED)) > 1 and package in out.split(self.STR_REPLACED)[1]:
                     code_path += " > Package replaced. (succeeded)"
-                    install_result = Constants.INSTALLED    # close approximation to replaced
+                    install_result = Constants.PackageStatus.INSTALLED    # close approximation to replaced
                     self.composite_logger.log_debug(" - Package was discovered to be replaced by another during its installation.")
 
                 else:  # actual failure
-                    install_result = Constants.FAILED
+                    install_result = Constants.PackageStatus.FAILED
                     if code != 0:
                         code_path += " > Package NOT installed. (failed)"
                         self.composite_logger.log_error(" |- Package failed to install: " + package + " (" + version + "). " +
@@ -300,7 +317,7 @@ class PackageManager(object):
 
         if not simulate:
             package_size = self.get_package_size(out)
-            if install_result == Constants.FAILED:
+            if install_result == Constants.PackageStatus.FAILED:
                 error = self.telemetry_writer.write_package_info(package, version, package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd, str(out))
             else:
                 error = self.telemetry_writer.write_package_info(package, version, package_size, round(time.time() - start_time, 2), install_result, code_path, exec_cmd)
@@ -369,60 +386,13 @@ class PackageManager(object):
             return default_value
         else:
             error_msg = "Setting key [" + setting_key + "] does not exist in package manager settings."
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CL_PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
     def set_package_manager_setting(self, setting_key, setting_value=""):
         # type: (str, object) -> "" # type hinting to remove a warning
         """Sets package manager setting"""
         self.package_manager_settings[setting_key] = setting_value
-    # endregion
-
-    # region auto OS updates
-    @abstractmethod
-    def get_current_auto_os_patch_state(self):
-        """ Gets the current auto OS update patch state on the machine """
-        pass
-
-    @abstractmethod
-    def disable_auto_os_update(self):
-        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
-        pass
-
-    @abstractmethod
-    def backup_image_default_patch_configuration_if_not_exists(self):
-        """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
-        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
-        pass
-
-    def image_default_patch_configuration_backup_exists(self):
-        """ Checks whether default auto OS update settings have been recorded earlier within patch extension artifacts """
-        self.composite_logger.log_debug("Checking if extension contains a backup for default auto OS update configuration settings...")
-
-        # backup does not exist
-        if not os.path.exists(self.image_default_patch_configuration_backup_path) or not os.path.isfile(self.image_default_patch_configuration_backup_path):
-            self.composite_logger.log_debug("Default system configuration settings for auto OS updates aren't recorded in the extension")
-            return False
-
-        return True
-
-    @abstractmethod
-    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
-        pass
-
-    @abstractmethod
-    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value, patch_configuration_sub_setting_pattern_to_match):
-        pass
-    # endregion
-
-    # region Handling known errors
-    def try_mitigate_issues_if_any(self, command, code, out):
-        """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found """
-        pass
-
-    def check_known_issues_and_attempt_fix(self, output):
-        """ Checks if issue falls into known issues and attempts to mitigate """
-        return True
     # endregion
 
     @abstractmethod

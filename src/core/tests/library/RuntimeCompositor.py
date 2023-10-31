@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,27 +27,29 @@ from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.src.bootstrap.Bootstrapper import Bootstrapper
 from core.src.bootstrap.Constants import Constants
-
-# Todo: find a different way to import these
-try:
-    import urllib2 as urlreq   # Python 2.x
-except:
-    import urllib.request as urlreq   # Python 3.x
+from core.src.core_logic.CoreExecutionEngine import CoreExecutionEngine
 
 try:
-    from StringIO import StringIO # for Python 2
+    import urllib.request as urlreq     # Python 3.x
 except ImportError:
-    from io import StringIO # for Python 3
+    import urllib2 as urlreq            # Python 2.x
+
+try:
+    from io import StringIO             # Python 3.x
+except ImportError:
+    from StringIO import StringIO       # Python 2.x
 
 
 class RuntimeCompositor(object):
-    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE):
+    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, cloud_type=Constants.CloudType.AZURE):
         # Init data
-        self.current_env = Constants.DEV
-        os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
-        self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
-        self.vm_cloud_type = vm_cloud_type
-        Constants.SystemPaths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
+        print("[-- RUNTIME COMPOSITOR DIALTONE --]")
+        self.current_env = Constants.ExecEnv.DEV
+        os.environ[Constants.AZGPS_LPE_ENVIRONMENT_VAR] = self.current_env
+        self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer(cloud_type).get_composed_arguments()
+        self.cloud_type = cloud_type
+        Constants.SystemPaths.SYSTEMD_ROOT = os.getcwd()  # mocking to pass a basic systemd check in Windows
+        Constants.MAX_PATCH_OPERATION_RETRY_COUNT = 1
         self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
 
         if self.is_github_runner:
@@ -66,9 +68,6 @@ class RuntimeCompositor(object):
         # Adapted bootstrapper
         bootstrapper = Bootstrapper(self.argv, capture_stdout=False)
 
-        # Overriding sudo status check
-        Bootstrapper.check_sudo_status = self.check_sudo_status
-
         # Reconfigure env layer for legacy mode tests
         self.env_layer = bootstrapper.env_layer
         if legacy_mode:
@@ -85,11 +84,13 @@ class RuntimeCompositor(object):
         bootstrapper.telemetry_writer = self.telemetry_writer
         bootstrapper.composite_logger.telemetry_writer = self.telemetry_writer
 
-        self.lifecycle_manager, self.status_handler = bootstrapper.build_core_components(self.container)
+        self.lifecycle_manager, self.status_handler, self.execution_config = bootstrapper.get_service_components()
 
         # Business logic components
-        self.execution_config = self.container.get('execution_config')
         self.legacy_env_layer_extensions.set_temp_folder_path(self.execution_config.temp_folder)
+        self.patch_mode_manager = self.container.get('patch_mode_manager')
+        self.sources_manager = self.container.get('sources_manager')
+        self.health_manager = self.container.get('health_manager')
         self.package_manager = self.container.get('package_manager')
         self.backup_get_current_auto_os_patch_state = None
         self.reconfigure_package_manager()
@@ -100,7 +101,12 @@ class RuntimeCompositor(object):
         self.patch_assessor = self.container.get('patch_assessor')
         self.patch_installer = self.container.get('patch_installer')
         self.maintenance_window = self.container.get('maintenance_window')
-        self.vm_cloud_type = bootstrapper.configuration_factory.vm_cloud_type
+        self.cloud_type = bootstrapper.configuration_factory.cloud_type
+        self.core_exec = self.container.get('core_execution_engine')
+
+        self.backup_check_minimum_environment_requirements_and_report = self.core_exec.check_minimum_environment_requirements_and_report
+        self.core_exec.check_minimum_environment_requirements_and_report = self.mock_check_minimum_environment_requirements_and_report
+
         # Extension handler dependency
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
 
@@ -116,6 +122,7 @@ class RuntimeCompositor(object):
         self.configure_patching_processor.auto_assess_service_manager.remove_service = self.mock_remove_service
         self.backup_remove_timer = self.configure_patching_processor.auto_assess_timer_manager.remove_timer
         self.configure_patching_processor.auto_assess_timer_manager.remove_timer = self.mock_remove_timer
+        print("[-- RUNTIME IS READY FOR TEST --]\n")
 
     def stop(self):
         self.file_logger.close(message_at_close="<Runtime stopped>")
@@ -149,20 +156,20 @@ class RuntimeCompositor(object):
         self.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
 
     def reconfigure_package_manager(self):
-        self.backup_get_current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state
-        self.package_manager.get_current_auto_os_patch_state = self.get_current_auto_os_patch_state
+        self.backup_get_current_auto_os_patch_state = self.package_manager.patch_mode_manager.get_current_auto_os_patch_state
+        self.package_manager.patch_mode_manager.get_current_auto_os_patch_state = self.get_current_auto_os_patch_state
 
     def mock_sleep(self, seconds):
         pass
 
-    def check_sudo_status(self, raise_if_not_sudo=True):
-        return True
+    def mock_check_minimum_environment_requirements_and_report(self, patch_operation_requested):
+        pass
 
     def get_current_auto_os_patch_state(self):
         return Constants.AutomaticOSPatchStates.DISABLED
 
     def mock_urlopen(self, url, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, cafile=None, capath=None, cadefault=False, context=None):
-        if self.vm_cloud_type == Constants.VMCloudType.AZURE:
+        if self.cloud_type == Constants.CloudType.AZURE:
             resp = urlreq.addinfourl(StringIO("mock file"), "mock message", "mockurl")
             resp.code = 200
             resp.msg = "OK"

@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,17 +28,17 @@ class ExecutionConfig(object):
         self.composite_logger = composite_logger
         self.execution_parameters = eval(execution_parameters)
         # Environment details
-        self.global_exclusion_list = str(Constants.GLOBAL_EXCLUSION_LIST) if Constants.GLOBAL_EXCLUSION_LIST else None
+        self.global_exclusion_list = str(Constants.Config.AZGPS_PACKAGE_EXCLUSION_LIST) if Constants.Config.AZGPS_PACKAGE_EXCLUSION_LIST else None
 
         # Decoded input parameters
-        self.composite_logger.log_debug(" - Decoding input parameters...[InputParameters={0}]".format(str(execution_parameters)))
+        self.composite_logger.log_debug("[EC] Decoding input parameters...[InputParameters={0}]".format(str(execution_parameters)))
         self.sequence_number = self.__get_value_from_argv(self.execution_parameters, Constants.ARG_SEQUENCE_NUMBER)
         self.environment_settings = self.__get_decoded_json_from_argv(self.execution_parameters, Constants.ARG_ENVIRONMENT_SETTINGS)
         self.config_settings = self.__get_decoded_json_from_argv(self.execution_parameters, Constants.ARG_CONFIG_SETTINGS)
         self.exec_auto_assess_only = (self.__get_value_from_argv(self.execution_parameters, Constants.ARG_AUTO_ASSESS_ONLY, False)).lower() == 'true'
 
         # Environment Settings
-        self.composite_logger.log_debug(" - Parsing environment settings...")
+        self.composite_logger.log_debug("[EC] Parsing environment settings... [EnvironmentSettings={0}]".format(str(self.environment_settings)))
         self.log_folder = self.environment_settings[Constants.EnvSettings.LOG_FOLDER]
         self.config_folder = self.environment_settings[Constants.EnvSettings.CONFIG_FOLDER]
         self.status_folder = self.environment_settings[Constants.EnvSettings.STATUS_FOLDER]
@@ -49,7 +49,7 @@ class ExecutionConfig(object):
         self.telemetry_supported = self.environment_settings[Constants.EnvSettings.TELEMETRY_SUPPORTED]
 
         # Config Settings
-        self.composite_logger.log_debug(" - Parsing configuration settings... [ConfigSettings={0}]".format(str(self.config_settings)))
+        self.composite_logger.log_debug("[EC] Parsing configuration settings... [ConfigSettings={0}]".format(str(self.config_settings)))
         self.operation = self.config_settings[Constants.ConfigSettings.OPERATION]
         self.activity_id = self.config_settings[Constants.ConfigSettings.ACTIVITY_ID]
         self.start_time = self.config_settings[Constants.ConfigSettings.START_TIME]
@@ -59,32 +59,31 @@ class ExecutionConfig(object):
         self.excluded_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_EXCLUDE, [])
         self.maintenance_run_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAINTENANCE_RUN_ID)
         self.health_store_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.HEALTH_STORE_ID)
-        if self.operation == Constants.INSTALLATION:
+        if self.operation == Constants.Op.INSTALLATION:
             self.reboot_setting = self.config_settings[Constants.ConfigSettings.REBOOT_SETTING]     # expected to throw if not present
         else:
-            self.reboot_setting = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.REBOOT_SETTING, Constants.REBOOT_NEVER)     # safe extension-level default
+            self.reboot_setting = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.REBOOT_SETTING, Constants.RebootSettings.NEVER)     # safe extension-level default
         self.patch_mode = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCH_MODE)
         self.assessment_mode = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.ASSESSMENT_MODE)
         self.maximum_assessment_interval = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAXIMUM_ASSESSMENT_INTERVAL)
 
-        # Accommodation for bugs in higher-level components where 'Security' is being selected without selecting 'Critical' - should be rolled back no later than Jan 2022
+        # Accommodation for bugs in higher-level components where 'Security' is being selected without selecting 'Critical' - left in place for long-term regression safety
         if self.included_classifications_list is not None and ('Security' in self.included_classifications_list and 'Critical' not in self.included_classifications_list):
-            self.composite_logger.log_debug("The included_classifications_list was corrected to include 'Critical' when 'Security' was specified.")
+            self.composite_logger.log_debug("[EC] The included_classifications_list was corrected to include 'Critical' when 'Security' was specified.", buffer_msg=Constants.BufferMessage.TRUE)
             self.included_classifications_list = ['Critical'] + self.included_classifications_list
 
         # Derived Settings
         self.log_file_path = os.path.join(self.log_folder, str(self.sequence_number) + ".core.log")
         self.complete_status_file_path = os.path.join(self.status_folder, str(self.sequence_number) + ".complete" + ".status")
         self.status_file_path = os.path.join(self.status_folder, str(self.sequence_number) + ".status")
-        self.include_assessment_with_configure_patching = (self.operation == Constants.CONFIGURE_PATCHING and self.assessment_mode == Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM)
-        self.composite_logger.log_debug(" - Derived execution-config settings. [CoreLog={0}][CompleteStatusFile={1}][StatusFile={2}][IncludeAssessmentWithConfigurePatching={3}]"
-                                        .format(str(self.log_file_path), str(self.complete_status_file_path), str(self.status_file_path), self.include_assessment_with_configure_patching))
+        self.include_assessment_with_configure_patching = (self.operation == Constants.Op.CONFIGURE_PATCHING and self.assessment_mode == Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM)
+        self.composite_logger.log_debug("[EC] Derived execution-config settings: [CoreLog={0}][CompleteStatusFile={1}][StatusFile={2}][IncludeAssessmentWithConfigurePatching={3}]"
+                                        .format(str(self.log_file_path), str(self.complete_status_file_path), str(self.status_file_path), self.include_assessment_with_configure_patching),
+                                        buffer_msg=Constants.BufferMessage.TRUE)
 
         # Auto assessment overrides
         if self.exec_auto_assess_only:
             self.__transform_execution_config_for_auto_assessment()
-        else:
-            self.composite_logger.log_debug("Not executing in auto-assessment mode.")
 
         # EULA config
         self.accept_package_eula = self.__is_eula_accepted_for_all_patches()
@@ -95,9 +94,9 @@ class ExecutionConfig(object):
         self.maintenance_run_id = None
         self.start_time = self.env_layer.datetime.standard_datetime_to_utc(datetime.datetime.utcnow())
         self.duration = Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION
-        self.reboot_setting = Constants.REBOOT_NEVER
+        self.reboot_setting = Constants.RebootSettings.NEVER
         self.patch_mode = None
-        self.composite_logger.log_debug("Setting execution configuration values for auto assessment. [GeneratedActivityId={0}][StartTime={1}]".format(self.activity_id, str(self.start_time)))
+        self.composite_logger.log_debug("- [EC] Setting execution configuration values for auto assessment. [GeneratedActivityId={0}][StartTime={1}]".format(self.activity_id, str(self.start_time)), buffer_msg=Constants.BufferMessage.TRUE)
 
     @staticmethod
     def __get_value_from_argv(argv, key, default_value=Constants.DEFAULT_UNSPECIFIED_VALUE):
@@ -175,7 +174,7 @@ class ExecutionConfig(object):
         if self.temp_folder is None:
             par_dir = os.path.dirname(self.config_folder)
             if not os.path.exists(par_dir):
-                raise Exception("Parent directory for all extension artifacts such as config folder, status folder, etc. not found at [{0}].".format(repr(par_dir)))
+                raise Exception("Parent directory for all extension artifacts such as config folder, status folder, etc. not found. [Directory={0}].".format(repr(par_dir)))
             self.temp_folder = os.path.join(par_dir, Constants.TEMP_FOLDER_DIR_NAME)
 
         if not os.path.exists(self.temp_folder):
@@ -194,12 +193,12 @@ class ExecutionConfig(object):
                 last_modified = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
                 if accept_eula_for_all_patches is not None and accept_eula_for_all_patches in [True, 'True', 'true', '1', 1]:
                     is_eula_accepted = True
-                self.composite_logger.log_debug("EULA config values from disk: [AcceptEULAForAllPatches={0}] [AcceptedBy={1}] [LastModified={2}]. Computed value of [IsEULAAccepted={3}]"
+                self.composite_logger.log_debug("[EC][PREVIEW] EULA config values from disk: [AcceptEULAForAllPatches={0}][AcceptedBy={1}][LastModified={2}][IsEULAAccepted={3}]"
                                                 .format(str(accept_eula_for_all_patches), str(accepted_by), str(last_modified), str(is_eula_accepted)))
             else:
-                self.composite_logger.log_debug("No EULA Settings found on the VM. Computed value of [IsEULAAccepted={0}]".format(str(is_eula_accepted)))
+                self.composite_logger.log_debug("[EC][PREVIEW] No EULA Settings found on the VM. [IsEULAAccepted={0}]".format(str(is_eula_accepted)))
         except Exception as error:
-            self.composite_logger.log_debug("Error occurred while reading and parsing EULA settings. Not accepting EULA for any patch. Error=[{0}]".format(repr(error)))
+            self.composite_logger.log_debug("[EC][PREVIEW] ERROR occurred while processing EULA settings. [IsEULAAccepted={0}][Error={0}]".format(str(is_eula_accepted), repr(error)))
 
         return is_eula_accepted
 

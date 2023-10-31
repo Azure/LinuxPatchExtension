@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,21 +22,23 @@ import time
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
+# do not instantiate directly - these are exclusively for type hinting support
+from core.src.bootstrap.EnvLayer import EnvLayer
+from core.src.core_logic.ExecutionConfig import ExecutionConfig
+from core.src.local_loggers.CompositeLogger import CompositeLogger
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
+from core.src.service_interfaces.StatusHandler import StatusHandler
+from core.src.package_managers.PatchModeManager import PatchModeManager
+from core.src.package_managers.SourcesManager import SourcesManager
+from core.src.package_managers.HealthManager import HealthManager
+
 
 class ZypperPackageManager(PackageManager):
     """Implementation of SUSE package management operations"""
 
-    class ZypperAutoOSUpdateServices(Constants.EnumBackport):
-        YAST2_ONLINE_UPDATE_CONFIGURATION = "yast2-online-update-configuration"
-
-    class YastOnlineUpdateConfigurationConstants(Constants.EnumBackport):
-        OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = '/etc/sysconfig/automatic_online_update'
-        APPLY_UPDATES_IDENTIFIER_TEXT = 'AOU_ENABLE_CRONJOB'
-        AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT = '="(true|false)"'
-        INSTALLATION_STATE_IDENTIFIER_TEXT = "installation_state"
-
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
-        super(ZypperPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, patch_mode_manager, sources_manager, health_manager, package_manager_name):
+        # type: (EnvLayer, ExecutionConfig, CompositeLogger, TelemetryWriter, StatusHandler, PatchModeManager, SourcesManager, HealthManager, str) -> None
+        super(ZypperPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler, patch_mode_manager, sources_manager, health_manager, package_manager_name)
         # Repo refresh
         self.repo_clean = 'sudo zypper clean -a'
         self.repo_refresh = 'sudo zypper refresh'
@@ -63,7 +65,7 @@ class ZypperPackageManager(PackageManager):
         self.zypper_exitcode_zypper_updated = 103
         self.zypper_exitcode_repos_skipped = 106
         self.zypper_success_exit_codes = [self.zypper_exitcode_ok, self.zypper_exitcode_zypper_updated, self.zypper_exitcode_reboot_required]
-        self.zypper_retriable_exit_codes = [self.zypper_exitcode_zypp_locked, self.zypper_exitcode_zypp_lib_exit_err, self.zypper_exitcode_repos_skipped]
+        self.zypper_retryable_exit_codes = [self.zypper_exitcode_zypp_locked, self.zypper_exitcode_zypp_lib_exit_err, self.zypper_exitcode_repos_skipped]
 
         # Additional output messages that corresponds with exit code 103
         self.zypper_out_zypper_updated_msg = 'Warning: One of the installed patches affects the package manager itself. Run this command once more to install any other needed patches.'
@@ -77,16 +79,6 @@ class ZypperPackageManager(PackageManager):
         self.package_manager_max_retries = 5
         self.zypp_lock_timeout_backup = None
 
-        # auto OS updates
-        self.current_auto_os_update_service = None
-        self.os_patch_configuration_settings_file_path = ''
-        self.auto_update_config_pattern_match_text = ""
-        self.apply_updates_identifier_text = ""
-        self.installation_state_identifier_text = ""
-
-        # # commands for YaST2 online update configuration
-        # self.__init_constants_for_yast2_online_update_configuration()
-
     def refresh_repo(self):
         self.composite_logger.log("Refreshing local repo...")
         # self.invoke_package_manager(self.repo_clean)  # purges local metadata for rebuild - addresses a possible customer environment error
@@ -95,10 +87,10 @@ class ZypperPackageManager(PackageManager):
         except Exception as error:
             # Reboot if not already done
             if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
-                self.composite_logger.log_warning("Unable to refresh repo (retries exhausted after reboot).")
+                self.composite_logger.log_warning("[ZPM] Unable to refresh repo (retries exhausted after reboot).")
                 raise
             else:
-                self.composite_logger.log_warning("Setting force_reboot flag to True.")
+                self.composite_logger.log_warning("[ZPM] Setting force_reboot flag to True.")
                 self.force_reboot = True
 
     def __refresh_repo_services(self):
@@ -109,16 +101,16 @@ class ZypperPackageManager(PackageManager):
         except Exception as error:
             # Reboot if not already done
             if self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
-                self.composite_logger.log_warning("Unable to refresh repo services (retries exhausted after reboot).")
+                self.composite_logger.log_warning("[ZPM] Unable to refresh repo services (retries exhausted after reboot).")
                 raise
             else:
-                self.composite_logger.log_warning("Setting force_reboot flag to True after refreshing repo services.")
+                self.composite_logger.log_warning("[ZPM] Setting force_reboot flag to True after refreshing repo services.")
                 self.force_reboot = True
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
-        self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
+        self.composite_logger.log_debug('[ZPM] Invoking package manager. [Command={0}]'.format(command))
         repo_refresh_services_attempted = False
 
         for i in range(1, self.package_manager_max_retries + 1):
@@ -143,26 +135,18 @@ class ZypperPackageManager(PackageManager):
                         self.composite_logger.log_debug("Retrying with modified command to replace files: {0}".format(str(command)))
                         continue
 
-                self.log_errors_on_invoke(command, out, code)
-                error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-
-                # Not a retriable error code, so raise an exception
-                if code not in self.zypper_retriable_exit_codes and raise_on_exception:
-                    raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-
-                # Retriable error code, so check number of retries and wait then retry if applicable; otherwise, raise error after max retries
-                if i < self.package_manager_max_retries:
-                    self.composite_logger.log_warning("Exception on package manager invoke. [Exception={0}] [RetryCount={1}]".format(error_msg, str(i)))
+                # Retryable error code, so check number of retries and wait then retry if applicable; otherwise, raise error after max retries
+                if i < self.package_manager_max_retries and code in self.zypper_retryable_exit_codes:
+                    self.composite_logger.log_verbose("[ZPM] Retryable Package Manager ERROR. [Command={0}][Code={1}][Output={2}][RetryCount={0}]".format(command, str(code), str(out), str(i)))
                     time.sleep(pow(2, i + 2))
                     continue
                 else:
-                    error_msg = "Unable to invoke package manager (retries exhausted) [{0}] [RetryCount={1}]".format(error_msg, str(i))
-                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-                    if raise_on_exception:
-                        raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-            else:  # verbose diagnostic log
-                self.log_success_on_invoke(code, out)
+                    self.composite_logger.log_error("[ZPM] Package Manager ERROR. [Command={0}][Code={1}][Output={2}]".format(command, str(code), str(out)))
+                    self.status_handler.add_error_to_status_and_log_error(message="Unexpected return code from package manager. [Code={0}][Command={1}]".format(str(code), command),
+                                                                          raise_exception=bool(code not in self.zypper_retryable_exit_codes and raise_on_exception), error_code=Constants.PatchOperationErrorCodes.CL_PACKAGE_MANAGER_FAILURE)
+                    self.log_process_tree_if_exists(out)
+            else:
+                self.composite_logger.log_verbose("[ZPM] Package Manager SUCCESS. [Command={0}][Code={1}][Output={2}]".format(command, str(code), str(out)))
 
             self.__handle_zypper_updated_or_reboot_exit_codes(command, out, code)
 
@@ -172,18 +156,14 @@ class ZypperPackageManager(PackageManager):
         """ Handles exit code 102 or 103 when returned from invoking package manager.
             Does not repeat installation or reboot if it is a dry run. """
         if "--dry-run" in command:
-            self.composite_logger.log_debug(
-                " - Exit code {0} detected from command \"{1}\", but it was a dry run. Continuing execution without performing additional actions.".format(
-                str(code), command))
+            self.composite_logger.log_debug(" - Exit code {0} detected from command \"{1}\", but it was a dry run. Continuing execution without performing additional actions.".format(str(code), command))
             return
 
         if code == self.zypper_exitcode_zypper_updated or self.zypper_out_zypper_updated_msg in out:
-            self.composite_logger.log_debug(
-                " - One of the installed patches affects the package manager itself. Patch installation run will be repeated.")
+            self.composite_logger.log_debug(" - One of the installed patches affects the package manager itself. Patch installation run will be repeated.")
             self.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True)
         elif code == self.zypper_exitcode_reboot_required:
-            self.composite_logger.log_warning(
-                " - Machine requires reboot after patch installation. Setting force_reboot flag to True.")
+            self.composite_logger.log_warning(" - Machine requires reboot after patch installation. Setting force_reboot flag to True.")
             self.force_reboot = True
 
     def modify_upgrade_or_patch_command_to_replacefiles(self, command):
@@ -197,38 +177,22 @@ class ZypperPackageManager(PackageManager):
         elif self.zypper_install_security_patches in command:
             return command.replace(self.zypper_install_security_patches, self.zypper_install_security_patches + ' --replacefiles')
 
-    def log_errors_on_invoke(self, command, out, code):
-        """Logs verbose error messages if there is an error on invoke_package_manager"""
-        self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-        self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-        self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-        self.log_process_tree_if_exists(out)
-        self.telemetry_writer.write_execution_error(command, code, out)
-
-    def log_success_on_invoke(self, code, out):
-        """Logs verbose success messages on invoke_package_manager"""
-        self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-        self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-        self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-        self.composite_logger.log_verbose("==========================================================================\n\n")
-
     def log_process_tree_if_exists(self, out):
         """Logs the process tree based on locking PID in output, if there is a process tree to be found"""
         process_tree = self.get_process_tree_from_pid_in_output(out)
         if process_tree is not None:
-            self.composite_logger.log_warning(" - Process tree for the pid in output: \n{}".format(str(process_tree)))
+            self.composite_logger.log_verbose("[ZPM] Process tree for the PID in output: \n{0}".format(str(process_tree)))
 
     def set_lock_timeout_and_backup_original(self):
         """Saves the env var ZYPP_LOCK_TIMEOUT and sets it to 5"""
         self.zypp_lock_timeout_backup = self.env_layer.get_env_var('ZYPP_LOCK_TIMEOUT')
-        self.composite_logger.log_debug("Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(self.zypp_lock_timeout_backup)))
+        self.composite_logger.log_verbose("[ZPM] Original value of ZYPP_LOCK_TIMEOUT env var: {0}".format(str(self.zypp_lock_timeout_backup)))
         self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', 5)
 
     def restore_original_lock_timeout(self):
         """Restores the original value of the env var ZYPP_LOCK_TIMEOUT, if any was saved"""
         if self.zypp_lock_timeout_backup is None:
-            self.composite_logger.log_debug("Attempted to restore original lock timeout when none was saved")
-
+            self.composite_logger.log_debug("[ZPM] Attempted to restore original lock timeout when none was saved.")
         self.env_layer.set_env_var('ZYPP_LOCK_TIMEOUT', self.zypp_lock_timeout_backup)
         self.zypp_lock_timeout_backup = None
 
@@ -284,19 +248,19 @@ class ZypperPackageManager(PackageManager):
     # region Classification-based (incl. All) update check
     def get_all_updates(self, cached=False):
         """Get all missing updates"""
-        self.composite_logger.log_debug("\nDiscovering all packages...")
+        self.composite_logger.log_verbose("[ZPM] Discovering all packages...")
         if cached and not len(self.all_updates_cached) == 0:
-            self.composite_logger.log_debug(" - Returning cached package data.")
+            self.composite_logger.log_verbose(" - Returning cached package data.")
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
         out = self.invoke_package_manager(self.zypper_check)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
-        self.composite_logger.log_debug("Discovered " + str(len(self.all_updates_cached)) + " package entries.")
+        self.composite_logger.log_debug("[ZPM] Discovered " + str(len(self.all_updates_cached)) + " package entries.")
         return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
         """Get missing security updates"""
-        self.composite_logger.log_debug("\nDiscovering 'security' packages...")
+        self.composite_logger.log_verbose("[ZPM] Discovering 'security' packages...")
         security_packages = []
         security_package_versions = []
 
@@ -311,14 +275,14 @@ class ZypperPackageManager(PackageManager):
             if package in packages_from_patch_data:
                 security_packages.append(package)
                 security_package_versions.append(all_package_versions[index])
-                self.composite_logger.log_debug(" - " + str(package) + " [" + str(all_package_versions[index]) + "]")
+                self.composite_logger.log_verbose(" - " + str(package) + " [" + str(all_package_versions[index]) + "]")
 
-        self.composite_logger.log_debug("Discovered " + str(len(security_packages)) + " 'security' package entries.\n")
+        self.composite_logger.log_debug("[ZPM] Discovered " + str(len(security_packages)) + " 'security' package entries.\n")
         return security_packages, security_package_versions
 
     def get_other_updates(self):
         """Get missing other updates"""
-        self.composite_logger.log_debug("\nDiscovering 'other' packages...")
+        self.composite_logger.log_verbose("[ZPM] Discovering 'other' packages...")
         other_packages = []
         other_package_versions = []
 
@@ -328,8 +292,7 @@ class ZypperPackageManager(PackageManager):
 
         # SPECIAL CONDITION IF ZYPPER UPDATE IS DETECTED - UNAVOIDABLE SECURITY UPDATE(S) WILL BE INSTALLED AND THE RUN REPEATED FOR 'OTHER".
         if self.get_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, True):
-            self.composite_logger.log_warning("Important: Zypper-related security updates are necessary to continue - those will be installed first.")
-            self.composite_logger.log_warning("Temporarily skipping 'other' package entry discovery due to Zypper-related security updates.\n")
+            self.status_handler.add_error_to_status_and_log_warning("Important: Zypper-related security updates are necessary to continue - those will be installed first. Temporarily skipping 'other' package entry discovery due to Zypper-related security updates.")
             return self.get_security_updates()  # TO DO: in some cases, some misc security updates may sneak in - filter this (to do item)
             # also for above: also note that simply force updating only zypper does not solve the issue - tried
 
@@ -340,9 +303,9 @@ class ZypperPackageManager(PackageManager):
             if package not in packages_from_patch_data:
                 other_packages.append(package)
                 other_package_versions.append(all_package_versions[index])
-                self.composite_logger.log_debug(" - " + str(package) + " [" + str(all_package_versions[index]) + "]")
+                self.composite_logger.log_verbose(" - " + str(package) + " [" + str(all_package_versions[index]) + "]")
 
-        self.composite_logger.log_debug("Discovered " + str(len(other_packages)) + " 'other' package entries.\n")
+        self.composite_logger.log_debug("[ZPM] Discovered " + str(len(other_packages)) + " 'other' package entries.")
         return other_packages, other_package_versions
     # endregion
 
@@ -361,6 +324,7 @@ class ZypperPackageManager(PackageManager):
         self.composite_logger.log_debug("\nExtracting package and version data...")
         packages = []
         versions = []
+        debug_log = str()
 
         lines = output.strip().split('\n')
         for line in lines:
@@ -370,16 +334,18 @@ class ZypperPackageManager(PackageManager):
                 packages.append(package)
                 version = line_split[4].strip()
                 versions.append(version)
-                self.composite_logger.log_debug(" - Applicable line: " + line + ". Package: " + package + ". Version: " + version + ".")
+                debug_log += "[A] {0}, [P={1},V={2}]\n".format(str(line), package, version)
             else:
-                self.composite_logger.log_debug(" - Inapplicable line: " + line)
+                debug_log += "[N] {0}\n".format(str(line))
 
+        self.composite_logger.log_debug("[ZPM] Debug log on extracting packages and versions: {0}".format(debug_log))
         return packages, versions
 
     def extract_packages_from_patch_data(self, output):
         """Returns packages (sometimes with version information embedded) from patch data"""
-        self.composite_logger.log_debug("\nExtracting package entries from security patch data...")
+        self.composite_logger.log_verbose("Extracting package entries from security patch data...")
         packages = []
+        debug_log = str()
         parser_seeing_packages_flag = False
 
         lines = output.strip().split('\n')
@@ -387,24 +353,25 @@ class ZypperPackageManager(PackageManager):
             if not parser_seeing_packages_flag:
                 if 'package is going to be installed' in line or 'package is going to be upgraded' in line or \
                         'packages are going to be installed:' in line or 'packages are going to be upgraded:' in line:
-                    self.composite_logger.log_debug(" - Start marker line: " + line)
-                    parser_seeing_packages_flag = True  # Start -- Next line contains information we need
+                    debug_log += "[S] {0}\n".format(str(line))  # start marker line
+                    parser_seeing_packages_flag = True          # start -- next line contains information we need
                 else:
-                    self.composite_logger.log_debug(" - Inapplicable line: " + line)
+                    debug_log += "[N] {0}\n".format(str(line))
                 continue
 
             if not line or line.isspace():
-                self.composite_logger.log_debug(" - End marker line: " + line)
+                debug_log += "[E] {0}\n".format(str(line))  # end marker line
                 parser_seeing_packages_flag = False
                 continue  # End -- We're past a package information block
 
             line_parts = line.strip().split(' ')
-            self.composite_logger.log_debug(" - Package list line: " + line)
+            debug_log += "[A] {0}\n".format(str(line))  # applicable package list line
             for line_part in line_parts:
                 packages.append(line_part)
-                self.composite_logger.log_debug("    - Package: " + line_part)
+                debug_log += "[Package] {0}\n".format(str(line_part))
 
-        self.composite_logger.log_debug("\nExtracted " + str(len(packages)) + " prospective package entries from security patch data.\n")
+        self.composite_logger.log_debug("[ZPM] Debug log on extracting packages from security patch data: {0}".format(debug_log))
+        self.composite_logger.log_verbose("[ZPM] Extracted " + str(len(packages)) + " prospective package entries from security patch data.")
         return packages
     # endregion
     # endregion
@@ -563,222 +530,23 @@ class ZypperPackageManager(PackageManager):
             return Constants.UNKNOWN_PACKAGE_SIZE
     # endregion
 
-    # region auto OS updates
-    # def __init_constants_for_yast2_online_update_configuration(self):
-    #     self.yast2_online_update_configuration_os_patch_configuration_settings_file_path = '/etc/sysconfig/automatic_online_update'
-    #     self.yast2_online_update_configuration_apply_updates_identifier_text = 'AOU_ENABLE_CRONJOB'
-    #     self.yast2_online_update_configuration_auto_update_config_pattern_match_text = '="(true|false)"'
-    #     self.yast2_online_update_configuration_installation_state_identifier_text = "installation_state"
-
-    def get_current_auto_os_patch_state(self):
-        """ Gets the current auto OS update patch state on the machine """
-        self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
-
-        current_auto_os_patch_state_for_yast2_online_update_configuration = self.__get_current_auto_os_patch_state_for_yast2_online_update_configuration()
-        self.composite_logger.log("OS patch state per auto OS update service: [yast2-online-update-configuration={0}]".format(str(current_auto_os_patch_state_for_yast2_online_update_configuration)))
-
-        current_auto_os_patch_state = current_auto_os_patch_state_for_yast2_online_update_configuration
-        self.composite_logger.log_debug("Overall Auto OS Patch State based on all auto OS update service states [OverallAutoOSPatchState={0}]".format(str(current_auto_os_patch_state)))
-        return current_auto_os_patch_state
-
-    def __get_current_auto_os_patch_state_for_yast2_online_update_configuration(self):
-        """ Gets current auto OS update patch state for yast2-online-update-configuration """
-        self.composite_logger.log_debug("Fetching current automatic OS patch state in yast2-online-update-configuration.")
-        self.__init_auto_update_for_yast_online_update_configuration()
-        is_service_installed, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
-
-        apply_updates = self.__get_extension_standard_value_for_apply_updates(apply_updates_value)
-
-        # OS patch state is considered to be disabled: a) if it was successfully disabled or b) if the service is not installed
-        if not is_service_installed or apply_updates == Constants.AutomaticOSPatchStates.DISABLED:
-            return Constants.AutomaticOSPatchStates.DISABLED
-
-        return apply_updates
-
-    @staticmethod
-    def __get_extension_standard_value_for_apply_updates(apply_updates_value):
-        if apply_updates_value.lower() == 'true':
-            return Constants.AutomaticOSPatchStates.ENABLED
-        elif apply_updates_value.lower() == 'false':
-            return Constants.AutomaticOSPatchStates.DISABLED
-        else:
-            return Constants.AutomaticOSPatchStates.UNKNOWN
-
-    def __init_auto_update_for_yast_online_update_configuration(self):
-        """ Initializes all generic auto OS update variables with the config values for yum cron service """
-        self.os_patch_configuration_settings_file_path = self.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH
-        self.apply_updates_identifier_text = self.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT
-        self.auto_update_config_pattern_match_text = self.YastOnlineUpdateConfigurationConstants.AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT
-        self.installation_state_identifier_text = self.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT
-        self.current_auto_os_update_service = self.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION
-
-    def __get_current_auto_os_updates_setting_on_machine(self):
-        """ Gets all the update settings related to auto OS updates currently set on the machine """
-        try:
-            apply_updates_value = ""
-            is_service_installed = False
-
-            # get install state
-            if not os.path.exists(self.os_patch_configuration_settings_file_path):
-                return is_service_installed, apply_updates_value
-
-            is_service_installed = True
-            self.composite_logger.log_debug("Checking if auto updates are currently enabled...")
-            image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path, raise_if_not_found=False)
-            if image_default_patch_configuration is not None:
-                settings = image_default_patch_configuration.strip().split('\n')
-                for setting in settings:
-                    match = re.search(self.apply_updates_identifier_text + self.auto_update_config_pattern_match_text, str(setting))
-                    if match is not None:
-                        apply_updates_value = match.group(1)
-
-            if apply_updates_value == "":
-                self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.apply_updates_identifier_text)))
-            else:
-                self.composite_logger.log_verbose("Current value set for [{0}={1}]".format(str(self.apply_updates_identifier_text), str(apply_updates_value)))
-
-            return is_service_installed, apply_updates_value
-
-        except Exception as error:
-            raise Exception("Error occurred in fetching current auto OS update settings from the machine. [Exception={0}]".format(repr(error)))
-
-    def disable_auto_os_update(self):
-        """ Disables auto OS updates on the machine only if they are enable_on_reboot and logs the default settings the machine comes with """
-        try:
-            self.composite_logger.log("Disabling auto OS updates in all identified services...")
-            self.disable_auto_os_update_for_yast_online_update_configuration()
-            self.composite_logger.log_debug("Completed attempt to disable auto OS updates")
-
-        except Exception as error:
-            self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
-            raise
-
-    def disable_auto_os_update_for_yast_online_update_configuration(self):
-        """ Disables auto OS updates, using yast online, and logs the default settings the machine comes with """
-        self.composite_logger.log("Disabling auto OS updates using yast online update configuration")
-        self.__init_auto_update_for_yast_online_update_configuration()
-
-        self.backup_image_default_patch_configuration_if_not_exists()
-        # check if file exists, if not do nothing
-        if not os.path.exists(self.os_patch_configuration_settings_file_path):
-            self.composite_logger.log_debug("Cannot disable auto updates using yast2-online-update-configuration because the configuration file does not exist, indicating the service is not installed")
-            return
-
-        self.composite_logger.log_debug("Preemptively disabling auto OS updates using yum-cron")
-        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "false", self.auto_update_config_pattern_match_text)
-
-        self.composite_logger.log("Successfully disabled auto OS updates using yast2-online-update-configuration")
-
-    def backup_image_default_patch_configuration_if_not_exists(self):
-        """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
-        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
-        """ JSON format for backup file:
-                            {
-                                "yast2-online-update-configuration": {
-                                    "apply_updates": "true/false/empty string"
-                                    "install_state": true/false
-                                }
-                            } """
-        try:
-            self.composite_logger.log_debug("Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
-            image_default_patch_configuration_backup = {}
-
-            # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
-            if self.image_default_patch_configuration_backup_exists():
-                try:
-                    image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
-                except Exception as error:
-                    self.composite_logger.log_error("Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
-
-            # verify if existing backup is valid if not, write to backup
-            is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
-            if is_backup_valid:
-                self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]"
-                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
-            else:
-                self.composite_logger.log_debug("Since the backup is invalid, will add a new backup with the current auto OS update settings")
-                self.composite_logger.log_debug("Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
-                is_service_installed, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
-
-                backup_image_default_patch_configuration_json_to_add = {
-                    self.current_auto_os_update_service: {
-                        self.apply_updates_identifier_text: apply_updates_value,
-                        self.installation_state_identifier_text: is_service_installed
-                    }
-                }
-
-                image_default_patch_configuration_backup.update(backup_image_default_patch_configuration_json_to_add)
-
-                self.composite_logger.log_debug("Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
-                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
-                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
-        except Exception as error:
-            error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
-            self.composite_logger.log_error(error_message)
-            self.status_handler.add_error_to_status(error_message, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            raise
-
-    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
-        """ Verifies if default auto update configurations, for a service under consideration, are saved in backup """
-
-        # NOTE: Adding a separate function to check backup for multiple auto OS update services, if more are added in future.
-        return self.is_backup_valid_for_yast_online_update_configuration(image_default_patch_configuration_backup)
-
-    def is_backup_valid_for_yast_online_update_configuration(self, image_default_patch_configuration_backup):
-        if self.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup \
-                and self.apply_updates_identifier_text in image_default_patch_configuration_backup[self.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION]:
-            self.composite_logger.log_debug("Extension has a valid backup for default yum-cron configuration settings")
-            return True
-        else:
-            self.composite_logger.log_debug("Extension does not have a valid backup for default yum-cron configuration settings")
-            return False
-
-    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="false", config_pattern_match_text=""):
-        """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
-        try:
-            self.composite_logger.log_debug("Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
-            os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
-            patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + '="' + value + '"'
-            patch_configuration_sub_setting_found_in_file = False
-            updated_patch_configuration_sub_setting = ""
-            settings = os_patch_configuration_settings.strip().split('\n')
-
-            # update value of existing setting
-            for i in range(len(settings)):
-                match = re.search(patch_configuration_sub_setting + config_pattern_match_text, settings[i])
-                if match is not None:
-                    settings[i] = patch_configuration_sub_setting_to_update
-                    patch_configuration_sub_setting_found_in_file = True
-                updated_patch_configuration_sub_setting += settings[i] + "\n"
-
-            # add setting to configuration file, since it doesn't exist
-            if not patch_configuration_sub_setting_found_in_file:
-                updated_patch_configuration_sub_setting += patch_configuration_sub_setting_to_update + "\n"
-
-            self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path, '{0}'.format(updated_patch_configuration_sub_setting.lstrip()), mode='w+')
-        except Exception as error:
-            error_msg = "Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error))
-            self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            raise
-    # endregion
-
     # region Reboot Management
     def is_reboot_pending(self):
         """ Checks if there is a pending reboot on the machine. """
         try:
             pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)  # not intended for zypper, but supporting as back-compat
             pending_processes_exist = self.do_processes_require_restart()
-            self.composite_logger.log_debug(" - Reboot required debug flags (zypper): " + str(pending_file_exists) + ", " + str(pending_processes_exist) + ".")
+            self.composite_logger.log_debug("[ZPM] Reboot required debug flags (zypper): " + str(pending_file_exists) + ", " + str(pending_processes_exist) + ".")
             return pending_file_exists or pending_processes_exist
         except Exception as error:
-            self.composite_logger.log_error('Error while checking for reboot pending (zypper): ' + repr(error))
+            self.composite_logger.log_error('[ZPM] Error while checking for reboot pending (zypper): ' + repr(error))
             return True  # defaults for safety
 
     def do_processes_require_restart(self):
         """Signals whether processes require a restart due to updates"""
         output = self.invoke_package_manager(self.zypper_ps)
         lines = output.strip().split('\n')
+        debug_log = str()
 
         process_list_flag = False
         process_count = 0
@@ -786,23 +554,24 @@ class ZypperPackageManager(PackageManager):
         for line in lines:
             if not process_list_flag:  # keep going until the process list starts
                 if not all(word in line for word in ["PID", "PPID", "UID", "User", "Command", "Service"]):
-                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    debug_log += "[N] {0}\n".format(str(line))      # not applicable
                     continue
                 else:
-                    self.composite_logger.log_debug(" - Process list started: " + str(line))
+                    debug_log += "[PLS] {0}\n".format(str(line))    # process list started
                     process_list_flag = True
                     continue
 
             process_details = line.split(' |')
             if len(process_details) < 6:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                debug_log += "[N] {0}\n".format(str(line))  # not applicable
                 continue
             else:
-                self.composite_logger.log_debug(" - Applicable line: " + str(line))
+                debug_log += "[A] {0}\n".format(str(line))  # applicable
                 process_count += 1
                 process_list_verbose += process_details[4].strip() + " (" + process_details[0].strip() + "), "  # process name and id
 
-        self.composite_logger.log(" - Processes requiring restart (" + str(process_count) + "): [" + process_list_verbose + "<eol>]")
+        self.composite_logger.log_debug("[ZPM] Debug log on processes requiring restart: {0}]".format(debug_log))
+        self.composite_logger.log("[ZPM] Processes requiring restart. [Count={0}][ProcessList={1}]".format(str(process_count), process_list_verbose))
         return process_count != 0  # True if there were any
     # endregion Reboot Management
 

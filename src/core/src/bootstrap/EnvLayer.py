@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -89,7 +89,7 @@ class EnvLayer(object):
         try:
             environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
             if environment_vars is None:
-                print("Error occurred while setting environment variable: File not found. [Variable={0}] [Value={1}] [Path={2}]".format(str(var_name), str(var_value), self.etc_environment_file_path))
+                print("Error occurred while setting environment variable: File not found. [Variable={0}][Value={1}][Path={2}]".format(str(var_name), str(var_value), self.etc_environment_file_path))
                 return
 
             environment_vars_lines = environment_vars.strip().split("\n")
@@ -121,7 +121,7 @@ class EnvLayer(object):
                 self.file_system.write_with_retry(self.etc_environment_file_path, environment_vars, 'w')
 
         except Exception as error:
-            print("Error occurred while setting environment variable [Variable={0}] [Value={1}] [Exception={2}]".format(str(var_name), str(var_value), repr(error)))
+            print("Error occurred while setting environment variable [Variable={0}][Value={1}][Exception={2}]".format(str(var_name), str(var_value), repr(error)))
             if raise_if_not_success:
                 raise
 
@@ -130,7 +130,7 @@ class EnvLayer(object):
         try:
             environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
             if environment_vars is None:
-                print("Error occurred while getting environment variable: File not found. [Variable={0}] [Path={1}]".format(str(var_name), self.etc_environment_file_path))
+                print("Error occurred while getting environment variable: File not found. [Variable={0}][Path={1}]".format(str(var_name), self.etc_environment_file_path))
                 return None
 
             # get specific environment variable value
@@ -143,7 +143,7 @@ class EnvLayer(object):
             return group[group.index("=")+1:]
 
         except Exception as error:
-            print("Error occurred while getting environment variable [Variable={0}] [Exception={1}]".format(str(var_name), repr(error)))
+            print("Error occurred while getting environment variable [Variable={0}][Exception={1}]".format(str(var_name), repr(error)))
             if raise_if_not_success:
                 raise
 
@@ -333,7 +333,7 @@ class EnvLayer(object):
             self.__emulator_root_path = emulator_root_path
 
             # file-names of files that other processes may changes the contents of
-            self.__non_exclusive_files = [Constants.EXT_STATE_FILE]
+            self.__non_exclusive_files = [Constants.StateFiles.EXT]
 
         def resolve_path(self, requested_path):
             """ Resolves any paths used with desired file system paths """
@@ -594,7 +594,7 @@ class EnvLayer(object):
 
 # region - Legacy mode extensions
     def set_legacy_test_mode(self):
-        print("Switching env layer to legacy test mode...")
+        print("[EL] Switching env layer to legacy test mode.\n")
         self.datetime = self.DateTime(False, False, self.__write_record, self.__read_record)
         self.file_system = self.FileSystem(False, False, self.__write_record, self.__read_record, emulator_root_path=os.path.dirname(self.__real_record_path))
 # endregion - Legacy mode extensions

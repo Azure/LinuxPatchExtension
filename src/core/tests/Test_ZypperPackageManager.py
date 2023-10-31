@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -227,7 +227,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for successfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy', '3.13.1-102.el7_3.16', simulate=True), Constants.PackageStatus.INSTALLED)
 
     def test_install_package_failure(self):
         self.runtime.set_legacy_test_type('FailInstallPath')
@@ -236,7 +236,7 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
 
         # test for unsuccessfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.FAILED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('selinux-policy.noarch', '3.13.1-102.el7_3.16', simulate=True), Constants.PackageStatus.FAILED)
 
     def test_get_process_tree_from_package_manager_output_success(self):
         self.runtime.set_legacy_test_type('HappyPath')
@@ -377,53 +377,53 @@ class TestZypperPackageManager(unittest.TestCase):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
-        package_manager.disable_auto_os_update()
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        package_manager.patch_mode_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
 
         # validating backup for yast2-online-update-configuration
-        self.assertTrue(package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
-        self.assertEqual(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "")
-        self.assertEqual(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], False)
+        self.assertTrue(package_manager.patch_mode_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.patch_mode_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.patch_mode_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], False)
 
     def test_disable_auto_os_updates_with_installed_services(self):
         # all services are installed and contain valid configurations. expected o/p All services will be disabled and backup file should reflect default settings for all
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
 
-        package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
+        package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
         yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="true"'
-        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
 
-        package_manager.disable_auto_os_update()
-        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        package_manager.patch_mode_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.patch_mode_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
 
         # validating backup for yast2-online-update-configuration
-        self.assertTrue(package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
-        self.assertEqual(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "true")
-        self.assertEqual(image_default_patch_configuration_backup[package_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], True)
+        self.assertTrue(package_manager.patch_mode_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.patch_mode_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT], "true")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.patch_mode_manager.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION][package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.INSTALLATION_STATE_IDENTIFIER_TEXT], True)
 
     def test_update_image_default_patch_mode(self):
         package_manager = self.container.get('package_manager')
-        package_manager.os_patch_configuration_settings_file_path = package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
+        package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
 
         # disable apply_updates when enabled by default
         yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="true"'
-        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
 
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT, "false", package_manager.YastOnlineUpdateConfigurationConstants.AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT)
-        yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH)
+        package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting(package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT, "false", package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT)
+        yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH)
         self.assertTrue(yast2_online_update_configuration_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('AOU_ENABLE_CRONJOB="false"' in yast2_online_update_configuration_os_patch_configuration_settings_file_path_read)
 
         # disable apply_updates when default patch mode settings file is empty
         yast2_online_update_configuration_os_patch_configuration_settings = ''
-        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, yast2_online_update_configuration_os_patch_configuration_settings)
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT, "false", package_manager.YastOnlineUpdateConfigurationConstants.AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT)
-        yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.runtime.write_to_file(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, yast2_online_update_configuration_os_patch_configuration_settings)
+        package_manager.patch_mode_manager.update_os_patch_configuration_sub_setting(package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.APPLY_UPDATES_IDENTIFIER_TEXT, "false", package_manager.patch_mode_manager.YastOnlineUpdateConfigurationConstants.AUTO_UPDATE_CONFIG_PATTERN_MATCH_TEXT)
+        yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.patch_mode_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(yast2_online_update_configuration_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('AOU_ENABLE_CRONJOB="false"' in yast2_online_update_configuration_os_patch_configuration_settings_file_path_read)
 
@@ -435,7 +435,7 @@ class TestZypperPackageManager(unittest.TestCase):
     def test_package_manager_with_retries(self):
         package_manager = self.container.get('package_manager')
         # Setting operation to assessment to add all errors under assessment substatus
-        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+        self.runtime.status_handler.set_current_operation(Constants.Op.ASSESSMENT)
 
         # Wrap count in a mutable container to modify in mocked method to keep track of retries
         counter = [0]
@@ -465,7 +465,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Should reach max retries - 1 and then succeed, per the code above
         self.assertEqual(counter[0], package_manager.package_manager_max_retries - 1)
-        self.assertFalse(self.is_string_in_status_file('Unexpected return code (4) from package manager on command: sudo zypper refresh'))
+        self.assertFalse(self.is_string_in_status_file("Unexpected return code from package manager. [Code=4][Command=sudo zypper refresh]"))
 
         # Case 2: UnalignedPath to HappyPath (retry a few times and then success)
         counter = [0]
@@ -481,7 +481,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Should reach max retries - 1 and then succeed, per the code above
         self.assertEqual(counter[0], package_manager.package_manager_max_retries - 1)
-        self.assertTrue(self.is_string_in_status_file('Unexpected return code (7) from package manager on command: sudo zypper refresh'))
+        self.assertTrue(self.is_string_in_status_file('Unexpected return code from package manager. [Code=7][Command=sudo zypper refresh]'))
 
         # Case 3: NonexistentErrorCodePath to HappyPath (should not retry since error code is not supported)
         counter = [0]
@@ -495,8 +495,8 @@ class TestZypperPackageManager(unittest.TestCase):
             self.fail('Package manager should fail without retrying')
         except Exception as error:
             self.assertEqual(counter[0], 1)  # invoke should only be called once
-            self.assertTrue(self.is_string_in_status_file('Unexpected return code (999999) from package manager on command: sudo zypper refresh'))
-            self.assertTrue('Unexpected return code (999999) from package manager on command: sudo zypper refresh' in repr(error))
+            self.assertTrue(self.is_string_in_status_file('Unexpected return code from package manager. [Code=999999][Command=sudo zypper refresh]'))
+            #self.assertTrue('Unexpected return code from package manager. [Code=999999][Command=sudo zypper refresh]' in repr(error))
 
         # Case 4: SadPath (retry and ultimately fail)
         # Set counter to max retries already so it does not hit the condition to enable HappyPath
@@ -511,15 +511,15 @@ class TestZypperPackageManager(unittest.TestCase):
         except Exception as error:
             # Should reach max retries * 2 and fail (since it started at max retries)
             self.assertEqual(counter[0], package_manager.package_manager_max_retries * 2)
-            self.assertTrue(self.is_string_in_status_file('Unexpected return code (7) from package manager on command: sudo zypper refresh'))
-            self.assertTrue('Unexpected return code (7) from package manager on command: sudo zypper refresh' in repr(error))
+            self.assertTrue(self.is_string_in_status_file('Unexpected return code from package manager. [Code=7][Command=sudo zypper refresh]'))
+            self.assertTrue('Unexpected return code from package manager. [Code=7][Command=sudo zypper refresh]' in repr(error))
 
         package_manager.env_layer.run_command_output = backup_mocked_method
 
     def test_package_manager_no_repos(self):
         package_manager = self.container.get('package_manager')
         # Setting operation to assessment to add all errors under assessment substatus
-        self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
+        self.runtime.status_handler.set_current_operation(Constants.Op.ASSESSMENT)
         cmd_to_run = 'sudo zypper refresh'
 
         # Wrap count in a mutable container to modify in mocked method to keep track of retries
@@ -570,16 +570,16 @@ class TestZypperPackageManager(unittest.TestCase):
         try:
             package_manager.invoke_package_manager(cmd_to_run)
         except Exception as error:
-            # Should try twice - once to fail and refresh repo, twice to ultimately fail with same error code (non-retriable)
+            # Should try twice - once to fail and refresh repo, twice to ultimately fail with same error code (non-retryable)
             self.assertEqual(counter[0], 2)
-            self.assertTrue(self.is_string_in_status_file('Unexpected return code (6) from package manager on command: sudo zypper refresh'))
-            self.assertTrue('Unexpected return code (6) from package manager on command: sudo zypper refresh' in repr(error))
+            self.assertTrue(self.is_string_in_status_file("Unexpected return code from package manager. [Code=6][Command=sudo zypper refresh --services]"))
+            self.assertTrue("Unexpected return code from package manager. [Code=6][Command=sudo zypper refresh]" in repr(error))
 
         package_manager.env_layer.run_command_output = backup_mocked_method
 
     def test_package_manager_exit_err_commit(self):
         package_manager = self.container.get('package_manager')
-        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.runtime.status_handler.set_current_operation(Constants.Op.INSTALLATION)
 
         # Test command modifications with --replacefiles
         cmd_to_run = 'sudo zypper --non-interactive update samba-libs=4.15.4+git.327.37e0a40d45f-3.57.1'
@@ -623,7 +623,7 @@ class TestZypperPackageManager(unittest.TestCase):
     def test_package_manager_exit_reboot_required(self):
         # AnotherSadPath returns code 102 for this command
         package_manager = self.container.get('package_manager')
-        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.runtime.status_handler.set_current_operation(Constants.Op.INSTALLATION)
         self.runtime.set_legacy_test_type('AnotherSadPath')
 
         cmd = "sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security --dry-run"
@@ -638,7 +638,7 @@ class TestZypperPackageManager(unittest.TestCase):
     def test_package_manager_exit_repeat_operation(self):
         # SadPath returns code 103 for this command
         package_manager = self.container.get('package_manager')
-        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.runtime.status_handler.set_current_operation(Constants.Op.INSTALLATION)
         self.runtime.set_legacy_test_type('SadPath')
 
         # Should not set reboot flag (as it is a dry run)

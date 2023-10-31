@@ -35,6 +35,7 @@ NoOperation can be used to cancel an ongoing assess or patch operation. (**requi
 >
 > ```json
 > {
+>   "cloudType": "Azure",
 >   "operation": "Assessment",
 >   "activityId": "def820db-ec3c-4ecd-9d6c-cb95e6fd5231",
 >   "startTime": "2021-08-10T23:37:14Z",

@@ -1,0 +1,10 @@
+Command:
+sudo timeout 10 id && echo True || echo False
+
+Good output:
+uid=0(root) gid=0(root) groups=0(root)
+True
+
+Bad output:
+[sudo] password for username:
+False

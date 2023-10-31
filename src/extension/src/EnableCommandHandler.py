@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -59,9 +59,9 @@ class EnableCommandHandler(object):
             operation = config_settings.__getattribute__(self.config_public_settings.operation)
 
             # Allow only certain operations
-            if operation not in [Constants.NOOPERATION, Constants.ASSESSMENT, Constants.INSTALLATION, Constants.CONFIGURE_PATCHING]:
+            if operation not in [Constants.Op.NO_OPERATION, Constants.Op.ASSESSMENT, Constants.Op.INSTALLATION, Constants.Op.CONFIGURE_PATCHING]:
                 self.logger.log_error("Requested operation is not supported by the extension")
-                self.ext_output_status_handler.write_status_file(operation, self.seq_no, status=Constants.Status.Error.lower(), message="Requested operation {0} is not supported by the extension".format(str(operation)), code=Constants.ExitCode.OperationNotSupported)
+                self.ext_output_status_handler.write_status_file(operation, self.seq_no, status=Constants.Status.ERROR.lower(), message="Requested operation {0} is not supported by the extension".format(str(operation)), code=Constants.ExitCode.OperationNotSupported)
                 exit(Constants.ExitCode.OperationNotSupported)
 
             prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.ENABLE_MAX_RUNTIME)
@@ -72,7 +72,7 @@ class EnableCommandHandler(object):
             self.ext_env_handler.log_temp_folder_details()
 
             # if NoOperation is requested, terminate all running processes from previous operation and update status file
-            if operation == Constants.NOOPERATION:
+            if operation == Constants.Op.NO_OPERATION:
                 self.process_nooperation(config_settings, core_state_content)
             else:
                 # if any of the other operations are requested, verify if request is a new request or a re-enable, by comparing sequence number from the prev request and current one
@@ -123,7 +123,7 @@ class EnableCommandHandler(object):
 
         # create Status file
         if create_status_output_file:
-            self.ext_output_status_handler.write_status_file(config_settings.__getattribute__(self.config_public_settings.operation), self.seq_no, status=self.status.Transitioning.lower())
+            self.ext_output_status_handler.write_status_file(config_settings.__getattribute__(self.config_public_settings.operation), self.seq_no, status=self.status.TRANSITIONING.lower())
         else:
             self.ext_output_status_handler.update_file(self.seq_no)
         # launch core code in a process and exit extension handler
@@ -133,16 +133,16 @@ class EnableCommandHandler(object):
 
     def process_nooperation(self, config_settings, core_state_content):
         self.logger.log("NoOperation requested. Terminating older patch operation, if still in progress.")
-        self.ext_output_status_handler.set_current_operation(Constants.NOOPERATION)
+        self.ext_output_status_handler.set_current_operation(Constants.Op.NO_OPERATION)
         activity_id = config_settings.__getattribute__(self.config_public_settings.activity_id)
         operation = config_settings.__getattribute__(self.config_public_settings.operation)
         start_time = config_settings.__getattribute__(self.config_public_settings.start_time)
         try:
-            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.Transitioning)
+            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.TRANSITIONING)
             self.runtime_context_handler.terminate_processes_from_previous_operation(self.process_handler, core_state_content)
             self.utility.delete_file(self.core_state_handler.dir_path, self.core_state_handler.file, raise_if_not_found=False)
             # ToDo: log prev activity id later
-            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.Success)
+            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.SUCCESS)
             self.logger.log("exiting extension handler")
             exit(Constants.ExitCode.Okay)
         except Exception as error:
@@ -152,5 +152,5 @@ class EnableCommandHandler(object):
                 self.ext_output_status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             else:
                 self.ext_output_status_handler.add_error_to_status("Error executing NoOperation due to last reported error.", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
-            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.Error)
+            self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.ERROR)
 

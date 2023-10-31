@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -397,9 +397,9 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.write_basic_status(Constants.INSTALL)
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '6789.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
-        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Guest Patching Service")
         self.assertEqual(status_json[0]["status"]["operation"], "")
-        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.TRANSITIONING.lower())
         self.assertEqual(status_json[0]["status"]["code"], 0)
         self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
         self.assertEqual(status_json[0]["status"]["substatus"], [])
@@ -412,9 +412,9 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.write_basic_status(Constants.ENABLE)
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
-        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Guest Patching Service")
         self.assertEqual(status_json[0]["status"]["operation"], "Installation")
-        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.TRANSITIONING.lower())
         self.assertEqual(status_json[0]["status"]["code"], 0)
         self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
         self.assertEqual(status_json[0]["status"]["substatus"], [])
@@ -544,9 +544,9 @@ class TestActionHandler(unittest.TestCase):
             self.action_handler.enable()
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, '1234.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(self.action_handler.seq_no)
-        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Guest Patching Service")
         self.assertEqual(status_json[0]["status"]["operation"], "Installation")
-        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Transitioning.lower())
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.TRANSITIONING.lower())
         self.assertEqual(status_json[0]["status"]["code"], 0)
         self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
         self.assertEqual(status_json[0]["status"]["substatus"], [])
@@ -592,9 +592,9 @@ class TestActionHandler(unittest.TestCase):
         # validate status file
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, str(seq_no) + '.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(seq_no)
-        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Guest Patching Service")
         self.assertEqual(status_json[0]["status"]["operation"], "")
-        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Success.lower())
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.SUCCESS.lower())
         self.assertEqual(status_json[0]["status"]["code"], 0)
         self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], "")
         self.assertEqual(status_json[0]["status"]["substatus"], [])
@@ -602,9 +602,9 @@ class TestActionHandler(unittest.TestCase):
     def validate_status_file_on_failure(self, seq_no, message, code=Constants.ExitCode.HandlerFailed):
         self.assertTrue(os.path.exists(os.path.join(self.ext_env_handler.status_folder, str(seq_no) + '.status')))
         status_json = self.action_handler.ext_output_status_handler.read_file(seq_no)
-        self.assertEqual(status_json[0]["status"]["name"], "Azure Patch Management")
+        self.assertEqual(status_json[0]["status"]["name"], "Azure Guest Patching Service")
         self.assertEqual(status_json[0]["status"]["operation"], "")
-        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.Error.lower())
+        self.assertEqual(status_json[0]["status"]["status"], Constants.Status.ERROR.lower())
         self.assertEqual(status_json[0]["status"]["code"], code)
         self.assertEqual(status_json[0]["status"]["formattedMessage"]["message"], message)
         self.assertEqual(status_json[0]["status"]["substatus"], [])

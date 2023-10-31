@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -49,10 +49,9 @@ class SystemctlManager(object):
 
     def invoke_systemctl(self, command, action_description=None):
         """ Invokes systemctl with the specified command and standardized logging """
-        self.composite_logger.log('[Invoking systemctl] Action: ' + str(action_description) + ' Command: ' + command)
+        self.composite_logger.log_debug("[SCM] Invoking systemctl. [Action={0}][Cmd={1}]".format(str(action_description), command))
         self.composite_logger.file_logger.flush()
         code, out = self.env_layer.run_command_output(command, False, False)
-        out = ("\n|\t" + "\n|\t".join(out.splitlines())) if out.strip() != "" else "None"
-        self.composite_logger.log_debug(" - Return code: " + str(code) + ". Output: " + out)
+        self.composite_logger.log_debug("[SCM] |- Systemctl invocation results. [Code={0}][Output={1}]".format(str(code), out))
         self.composite_logger.file_logger.flush()
         return code, out

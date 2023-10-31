@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -139,7 +139,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         # update operation to 'NoOperation' since it is set to Assessment in the original helper file
         with open(new_settings_file, 'r+') as f:
             config_settings = json.load(f)
-            config_settings[self.constants.RUNTIME_SETTINGS][0][self.constants.HANDLER_SETTINGS][self.constants.PUBLIC_SETTINGS][self.constants.ConfigPublicSettingsFields.operation] = self.constants.NOOPERATION
+            config_settings[self.constants.RUNTIME_SETTINGS][0][self.constants.HANDLER_SETTINGS][self.constants.PUBLIC_SETTINGS][self.constants.ConfigPublicSettingsFields.operation] = self.constants.Op.NO_OPERATION
             f.seek(0)  # rewind
             json.dump(config_settings, f)
             f.truncate()
@@ -164,7 +164,7 @@ class TestEnableCommandHandler(unittest.TestCase):
         # update operation to 'ConfigurePatching' since it is set to Assessment in the original helper file
         with open(new_settings_file, 'r+') as f:
             config_settings = json.load(f)
-            config_settings[self.constants.RUNTIME_SETTINGS][0][self.constants.HANDLER_SETTINGS][self.constants.PUBLIC_SETTINGS][self.constants.ConfigPublicSettingsFields.operation] = self.constants.CONFIGURE_PATCHING
+            config_settings[self.constants.RUNTIME_SETTINGS][0][self.constants.HANDLER_SETTINGS][self.constants.PUBLIC_SETTINGS][self.constants.ConfigPublicSettingsFields.operation] = self.constants.Op.CONFIGURE_PATCHING
             f.seek(0)  # rewind
             json.dump(config_settings, f)
             f.truncate()
@@ -175,9 +175,9 @@ class TestEnableCommandHandler(unittest.TestCase):
         self.assertEqual(sys_exit.exception.code, Constants.ExitCode.Okay)
         status_json = self.ext_output_status_handler.read_file('12')
         parent_key = Constants.StatusFileFields.status
-        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_name], "Azure Patch Management")
-        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_operation], Constants.CONFIGURE_PATCHING)
-        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_status], Constants.Status.Transitioning.lower())
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_name], "Azure Guest Patching Service")
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_operation], Constants.Op.CONFIGURE_PATCHING)
+        self.assertEqual(status_json[0][parent_key][Constants.StatusFileFields.status_status], Constants.Status.TRANSITIONING.lower())
 
     def test_process_invalid_request(self):
         # setup to mock environment when enable is triggered with an invalid request

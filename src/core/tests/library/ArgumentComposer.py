@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 
+""" Argument Composer - helps encapsulate argument composition for Core from default settings that can be customized as desired prior to composition """
 import base64
 import datetime
 import json
@@ -23,11 +24,9 @@ from core.src.bootstrap.Constants import Constants
 
 
 class ArgumentComposer(object):
-    """ Helps encapsulate argument composition for Core from default settings that can be customized as desired prior to composition """
-
-    def __init__(self):
+    def __init__(self, cloud_type=Constants.CloudType.AZURE):
         # Constants
-        self.__EXEC = "MsftLinuxPatchCore.py"
+        self.__EXEC = "AzGPSLinuxPatchCore.py"
         self.__TESTS_FOLDER = "tests"
         self.__SCRATCH_FOLDER = "scratch"
         self.__ARG_TEMPLATE = "{0} {1} {2} {3} \'{4}\' {5} \'{6}\' {7} {8}"
@@ -50,7 +49,8 @@ class ArgumentComposer(object):
         Constants.AzGPSPaths.EULA_SETTINGS = os.path.join(scratch_folder, "patch.eula.settings")
 
         # config settings
-        self.operation = Constants.INSTALLATION
+        self.cloud_type = cloud_type
+        self.operation = Constants.Op.INSTALLATION if cloud_type == Constants.CloudType.AZURE else Constants.Op.ASSESSMENT
         self.activity_id = 'c365ab46-a12a-4388-853b-5240a0702124'
         self.start_time = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         self.maximum_duration = 'PT2H'
@@ -64,7 +64,7 @@ class ArgumentComposer(object):
         self.assessment_mode = None
         self.maximum_assessment_interval = "PT3H"
 
-        self.exec_auto_assess_only = False
+        self.exec_auto_assess_only = bool(cloud_type == Constants.CloudType.ARC)
 
         # REAL environment settings
         self.emulator_enabled = False
@@ -85,6 +85,7 @@ class ArgumentComposer(object):
             environment_settings[key] = env_settings[key]
 
         config_settings = {
+            "cloudType": self.cloud_type,
             "operation": self.operation,
             "activityId": self.activity_id,
             "startTime": self.start_time,

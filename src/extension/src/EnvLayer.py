@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -162,7 +162,7 @@ class EnvLayer(object):
             return tty_set_to_required
 
         except Exception as error:
-            print("Error occurred while fetching data from [FilePath={0}] [Exception={1}]".format(str(self.etc_sudoers_file_path), repr(error)))
+            print("Error occurred while fetching data from [FilePath={0}][Exception={1}]".format(str(self.etc_sudoers_file_path), repr(error)))
             raise
 
     def is_tty_defaults_set(self, setting_substr_without_requiretty):
@@ -186,7 +186,7 @@ class EnvLayer(object):
                     return True
             return False
         except Exception as error:
-            print("Error occurred while fetching data from [FilePath={0}] [Exception={1}]".format(str(self.etc_sudoers_file_path), repr(error)))
+            print("Error occurred while fetching data from [FilePath={0}][Exception={1}]".format(str(self.etc_sudoers_file_path), repr(error)))
             raise
 
     @staticmethod
