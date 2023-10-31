@@ -146,6 +146,8 @@ class RuntimeCompositor(object):
         self.env_layer.platform = self.legacy_env_layer_extensions.LegacyPlatform()
         self.env_layer.set_legacy_test_mode()
         self.env_layer.run_command_output = self.legacy_env_layer_extensions.run_command_output
+        if os.name == 'nt':
+            self.env_layer.etc_environment_file_path = os.getcwd()
 
     def reconfigure_reboot_manager(self):
         self.reboot_manager.start_reboot = self.start_reboot

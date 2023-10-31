@@ -132,6 +132,8 @@ class TestCoreMain(unittest.TestCase):
         argument_composer.maintenance_run_id = str(maintenance_run_id)
         argument_composer.health_store_id = str("2020.09.28")
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        Constants.MAX_FILE_OPERATION_RETRY_COUNT = 2    # to retain retry coverage in at least one test
+        Constants.MAX_IMDS_CONNECTION_RETRY_COUNT = 2   # to retain retry coverage in at least one test
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
 

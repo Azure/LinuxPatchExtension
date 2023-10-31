@@ -239,14 +239,30 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('HappyPath')
         self.assertTrue(runtime.patch_installer.start_installation())
-        self.assertEqual(runtime.execution_config.max_patch_publish_date,"20240401T000000Z")
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date,"20240401T000000Z")  # supported and conditions met
         runtime.stop()
 
         argument_composer.maximum_duration = "PT30M"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('HappyPath')
-        self.assertFalse(runtime.patch_installer.start_installation())
+        self.assertFalse(runtime.patch_installer.start_installation())                 # failure is in unrelated patch installation batch processing
         self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: not enough time to use
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        runtime.set_legacy_test_type('HappyPath')
+        self.assertTrue(runtime.patch_installer.start_installation())
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # unsupported in Yum
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('HappyPath')
+        self.assertFalse(runtime.patch_installer.start_installation())                 # failure is in unrelated patch installation batch processing
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # unsupported in Zypper
         runtime.stop()
 
     def test_mark_status_completed_esm_required(self):
