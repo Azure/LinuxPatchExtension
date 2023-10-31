@@ -88,6 +88,9 @@ class PatchInstaller(object):
             """ Strict SDP with the package manager that supports it """
             installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates_azgps_coordinated(maintenance_window, package_manager, simulate)
             package_manager.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, bool(not update_run_successful))
+            if update_run_successful:
+                self.composite_logger.log_debug(Constants.INFO_STRICT_SDP_SUCCESS.format(self.execution_config.max_patch_publish_date))
+                self.status_handler.add_error_to_status(Constants.INFO_STRICT_SDP_SUCCESS.format(self.execution_config.max_patch_publish_date), error_code=Constants.PatchOperationErrorCodes.INFORMATIONAL)
         else:
             """ Regular patch installation flow - non-AzGPS-coordinated and (AzGPS-coordinated without strict SDP)"""
             installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
