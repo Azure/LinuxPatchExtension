@@ -344,6 +344,9 @@ class ZypperPackageManager(PackageManager):
 
         self.composite_logger.log_debug("Discovered " + str(len(other_packages)) + " 'other' package entries.\n")
         return other_packages, other_package_versions
+
+    def set_max_patch_publish_date(self, max_patch_publish_date=str()):
+        pass
     # endregion
 
     # region Output Parser(s)
@@ -415,6 +418,9 @@ class ZypperPackageManager(PackageManager):
 
     def install_updates_fail_safe(self, excluded_packages):
         return
+
+    def install_security_updates_azgps_coordinated(self):
+        pass
     # endregion
 
     # region Package Information
