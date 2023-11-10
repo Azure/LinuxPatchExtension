@@ -501,11 +501,6 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.assertEqual(message["errors"]["code"], Constants.PatchOperationTopLevelErrorCode.SUCCESS)
         self.assertEqual(len(message["errors"]["details"]), error_count)
 
-    def __assert_truncated_status_output(self, substatus_file_data, message_patches, patch_summary, status, patch_count):
-        self.assertEqual(substatus_file_data["name"], patch_summary)
-        self.assertEqual(substatus_file_data["status"], status.lower())
-        self.assertTrue(len(message_patches) < patch_count)
-
     def __assert_truncated_assessment_tombstone(self, message_patches):
         # assert tombstone
         self.assertEqual(message_patches[-1]['patchId'], "Truncated_patch_list_id")

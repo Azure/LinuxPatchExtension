@@ -80,6 +80,8 @@ class TestCoreMainTruncation(unittest.TestCase):
         runtime.stop()
 
     def test_assessment_operation_truncation_over_size_limit(self):
+        """ Perform truncation on assessment packages list, setting substatus status to warning and
+        error code to 1 (warning) with Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE """
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -124,6 +126,8 @@ class TestCoreMainTruncation(unittest.TestCase):
         runtime.stop()
 
     def test_assessment_operation_truncation_large_size_limit_for_extra_chars(self):
+        """ Perform truncation large assessment packages list, setting substatus status to warning and
+        error code to 1 (warning) with Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE """
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -168,6 +172,8 @@ class TestCoreMainTruncation(unittest.TestCase):
         runtime.stop()
 
     def test_installation_operation_truncation_over_size_limit(self):
+        """ Perform truncation on assessment packages list and installation packages list, setting both substatus status to warning and
+        error code to 1 (warning) with Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE """
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -239,8 +245,6 @@ class TestCoreMainTruncation(unittest.TestCase):
         installation_truncated_substatus = substatus_file_data[0]["status"]["substatus"][1]
         self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING)
 
-        # Assert installation tombstone
-        # self.__assert_truncated_installation_tombstone(installation_message_patches)
         # Assert installation truncated error
         self.__assert_truncated_error(installation_truncated_substatus, error_count=0)
 
@@ -260,6 +264,8 @@ class TestCoreMainTruncation(unittest.TestCase):
         runtime.stop()
 
     def test_installation_operation_keep_min_5_assessment_size_limit(self):
+        """ Perform truncation installation packages list, keep 5 assessment packages, setting installation substatus status to warning and
+        error code to 1 (warning) with Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE """
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -323,6 +329,8 @@ class TestCoreMainTruncation(unittest.TestCase):
         runtime.stop()
 
     def test_installation_operation_truncation_with_only_install_packages_over_size_limit(self):
+        """ Perform truncation on assessment packages list and installation packages with only install status, setting both substatus status to warning and
+        error code to 1 (warning) with Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE """
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -386,6 +394,8 @@ class TestCoreMainTruncation(unittest.TestCase):
         runtime.stop()
 
     def test_installation_operation_truncation_over_size_limit_success_path(self):
+        """ Perform truncation on large assessment packages list and installatio pacakges list, setting both substatus status to warning and
+        error code to 1 (warning) with Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE """
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
@@ -450,6 +460,11 @@ class TestCoreMainTruncation(unittest.TestCase):
         runtime.stop()
 
     def test_installation_operation_truncation_both_over_size_limit_happy_path(self):
+        """ Perform truncation on assessment packages list and installatio package list, setting assessment substatus status to warning and
+        error code to 1 (warning) with Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
+        keep installation substatus status as error and
+        error code to 2 (error)
+        """
         argument_composer = ArgumentComposer()
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
@@ -513,7 +528,11 @@ class TestCoreMainTruncation(unittest.TestCase):
         runtime.stop()
 
     def test_installation_operation_truncation_with_errors_over_size_limit(self):
-        """ assessment list > size limit but truncate installation < size limit with error"""
+        """ Perform truncation on assessment packages list and installation packages list, setting assessment substatus status to warning and
+        error code to 1 (warning) with Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE
+        keep installation substatus status as error and
+        error code to 2 (error)
+        """
         argument_composer = ArgumentComposer()
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('FailInstallPath')
