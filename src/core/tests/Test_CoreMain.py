@@ -822,7 +822,6 @@ class TestCoreMain(unittest.TestCase):
         # check status file for configure patching assessment state
         message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
-
         runtime.stop()
 
     def test_auto_assessment_success_with_installation_in_prev_operation_on_same_sequence(self):
