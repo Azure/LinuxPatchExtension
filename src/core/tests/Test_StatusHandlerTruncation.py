@@ -195,6 +195,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.runtime.env_layer.file_system.delete_files_from_dir(self.runtime.status_handler.status_file_path, '*.complete.status')
 
     def test_assessment_status_file_truncation_under_size_limit(self):
+        """ Perform no truncation on assessment packages list """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -227,7 +228,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.assertFalse("review this log file on the machine" in message)
 
     def test_assessment_status_file_truncation_over_size_limit(self):
-        """ Test truncation logic will apply to assessment when it is over the size limit """
+        """ Perform truncation on only assessment packages list """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -259,7 +260,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_truncated_error(substatus_file_data[0]["status"]["substatus"][0], error_count=0)
 
     def test_assessment_status_file_truncation_over_large_size_limit_for_extra_chars(self):
-        """ Test truncation logic will apply to assessment, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
+        """ Perform truncation on large assessment package list, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -291,7 +292,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_truncated_error(substatus_file_data[0]["status"]["substatus"][0], error_count=0)
 
     def test_assessment_status_file_truncation_over_size_limit_with_errors(self):
-        """ Test truncation logic will apply to assessment with errors over the size limit """
+        """ Perform truncation on only assessment packages list with multiple errors """
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
@@ -312,7 +313,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_truncated_status_multi_errors(Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_ERROR, error_count=5)
 
     def test_installation_status_file_truncation_over_size_limit(self):
-        """ Test truncation logic will apply to installation over the size limit """
+        """ Perform truncation on only installation packages list """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -344,7 +345,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_truncated_error(substatus_file_data[0]["status"]["substatus"][0], error_count=0)
 
     def test_installation_status_file_truncation_over_size_limit_low_priority_packages(self):
-        """ Test truncation logic will apply to installation over the size limit """
+        """ Perform truncation on only installation low priority (Pending, Excluded, Not_Selected) packages list """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -377,7 +378,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_truncated_error(substatus_file_data[0]["status"]["substatus"][0], error_count=0)
 
     def test_installation_status_file_truncation_over_large_size_limit_with_extra_chars(self):
-        """ Test truncation logic will apply to installation, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
+        """ Perform truncation on only large installation packages list, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -409,7 +410,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_truncated_error(substatus_file_data[0]["status"]["substatus"][0], error_count=0)
 
     def test_installation_status_file_truncation_over_size_limit_with_error(self):
-        """ Test truncation logic will apply to installation with errors over the size limit """
+        """ Perform truncation on only installation packages list with multiple errors """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
