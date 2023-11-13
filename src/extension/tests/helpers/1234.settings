@@ -1,9 +1,10 @@
 {
     "runtimeSettings": [{
         "handlerSettings": {
-            "protectedSettingsCertThumbprint": "",
-            "protectedSettings": "",
+            "protectedSettingsCertThumbprint": null,
+            "protectedSettings": null,
             "publicSettings": {
+                "cloudType": "Azure",
                 "operation": "Installation",
                 "activityId": "12345-2312-1234-23245-32112",
                 "startTime": "2021-08-08T12:34:56Z",
@@ -14,7 +15,7 @@
                 "patchesToExclude": ["test", "*test"],
                 "internalSettings": "test",
                 "maintenanceRunId": "2019-07-20T12:12:14Z",
-                "healthStoreId": "2021-09-15T12:12:14Z",
+                "healthStoreId": "pub_off_sku_2023.10.11",
                 "patchMode": "AutomaticByPlatform",
                 "assessmentMode": "AutomaticByPlatform",
                 "maximumAssessmentInterval": "PT3H"

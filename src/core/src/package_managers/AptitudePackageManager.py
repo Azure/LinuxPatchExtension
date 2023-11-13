@@ -33,27 +33,28 @@ class AptitudePackageManager(PackageManager):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         super(AptitudePackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
 
-        security_list_guid = str(uuid.uuid4())
-
         # Accept EULA (End User License Agreement) as per the EULA settings set by user
         optional_accept_eula_in_cmd = "ACCEPT_EULA=Y" if execution_config.accept_package_eula else ""
 
         # Repo refresh
-        self.repo_refresh = 'sudo apt-get -q update'
+        self.cmd_repo_refresh_template = 'sudo apt-get -q update <SOURCES>'
 
         # Support to get updates and their dependencies
-        self.security_sources_list = os.path.join(execution_config.temp_folder, 'msft-patch-security-{0}.list'.format(security_list_guid))
-        self.prep_security_sources_list_cmd = 'sudo grep -hR security /etc/apt/sources.list /etc/apt/sources.list.d/ > ' + os.path.normpath(self.security_sources_list)
-        self.dist_upgrade_simulation_cmd_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
-        self.single_package_check_versions = 'apt-cache madison <PACKAGE-NAME>'
-        self.single_package_find_installed_dpkg = 'sudo dpkg -s <PACKAGE-NAME>'
-        self.single_package_find_installed_apt = 'sudo apt list --installed <PACKAGE-NAME>'
-        self.single_package_upgrade_simulation_cmd = '''DEBIAN_FRONTEND=noninteractive ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true -s install '''
+        self.cached_customer_source_list_formula = None
+        self.custom_sources_list = os.path.join(execution_config.temp_folder, 'azgps-patch-custom-{0}.list'.format(str(uuid.uuid4())))
+        self.cmd_prep_custom_sources_list_template = 'sudo grep -hR <CLASSIFICATION> /etc/apt/sources.list /etc/apt/sources.list.d/ > ' + os.path.normpath(self.custom_sources_list)
+        self.cmd_dist_upgrade_simulation_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
+
+        self.cmd_single_package_check_versions_template = 'apt-cache madison <PACKAGE-NAME>'
+        self.cmd_single_package_find_install_dpkg_template = 'sudo dpkg -s <PACKAGE-NAME>'
+        self.cmd_single_package_find_install_apt_template = 'sudo apt list --installed <PACKAGE-NAME>'
+        self.single_package_upgrade_simulation_cmd = '''DEBIAN_FRONTEND=noninteractive ''' + optional_accept_eula_in_cmd + ''' LANG=en_US.UTF8 apt-get -y --only-upgrade true -s install '''
         self.single_package_dependency_resolution_template = 'DEBIAN_FRONTEND=noninteractive ' + optional_accept_eula_in_cmd + ' LANG=en_US.UTF8 apt-get -y --only-upgrade true -s install <PACKAGE-NAME> '
 
         # Install update
         # --only-upgrade: upgrade only single package (only if it is installed)
-        self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true install '''
+        self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true install '''
+        self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true upgrade <SOURCES> '''
 
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
@@ -79,9 +80,58 @@ class AptitudePackageManager(PackageManager):
         self.ubuntu_pro_client_all_updates_cached = []
         self.ubuntu_pro_client_all_updates_versions_cached = []
 
-    def refresh_repo(self):
-        self.composite_logger.log("\nRefreshing local repo...")
-        self.invoke_package_manager(self.repo_refresh)
+    # region Sources Management
+    def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
+        # type: (str, str) -> str
+        """ Prepares the custom sources list for use in a command. Idempotent. """
+        try:
+            if max_patch_published_date != str() and len(max_patch_published_date) != 16:
+                raise Exception("[APM] Invalid max patch published date received. [Value={0}]".format(str(max_patch_published_date)))
+
+            formula = "F-[{0}]-[{1}]".format(max_patch_published_date, base_classification)
+            if self.cached_customer_source_list_formula == formula:
+                return self.custom_sources_list
+            self.cached_customer_source_list_formula = formula
+
+            command = self.cmd_prep_custom_sources_list_template.replace("<CLASSIFICATION>", base_classification if base_classification == "security" else "\"\"")
+            code, out = self.env_layer.run_command_output(command, False, False)
+            sources_content = self.env_layer.file_system.read_with_retry(self.custom_sources_list)
+            self.composite_logger.log_debug("[APM] Modified custom sources list with classification. [Code={0}][Out={1}][Content={2}]".format(str(code), str(out), str(sources_content)))   # non-zero error code to be investigated
+
+            if max_patch_published_date != str():
+                target = "://snapshot.ubuntu.com/ubuntu/{0}".format(self.max_patch_publish_date)
+
+                if "://snapshot.ubuntu.com/ubuntu/" in sources_content:
+                    sources_content_split = sources_content.split(" ")
+                    for i in range(0, len(sources_content_split)):
+                        if "://snapshot.ubuntu.com/ubuntu/" in sources_content_split[i]:
+                            sources_content.replace(sources_content_split[i], target)
+
+                sources_content = sources_content.replace("://azure.archive.ubuntu.com/ubuntu/", target)
+                sources_content = sources_content.replace("://in.archive.ubuntu.com/ubuntu/", target)
+                sources_content = sources_content.replace("://security.ubuntu.com/ubuntu/", target)
+                sources_content = sources_content.replace("http://snapshot.ubuntu.com/", "https://snapshot.ubuntu.com/")
+                self.composite_logger.log_debug("[APM] Modified custom sources list with snapshot. [Code={0}][Out={1}][Content={2}]".format(str(code), str(out), str(sources_content)))
+
+                self.env_layer.file_system.write_with_retry_using_temp_file(self.custom_sources_list, sources_content)
+
+            self.refresh_repo(sources=self.custom_sources_list)
+        except Exception as error:
+            self.composite_logger.log_error("[APM] Error in modifying custom sources list. [Error={0}]".format(repr(error)))
+            return str()    # defaults code to safety
+
+        return self.custom_sources_list
+
+    def refresh_repo(self, sources=str()):
+        self.composite_logger.log("[APM] Refreshing local repo... [Sources={0}]".format(sources if sources != str() else "Default"))
+        self.invoke_package_manager(self.__generate_command(self.cmd_repo_refresh_template, sources))
+
+    @staticmethod
+    def __generate_command(command_template, new_sources_list=str()):
+        # type: (str, str) -> str
+        """ Prepares a standard command to use custom sources. Pre-requisite: Refresh repo post list change. """
+        return command_template.replace('<SOURCES>', ('-oDir::Etc::Sourcelist={0}'.format(str(new_sources_list))) if new_sources_list != str() else str())
+    # endregion Sources Management
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
@@ -157,7 +207,7 @@ class AptitudePackageManager(PackageManager):
             return all_updates, all_updates_versions
 
         # when cached is False, query both default way and using Ubuntu Pro Client.
-        cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '')
+        cmd = self.__generate_command(self.cmd_dist_upgrade_simulation_template, self.__get_custom_sources_to_spec(self.max_patch_publish_date))
         out = self.invoke_package_manager(cmd)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
 
@@ -183,11 +233,7 @@ class AptitudePackageManager(PackageManager):
         ubuntu_pro_client_security_package_versions = []
 
         self.composite_logger.log("\nDiscovering 'security' packages...")
-        code, out = self.env_layer.run_command_output(self.prep_security_sources_list_cmd, False, False)
-        if code != 0:
-            self.composite_logger.log_warning(" - SLP:: Return code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
-
-        cmd = self.dist_upgrade_simulation_cmd_template.replace('<SOURCES>', '-oDir::Etc::Sourcelist=' + self.security_sources_list)
+        cmd = self.__generate_command(self.cmd_dist_upgrade_simulation_template, self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification="security"))
         out = self.invoke_package_manager(cmd)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
 
@@ -239,6 +285,10 @@ class AptitudePackageManager(PackageManager):
             return ubuntu_pro_client_other_packages, ubuntu_pro_client_other_package_versions
         else:
             return other_packages, other_package_versions
+
+    def set_max_patch_publish_date(self, max_patch_publish_date=str()):
+        self.composite_logger.log_debug("[APM] Setting max patch publish date. [Date={0}]".format(max_patch_publish_date))
+        self.max_patch_publish_date = max_patch_publish_date
     # endregion
 
     # region Output Parser(s)
@@ -292,6 +342,11 @@ class AptitudePackageManager(PackageManager):
 
     def install_updates_fail_safe(self, excluded_packages):
         return
+
+    def install_security_updates_azgps_coordinated(self):
+        command = self.__generate_command(self.install_security_updates_azgps_coordinated_cmd, self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification="security"))
+        out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
+        return code, out
     # endregion
 
     # region Package Information
@@ -304,7 +359,7 @@ class AptitudePackageManager(PackageManager):
 
         package_versions = []
 
-        cmd = self.single_package_check_versions.replace('<PACKAGE-NAME>', package_name)
+        cmd = self.cmd_single_package_check_versions_template.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_apt_cache(cmd)
         lines = output.strip().split('\n')
 
@@ -325,7 +380,7 @@ class AptitudePackageManager(PackageManager):
 
         # DEFAULT METHOD
         self.composite_logger.log_debug(" - [1/2] Verifying install status with Dpkg.")
-        cmd = self.single_package_find_installed_dpkg.replace('<PACKAGE-NAME>', package_name)
+        cmd = self.cmd_single_package_find_install_dpkg_template.replace('<PACKAGE-NAME>', package_name)
         code, output = self.env_layer.run_command_output(cmd, False, False)
         lines = output.strip().split('\n')
 
@@ -396,7 +451,7 @@ class AptitudePackageManager(PackageManager):
         # Listing... Done
         # apt/xenial-updates,now 1.2.29 amd64 [installed]
         self.composite_logger.log_debug(" - [2/2] Verifying install status with Apt.")
-        cmd = self.single_package_find_installed_apt.replace('<PACKAGE-NAME>', package_name)
+        cmd = self.cmd_single_package_find_install_apt_template.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_package_manager(cmd)
         lines = output.strip().split('\n')
 

@@ -98,9 +98,21 @@ class TestProcessHandler(unittest.TestCase):
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
         public_config_settings = process_handler.get_public_config_settings(config_settings)
         self.assertTrue(public_config_settings is not None)
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.cloud_type), "Azure")
         self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.operation), "Installation")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.activity_id), "12345-2312-1234-23245-32112")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.start_time), "2021-08-08T12:34:56Z")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.maximum_duration), "PT2H")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.reboot_setting), "IfRequired")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.include_classifications), ["Critical","Security"])
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.include_patches), ["*ern*=1.2*", "kern*=1.23.45"])
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.exclude_patches), ["test", "*test"])
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.internal_settings), "test")
         self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.maintenance_run_id), "2019-07-20T12:12:14Z")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.health_store_id), "pub_off_sku_2023.10.11")
         self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.patch_mode), "AutomaticByPlatform")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.assessment_mode), "AutomaticByPlatform")
+        self.assertEqual(public_config_settings.get(Constants.ConfigPublicSettingsFields.maximum_assessment_interval), "PT3H")
 
     def test_get_env_settings(self):
         # Mock temp folder setup in ExtEnvHandler

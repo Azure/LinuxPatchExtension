@@ -30,7 +30,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.48"
+    EXT_VERSION = "1.6.49"
 
     # Runtime environments
     TEST = 'Test'
@@ -279,6 +279,7 @@ class Constants(object):
         WARNING = 2
 
     class PatchOperationErrorCodes(EnumBackport):
+        INFORMATIONAL = "INFORMATIONAL"
         DEFAULT_ERROR = "ERROR"  # default error code
         OPERATION_FAILED = "OPERATION_FAILED"
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
@@ -320,6 +321,7 @@ class Constants(object):
     TELEMETRY_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
     TELEMETRY_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"
     PYTHON_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Python version. Minimum Python version required is 2.7. [DetectedPythonVersion={0}]"
+    INFO_STRICT_SDP_SUCCESS = "Success: Safely patched your VM in a AzGPS-coordinated global rollout. https://aka.ms/AzGPS/StrictSDP [Target={0}]"
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # EnvLayer Constants

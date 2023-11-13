@@ -131,9 +131,12 @@ class TestCoreMain(unittest.TestCase):
     def test_operation_success_for_autopatching_request(self):
         # test with valid datetime string for maintenance run id
         argument_composer = ArgumentComposer()
-        maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
+        maintenance_run_id = "9/30/2020 02:00:00 PM +00:00"
         argument_composer.maintenance_run_id = str(maintenance_run_id)
+        argument_composer.health_store_id = str("2020.09.28")
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        Constants.MAX_FILE_OPERATION_RETRY_COUNT = 2    # to retain retry coverage in at least one test
+        Constants.MAX_IMDS_CONNECTION_RETRY_COUNT = 2   # to retain retry coverage in at least one test
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
 
@@ -161,9 +164,10 @@ class TestCoreMain(unittest.TestCase):
     def test_operation_success_for_autopatching_request_with_security_classification(self):
         # test with valid datetime string for maintenance run id
         argument_composer = ArgumentComposer()
-        maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
+        maintenance_run_id = "9/30/2020 02:00:00 PM +00:00"
         classifications_to_include = ["Security", "Critical"]
         argument_composer.maintenance_run_id = str(maintenance_run_id)
+        argument_composer.health_store_id = str("2020.09.28")
         argument_composer.classifications_to_include = classifications_to_include
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type("SuccessInstallPath")
@@ -197,11 +201,11 @@ class TestCoreMain(unittest.TestCase):
 
         runtime.stop()
 
-    def test_invalid_maintenance_run_id(self):
-        # test with empty string for maintenence run id
+    def test_health_store_id_reporting(self):
+        # test with empty string for healthstoreid
         argument_composer = ArgumentComposer()
-        maintenance_run_id = ""
-        argument_composer.maintenance_run_id = maintenance_run_id
+        health_store_id = "pub_offer_sku_wrong_123"
+        argument_composer.health_store_id = health_store_id
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -220,17 +224,18 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
-        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], Constants.PATCH_VERSION_UNKNOWN)
+        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], health_store_id)
+        self.assertTrue(runtime.execution_config.max_patch_publish_date is str())
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
         runtime.stop()
 
-        # test with a random string for maintenance run id
+        # test with healthstoreid
         argument_composer = ArgumentComposer()
-        maintenance_run_id = "test"
-        argument_composer.maintenance_run_id = maintenance_run_id
+        health_store_id = "publ_off_sku_2024.04.01"
+        argument_composer.health_store_id = health_store_id
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
@@ -249,7 +254,8 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
-        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], maintenance_run_id)
+        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], health_store_id)
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
@@ -443,6 +449,7 @@ class TestCoreMain(unittest.TestCase):
         maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
         classifications_to_include = ["Security", "Critical"]
         argument_composer.maintenance_run_id = str(maintenance_run_id)
+        argument_composer.health_store_id = str("pub_off_sku_2020.09.29")
         argument_composer.classifications_to_include = classifications_to_include
         argument_composer.reboot_setting = 'Always'
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
@@ -474,7 +481,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
         self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
-        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "2020.09.28")
+        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "pub_off_sku_2020.09.29")
         self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
         self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
         self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
@@ -492,9 +499,10 @@ class TestCoreMain(unittest.TestCase):
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_centos
 
         argument_composer = ArgumentComposer()
-        maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
+        maintenance_run_id = "9/30/2020 02:00:00 PM +00:00"
         classifications_to_include = ["Security", "Critical"]
         argument_composer.maintenance_run_id = str(maintenance_run_id)
+        argument_composer.health_store_id = str("2020.09.28")
         argument_composer.classifications_to_include = classifications_to_include
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         runtime.set_legacy_test_type("HappyPath")
@@ -541,9 +549,10 @@ class TestCoreMain(unittest.TestCase):
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_redhat
 
         argument_composer = ArgumentComposer()
-        maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
+        maintenance_run_id = "9/30/2020 02:00:00 PM +00:00"
         classifications_to_include = ["Security", "Critical"]
         argument_composer.maintenance_run_id = str(maintenance_run_id)
+        argument_composer.health_store_id = str("2020.09.28")
         argument_composer.classifications_to_include = classifications_to_include
         argument_composer.reboot_setting = 'Always'
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
@@ -594,14 +603,14 @@ class TestCoreMain(unittest.TestCase):
         """Unit test for auto patching request on Redhat, should install only critical and security patches,
             installation status is set to warning when reboot_setting is never_reboot
         """
-
         backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_redhat
 
         argument_composer = ArgumentComposer()
-        maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
+        maintenance_run_id = "9/30/2020 02:00:00 PM +00:00"
         classifications_to_include = ["Security", "Critical"]
         argument_composer.maintenance_run_id = str(maintenance_run_id)
+        argument_composer.health_store_id = str("2020.09.28")
         argument_composer.classifications_to_include = classifications_to_include
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         runtime.set_legacy_test_type("HappyPath")

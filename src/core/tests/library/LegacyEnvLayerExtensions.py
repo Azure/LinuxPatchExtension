@@ -460,7 +460,14 @@ class LegacyEnvLayerExtensions():
                                  "Ubuntu:16.10/yakkety-security [amd64]) []\n" + \
                                  "Inst samba-libs [2:4.4.5+dfsg-2ubuntu5.2] (2:4.4.5+dfsg-2ubuntu5.4 " + \
                                  "Ubuntu:16.10/yakkety-updates, Ubuntu:16.10/yakkety-security [amd64]) []\n"
-                    elif cmd.find("--only-upgrade true -s install") > -1:
+                    elif cmd.find("grep -hR security /etc/apt/sources.list") > -1 or cmd.find("grep -hR \"\" /etc/apt/sources.list") > -1:
+                        code = 0
+                        output = ("deb-src http://azure.archive.ubuntu.com/ubuntu/ jammy-security main restricted\n"
+                                 "deb-src http://azure.archive.ubuntu.com/ubuntu/ jammy-security universe\n"
+                                 "deb-src http://azure.archive.ubuntu.com/ubuntu/ jammy-security multiverse\n"
+                                 "deb-src https://snapshot.ubuntu.com/ubuntu/20240301T000000Z jammy-security universe")
+                        self.write_to_file(os.path.join(self.temp_folder_path, "temp2.list"), output)
+                    elif cmd.find("--only-upgrade true -s install") > -1 or cmd.find("apt-get -y --only-upgrade true upgrade") > -1:
                         code = 0
                         output = "NOTE: This is only a simulation!\n" + \
                                  "      apt-get needs root privileges for real execution.\n" + \
@@ -526,10 +533,6 @@ class LegacyEnvLayerExtensions():
                         output = "      bash | 4.3-14ubuntu1.3 | http://us.archive.ubuntu.com/ubuntu xenial-updates/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1.2 | http://security.ubuntu.com/ubuntu xenial-security/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1 | http://us.archive.ubuntu.com/ubuntu xenial/main amd64 Packages"
-                    elif cmd.find('sudo grep -hR security /etc/apt/sources.list /etc/apt/sources.list.d/ >') > -1:
-                        self.write_to_file(os.path.join(self.temp_folder_path, "temp2.list"), "test temp file 2")
-                        code = 0
-                        output = "tmp file created"
                     elif cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
                         code = 0
                     elif cmd.find('pro security-status --format=json') > -1:
