@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import datetime
 import collections
 import copy
 import glob
@@ -53,6 +52,7 @@ class StatusHandler(object):
         self.__installation_packages_map = collections.OrderedDict()
         self.__installation_substatus_msg_copy = None  # store copy of message json for truncation and avoid reference modification
         self.__installation_packages_copy = []  # store copy of installation packages for truncation and avoid reference modification
+        self.__installation_packages_removed = []  # store truncated packages for tombstone and log
 
         # Internal in-memory representation of Patch Assessment data
         self.__assessment_substatus_json = None
@@ -62,7 +62,8 @@ class StatusHandler(object):
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
         self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_substatus_msg_copy = None  # store copy of message json for truncation and avoid reference modification
-        self.__assessment_packages_copy = []    # store copy of assessment packages truncation and avoid reference modification
+        self.__assessment_packages_copy = []    # store copy of assessment packages truncation and avoid reference
+        self.__assessment_packages_removed = []   # store truncated packages for tombstone and log
 
         # Internal in-memory representation of Patch Metadata for HealthStore
         self.__metadata_for_healthstore_substatus_json = None
@@ -114,6 +115,7 @@ class StatusHandler(object):
         self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_packages_copy = []    # Reset the assessment packages copy
         self.__assessment_substatus_msg_copy = None  # Reset the message json
+        self.__assessment_packages_removed = []   # Reset list
 
     def set_package_assessment_status(self, package_names, package_versions, classification="Other", status="Available"):
         """ Externally available method to set assessment status for one or more packages of the **SAME classification and status** """
@@ -563,6 +565,7 @@ class StatusHandler(object):
         self.__installation_packages_map = collections.OrderedDict()
         self.__installation_substatus_msg_copy = None
         self.__installation_packages_copy = []
+        self.__installation_packages_removed = []
 
         self.__assessment_substatus_json = None
         self.__assessment_summary_json = None
@@ -571,6 +574,7 @@ class StatusHandler(object):
         self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_substatus_msg_copy = None
         self.__assessment_packages_copy = []
+        self.__assessment_packages_removed = []
 
         self.__metadata_for_healthstore_substatus_json = None
         self.__metadata_for_healthstore_summary_json = None
@@ -837,6 +841,19 @@ class StatusHandler(object):
     # endregion
 
     # region - Patch Truncation
+    def log_truncated_packages(self):
+        """ log the removed packages from patches in CoreMain after main operation are marked completed """
+        if not len(self.__assessment_packages_removed) == 0:
+            self.composite_logger.log_debug("Total number of packages removed from assessment packages list is: {0}, ".format(len(self.__assessment_packages_removed)))
+            self.composite_logger.log_debug("Packages removed from assessment packages list: {0}, ".format(self.__assessment_packages_removed))
+
+        if not len(self.__installation_packages_removed) == 0:
+            self.composite_logger.log_debug("Total number of packages removed from installation packages list is: {0}, ".format(len(self.__installation_packages_removed)))
+            self.composite_logger.log_debug("Packages removed from installation packages list: {0}".format(self.__installation_packages_removed))
+
+        if len(self.__assessment_packages_removed) == 0 and len(self.__installation_packages_removed) == 0:
+            self.composite_logger.log_debug("No packages truncated")
+
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload_json byte size on disk
 
@@ -877,11 +894,13 @@ class StatusHandler(object):
                 self.__apply_truncation_process(self.__assessment_packages_copy, self.__installation_packages_copy, size_of_max_packages_allowed_in_status, low_pri_index)
 
             if len(packages_removed_from_assessment) > 0:
+                self.__assessment_packages_removed = packages_removed_from_assessment
                 self.composite_logger.log_debug("Recomposing truncated status payload for [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_assessment,
                     substatus_message=self.__assessment_substatus_msg_copy, substatus_index=assessment_substatus_index)
 
             if len(packages_removed_from_installation) > 0:
+                self.__installation_packages_removed = packages_removed_from_installation
                 self.composite_logger.log_debug("Recomposing truncated status payload for [Substatus={0}]".format(Constants.PATCH_INSTALLATION_SUMMARY))
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_package_list=packages_retained_in_installation,
                     substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
