@@ -848,48 +848,8 @@ class StatusHandler(object):
         return status_file_payload_json_dumps
 
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload_json):
-        """ Truncate substatus message patch list when complete status file size is more than 126kb """
-        """
-            __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload_json):
+        """ Truncate substatus message patch list when complete status file size is greater than 126kb """
 
-                truncated_status_file = json.loads(complete_status_file_payload_json)
-                low_pri_index = None
-                _index = self.__get_substatus_index()
-                status_file_without_package_list_size  = __calc_package_payload_size_on_disk(size_of_constant_status_data(complete_status_file_payload_json))
-                size_of_max_packages_allowed_in_status = 126kb - status_file_without_package_list_size 
-                
-                if assessment_index is not none:
-                    _substatus_msg_copy = __get_substatus_message(truncated_status_file, _index)
-                    _packages_copy = _substatus_msg_copy['patches']
-
-                if installation_index is not none:
-                    _substatus_msg_copy = __get_substatus_message(truncated_status_file, _index)
-                    _packages_copy = _substatus_msg_copy['patches']
-                    low_pri_index = __get_installation_low_pri_index()
-
-                    while status_file_size_in_bytes > 126kb:
-                        __apply_truncation_process()
-                            __split_assessment_list()
-                                __apply_truncation()
-                                
-                        __recompose_truncated_status_file()                                    
-                            __get_errors_from_substatus()
-                            __recompose_truncated_substatus_msg()
-                                __recompose_substatus_msg_errors()
-                                __create_assessment_tombstone_list()
-                                    __create_assessment_tombstone()
-                                __recreate_assessment_summary_json()
-                       
-                        __recompose_truncated_status_file()                                    
-                            __get_errors_from_substatus()
-                            __recompose_truncated_substatus_msg()
-                                __recompose_substatus_msg_errors()
-                                __create_installation_tombstone
-                                __recreate_installation_summary_json()
-                                
-                        status_file_size_in_bytes, status_file_agent_size_diff = __get_new_size_in_bytes_after_truncation(truncated_status_file)
-                        size_of_max_packages_allowed_in_status -= status_file_agent_size_diff  
-        """
         self.composite_logger.log_debug("Begin package list truncation")
         truncated_status_file = json.loads(complete_status_file_payload_json)  # reload payload into python object
         low_pri_index = None
@@ -959,7 +919,8 @@ class StatusHandler(object):
 
         packages_retained_in_install_high_pri, packages_removed_from_install_high_pri, remaining_capacity_for_truncation = self.__apply_truncation(installation_high_pri, max_package_list_capacity)
         packages_retained_in_assessment, packages_removed_from_assessment, remaining_capacity_for_truncation = self.__apply_truncation(remaining_assessment_patches, remaining_capacity_for_truncation)
-        packages_retained_in_install_low_pri, packages_removed_from_install_low_pri, _ = self.__apply_truncation(installation_low_pri, remaining_capacity_for_truncation)
+        packages_retained_in_install_low_pri, packages_removed_from_install_low_pri, remaining_capacity_for_truncation = self.__apply_truncation(installation_low_pri, remaining_capacity_for_truncation)
+        self.composite_logger.log_debug("After truncating packages, the remaining max capacity for truncating packages is {0}".format(remaining_capacity_for_truncation))
 
         truncated_installation_list = packages_retained_in_install_high_pri + packages_retained_in_install_low_pri
         packages_removed_from_installation = packages_removed_from_install_high_pri + packages_removed_from_install_low_pri
