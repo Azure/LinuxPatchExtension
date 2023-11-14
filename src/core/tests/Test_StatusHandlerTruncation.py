@@ -257,7 +257,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_WARNING)
 
         # Assert truncated error
-        self.__assert_truncated_error(substatus_file_data[0]["status"]["substatus"][0], error_count=0)
+        self.__assert_truncated_error(substatus_file_data[0]["status"]["substatus"][0], Constants.PatchOperationTopLevelErrorCode.WARNING, Constants.PatchOperationErrorCodes.TRUNCATION, errors_count=1)
 
     def test_assessment_status_file_truncation_over_large_size_limit_for_extra_chars(self):
         """ Perform truncation on large assessment package list, the 2 times json.dumps() will escape " adding \, adding 1 additional byte check if total byte size over the size limit """
@@ -513,9 +513,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.assertEqual(message_patches[-1]['name'][0], "Truncated_patch_list_id")
         self.assertEqual(message_patches[-1]['classifications'], ['Other'])
 
-    def __assert_truncated_error(self, substatus_file_data, error_count):
+    def __assert_truncated_error(self, substatus_file_data, errors_code, errors_detail_code, errors_count=0):
         # assert error
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), error_count)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["code"], errors_code)
+        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"]), errors_count)
+        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["details"][0]["code"], errors_detail_code)
+        self.assertTrue("review this log file on the machine" in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
+        self.assertTrue('The latest ' + str(errors_count) + ' error/s are shared in detail.' in json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]["message"])
 
     def __assert_complete_status_errors(self, patch_summary, status, patch_count):
         # Adding multiple exceptions

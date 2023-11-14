@@ -815,20 +815,20 @@ class StatusHandler(object):
 
     def __set_errors_json(self, error_count_by_operation, errors_by_operation, truncated=False):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
+        code = Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR
+
         if error_count_by_operation == 1 and errors_by_operation[0]['code'] == Constants.PatchOperationErrorCodes.INFORMATIONAL:    # special-casing for single informational messages
             message = errors_by_operation[0]['message']
             errors_by_operation = []
             error_count_by_operation = 0
         else:
+            # Update the errors json to include truncation detail
+            if truncated:
+                error_count_by_operation += 1  # add 1 because of truncation
+                code = Constants.PatchOperationTopLevelErrorCode.WARNING if code != Constants.PatchOperationTopLevelErrorCode.ERROR else Constants.PatchOperationTopLevelErrorCode.ERROR
+
             message = "{0} error/s reported.".format(error_count_by_operation)
             message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
-
-        code = Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR
-
-        # Update the errors json to include truncation detail
-        if truncated:
-            error_count_by_operation += 1    # add 1 because of truncation
-            code = Constants.PatchOperationTopLevelErrorCode.WARNING if code != Constants.PatchOperationTopLevelErrorCode.ERROR else Constants.PatchOperationTopLevelErrorCode.ERROR
 
         return {
             "code": code,
@@ -1081,7 +1081,7 @@ class StatusHandler(object):
         truncated_msg_errors = self.__recompose_substatus_msg_errors(truncated_detail_list, count_total_errors)
 
         self.composite_logger.log_debug("Recompose truncated substatus")
-        truncated_substatus_message = self.__update_substatus_msg(substatus_msg=substatus_message, substatus_msg_patches=truncated_package_list)
+        truncated_substatus_message = self.__update_substatus_msg(substatus_msg=substatus_message, substatus_msg_patches=truncated_package_list, substatus_msg_errors=truncated_msg_errors)
 
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_message)
 
