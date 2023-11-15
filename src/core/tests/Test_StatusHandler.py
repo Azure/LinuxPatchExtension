@@ -126,23 +126,6 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
 
-    def test_set_package_install_unknown_patch_state_recorded(self):
-        packages, package_versions = self.runtime.package_manager.get_all_updates()
-        self.runtime.status_handler.set_package_install_status(packages, package_versions, Constants.AVAILABLE)
-
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), 3)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
-        self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["classifications"]))
-        self.assertEqual("Available", str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchInstallationState"]))
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
-        self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["classifications"]))
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["name"], "samba-libs")
-        self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
-        self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
-
     def test_set_installation_reboot_status(self):
         self.assertRaises(Exception, self.runtime.status_handler.set_installation_reboot_status, "INVALID_STATUS")
 
@@ -363,44 +346,17 @@ class TestStatusHandler(unittest.TestCase):
             self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
             self.assertEqual(formatted_message["startedBy"], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
 
-    def test_sequence_number_changed_termination_configuration_only(self):
-        self.runtime.execution_config.operation = Constants.CONFIGURE_PATCHING
-        self.runtime.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
-
-        self.runtime.status_handler.report_sequence_number_changed_termination()
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
-            self.assertTrue(substatus_file_data["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-            self.assertEqual(substatus_file_data["status"], Constants.STATUS_ERROR.lower())
-            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
-            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
-
-    def test_sequence_number_changed_termination_installation(self):
-        self.runtime.execution_config.operation = Constants.INSTALLATION
-        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-
-        self.runtime.status_handler.report_sequence_number_changed_termination()
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
-            self.assertTrue(substatus_file_data["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-            self.assertEqual(substatus_file_data["status"], Constants.STATUS_ERROR.lower())
-            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
-            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
-
     def test_set_patch_metadata_for_healthstore_substatus_json_auto_assess_transitioning(self):
         self.runtime.execution_config.exec_auto_assess_only = True
-        self.assertRaises(Exception,
-                          lambda: self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json())
+        self.assertRaises(Exception, lambda: self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json())
 
     def test_set_configure_patching_substatus_json_auto_assess_transitioning(self):
         self.runtime.execution_config.exec_auto_assess_only = True
-        self.assertRaises(Exception,
-                          lambda: self.runtime.status_handler.set_configure_patching_substatus_json())
+        self.assertRaises(Exception, lambda: self.runtime.status_handler.set_configure_patching_substatus_json())
 
     def test_set_current_operation_auto_assess_non_assessment(self):
         self.runtime.execution_config.exec_auto_assess_only = True
-        self.assertRaises(Exception,
-                          lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
+        self.assertRaises(Exception, lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
 
     def test_sort_packages_by_classification_and_state(self):
         with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/PatchOrderAssessmentSummary.json", 'r') as file_handle:
