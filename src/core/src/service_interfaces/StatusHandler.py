@@ -754,6 +754,7 @@ class StatusHandler(object):
         current_operation = self.__current_operation if current_operation_override_for_error == Constants.DEFAULT_UNSPECIFIED_VALUE else current_operation_override_for_error
 
         if current_operation == Constants.ASSESSMENT:
+            print('did this get called', current_operation)
             if self.__try_add_error(self.__assessment_errors, error_detail):
                 self.__assessment_total_error_count += 1
                 # retain previously set status and code for assessment substatus
@@ -932,7 +933,7 @@ class StatusHandler(object):
             max_package_list_capacity = max_package_list_capacity - self.__calc_package_payload_size_on_disk(min_assessment_patches_to_retain)
 
         # Apply high priority (Failed, Installed) and low priority (Pending, Excluded, Not_Selected) installation logic, and keep min 5 assessment packages
-        if low_pri_index:
+        if low_pri_index is not None:
             installation_high_pri = installation_packages[:low_pri_index]
             installation_low_pri = installation_packages[low_pri_index:]
 
