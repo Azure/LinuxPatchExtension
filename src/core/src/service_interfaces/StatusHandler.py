@@ -861,7 +861,6 @@ class StatusHandler(object):
                 str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
             truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
             status_file_payload_json_dumps = json.dumps(truncated_status_file)
-
         return status_file_payload_json_dumps
 
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload_json):
@@ -909,7 +908,6 @@ class StatusHandler(object):
             size_of_max_packages_allowed_in_status -= status_file_agent_size_diff   # Reduce the max packages byte size by tombstone, new error, and escape chars byte size
 
         self.composite_logger.log_verbose("End package list truncation")
-
         return truncated_status_file
 
     def __split_assessment_list(self, assessment_packages):
@@ -917,7 +915,6 @@ class StatusHandler(object):
         min_packages_count = Constants.StatusTruncationConfig.MIN_ASSESSMENT_PACKAGE_TO_RETAIN
         min_assessment_patches_to_retain, remaining_assessment_patches = (assessment_packages[:min_packages_count], assessment_packages[min_packages_count:]) \
             if len(assessment_packages) > min_packages_count else (assessment_packages, [])
-
         return min_assessment_patches_to_retain, remaining_assessment_patches
 
     def __start_truncation_process(self, assessment_packages, installation_packages, max_package_list_byte_size, low_pri_index=None):
@@ -951,7 +948,6 @@ class StatusHandler(object):
         for index, package in enumerate(priority_sorted_installation_packages):
             if package['patchInstallationState'] in (Constants.PENDING, Constants.EXCLUDED, Constants.NOT_SELECTED):
                 return index
-
         return None
 
     def __truncate_package_list(self, package_list, max_package_list_byte_size):
@@ -984,7 +980,6 @@ class StatusHandler(object):
         truncated_list = package_list[:left_index - 1]
         packages_removed_from_list = package_list[left_index - 1:]
         truncated_list_byte_size = self.__calc_package_payload_size_on_disk(truncated_list)
-
         return truncated_list, packages_removed_from_list, max_package_list_byte_size - truncated_list_byte_size
 
     def __removed_older_complete_status_files(self, status_folder):
@@ -1012,7 +1007,6 @@ class StatusHandler(object):
     def __calc_package_payload_size_on_disk(self, package_list):
         """ Calculate final package list size in bytes (because of escape chars) """
         first_json_dump = json.dumps(package_list)
-
         return len(json.dumps(first_json_dump).encode("utf-8"))
 
     def __size_of_constant_status_data(self, complete_status_file_payload_json, assessment_status_index, installation_status_index):
@@ -1025,7 +1019,6 @@ class StatusHandler(object):
         if installation_status_index is not None:
             installation_msg_without_packages = self.__update_substatus_msg(substatus_msg=self.__installation_substatus_msg_copy, substatus_msg_patches=[])
             status_file_no_list_data['status']['substatus'][installation_status_index]['formattedMessage']['message'] = json.dumps(installation_msg_without_packages)
-
         return self.__calc_status_size_on_disk(json.dumps(status_file_no_list_data))
 
     def __get_substatus_index(self, substatus_list_name, substatus_list):
@@ -1033,7 +1026,6 @@ class StatusHandler(object):
         for substatus_index, substatus_name in enumerate(substatus_list):
             if substatus_name['name'] == substatus_list_name:
                 return substatus_index
-
         return None
 
     def __recompose_truncated_status_file(self, truncated_status_file, truncated_package_list, substatus_message, substatus_index):
@@ -1049,7 +1041,6 @@ class StatusHandler(object):
         truncated_substatus_message = self.__update_substatus_msg(substatus_msg=substatus_message, substatus_msg_patches=truncated_package_list)
 
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_message)
-
         return truncated_status_file
 
     def __update_substatus_msg(self, substatus_msg, substatus_msg_patches):

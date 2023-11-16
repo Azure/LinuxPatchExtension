@@ -1071,10 +1071,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
                 test_package_versions.append('2:4.4.5+dfsg-2ubuntu5.4' + random_char)
             else:
                 test_package_versions.append('2:4.4.5+dfsg-2ubuntu5.4')
-
         return test_packages, test_package_versions
 
 
 if __name__ == '__main__':
     unittest.main()
-
