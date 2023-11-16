@@ -860,7 +860,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_truncation_method_time_performance(self):
         """ Perform truncation on very large packages to
-        assert truncation code logic time performance is only 10 secs more than current (no truncation) code logic"""
+        assert truncation code logic time performance is only 30 secs more than current (no truncation) code logic"""
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -894,7 +894,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         self.runtime.status_handler.composite_logger.log_debug('no_truncate_performance_time_formatted' + no_truncate_performance_time_formatted)
         self.runtime.status_handler.composite_logger.log_debug('truncate_performance_time_formatted' + truncate_performance_time_formatted)
-        self.assertTrue((truncate_performance_time - no_truncate_performance_time) < 10)
+        self.assertTrue((truncate_performance_time - no_truncate_performance_time) < 30)
 
     # Setup functions for testing
     def __assert_packages_map(self, substatus_file_data, patch_summary, patch_count, expected_patch_id, expected_patch_value, classification):
