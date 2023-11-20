@@ -235,8 +235,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         self.__assert_installation_set_packages_methods(substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, patch_count)
 
-    def test_only_assessment_packages_truncation_under_size_limit(self):
-        """ Perform no truncation on assessment package list.
+    def test_only_assessment_patches_truncation_under_size_limit(self):
+        """ Perform no truncation on assessment patches.
         Expecting:
         assessment substatus status: success,
         no assessment tombstone records,
@@ -261,13 +261,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert no truncated status file
         self.__assert_no_truncation_status_file(Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, patch_count)
 
-    def test_only_assessment_packages_truncation_over_size_limit(self):
-        """ Perform truncation on assessment package list.
+    def test_only_assessment_patches_truncation_over_size_limit(self):
+        """ Perform truncation on assessment patches.
         Expecting:
         assessment substatus status: warning,
         assessment tombstone records,
         assessment errors code: 2 (warning),
-        assessment errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        assessment errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
 
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
@@ -300,13 +300,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert all assessment fields in the message json are equal in both status files
         self.__assert_assessment_truncated_msg_fields(assessment_msg, assessment_truncated_msg)
 
-    def test_only_assessment_packages_truncation_large_size_limit_for_extra_chars(self):
-        """ Perform truncation on very large assessment package list for time performance.
+    def test_only_assessment_patches_truncation_large_size_limit_for_extra_chars(self):
+        """ Perform truncation on very large assessment patches for time performance.
         Expecting:
         assessment substatus status: warning,
         assessment tombstone records,
         assessment errors code: 2 (warning),
-        assessment errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        assessment errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
 
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
@@ -339,13 +339,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert all assessment fields in the message json are equal in both status files
         self.__assert_assessment_truncated_msg_fields(assessment_msg, assessment_truncated_msg)
 
-    def test_only_assessment_packages_truncation_over_size_limit_with_errors(self):
-        """ Perform truncation on assessment package list with multiple errors to ensure __try_add_error is working as expected.
+    def test_only_assessment_patches_truncation_over_size_limit_with_errors(self):
+        """ Perform truncation on assessment patches with multiple errors to ensure __try_add_error is working as expected.
         Expecting:
         assessment substatus status: error,
         assessment tombstone records,
         assessment errors code: 1 (error),
-        assessment errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        assessment errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
 
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
@@ -378,7 +378,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_truncated_status_multi_errors(Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_ERROR, patch_count, error_count=5)
 
     def test_only_installation_truncation_under_size_limit(self):
-        """ Perform no truncation on installation package list.
+        """ Perform no truncation on installation patches.
         Expecting:
         installation substatus status: success,
         no installation tombstone records,
@@ -403,13 +403,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert no truncated status file
         self.__assert_no_truncation_status_file(Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count)
 
-    def test_only_installation_packages_truncation_over_size_limit(self):
-        """ Perform truncation on installation package list.
+    def test_only_installation_patches_truncation_over_size_limit(self):
+        """ Perform truncation on installation patches.
         Expecting:
         installation substatus status: warning,
         installation tombstone records,
         installation errors code: 2 (warning),
-        installation errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        installation errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -445,13 +445,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert all installation fields in the message json are equal in both status files
         self.__assert_installation_truncated_msg_fields(installation_msg, installation_truncated_msg)
 
-    def test_only_installation_packages_truncation_over_size_limit_low_priority_packages(self):
-        """ Perform truncation on only installation with low priority package list (Pending, Exclude, Not_Selected).
+    def test_only_installation_patches_truncation_over_size_limit_low_priority_packages(self):
+        """ Perform truncation on only installation with low priority patches (Pending, Exclude, Not_Selected).
         Expecting:
         installation substatus status: warning,
         installation tombstone records,
         installation errors code: 2 (warning),
-        installation errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        installation errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
@@ -499,13 +499,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert all installation fields in the message json are equal in both status files
         self.__assert_installation_truncated_msg_fields(installation_msg, installation_truncated_msg)
 
-    def test_only_installation_packages_truncation_over_large_size_limit_with_extra_chars(self):
-        """ Perform truncation on very large installation package list for time performance.
+    def test_only_installation_patches_truncation_over_large_size_limit_with_extra_chars(self):
+        """ Perform truncation on very large installation patches for time performance.
         Expecting:
         installation substatus status: warning,
         installation tombstone records,
         installation errors code: 2 (warning),
-        installation errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        installation errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -539,13 +539,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert all installation fields in the message json are equal in both status files
         self.__assert_installation_truncated_msg_fields(installation_msg, installation_truncated_msg)
 
-    def test_only_installation_packages_truncation_over_size_limit_with_multi_errors(self):
-        """ Perform truncation on installation package list with multiple errors to ensure __try_add_error is working as expected.
+    def test_only_installation_patches_truncation_over_size_limit_with_multi_errors(self):
+        """ Perform truncation on installation patches with multiple errors to ensure __try_add_error is working as expected.
         Expecting:
         installation substatus status: error,
         installation tombstone records,
         installation errors code: 1 (error),
-        installation errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        installation errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -576,19 +576,19 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_truncated_status_multi_errors(Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, patch_count, error_count=5)
 
     def test_both_assessment_and_installation_truncation_over_size_limit(self):
-        """ Perform truncation on very large assessment package list for time performance.
+        """ Perform truncation on very large assessment patches for time performance.
         Expecting:
         assessment substatus status: warning,
         assessment tombstone records,
         assessment errors code: 2 (warning),
-        assessment errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists.
+        assessment errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists.
 
-        Perform truncation on very large installation package list for time performance.
+        Perform truncation on very large installation patches for time performance.
         Expecting:
         installation substatus status: warning,
         installation tombstone records,
         installation errors code: 2 (warning),
-        installation errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        installation errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -646,19 +646,19 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_installation_truncated_msg_fields(installation_msg, installation_truncated_msg)
 
     def test_both_assessment_and_installation_truncation_keep_min_5_assessment(self):
-        """ Perform truncation on assessment package list.
+        """ Perform truncation on assessment patches.
         Expecting:
         assessment substatus status: warning,
         assessment tombstone records, but keep 5 packages
         assessment errors code: 2 (warning),
-        assessment errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists.
+        assessment errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists.
 
-        Perform truncation on installation package list.
+        Perform truncation on installation patches.
         Expecting:
         installation substatus status: warning,
         installation tombstone records,
         installation errors code: 2 (warning),
-        installation errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        installation errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -721,19 +721,19 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_installation_truncated_msg_fields(installation_msg, installation_truncated_msg)
 
     def test_both_assessment_and_installation_truncation_with_multi_errors(self):
-        """ Perform truncation on assessment package list with multiple errors to ensure __try_add_error is working as expected.
+        """ Perform truncation on assessment patches with multiple errors to ensure __try_add_error is working as expected.
         Expecting:
         assessment substatus status: error,
         assessment tombstone records,
         assessment errors code: 1 (error),
-        assessment errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists.
+        assessment errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists.
 
-        Perform truncation on installation package list with multiple errors to ensure __try_add_error is working as expected.
+        Perform truncation on installation patches with multiple errors to ensure __try_add_error is working as expected.
         Expecting:
         installation substatus status: error,
         installation tombstone records,
         installation errors code: 1 (error),
-        installation errors details code: Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists. """
+        installation errors details code: patches were truncated to limit reporting data volume. In-VM logs contain complete lists. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -799,7 +799,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_installation_truncated_msg_fields(installation_msg_with_errors, installation_truncated_msg)
 
     def test_log_truncated_packages_assert_no_truncation(self):
-        """ Assert no truncation is performed on assessment/installation package list.
+        """ Assert no truncation is performed on assessment/installation patches.
         Expecting
         'No packages truncated' log message is called
         """
@@ -813,14 +813,14 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
 
-        self.runtime.status_handler.log_truncated_packages()
-        self.__read_tmp_log_and_assert("No packages truncated")
+        self.runtime.status_handler.log_truncated_patches()
+        self.__read_tmp_log_and_assert("No patch truncated")
 
         # Reset sys.stdout, close and delete tmp
         self.__remove_tmp_file_reset_stdout()
 
     def test_log_truncated_packages_assert_assessment_truncation(self):
-        """ Assert truncation is performed on assessment package list.
+        """ Assert truncation is performed on assessment patches.
         Expecting
         'All packages removed from assessment'
         """
@@ -832,14 +832,14 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_for_test = random.randint(780, 1000)
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-        self.runtime.status_handler.log_truncated_packages()
-        self.__read_tmp_log_and_assert("All packages removed from assessment")
+        self.runtime.status_handler.log_truncated_patches()
+        self.__read_tmp_log_and_assert("All patch removed from assessment")
 
         # Reset sys.stdout, close and delete tmp
         self.__remove_tmp_file_reset_stdout()
 
     def test_log_truncated_packages_assert_installation_truncation(self):
-        """ Assert truncation is performed on installation package list.
+        """ Assert truncation is performed on installation patches.
         Expecting
         'All packages removed from installation'
         """
@@ -852,8 +852,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
-        self.runtime.status_handler.log_truncated_packages()
-        self.__read_tmp_log_and_assert("All packages removed from installation")
+        self.runtime.status_handler.log_truncated_patches()
+        self.__read_tmp_log_and_assert("All patch removed from installation")
 
         # Reset sys.stdout, close and delete tmp
         self.__remove_tmp_file_reset_stdout()
