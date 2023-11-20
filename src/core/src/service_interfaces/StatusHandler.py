@@ -888,17 +888,15 @@ class StatusHandler(object):
 
         while status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:
             # Start truncation process
-            patches_retained_in_assessment, patches_removed_from_assessment, patches_retained_in_installation, patches_removed_from_installation = \
+            patches_retained_in_assessment, self.__assessment_patches_removed, patches_retained_in_installation, self.__installation_patches_removed = \
                 self.__start_truncation_process(self.__assessment_patches_copy, self.__installation_patches_copy, max_allowed_patches_size_in_bytes, low_pri_index)
 
-            if len(patches_removed_from_assessment) > 0:
-                self.__assessment_patches_removed = patches_removed_from_assessment
+            if len(self.__assessment_patches_removed) > 0:
                 self.composite_logger.log_debug("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment,
                     substatus_message=self.__assessment_substatus_msg_copy, substatus_index=assessment_substatus_index)
 
-            if len(patches_removed_from_installation) > 0:
-                self.__installation_patches_removed = patches_removed_from_installation
+            if len(self.__installation_patches_removed) > 0:
                 self.composite_logger.log_debug("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_INSTALLATION_SUMMARY))
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation,
                     substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
