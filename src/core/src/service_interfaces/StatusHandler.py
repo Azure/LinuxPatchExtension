@@ -844,10 +844,10 @@ class StatusHandler(object):
     def log_truncated_patches(self):
         """ log details of all the removed patches from status """
         if not len(self.__assessment_patches_removed) == 0:
-            self.composite_logger.log_debug("All patch removed from assessment: [Count={0}] [PackageNames={1}]".format(len(self.__assessment_patches_removed), self.__assessment_patches_removed))
+            self.composite_logger.log_debug("All patch removed from assessment: [Count={0}] [PatchNames={1}]".format(len(self.__assessment_patches_removed), self.__assessment_patches_removed))
 
         if not len(self.__installation_patches_removed) == 0:
-            self.composite_logger.log_debug("All patch removed from installation: [Count={0}] [PackageNames={1}]".format(len(self.__installation_patches_removed), self.__installation_patches_removed))
+            self.composite_logger.log_debug("All patch removed from installation: [Count={0}] [PatchNames={1}]".format(len(self.__installation_patches_removed), self.__installation_patches_removed))
 
         if len(self.__assessment_patches_removed) == 0 and len(self.__installation_patches_removed) == 0:
             self.composite_logger.log_debug("No patch truncated")
@@ -857,15 +857,14 @@ class StatusHandler(object):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload_json byte size on disk
 
         if status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:  # perform truncation complete_status_file byte size > 126kb
-            self.composite_logger.log_debug("Status file limits evaluated. [StatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(
-                str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
             truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
             status_file_payload_json_dumps = json.dumps(truncated_status_file)
         return status_file_payload_json_dumps
 
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload_json):
         """ Truncate substatus message patches when complete status file size is greater than 126kb """
-        self.composite_logger.log_verbose("Begin Patches truncation")
+        self.composite_logger.log_debug("Begin patches truncation: [StatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(
+                str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
 
         truncated_status_file = json.loads(complete_status_file_payload_json)  # reload payload into python object
         low_pri_index = None
@@ -881,16 +880,16 @@ class StatusHandler(object):
             self.__installation_patches_copy = self.__installation_substatus_msg_copy['patches']
             low_pri_index = self.__get_installation_low_pri_index(self.__installation_patches_copy)
 
-        status_file_without_patches_list_size = self.__size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_substatus_index, installation_substatus_index)  # Deepcopy, fully copies the object to avoid reference modifications
+        status_file_without_patches_size_in_bytes = self.__size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_substatus_index, installation_substatus_index)  # Deepcopy, fully copies the object to avoid reference modifications
 
-        size_of_max_patches_allowed_in_status = Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES - status_file_without_patches_list_size
-        self.composite_logger.log_debug("Status file limits evaluated. [FileSizeInBytesWithoutPatches={0}] [MaxAllowablePatchesByteSize={1}]".format(
-            str(status_file_without_patches_list_size), str(size_of_max_patches_allowed_in_status)))
+        max_allowed_patches_size_in_bytes = Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES - status_file_without_patches_size_in_bytes
+        self.composite_logger.log_debug("Status file limits evaluated. [FileSizeWithoutPatchesInBytes={0}] [MaxAllowedPatchesSizeInBytes={1}]".format(
+            str(status_file_without_patches_size_in_bytes), str(max_allowed_patches_size_in_bytes)))
 
         while status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:
             # Start truncation process
             patches_retained_in_assessment, patches_removed_from_assessment, patches_retained_in_installation, patches_removed_from_installation = \
-                self.__start_truncation_process(self.__assessment_patches_copy, self.__installation_patches_copy, size_of_max_patches_allowed_in_status, low_pri_index)
+                self.__start_truncation_process(self.__assessment_patches_copy, self.__installation_patches_copy, max_allowed_patches_size_in_bytes, low_pri_index)
 
             if len(patches_removed_from_assessment) > 0:
                 self.__assessment_patches_removed = patches_removed_from_assessment
@@ -905,10 +904,11 @@ class StatusHandler(object):
                     substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
 
             status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
-            status_file_size_diff = status_file_size_in_bytes - Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES  # The byte difference is tombstone, new errors, and escape chars byte size
-            size_of_max_patches_allowed_in_status -= status_file_size_diff   # Reduce the max patches byte size by tombstone, new errors, and escape chars byte size
+            status_file_size_diff_in_bytes = (status_file_size_in_bytes - Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)  # The byte difference is tombstone, new errors, and escape chars byte size
+            max_allowed_patches_size_in_bytes -= status_file_size_diff_in_bytes   # Reduce the max patches byte size by tombstone, new errors, and escape chars byte size
 
-        self.composite_logger.log_debug("End Patches truncation [TruncatedStatusFileSizeInBytes={0}]".format(str(status_file_size_in_bytes)))
+        self.composite_logger.log_debug("End patches truncation: [TruncatedStatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(
+            str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
         return truncated_status_file
 
     def __split_assessment_patches(self, assessment_patches):
@@ -918,7 +918,7 @@ class StatusHandler(object):
             if len(assessment_patches) > min_patches_count else (assessment_patches, [])
         return min_assessment_patches_to_retain, remaining_assessment_patches
 
-    def __start_truncation_process(self, assessment_patches, installation_patches, max_patches_byte_size, low_pri_index=None):
+    def __start_truncation_process(self, assessment_patches, installation_patches, max_allowed_patches_size_in_bytes, low_pri_index=None):
         """ Function truncates patches from assessment and installation substatus's while always retaining a required minimum count of assessment patches """
         installation_low_pri = []
         installation_high_pri = installation_patches
@@ -926,17 +926,17 @@ class StatusHandler(object):
         min_assessment_patches_to_retain, remaining_assessment_patches = self.__split_assessment_patches(assessment_patches)
 
         if len(min_assessment_patches_to_retain) > 0:
-            max_patches_byte_size = max_patches_byte_size - self.__calc_patches_payload_size_on_disk(min_assessment_patches_to_retain)
+            max_allowed_patches_size_in_bytes = max_allowed_patches_size_in_bytes - self.__calc_patches_payload_size_on_disk(min_assessment_patches_to_retain)
 
-        # Apply high priority (Failed, Installed) and low priority (Pending, Excluded, Not_Selected) installation logic, and keep min 5 assessment patches
+        # Split installation patches into high priority (Failed, Installed) and low priority (Pending, Excluded, Not_Selected)
         if low_pri_index is not None:
             installation_high_pri = installation_patches[:low_pri_index]
             installation_low_pri = installation_patches[low_pri_index:]
 
-        patches_retained_in_install_high_pri, patches_removed_from_install_high_pri, remaining_patches_size_for_truncation = self.__truncate_patches(installation_high_pri, max_patches_byte_size)
-        patches_retained_in_assessment, patches_removed_from_assessment, remaining_patches_size_for_truncation = self.__truncate_patches(remaining_assessment_patches, remaining_patches_size_for_truncation)
-        patches_retained_in_install_low_pri, patches_removed_from_install_low_pri, remaining_patches_size_for_truncation = self.__truncate_patches(installation_low_pri, remaining_patches_size_for_truncation)
-        self.composite_logger.log_debug("Patches size limit evaluated: [RemainPatchesByteSize={0}]".format(remaining_patches_size_for_truncation))
+        patches_retained_in_install_high_pri, patches_removed_from_install_high_pri, remaining_patches_size_available_in_bytes = self.__truncate_patches(installation_high_pri, max_allowed_patches_size_in_bytes)
+        patches_retained_in_assessment, patches_removed_from_assessment, remaining_patches_size_available_in_bytes = self.__truncate_patches(remaining_assessment_patches, remaining_patches_size_available_in_bytes)
+        patches_retained_in_install_low_pri, patches_removed_from_install_low_pri, remaining_patches_size_available_in_bytes = self.__truncate_patches(installation_low_pri, remaining_patches_size_available_in_bytes)
+        self.composite_logger.log_debug("Remaining patches size available in bytes after truncation: [RemainingPatchListSizeInBytes={0}]".format(remaining_patches_size_available_in_bytes))
 
         truncated_installation_patches = patches_retained_in_install_high_pri + patches_retained_in_install_low_pri
         patches_removed_from_installation = patches_removed_from_install_high_pri + patches_removed_from_install_low_pri
@@ -951,9 +951,9 @@ class StatusHandler(object):
                 return low_pri_index
         return None
 
-    def __truncate_patches(self, patches, max_patches_byte_size):
+    def __truncate_patches(self, patches, max_allowed_patches_size_in_bytes):
         """ Binary search
-        Instead of checking patches[middel_index] >= target, check byte_size(patches[:middle_index]),
+        Instead of checking patches[mid_index] >= target, check byte_size(patches[:mid_index]),
         as byte_size[patches[:i]] is monotonically increasing, i.e.
         byte_size[patches[:1]] < byte_size[patches[:2]] < byte_size[patches[:3]] ...
         return truncated_patches, patches_removed_from_patches, and remaining max_patches_byte_size
@@ -963,25 +963,25 @@ class StatusHandler(object):
 
         # no truncation on empty list, return [],[]
         if len(patches) == 0:
-            return [], [], max_patches_byte_size
-        # if patches byte size <= max list byte size, then returns it (no truncation needed)
-        if self.__calc_patches_payload_size_on_disk(patches) <= max_patches_byte_size:
-            return patches, [], max_patches_byte_size - self.__calc_patches_payload_size_on_disk(patches)
-        # if first element byte size > max patches byte size, then add patches to patches_removed_from_list
-        if self.__calc_patches_payload_size_on_disk(patches[0]) > max_patches_byte_size:
-            return [], patches, max_patches_byte_size
+            return [], [], max_allowed_patches_size_in_bytes
+        # if patches byte size <= max list patches byte size, then returns it (no truncation needed)
+        if self.__calc_patches_payload_size_on_disk(patches) <= max_allowed_patches_size_in_bytes:
+            return patches, [], max_allowed_patches_size_in_bytes - self.__calc_patches_payload_size_on_disk(patches)
+        # if first element byte size > max patches byte size, then add patches to patches_removed
+        if self.__calc_patches_payload_size_on_disk(patches[0]) > max_allowed_patches_size_in_bytes:
+            return [], patches, max_allowed_patches_size_in_bytes
 
         while left_index < right_index:
             mid_index = left_index + int((right_index - left_index) / 2)
-            if self.__calc_patches_payload_size_on_disk(patches[:mid_index]) >= max_patches_byte_size:
+            if self.__calc_patches_payload_size_on_disk(patches[:mid_index]) >= max_allowed_patches_size_in_bytes:
                 right_index = mid_index
             else:
                 left_index = mid_index + 1
 
         truncated_patches = patches[:left_index - 1]
-        patches_removed_from_patches = patches[left_index - 1:]
-        truncated_list_byte_size = self.__calc_patches_payload_size_on_disk(truncated_patches)
-        return truncated_patches, patches_removed_from_patches, max_patches_byte_size - truncated_list_byte_size
+        patches_removed = patches[left_index - 1:]
+        truncated_patches_size_in_bytes = self.__calc_patches_payload_size_on_disk(truncated_patches)
+        return truncated_patches, patches_removed, max_allowed_patches_size_in_bytes - truncated_patches_size_in_bytes
 
     def __removed_older_complete_status_files(self, status_folder):
         """ Retain 10 latest status complete file and remove other .complete.status files """
@@ -1031,11 +1031,11 @@ class StatusHandler(object):
 
     def __recompose_truncated_status_file(self, truncated_status_file, truncated_patches, substatus_message, substatus_index):
         """ Recompose final truncated status file version """
-        code, _ = self.__get_errors_from_substatus(substatus_msg=substatus_message)
+        error_code, _ = self.__get_errors_from_substatus(substatus_msg=substatus_message)
 
         # Check for existing errors before recompose
-        if code != Constants.PatchOperationTopLevelErrorCode.ERROR:
-            self.composite_logger.log_debug("Patch in substatus have been truncated hence updating status to [status={0}] [PreviousErrorCode={1}]".format(Constants.STATUS_WARNING, str(code)))
+        if error_code != Constants.PatchOperationTopLevelErrorCode.ERROR:
+            self.composite_logger.log_debug("Patches in substatus have been truncated hence updating status to [status={0}] [PreviousErrorCode={1}]".format(Constants.STATUS_WARNING, str(error_code)))
             truncated_status_file['status']['substatus'][substatus_index]['status'] = Constants.STATUS_WARNING.lower()      # Update substatus status to warning
 
         self.composite_logger.log_verbose("Recompose truncated substatus")

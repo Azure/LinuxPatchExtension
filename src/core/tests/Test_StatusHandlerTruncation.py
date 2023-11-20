@@ -460,7 +460,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_not_selected = random.randint(780, 1000)
 
         # random_char=random.choice(string.ascii_letters) ensure the packages are unique
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_pending, random_char=random.choice(string.ascii_letters))
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_pending)
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
 
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_exclude, random_char=random.choice(string.ascii_letters))
