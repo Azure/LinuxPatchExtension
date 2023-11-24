@@ -843,14 +843,8 @@ class StatusHandler(object):
     # region - Patch Truncation
     def log_truncated_patches(self):
         """ log details of all the removed patches from status """
-        if not len(self.__assessment_patches_removed) == 0:
-            self.composite_logger.log_debug("All patch removed from assessment: [Count={0}] [PatchNames={1}]".format(len(self.__assessment_patches_removed), self.__assessment_patches_removed))
-
-        if not len(self.__installation_patches_removed) == 0:
-            self.composite_logger.log_debug("All patch removed from installation: [Count={0}] [PatchNames={1}]".format(len(self.__installation_patches_removed), self.__installation_patches_removed))
-
-        if len(self.__assessment_patches_removed) == 0 and len(self.__installation_patches_removed) == 0:
-            self.composite_logger.log_debug("No patch truncated")
+        self.composite_logger.log_debug("Count of patches removed from: [Assessment={0}] [Installation={1}]".format(len(self.__assessment_patches_removed),
+            len(self.__installation_patches_removed)))
 
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
         """ Get truncated status file payload when status file byte size is more than 126kb """
@@ -902,8 +896,6 @@ class StatusHandler(object):
                     substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
 
             status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
-            status_file_size_diff_in_bytes = (status_file_size_in_bytes - Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)  # The byte difference is tombstone, new errors, and escape chars byte size
-            max_allowed_patches_size_in_bytes -= status_file_size_diff_in_bytes   # Reduce the max patches byte size by tombstone, new errors, and escape chars byte size
 
         self.composite_logger.log_debug("End patches truncation: [TruncatedStatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(
             str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
@@ -1004,19 +996,19 @@ class StatusHandler(object):
         return len(status_file_dumps.encode("utf-8"))
 
     def __calc_patches_payload_size_on_disk(self, patches):
-        """ Calculate final patches size in bytes (because of escape chars) """
+        """ Calculate patches size in bytes accounting for escape chars """
         first_json_dump = json.dumps(patches)
         return len(json.dumps(first_json_dump).encode("utf-8"))
 
-    def __size_of_constant_status_data(self, complete_status_file_payload_json, assessment_status_index, installation_status_index):
-        """ Get the size in bytes of the complete_status_file without patches data  """
-        status_file_no_list_data = complete_status_file_payload_json
+    def __size_of_constant_status_data(self, status_payload_json, assessment_status_index, installation_status_index):
+        """ Get the size in bytes of the status payload without patches data """
+        status_file_no_list_data = status_payload_json
         if assessment_status_index is not None:
-            assessment_msg_without_patches = self.__update_substatus_msg(substatus_msg=self.__assessment_substatus_msg_copy, substatus_msg_patches=[])
+            assessment_msg_without_patches = self.__update_patches_in_substatus(substatus_msg=self.__assessment_substatus_msg_copy, substatus_msg_patches=[])
             status_file_no_list_data['status']['substatus'][assessment_status_index]['formattedMessage']['message'] = json.dumps(assessment_msg_without_patches)
 
         if installation_status_index is not None:
-            installation_msg_without_patches = self.__update_substatus_msg(substatus_msg=self.__installation_substatus_msg_copy, substatus_msg_patches=[])
+            installation_msg_without_patches = self.__update_patches_in_substatus(substatus_msg=self.__installation_substatus_msg_copy, substatus_msg_patches=[])
             status_file_no_list_data['status']['substatus'][installation_status_index]['formattedMessage']['message'] = json.dumps(installation_msg_without_patches)
         return self.__calc_status_size_on_disk(json.dumps(status_file_no_list_data))
 
@@ -1028,7 +1020,7 @@ class StatusHandler(object):
         return None
 
     def __recompose_truncated_status_file(self, truncated_status_file, truncated_patches, substatus_message, substatus_index):
-        """ Recompose final truncated status file version """
+        """ Recompose status file with truncated patches """
         error_code, _ = self.__get_errors_from_substatus(substatus_msg=substatus_message)
 
         # Check for existing errors before recompose
@@ -1037,12 +1029,12 @@ class StatusHandler(object):
             truncated_status_file['status']['substatus'][substatus_index]['status'] = Constants.STATUS_WARNING.lower()      # Update substatus status to warning
 
         self.composite_logger.log_verbose("Recompose truncated substatus")
-        truncated_substatus_message = self.__update_substatus_msg(substatus_msg=substatus_message, substatus_msg_patches=truncated_patches)
+        truncated_substatus_message = self.__update_patches_in_substatus(substatus_msg=substatus_message, substatus_msg_patches=truncated_patches)
 
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_message)
         return truncated_status_file
 
-    def __update_substatus_msg(self, substatus_msg, substatus_msg_patches):
+    def __update_patches_in_substatus(self, substatus_msg, substatus_msg_patches):
         """ update the substatus message patches """
         substatus_msg['patches'] = substatus_msg_patches
         return substatus_msg
