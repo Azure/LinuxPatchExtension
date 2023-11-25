@@ -42,7 +42,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         operation: assessment,
         assessment substatus name: PatchAssessmentSummary,
         completed status file < 126kb,
-        status file size == completed status file size,
+        size of status file before truncation == size of status file after truncation,
         assessment substatus status: success,
         assessment substatus patches == patch_count,
         no assessment tombstone records,
@@ -60,13 +60,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        assessment_msg = json.loads(substatus_file_data[0]["status"]["substatus"][0]["formattedMessage"]["message"])
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, patch_count, assessment_msg, is_truncated=False)
+        assessment_msg = json.loads(complete_substatus_file_data[0]["status"]["substatus"][0]["formattedMessage"]["message"])
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, patch_count, assessment_msg, is_truncated=False)
 
         # Assert no truncated status file
-        self.__assert_no_truncation_status_file(substatus_file_data, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, patch_count)
+        self.__assert_no_truncation_status_file(complete_substatus_file_data, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, patch_count)
 
     def test_only_assessment_patches_over_size_limit_truncated(self):
         """ Perform truncation on assessment patches.
@@ -93,10 +93,10 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        assessment_msg = json.loads(substatus_file_data[0]["status"]["substatus"][0]["formattedMessage"]["message"])
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS,
+        assessment_msg = json.loads(complete_substatus_file_data[0]["status"]["substatus"][0]["formattedMessage"]["message"])
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS,
             patch_count, assessment_msg, under_internal_size_limit=False)
 
         # Assert assessment truncated status file
@@ -104,7 +104,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             truncated_substatus_file_data = json.load(file_handle)
 
         assessment_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data)
-        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(substatus_file_data)))
+        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(complete_substatus_file_data)))
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_WARNING, patch_count, assessment_truncated_msg)
 
         # Assert all assessment fields in the message json are equal in both status files
@@ -135,10 +135,10 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        assessment_msg = self.__get_message_json_from_substatus(substatus_file_data)
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, patch_count, assessment_msg,
+        assessment_msg = self.__get_message_json_from_substatus(complete_substatus_file_data)
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, patch_count, assessment_msg,
             under_internal_size_limit=False)
 
         # Assert assessment truncated status file
@@ -147,7 +147,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert truncated status file size
         assessment_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data)
-        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(substatus_file_data)))
+        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(complete_substatus_file_data)))
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_WARNING, patch_count, assessment_truncated_msg)
 
         # Assert all assessment fields in the message json are equal in both status files
@@ -179,11 +179,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Set up complete status file before exceptions
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
         # Assert complete status file size > 128kb and no exceptions
-        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        message = self.__get_message_json_from_substatus(substatus_file_data)
+        self.assertTrue(len(json.dumps(complete_substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+        message = self.__get_message_json_from_substatus(complete_substatus_file_data)
         self.assertEqual(len(message["errors"]["details"]), 0)
 
         # Set up complete status file after exceptions
@@ -191,14 +191,14 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
 
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
         # Assert complete status file after exceptions
-        self.__assert_status_file_data_multi_exception_errors(substatus_file_data, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_ERROR, patch_count,
+        self.__assert_status_file_data_multi_exception_errors(complete_substatus_file_data, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_ERROR, patch_count,
             count_errors_detail=5)
 
         # Assert assessment truncated status file with multi exceptions
-        self.__assert_truncated_status_multi_exceptions(substatus_file_data, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_ERROR, patch_count, errors_count=5)
+        self.__assert_truncated_status_multi_exceptions(complete_substatus_file_data, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_ERROR, patch_count, errors_count=5)
 
     def test_only_installation_under_size_limit_not_truncated(self):
         """ Perform no truncation on installation patches.
@@ -207,7 +207,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         operation: installation,
         installation substatus name: PatchInstallationSummary,
         completed status file size < 126kb,
-        status file size == completed status file size,
+        size of status file before truncation == size of status file after truncation,
         installation substatus status: success,
         installation substatus patches == patch_count,
         no installation tombstone records,
@@ -225,13 +225,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        installation_msg = json.loads(substatus_file_data[0]["status"]["substatus"][0]["formattedMessage"]["message"])
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count, installation_msg, is_truncated=False)
+        installation_msg = json.loads(complete_substatus_file_data[0]["status"]["substatus"][0]["formattedMessage"]["message"])
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count, installation_msg, is_truncated=False)
 
         # Assert no truncated status file
-        self.__assert_no_truncation_status_file(substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count)
+        self.__assert_no_truncation_status_file(complete_substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count)
 
     def test_only_installation_patches_over_size_limit_truncated(self):
         """ Perform truncation on installation patches.
@@ -257,12 +257,12 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        installation_msg = self.__get_message_json_from_substatus(substatus_file_data)
+        installation_msg = self.__get_message_json_from_substatus(complete_substatus_file_data)
 
         # Assert complete status file
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count,
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count,
             installation_msg, under_internal_size_limit=False)
 
         # Assert installation truncated status file
@@ -270,7 +270,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             truncated_substatus_file_data = json.load(file_handle)
 
         installation_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data)
-        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(substatus_file_data)))
+        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(complete_substatus_file_data)))
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, patch_count, installation_truncated_msg)
 
         # Assert all installation fields in the message json are equal in both status files
@@ -313,12 +313,12 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        installation_msg = self.__get_message_json_from_substatus(substatus_file_data)
+        installation_msg = self.__get_message_json_from_substatus(complete_substatus_file_data)
 
         # Assert complete status file
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count,
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count,
             installation_msg, under_internal_size_limit=False)
 
         # Assert installation truncated status file
@@ -326,7 +326,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             truncated_substatus_file_data = json.load(file_handle)
 
         installation_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data)
-        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(substatus_file_data)))
+        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(complete_substatus_file_data)))
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, patch_count, installation_truncated_msg)
 
         # Assert all installation fields in the message json are equal in both status files
@@ -356,10 +356,10 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        installation_msg = self.__get_message_json_from_substatus(substatus_file_data)
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS,
+        installation_msg = self.__get_message_json_from_substatus(complete_substatus_file_data)
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS,
             patch_count, installation_msg, under_internal_size_limit=False)
 
         # Assert installation truncated status file
@@ -367,7 +367,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             truncated_substatus_file_data = json.load(file_handle)
 
         installation_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data)
-        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(substatus_file_data)))
+        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(complete_substatus_file_data)))
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, patch_count, installation_truncated_msg)
 
         # Assert all installation fields in the message json are equal in both status files
@@ -398,11 +398,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Set up complete status file before exceptions
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
         # Assert complete status file size > 128kb and no exceptions
-        self.assertTrue(len(json.dumps(substatus_file_data[0]["status"]["substatus"][0])) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
-        message = self.__get_message_json_from_substatus(substatus_file_data)
+        self.assertTrue(len(json.dumps(complete_substatus_file_data[0]["status"]["substatus"][0])) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+        message = self.__get_message_json_from_substatus(complete_substatus_file_data)
         self.assertEqual(len(message["errors"]["details"]), 0)
 
         # Set up complete status file after exceptions
@@ -410,12 +410,12 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
 
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
-        self.__assert_status_file_data_multi_exception_errors(substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, patch_count,
+            complete_substatus_file_data = json.load(file_handle)
+        self.__assert_status_file_data_multi_exception_errors(complete_substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, patch_count,
             count_errors_detail=5)
 
         # Assert installation truncated status file with multi exceptions
-        self.__assert_truncated_status_multi_exceptions(substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, patch_count, errors_count=5)
+        self.__assert_truncated_status_multi_exceptions(complete_substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, patch_count, errors_count=5)
 
     def test_both_assessment_and_installation_over_size_limit_truncated(self):
         """ Perform truncation on very large assessment patches for time performance.
@@ -461,17 +461,17 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
         # Assert complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        assessment_msg = self.__get_message_json_from_substatus(substatus_file_data)
-        installation_msg = self.__get_message_json_from_substatus(substatus_file_data, substatus_index=1)
+        assessment_msg = self.__get_message_json_from_substatus(complete_substatus_file_data)
+        installation_msg = self.__get_message_json_from_substatus(complete_substatus_file_data, substatus_index=1)
 
         # Assert assessment summary
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS,
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS,
             patch_count_for_assessment, assessment_msg, under_internal_size_limit=False)
 
         # Assert installation summary
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS,
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS,
             patch_count_for_installation, installation_msg, substatus_index=1, under_internal_size_limit=False)
 
         # Assert truncated status file
@@ -480,7 +480,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         assessment_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data)
         installation_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data, substatus_index=1)
-        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(substatus_file_data)))
+        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(complete_substatus_file_data)))
 
         # Assert assessment truncation
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY,
@@ -538,17 +538,17 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert complete status file
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        assessment_msg = self.__get_message_json_from_substatus(substatus_file_data)
-        installation_msg = self.__get_message_json_from_substatus(substatus_file_data, substatus_index=1)
+        assessment_msg = self.__get_message_json_from_substatus(complete_substatus_file_data)
+        installation_msg = self.__get_message_json_from_substatus(complete_substatus_file_data, substatus_index=1)
 
         # Assert assessment summary
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS,
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS,
             patch_count_for_assessment, assessment_msg, under_internal_size_limit=False)
 
         # Assert installation summary
-        self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS,
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS,
             patch_count_for_installation, installation_msg, substatus_index=1, under_internal_size_limit=False)
 
         # Assert truncated status file
@@ -557,7 +557,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         assessment_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data)
         installation_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data, substatus_index=1)
-        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(substatus_file_data)))
+        self.assertTrue(len(json.dumps(truncated_substatus_file_data)) < len(json.dumps(complete_substatus_file_data)))
 
         # Assert assessment truncation, keep min 5
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY,
@@ -617,27 +617,27 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Set up complete status file before errors
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
         # Assert complete status file size > 128kb and no exceptions
-        self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
+        self.assertTrue(len(json.dumps(complete_substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)
         # Assert no assessment message errors
-        self.assertEqual(len(json.loads(substatus_file_data[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"]), 0)
+        self.assertEqual(len(json.loads(complete_substatus_file_data[0]["status"]["substatus"][0]["formattedMessage"]["message"])["errors"]["details"]), 0)
         # Assert no installation message errors
-        self.assertEqual(len(json.loads(substatus_file_data[0]["status"]["substatus"][1]["formattedMessage"]["message"])["errors"]["details"]), 0)
+        self.assertEqual(len(json.loads(complete_substatus_file_data[0]["status"]["substatus"][1]["formattedMessage"]["message"])["errors"]["details"]), 0)
 
         # Set up complete status file after exceptions - installation
         self.__add_multiple_exception_errors()
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
 
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.complete_status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)
+            complete_substatus_file_data = json.load(file_handle)
 
-        assessment_msg_with_errors = self.__get_message_json_from_substatus(substatus_file_data)
-        installation_msg_with_errors = self.__get_message_json_from_substatus(substatus_file_data, substatus_index=1)
+        assessment_msg_with_errors = self.__get_message_json_from_substatus(complete_substatus_file_data)
+        installation_msg_with_errors = self.__get_message_json_from_substatus(complete_substatus_file_data, substatus_index=1)
 
         # Assert installation status file with multi error exceptions
-        self.__assert_status_file_data_multi_exception_errors(substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, patch_count_installation,
+        self.__assert_status_file_data_multi_exception_errors(complete_substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, patch_count_installation,
             count_errors_detail=5, substatus_index=1)
 
         # Assert assessment truncated status file
@@ -657,7 +657,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_assessment_truncated_msg_fields(assessment_msg_with_errors, assessment_truncated_msg)
 
         # Assert installation truncated status file with multi exceptions
-        self.__assert_truncated_status_multi_exceptions(substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, patch_count_installation, errors_count=5,
+        self.__assert_truncated_status_multi_exceptions(complete_substatus_file_data, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, patch_count_installation, errors_count=5,
             substatus_index=1)
 
         # Assert all installation fields in the message json are equal in both status files
