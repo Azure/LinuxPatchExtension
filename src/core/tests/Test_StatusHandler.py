@@ -269,7 +269,7 @@ class TestStatusHandler(unittest.TestCase):
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertTrue(len(substatus_file_data) == 1)
-
+        # remove test
         # for autopatching request, with reboot not started
         self.runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)
         self.runtime.execution_config.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
