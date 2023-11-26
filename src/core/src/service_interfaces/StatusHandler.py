@@ -843,8 +843,7 @@ class StatusHandler(object):
     # region - Patch Truncation
     def log_truncated_patches(self):
         """ log details of all the removed patches from status """
-        self.composite_logger.log_debug("Count of patches removed from: [Assessment={0}] [Installation={1}]".format(len(self.__assessment_patches_removed),
-            len(self.__installation_patches_removed)))
+        self.composite_logger.log_debug("Count of patches removed from: [Assessment={0}] [Installation={1}]".format(len(self.__assessment_patches_removed), len(self.__installation_patches_removed)))
 
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
         """ Get truncated status file payload when status file byte size is more than 126kb """
@@ -877,8 +876,7 @@ class StatusHandler(object):
         status_file_without_patches_size_in_bytes = self.__size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_substatus_index, installation_substatus_index)  # Deepcopy, fully copies the object to avoid reference modifications
 
         max_allowed_patches_size_in_bytes = Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES - status_file_without_patches_size_in_bytes
-        self.composite_logger.log_debug("Status file limits evaluated. [FileSizeWithoutPatchesInBytes={0}] [MaxAllowedPatchesSizeInBytes={1}]".format(
-            str(status_file_without_patches_size_in_bytes), str(max_allowed_patches_size_in_bytes)))
+        self.composite_logger.log_debug("Status file limits evaluated. [FileSizeWithoutPatchesInBytes={0}] [MaxAllowedPatchesSizeInBytes={1}]".format(str(status_file_without_patches_size_in_bytes), str(max_allowed_patches_size_in_bytes)))
 
         while status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:
             # Start truncation process
@@ -887,18 +885,15 @@ class StatusHandler(object):
 
             if len(self.__assessment_patches_removed) > 0:
                 self.composite_logger.log_debug("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
-                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment,
-                    substatus_message=self.__assessment_substatus_msg_copy, substatus_index=assessment_substatus_index)
+                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment, substatus_message=self.__assessment_substatus_msg_copy, substatus_index=assessment_substatus_index)
 
             if len(self.__installation_patches_removed) > 0:
                 self.composite_logger.log_debug("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_INSTALLATION_SUMMARY))
-                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation,
-                    substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
+                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation, substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
 
             status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
 
-        self.composite_logger.log_debug("End patches truncation: [TruncatedStatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(
-            str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
+        self.composite_logger.log_debug("End patches truncation: [TruncatedStatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
         return truncated_status_file
 
     def __split_assessment_patches(self, assessment_patches):
