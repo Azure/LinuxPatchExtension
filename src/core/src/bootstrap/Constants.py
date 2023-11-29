@@ -258,6 +258,18 @@ class Constants(object):
 
     # Maintenance Window
     PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES = 5
+    
+    # As per telemetry data, when batch size is 3, the average time taken per package installation for different package managers is as follow:
+    # apt: 43 seconds
+    # yum: 71 seconds
+    # zypper: 142 seconds
+    # Overall, including all package managers, the average time is 51 seconds.
+    # The average time taken per package installation is average of (total time taken to install the packages) / (total number of packages installed).
+    # The expected average time should be kept as max of average time taken by different packages managers. The max of average time is taken in zypper i.e. 142 seconds when batch size is 3.
+    # But as the batch size increases, the time taken to install package will decrease. Also, the average time is taken in consideration in calculating maintenance window cutoff only if the 
+    # batch size is greater than or equal to 4. So, keeping the expected average time as 2 minutes i.e. 120 seconds. It should be fine to keep expected time little lower than actual average time 
+    # observed in telemetry because there is PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES also in the calucalation of maintenance window cut off which will make the overall cutoff time enough to 
+    # install the batch of packages.
     PACKAGE_INSTALL_EXPECTED_AVG_TIME_IN_MINUTES = 2
 
     # Package Manager Setting
