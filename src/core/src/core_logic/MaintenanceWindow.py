@@ -61,7 +61,30 @@ class MaintenanceWindow(object):
 
     def is_package_install_time_available(self, remaining_time_in_minutes=None, number_of_packages_in_batch=1):
         """Check if time still available for package installation"""
-        cutoff_time_in_minutes = Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES * number_of_packages_in_batch
+        cutoff_time_in_minutes = 0
+
+        # In the extreme case, all the package installations in the batch might take the maximum time. 
+        # But calculating cutoff time based on max time to install packages for all the packages will make cutoff time very huge 
+        # as it is very unlikely that all the package installations take maximum time.
+        # Also, as the batch size increases, the expected time taken per package installation decreases due to batch patching.
+        # So, for batch size less than or equal to 3, calculating cutoff time expecting all packages might take max time to install.
+        # For larger batch size i.e. 4 or higher, expecting 3 package installations can take max time and rest can take average time to install.
+        # It is safe assumption that only 3 packages will take max time to install. Even if more number of packages take max time to install then
+        # due to batch patching in large batch size, the time taken to install a package decreases substantially and hence cutoff time should be enough
+        # to install the batch of packages.
+        # PACKAGE_INSTALL_EXPECTED_MAX_TIME is 5 minutes, PACKAGE_INSTALL_EXPECTED_AVG_TIME is 2 minutes
+        # For different batch size, following would be cutoff:
+        # Batch Size = 1, Cutoff = 5 * 1 = 5 minutes
+        # Batch Size = 2, Cutoff = 5 * 2 = 10 minutes
+        # Batch Size = 3, Cutoff = 5 * 3 = 15 minutes
+        # Batch Size = 4, Cutoff = (5 * 3) + (2 * 1) = 17 minutes
+        # Batch Size = 5, Cutoff = (5 * 3) + (2 * 2) = 19 minutes
+        # Batch Size = 6, Cutoff = (5 * 3) + (2 * 3) = 21 minutes
+        if number_of_packages_in_batch <= Constants.NUMBER_OF_PACKAGES_IN_BATCH_COULD_TAKE_MAX_TIME_TO_INSTALL:
+            cutoff_time_in_minutes = Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES * number_of_packages_in_batch
+        else:
+            cutoff_time_in_minutes = Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES * Constants.NUMBER_OF_PACKAGES_IN_BATCH_COULD_TAKE_MAX_TIME_TO_INSTALL
+            cutoff_time_in_minutes += Constants.PACKAGE_INSTALL_EXPECTED_AVG_TIME_IN_MINUTES * (number_of_packages_in_batch - Constants.NUMBER_OF_PACKAGES_IN_BATCH_COULD_TAKE_MAX_TIME_TO_INSTALL)
 
         if Constants.REBOOT_SETTINGS[self.execution_config.reboot_setting] != Constants.REBOOT_NEVER:
             cutoff_time_in_minutes = cutoff_time_in_minutes + Constants.REBOOT_BUFFER_IN_MINUTES
