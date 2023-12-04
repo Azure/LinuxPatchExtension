@@ -146,14 +146,17 @@ class TelemetryWriter(object):
         try:
             message_size_limit_in_chars = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS
             formatted_message = re.sub(r"\s+", " ", str(full_message))
-
+            print('formatted_message before', len(formatted_message.encode('utf-8')))
+            print('formatted_message  dump before', len(json.dumps(formatted_message)))
             if len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS > message_size_limit_in_chars:
                 self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
                 formatted_message = formatted_message.encode('utf-8')
                 chars_dropped = len(formatted_message) - message_size_limit_in_chars + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
-                formatted_message = formatted_message[:message_size_limit_in_chars - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS - Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS].decode('utf-8') + '. [{0} chars dropped]'.format(chars_dropped)
+                formatted_message = formatted_message[:message_size_limit_in_chars - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS - Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS].decode('utf-8', errors='ignore') + '. [{0} chars dropped]'.format(chars_dropped)
 
             formatted_message += " [TC={0}]".format(self.__telemetry_event_counter)
+            print('formatted_message after', len(formatted_message.encode('utf-8')))
+            print('formatted_message  dump after', len(json.dumps(formatted_message)))
             return formatted_message
 
         except Exception as e:
@@ -205,6 +208,7 @@ class TelemetryWriter(object):
                 task_name = self.__task_name
 
             event = self.__new_event_json(event_level, message, task_name)
+            print('what is event', len(json.dumps(event)))
             if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARS:
                 self.composite_logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
             else:
