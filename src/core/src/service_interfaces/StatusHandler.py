@@ -62,7 +62,7 @@ class StatusHandler(object):
         self.__assessment_total_error_count = 0  # All errors during assess, includes errors not in error objects due to size limit
         self.__assessment_packages_map = collections.OrderedDict()
         self.__assessment_substatus_msg_copy = None  # store copy of message json for truncation and avoid reference modification
-        self.__assessment_patches_copy = []    # store copy of assessment patches truncation and avoid reference
+        self.__assessment_patches_copy = []    # store copy of assessment patches for truncation and avoid reference modification
         self.__assessment_patches_removed = []   # store truncated patches for tombstone and logging
 
         # Internal in-memory representation of Patch Metadata for HealthStore
