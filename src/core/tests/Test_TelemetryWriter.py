@@ -101,31 +101,10 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue("a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])
             f.close()
 
-    def test_write_event_msg_size_limit_bad_char(self):
-        # Assuming 1 char is 1 byte
-        # message = 'Output from package manager: | 読み込んだプラグイン:langpacks, product-id, search-disabled-repos, subscription-manager | | ' \
-        #           'This system is not registered with an entitlement server. You can use subscription-manager to register. | | ' \
-        #           '依存性の解決をしています | --> トランザクションの確認を実行しています。 | ---> パッケージ bind-libs.x86_64 32:9.11.4-26.P2.el7_9.10 を 更新 | ---> ' \
-        #           'パッケージ bind-libs.x86_64 32:9.11.4-26.P2.el7_9.13 を アップデート | ---> パッケージ bind-libs-lite.x86_64 32:9.11.4-26.P2.el7_9.10 を 更新 | ---> ' \
-        #           'パッケージ bind-libs-lite.x86_64 32:9.11.4-26.P2.el7_9.13 を アップデート | ---> パッケージ bind-license.noarch 32:9.11.4-26.P2.el7_9.10 を 更新 | ---> ' \
-        #           'パッケージ bind-license.noarch 32:9.11.4-26.P2.el7_9.13 を アップデート | ---> パッケージ bind-utils.x86_64 32:9.11.4-26.P2.el7_9.10 を 更新 | ---> ' \
-        #           'パッケージ bind-utils.x86_64 32:9.11.4-26.P2.el7_9.13 を アップデート | --> 依存性解決を終了しました。 | | 依存性を解決しました | | ' \
-        #           '================================================================================ | Package アーキテクチャー | バージョン リポジトリー 容量 | ' \
-        #           '================================================================================ | 更新します: | ' \
-        #           'bind-libs x86_64 32:9.11.4-26.P2.el7_9.13 rhui-rhel-7-server-rhui-rpms 158 k | bind-libs-lite | x86_64 32:9.11.4-26.P2.el7_9.13 rhui-rhel-7-server-rhui-rpms 1.1 M | bind-license | ' \
-        #           'noarch 32:9.11.4-26.P2.el7_9.13 rhui-rhel-7-server-rhui-rpms 92 k | bind-utils x86_64 32:9.11.4-26.P2.el7_9.13 rhui-rhel-7-server-rhui-rpms 262 k | | トランザクションの要約 | ' \
-        #           '================================================================================ | 更新 4 パッケージ | | 総ダウンロード容量: 1.6 M | Downloading packages: | ' \
-        #           'Delta RPMs disabled because /usr/bin/applydeltarpm not installed. | -------------------------------------------------------------------------------- | ' \
-        #           '合計 588 kB/s | 1.6 MB 00:02 | Running transaction check | Running transaction test | Transaction test succeeded | Running transaction | ' \
-        #           '更新します : 32:bind-license-9.11.4-26.P2.el7_9.13.noarch 1/8 | 更新します : 32:bind-libs-lite-9.11.4-26.P2.el7_9.13.x86_6 2/8 | 更新します : ' \
-        #           '32:bind-libs-9.11.4-26.P2.el7_9.13.x86_64 3/8 | 更新します : 32:bind-utils-9.11.4-26.P2.el7_9.13.x86_64 4/8 | 整理中 : 32:bind-utils-9.11.4-26.P2.el7_9.10.x86_64 5/8 | ' \
-        #           '整理中 : 32:bind-libs-9.11.4-26.P2.el7_9.10.x86_64 6/8 | 整理中 : 32:bind-libs-lite-9.11.4-26.P2.el7_9.10.x86_6 7/8 | 整理中 : ' \
-        #           '32:bind-license-9.11.4-26.P2.el7_9.10.noarch 8/8 | 検証中 : 32:bind-license-9.11.4-26.P2.el7_9.13.noarch 1/8 | 検証中 : 32:bind-utils-9.11.4-26.P2.el7_9.13.x86_64 2/8 | ' \
-        #           '検証中 : 32:bind-libs-lite-9.11.4-26.P2.el7_9.13.x86_6 3/8 | 検証中 : 32:bind-libs-9.11.4-26.P2.el7_9.13.x86_64 4/8 | 検証中 : 32:bind-libs-9.11.4-26.P2.el7_9.10.x86_64 5/8 | ' \
-        #           '検証中 : 32:bind-license-9.11.4-26.P2.el7_9.10.noarch 6/8 | 検証中 : 32:bind-libs-lite-9.11.4-26.P2.el7_9.10.x86_6 7/8 | 検証中 : 32:bind-utils-9.11.4-26.P2.el7_9.10.x86_64 8/8 | | ' \
-        #           '更新: | bind-libs.x86_64 32:9.11.4-26.P2.el7_9.13 | bind-libs-lite.x86_64 32:9.11.4-26.P2.el7_9.13 | bind-license.noarch 32:9.11.4-26.P2.el7_9.13 | bind-utils.x86_64 32:9.11.4-26.P2.el7_9.13 | | ' \
-        #           '完了しました!'
-        message = "€"*1020
+    def test_write_event_msg_size_limit_3_bytes_char(self):
+        """ Perform 1 byte truncation on 3 bytes char produce bad unicode, use decode('utf-8', errors='replace') to replace bad unicode with a good 1 byte char (�) """
+
+        message = "a€bc"*3074  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
@@ -134,7 +113,8 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertEqual(events[-1]["TaskName"], "Test Task")
             self.assertTrue(len(events[-1]["Message"]) < len(message.encode('utf-8')))
             chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
-            self.assertTrue("€" * (len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])
+            self.assertTrue("a€bc" in events[-1]["Message"])
+            self.assertTrue("a€bc" * (len(message) + 1 - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])  # len(message) + 1 due to bad unicode will be replaced by �
             f.close()
 
     # TODO: The following 3 tests cause widespread test suite failures (on master), so leaving it out. And tracking in: Task 10912099: [Bug] Bug in telemetry writer - overwriting prior events in fast execution
