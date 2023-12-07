@@ -101,8 +101,8 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue("a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])
             f.close()
 
-    def test_write_event_msg_size_limit_3_bytes_char(self):
-        """ Perform 1 byte truncation on 3 bytes char produce bad unicode, use decode('utf-8', errors='replace') to replace bad unicode with a good 1 byte char (�) """
+    def test_write_event_msg_size_limit_char_more_than_1_bytes(self):
+        """ Perform 1 byte truncation on char that is more than 1 byte, use decode('utf-8', errors='replace') to replace bad unicode with a good 1 byte char (�) """
 
         message = "a€bc"*3074  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")

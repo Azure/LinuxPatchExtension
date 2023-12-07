@@ -146,6 +146,7 @@ class TelemetryWriter(object):
         try:
             message_size_limit_in_chars = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS
             formatted_message = re.sub(r"\s+", " ", str(full_message))
+
             if len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS > message_size_limit_in_chars:
                 self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
                 formatted_message = formatted_message.encode('utf-8')
