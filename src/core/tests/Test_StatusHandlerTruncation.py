@@ -45,12 +45,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_assessment_patches_under_size_limit_not_truncated(self):
         """ Perform no truncation on assessment patches.
-        Input (Before truncation): 500 assessment patches
-        Output (After truncation):
+        Input (Before truncation): 500 assessment patches in status
+        Output (After truncation): 500 assessment patches in status
         operation: Assessment,
         assessment substatus name: PatchAssessmentSummary,
         assessment substatus status: success,
-        assessment substatus assessment patches: 500,
         assessment errors code: 0 (success),
         assessment errors details count: 0,
         count of assessment patches removed: 0,
@@ -85,12 +84,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_only_assessment_patches_over_size_limit_truncated(self):
         """ Perform truncation on very large assessment patches and checks for time performance concern.
-        Input (Before truncation): 100000 assessment patches
-        Output (After truncation):
+        Input (Before truncation): 100000 assessment patches in status
+        Output (After truncation): 672 assessment patches in status
         operation: Assessment,
         assessment substatus name: PatchAssessmentSummary,
         assessment substatus status: warning,
-        assessment substatus assessment truncated patches: 672,
         assessment errors code: 0 (success),
         assessment errors details count: 0,
         count of assessment patches removed: 99328,
@@ -130,15 +128,14 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_only_assessment_patches_over_size_limit_with_status_error_truncated(self):
         """ Perform truncation on assessment patches and substatus status is set to Error (not warning) due to per-existing patching errors
-        Input (Before truncation): 1000 assessment patches, 6 exceptions
-        Output (After truncation):
+        Input (Before truncation): 1000 assessment patches in status, 6 exceptions
+        Output (After truncation): 670 assessment patches in status
         operation: Assessment,
         assessment substatus name: PatchAssessmentSummary,
         assessment substatus status: error,
-        assessment substatus assessment truncated patches: 670,
         assessment errors code: 1 (error),
         assessment errors details count: 5,
-        assert count of assessment patches: 330,
+        count of assessment patches removed: 330,
         completed status file byte size: > 128kb,
         truncated status file byte size: < 126kb,
         assert assessment message json fields == assessment truncated message json fields,
@@ -185,12 +182,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_only_installation_under_size_limit_not_truncated(self):
         """ Perform no truncation on installation patches.
-        Input (Before truncation): 500 installation patches
-        Output (After truncation):
+        Input (Before truncation): 500 installation patches in status
+        Output (After truncation): 500 installation patches in status
         operation: Installation,
         installation substatus name: PatchInstallationSummary,
         installation substatus status: success,
-        installation substatus installation patches: 500,
         installation errors code: 0 (success),
         installation errors details count: 0,
         count of installation patches removed: 0,
@@ -225,12 +221,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_only_installation_patches_over_size_limit_truncated(self):
         """ Perform truncation on very large installation patches and checks for time performance concern.
-        Input (Before truncation): 100000 installation patches
-        Output (After truncation):
+        Input (Before truncation): 100000 installation patches in status
+        Output (After truncation): 555 installation patches in status
         operation: Installation,
         installation substatus name: PatchInstallationSummary,
         installation substatus status: warning,
-        installation substatus truncated installation patches: 555,
         installation errors code: 0 (success),
         installation errors details count: 0,
         count of installation patches removed: 99445,
@@ -271,12 +266,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_only_installation_low_priority_patches_over_size_limit_truncated(self):
         """ Perform truncation on only installation with low priority patches (Pending, Exclude, Not_Selected), truncated status files have no Not_Selected patches.
-        Input (Before truncation): 1040 installation patches
-        Output (After truncation):
+        Input (Before truncation): 1040 installation patches in status
+        Output (After truncation): 559 installation patches in status
         operation: Installation,
         installation substatus name: PatchInstallationSummary,
         installation substatus status: warning,
-        installation substatus truncated installation patches: 559,
         installation errors code: 0 (success),
         installation errors details count: 0,
         last complete status file installation patch state: Not_Selected
@@ -339,12 +333,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_only_installation_patches_over_size_limit_with_status_error_truncated(self):
         """ Perform truncation on installation patches and substatus status is set to Error (not warning) due to per-existing patching errors
-        Input (Before truncation): 800 installation patches, 6 exceptions
-        Output (After truncation):
+        Input (Before truncation): 800 installation patches in status, 6 exceptions
+        Output (After truncation): 553 installation patches in status
         operation: Installation,
         installation substatus name: PatchInstallationSummary,
         installation substatus status: error,
-        installation substatus truncated installation patches: 553 ,
         installation errors code: 1 (error),
         installation errors details count: 5,
         count of installation patches removed: 247,
@@ -396,12 +389,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_both_assessment_and_installation_over_size_limit_truncated(self):
         """ Perform truncation on assessment/installation patches.
-        Input (Before truncation): 700 assessment patches, 1200 installation patches
-        Output (After truncation):
+        Input (Before truncation): 700 assessment patches in status, 1200 installation patches in status
+        Output (After truncation): 374 assessment patches in status, 250 installation patches in status
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=warning],
-        substatus truncated patches: [assessment=374][installation=250],
         errors code: [assessment=0 (success)][installation=0 (success)],
         errors details count: [assessment=0][installation=0],
         count of patches removed from log: [assessment=326[installation=950],
@@ -466,12 +458,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_both_assessment_and_installation__keep_min_5_assessment_patches_truncated(self):
         """ Perform truncation on very large assessment / installation patches and checks for time performance concern. but keep min 5 assessment patches.
-        Input (Before truncation): 100000 assessment patches, 100000 installation patches
-        Output (After truncation):
+        Input (Before truncation): 100000 assessment patches in status, 100000 installation patches in status
+        Output (After truncation): 5 assessment patches in status, 549 installation patches in status
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=warning],
-        substatus truncated patches: [assessment=5][installation=549],
         errors code: [assessment=0 (success)][installation=0 (success)],
         errors details count: [assessment=0][installation=0],
         count of patches removed from log: [assessment=99995[installation=99451],
@@ -529,15 +520,14 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_both_assessment_and_installation_with_status_error_truncated(self):
         """ Perform truncation on assessment / installation patches but installation substatus status is set to Error (not warning) due to per-existing patching errors
-        Input (Before truncation): 800 assessment patches, 800 installation patches with 6 exception errors
-        Output (After truncation):
+        Input (Before truncation): 800 assessment patches in status, 800 installation patches in status with 6 exception errors
+        Output (After truncation): 5 assessment patches in status, 547 installation patches in status
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=error],
-        substatus truncated patches: [assessment= 5][installation=547],
         errors code: [assessment=0 (success)][installation=1 (error)],
-        errors details count: [assessment=795][installation=353],
-        count of patches removed from log: [assessment=0][installation=0],
+        errors details count: [assessment=0][installation=5],
+        count of patches removed from log: [assessment=795][installation=253],
         complete status file byte size: > 128kb,
         truncated status file byte size: < 126kb,
         assert assessment / installation message json fields == assessment / installation truncated message json fields,
