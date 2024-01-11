@@ -180,7 +180,7 @@ class Constants(object):
     class StatusTruncationConfig(EnumBackport):
         INTERNAL_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
         AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
-        MIN_ASSESSMENT_PACKAGE_TO_RETAIN = 5
+        MIN_ASSESSMENT_PATCHES_TO_RETAIN = 5
         TRUNCATION_WARNING_MESSAGE = "Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists."
         TURN_ON_TRUNCATION = True
 
@@ -216,7 +216,8 @@ class Constants(object):
     MAX_INSTALLATION_RETRY_COUNT = 3
     MAX_IMDS_CONNECTION_RETRY_COUNT = 5
     MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT = 5
-    MAX_BATCH_SIZE_FOR_PACKAGES = 3
+    MAX_BATCH_SIZE_FOR_PACKAGES = 6
+    NUMBER_OF_PACKAGES_IN_BATCH_COULD_TAKE_MAX_TIME_TO_INSTALL = 3
     MAX_COMPLETE_STATUS_FILES_TO_RETAIN = 10
 
     class PackageClassification(EnumBackport):
@@ -265,6 +266,19 @@ class Constants(object):
 
     # Maintenance Window
     PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES = 5
+    
+    # As per telemetry data, when batch size is 3, the average time taken per package installation for different package managers is as follow:
+    # apt: 43 seconds
+    # yum: 71 seconds
+    # zypper: 142 seconds
+    # Overall, including all package managers, the average time is 51 seconds.
+    # The average time taken per package installation is average of (total time taken to install the packages) / (total number of packages installed).
+    # The expected average time should be kept as max of average time taken by different packages managers. The max of average time is taken in zypper i.e. 142 seconds when batch size is 3.
+    # But as the batch size increases, the time taken to install package will decrease. Also, the average time is taken in consideration in calculating maintenance window cutoff only if the 
+    # batch size is greater than or equal to 4. So, keeping the expected average time as 2 minutes i.e. 120 seconds. It should be fine to keep expected time little lower than actual average time 
+    # observed in telemetry because there is PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES also in the calucalation of maintenance window cut off which will make the overall cutoff time enough to 
+    # install the batch of packages.
+    PACKAGE_INSTALL_EXPECTED_AVG_TIME_IN_MINUTES = 2
 
     # Package Manager Setting
     PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION = "RepeatUpdateRun"
