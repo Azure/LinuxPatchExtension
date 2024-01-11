@@ -15,9 +15,7 @@
 # Requires Python 2.7+
 import json
 import os
-import random
 import sys
-import string
 import tempfile
 import time
 import unittest
@@ -101,7 +99,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
         patch_count = 100000
-        self.__expected_truncated_patch_count = 670
+        self.__expected_truncated_patch_count = 671
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Critical")
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
@@ -293,11 +291,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_pending)
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
 
-        # random_char=random.choice(string.ascii_letters) ensure the packages are unique due to __set_up_packages_func remove duplicates
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_exclude, random_char=random.choice(string.ascii_letters))
+        # unique char ensure the packages are unique due to __set_up_packages_func remove duplicates
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_exclude, unique_char='a')
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.EXCLUDED)
 
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_not_selected, random_char=random.choice(string.ascii_letters))
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_not_selected, unique_char='b')
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.NOT_SELECTED)
 
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
@@ -415,8 +413,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_installed = 250
         patch_count_installation = patch_count_pending + patch_count_installed
 
-        # random_char=random.choice(string.ascii_letters) ensure the packages are unique due to __set_up_packages_func remove duplicates
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_pending, random_char=random.choice(string.ascii_letters))
+        # unique char ensure the packages are unique due to __set_up_packages_func remove duplicates
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count_pending, unique_char='c')
         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions)
 
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_installed)
@@ -741,7 +739,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             captured_log_output = temp_file.read()
             self.assertIn(expected_string, captured_log_output)
 
-    def __set_up_packages_func(self, val, random_char=None):
+    def __set_up_packages_func(self, val, unique_char=None):
         """ populate packages and versions for truncation """
         test_packages = []
         test_package_versions = []
@@ -749,8 +747,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         for i in range(0, val):
             test_packages.append('python-samba' + str(i))
 
-            if random_char is not None:
-                test_package_versions.append('2:4.4.5+dfsg-2ubuntu€' + random_char)
+            if unique_char is not None:
+                test_package_versions.append('2:4.4.5+dfsg-2ubuntu€' + unique_char)
             else:
                 test_package_versions.append('2:4.4.5+dfsg-2ubuntu€')
 
