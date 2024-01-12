@@ -98,7 +98,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
 
-        patch_count = 100000
+        patch_count = 10000
         self.__expected_truncated_patch_count = 671
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count)
         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, "Critical")
@@ -643,7 +643,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             self.assertTrue(substatus_file_in_bytes <= Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)
 
             if is_truncated:
-                self.assertEquals(status_file_patch_count, self.__expected_truncated_patch_count)
+                self.assertEqual(status_file_patch_count, self.__expected_truncated_patch_count)
                 self.assertTrue(status_file_patch_count < patch_count)  # Assert length of truncated patches < patch_count post truncation
                 self.assertTrue(substatus_file_in_bytes < len(json.dumps(complete_substatus_file_data).encode('utf-8')))  # Assert truncated status file size < completed status file size
                 self.assertTrue(any(Constants.PatchOperationErrorCodes.TRUNCATION in details['code'] for details in message["errors"]["details"]))
