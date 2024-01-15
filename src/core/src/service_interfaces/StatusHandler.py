@@ -900,6 +900,7 @@ class StatusHandler(object):
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation, count_total_errors=self.__installation_total_error_count, substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
 
             status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
+            self.composite_logger.log_debug("Test status_file_size_in_bytes: [status_file_size_in_bytes={0}]".format(status_file_size_in_bytes))
             status_file_agent_size_diff = status_file_size_in_bytes - Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES
             max_allowed_patches_size_in_bytes -= status_file_agent_size_diff   # Reduce the max packages byte size by new error and new escape chars byte size
 
@@ -932,6 +933,9 @@ class StatusHandler(object):
         patches_retained_in_assessment, patches_removed_from_assessment, remaining_patches_size_available_in_bytes = self.__truncate_patches(remaining_assessment_patches, remaining_patches_size_available_in_bytes)
         patches_retained_in_install_low_pri, patches_removed_from_install_low_pri, remaining_patches_size_available_in_bytes = self.__truncate_patches(installation_low_pri, remaining_patches_size_available_in_bytes)
         self.composite_logger.log_debug("Remaining patches size available in bytes after truncation: [RemainingPatchListSizeInBytes={0}]".format(remaining_patches_size_available_in_bytes))
+        self.composite_logger.log_debug("Test Retain Assessment patches after truncation: [MinCountRemainingPatch={0}]".format(len(min_assessment_patches_to_retain)))
+        self.composite_logger.log_debug("Test Retain Assessment patches after truncation: [CountRemainingPatch={0}]".format(len(patches_retained_in_assessment)))
+        self.composite_logger.log_debug("Test Removed Assessment patches after truncation: [CountRemainingPatch={0}]".format(len(patches_removed_from_assessment)))
 
         truncated_installation_patches = patches_retained_in_install_high_pri + patches_retained_in_install_low_pri
         patches_removed_from_installation = patches_removed_from_install_high_pri + patches_removed_from_install_low_pri
