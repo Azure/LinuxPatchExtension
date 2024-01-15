@@ -1038,7 +1038,8 @@ class StatusHandler(object):
             truncated_status_file['status']['substatus'][substatus_index]['status'] = Constants.STATUS_WARNING.lower()      # Update substatus status to warning
 
         truncated_msg_errors = self.__recompose_substatus_msg_errors(errors_details_list, count_total_errors)
-
+        self.composite_logger.log_debug("Test truncated_msg_errors: {0}".format(truncated_msg_errors))
+        self.composite_logger.log_debug("Test truncated_msg_errors byte: {0}".format(self.__calc_patches_payload_size_on_disk(truncated_msg_errors)))
         self.composite_logger.log_verbose("Recompose truncated substatus")
         truncated_substatus_message = self.__update_patches_in_substatus(substatus_msg=substatus_message, substatus_msg_patches=truncated_patches, substatus_msg_errors=truncated_msg_errors)
 
@@ -1056,7 +1057,7 @@ class StatusHandler(object):
     def __update_patches_in_substatus(self, substatus_msg, substatus_msg_patches, substatus_msg_errors=None):
         """ update the substatus message patches and errors """
         substatus_msg['patches'] = substatus_msg_patches
-        if substatus_msg_errors:
+        if substatus_msg_errors is not None:
             substatus_msg['errors'] = substatus_msg_errors
 
         return substatus_msg
