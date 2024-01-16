@@ -140,7 +140,9 @@ class ConfigurePatchingProcessor(object):
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR, current_operation_override_for_error=Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
 
         # write consolidated status
-        self.status_handler.set_configure_patching_substatus_json(status=status, automatic_os_patch_state=self.current_auto_os_patch_state, auto_assessment_state=self.current_auto_assessment_state)
+        self.status_handler.set_configure_patching_substatus_json(status=status,
+                                                                  automatic_os_patch_state=self.current_auto_os_patch_state,
+                                                                  auto_assessment_state=self.current_auto_assessment_state)
 
     def __raise_if_telemetry_unsupported(self):
         if self.lifecycle_manager.get_vm_cloud_type() == Constants.VMCloudType.ARC and self.execution_config.operation not in [Constants.ASSESSMENT, Constants.INSTALLATION]:
