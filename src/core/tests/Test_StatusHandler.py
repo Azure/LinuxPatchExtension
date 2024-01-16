@@ -350,18 +350,15 @@ class TestStatusHandler(unittest.TestCase):
 
     def test_set_patch_metadata_for_healthstore_substatus_json_auto_assess_transitioning(self):
         self.runtime.execution_config.exec_auto_assess_only = True
-        self.assertRaises(Exception,
-                          lambda: self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json())
+        self.assertRaises(Exception, lambda: self.runtime.status_handler.set_patch_metadata_for_healthstore_substatus_json())
 
     def test_set_configure_patching_substatus_json_auto_assess_transitioning(self):
         self.runtime.execution_config.exec_auto_assess_only = True
-        self.assertRaises(Exception,
-                          lambda: self.runtime.status_handler.set_configure_patching_substatus_json())
+        self.assertRaises(Exception, lambda: self.runtime.status_handler.set_configure_patching_substatus_json())
 
     def test_set_current_operation_auto_assess_non_assessment(self):
         self.runtime.execution_config.exec_auto_assess_only = True
-        self.assertRaises(Exception,
-                          lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
+        self.assertRaises(Exception, lambda: self.runtime.status_handler.set_current_operation(Constants.INSTALLATION))
 
     def test_sort_packages_by_classification_and_state(self):
         with self.runtime.env_layer.file_system.open("../../extension/tests/helpers/PatchOrderAssessmentSummary.json", 'r') as file_handle:
