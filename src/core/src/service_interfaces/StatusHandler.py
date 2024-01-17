@@ -848,6 +848,12 @@ class StatusHandler(object):
     # endregion
 
     # region - Patch Truncation
+    def get_num_assessment_patches_removed(self):
+        return len(self.__assessment_patches_removed)
+
+    def get_num_installation_patches_removed(self):
+        return len(self.__installation_patches_removed)
+
     def log_truncated_patches(self):
         """ log details of all the removed patches from status """
         self.composite_logger.log_debug("Count of patches removed from: [Assessment={0}] [Installation={1}]".format(len(self.__assessment_patches_removed), len(self.__installation_patches_removed)))
