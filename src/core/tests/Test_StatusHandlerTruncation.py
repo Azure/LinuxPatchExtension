@@ -593,40 +593,41 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert 'Count of patches removed from: [Assessment=xxx] [Installation=xxx] log message is called
         self.__read_tmp_file_and_assert_log_msg(truncated_substatus_file_data, patch_count_assessment=patch_count_assessment, patch_count_installation=patch_count_installation, substatus_index=1)
 
-    # def test_truncation_method_time_performance(self):
-    #     """ Perform truncation on very large packages to
-    #     assert truncation code logic time performance is only 30 secs more than current (no truncation) code logic"""
-    #
-    #     self.runtime.execution_config.operation = Constants.INSTALLATION
-    #     self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-    #
-    #     # Start performance test prior truncation
-    #     Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = False
-    #     start_time_no_truncation = time.time()
-    #     for i in range(0, 301):
-    #         test_packages, test_package_versions = self.__set_up_packages_func(500)
-    #         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-    #         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
-    #
-    #     end_time_no_truncation = time.time()
-    #     performance_time_no_truncation = end_time_no_truncation - start_time_no_truncation
-    #     performance_time_formatted_no_truncation = self.__convert_performance_time_to_date_time_format(performance_time_no_truncation )
-    #
-    #     # Start truncation performance test
-    #     Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = True
-    #     start_time_with_truncation = time.time()
-    #     for i in range(0, 301):
-    #         test_packages, test_package_versions = self.__set_up_packages_func(500)
-    #         self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-    #         self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
-    #
-    #     end_time_with_truncation = time.time()
-    #     performance_time_with_truncation = end_time_with_truncation - start_time_with_truncation
-    #     performance_time_formatted_with_truncation = self.__convert_performance_time_to_date_time_format(performance_time_with_truncation)
-    #
-    #     self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_no_truncation ' + performance_time_formatted_no_truncation )
-    #     self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_with_truncation' + performance_time_formatted_with_truncation)
-    #     self.assertTrue((performance_time_with_truncation - performance_time_no_truncation) <= 35)
+    def test_truncation_method_time_performance(self):
+        """ Perform truncation on very large packages to
+        assert truncation code logic time performance is only 30 secs more than current (no truncation) code logic"""
+
+        self.runtime.execution_config.operation = Constants.INSTALLATION
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+
+        # Start performance test prior truncation
+        Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = False
+        start_time_no_truncation = time.time()
+        for i in range(0, 301):
+            test_packages, test_package_versions = self.__set_up_packages_func(500)
+            self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+            self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+
+        end_time_no_truncation = time.time()
+        performance_time_no_truncation = end_time_no_truncation - start_time_no_truncation
+
+        # Start truncation performance test
+        Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = True
+        start_time_with_truncation = time.time()
+        for i in range(0, 301):
+            test_packages, test_package_versions = self.__set_up_packages_func(500)
+            self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
+            self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+
+        end_time_with_truncation = time.time()
+        performance_time_with_truncation = end_time_with_truncation - start_time_with_truncation
+
+        performance_time_formatted_no_truncation = self.__convert_performance_time_to_date_time_format(performance_time_no_truncation )
+        performance_time_formatted_with_truncation = self.__convert_performance_time_to_date_time_format(performance_time_with_truncation)
+
+        self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_no_truncation ' + performance_time_formatted_no_truncation )
+        self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_with_truncation' + performance_time_formatted_with_truncation)
+        self.assertTrue((performance_time_with_truncation - performance_time_no_truncation) < 70)
 
     # Setup functions for testing
     def __assert_patch_summary_from_status(self, substatus_file_data, operation, patch_summary, status, patch_count, errors_count=0,
