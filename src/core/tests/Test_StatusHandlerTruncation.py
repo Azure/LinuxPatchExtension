@@ -520,18 +520,17 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_both_assessment_and_installation_with_status_error_truncated(self):
         """ Perform truncation on assessment / installation patches but installation substatus status is set to Error (not warning) due to per-existing patching errors
-        Input (Before truncation): 800 assessment patches in status, 800 installation patches in status with 6 exception errors
-        Output (After truncation): 5 assessment patches in status, 547 installation patches in status
+        Before truncation: 800 assessment patches in status, 800 installation patches in status with 6 exception errors
+        complete status file byte size: > 128kb,
+        After truncation: 5 assessment patches in status, 547 installation patches in status
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=error],
         errors code: [assessment=0 (success)][installation=1 (error)],
         errors details count: [assessment=0][installation=5],
         count of patches removed from log: [assessment=795][installation=253],
-        complete status file byte size: > 128kb,
-        truncated status file byte size: < 126kb,
-        assert assessment / installation message json fields == assessment / installation truncated message json fields,
-        truncated status file byte size < completed status file byte size. """
+
+        truncated status file byte size: < 126kb """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
