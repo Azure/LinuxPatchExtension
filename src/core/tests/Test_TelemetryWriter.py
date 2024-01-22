@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 Microsoft Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +20,7 @@ import os
 import re
 import time
 import unittest
+
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -103,8 +105,16 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def test_write_event_msg_size_limit_char_more_than_1_bytes(self):
         """ Perform 1 byte truncation on char that is more than 1 byte, use decode('utf-8', errors='replace') to replace bad unicode with a good 1 byte char (�) """
+        # message = u"a€bc"*3074  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
+        #message = u'a\xe2\x82\xacbc'  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
+        message = u"a€bc"*3074  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
 
-        message = "a€bc"*3074  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
+        # if isinstance(message, unicode):  # For Python 2
+        #     message.encode('utf-8').decode('utf-8')
+        # print('what is message type', type(message))
+        # print('what is message', message)
+        # print('what is message encode', message.decode('utf-8'))
+
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
