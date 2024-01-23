@@ -32,29 +32,21 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.container = self.runtime.container
         self.__expected_truncated_patch_count = 0
 
-        # Set up tmp file store all log/print message and set sys.stdout point to it.
-        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
-        self.__create_tmp_file_for_log_and_set_stdout()
-
     def tearDown(self):
-        # Reset sys.stdout, close and delete tmp file
-        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
-        self.__remove_tmp_file_reset_stdout()
         self.__expected_truncated_patch_count = 0
         self.runtime.stop()
 
     def test_assessment_patches_under_size_limit_not_truncated(self):
         """ Perform no truncation on assessment patches.
-        Input (Before truncation): 500 assessment patches in status
-        Output (After truncation): 500 assessment patches in status
+        Before truncation: 500 assessment patches in status,
+        completed status file byte size: 92kb
+        Expected (After truncation): 500 assessment patches in status
         operation: Assessment,
         assessment substatus name: PatchAssessmentSummary,
         assessment substatus status: success,
         assessment errors code: 0 (success),
         assessment errors details count: 0,
-        count of assessment patches removed: 0,
-        completed status file byte size: < 126kb,
-        assert size of status file before truncation == size of status file after truncation. """
+        completed status file byte size: 92kb. """
 
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
@@ -79,23 +71,21 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.assertEqual(len(json.dumps(substatus_file_data).encode('utf-8')), len(json.dumps(complete_substatus_file_data).encode('utf-8')))  # Assert both files have same bytes
         self.__assert_patch_summary_from_status(substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, patch_count, is_under_internal_size_limit=True, is_truncated=False)
 
-        # Assert 'Count of patches removed from: [Assessment=0] [Installation=0] log message is called
-        self.__read_tmp_file_and_assert_log_msg(substatus_file_data, patch_count_assessment=patch_count)
+        # Assert 'Count of patches removed from: [Assessment=xxx] [Installation=0] log message is called
+        self.__assert_truncated_patches_removed(complete_substatus_file_data, patch_count_assessment=patch_count)
 
     def test_only_assessment_patches_over_size_limit_truncated(self):
         """ Perform truncation on very large assessment patches and checks for time performance concern.
-        Input (Before truncation): 100000 assessment patches in status
-        Output (After truncation): 672 assessment patches in status
+        Before truncation: 100000 assessment patches in status
+        complete status file byte size: 19,022kb,
+        Expected (After truncation): 672 assessment patches in status
         operation: Assessment,
         assessment substatus name: PatchAssessmentSummary,
         assessment substatus status: warning,
         assessment errors code: 0 (success),
         assessment errors details count: 0,
         count of assessment patches removed: 99328,
-        complete status file byte size: > 128kb,
-        truncated status file byte size: < 126kb,
-        assert assessment message json fields == assessment truncated message json fields,
-        assert truncated status file byte size < completed status file byte size. """
+        truncated status file byte size: 126kb. """
 
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
@@ -123,23 +113,23 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert all assessment fields in the message json are equal in both status files
         self.__assert_assessment_truncated_msg_fields(complete_substatus_file_data, truncated_substatus_file_data)
 
+        self.assertEqual(patch_count - self.__expected_truncated_patch_count, self.runtime.status_handler.get_num_assessment_patches_removed())
+
         # Assert 'Count of patches removed from: [Assessment=xxx] [Installation=0] log message is called
-        self.__read_tmp_file_and_assert_log_msg(truncated_substatus_file_data, patch_count_assessment=patch_count)
+        self.__assert_truncated_patches_removed(truncated_substatus_file_data, patch_count_assessment=patch_count)
 
     def test_only_assessment_patches_over_size_limit_with_status_error_truncated(self):
         """ Perform truncation on assessment patches and substatus status is set to Error (not warning) due to per-existing patching errors
-        Input (Before truncation): 1000 assessment patches in status, 6 exceptions
-        Output (After truncation): 670 assessment patches in status
+        Before truncation: 1000 assessment patches in status, 6 exceptions
+        completed status file byte size: 188kb
+        Expected (After truncation): 670 assessment patches in status
         operation: Assessment,
         assessment substatus name: PatchAssessmentSummary,
         assessment substatus status: error,
         assessment errors code: 1 (error),
         assessment errors details count: 5,
         count of assessment patches removed: 330,
-        completed status file byte size: > 128kb,
-        truncated status file byte size: < 126kb,
-        assert assessment message json fields == assessment truncated message json fields,
-        assert truncated status file byte size < completed status file byte size. """
+        truncated status file byte size: 126kb. """
 
         self.runtime.execution_config.operation = Constants.ASSESSMENT
         self.runtime.status_handler.set_current_operation(Constants.ASSESSMENT)
@@ -178,23 +168,26 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_assessment_truncated_msg_fields(complete_substatus_file_data, truncated_substatus_file_data)
 
         # Assert 'Count of patches removed from: [Assessment=xxx] [Installation=0] log message is called
-        self.__read_tmp_file_and_assert_log_msg(truncated_substatus_file_data, patch_count_assessment=patch_count)
+        self.__assert_truncated_patches_removed(truncated_substatus_file_data, patch_count_assessment=patch_count)
 
     def test_only_installation_under_size_limit_not_truncated(self):
         """ Perform no truncation on installation patches.
-        Input (Before truncation): 500 installation patches in status
-        Output (After truncation): 500 installation patches in status
+        Before truncation: 500 installation patches in status
+        completed status file byte size: 114kb,
+        Expected (After truncation): 500 installation patches in status
         operation: Installation,
         installation substatus name: PatchInstallationSummary,
         installation substatus status: success,
         installation errors code: 0 (success),
         installation errors details count: 0,
         count of installation patches removed: 0,
-        completed status file byte size: < 126kb,
-        assert size of status file before truncation == size of status file after truncation. """
+        completed status file byte size: 114kb. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        # Set up tmp file store all log/print message and set sys.stdout point to it.
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__create_tmp_file_for_log_and_set_stdout()
 
         patch_count = 500
         self.__expected_truncated_patch_count = 500
@@ -217,25 +210,30 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, patch_count, is_under_internal_size_limit=True, is_truncated=False)
 
         # Assert 'Count of patches removed from: [Assessment=0] [Installation=0] log message is called
-        self.__read_tmp_file_and_assert_log_msg(substatus_file_data, patch_count_installation=patch_count)
+        self.__assert_truncated_patches_removed(substatus_file_data, patch_count_installation=patch_count)
+
+        # Reset sys.stdout, close and delete tmp file
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__remove_tmp_file_reset_stdout()
 
     def test_only_installation_patches_over_size_limit_truncated(self):
         """ Perform truncation on very large installation patches and checks for time performance concern.
-        Input (Before truncation): 100000 installation patches in status
-        Output (After truncation): 555 installation patches in status
+        Before truncation: 100000 installation patches in status
+        complete status file byte size: 22,929kb,
+        Expected (After truncation): 555 installation patches in status
         operation: Installation,
         installation substatus name: PatchInstallationSummary,
         installation substatus status: warning,
         installation errors code: 0 (success),
         installation errors details count: 0,
         count of installation patches removed: 99445,
-        complete status file byte size: > 128kb,
-        truncated status file byte size: < 126kb,
-        assert installation message json fields == truncated installation message json fields,
-        assert truncated status file byte size < completed status file byte size. """
+        truncated status file byte size: 126kb. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        # Set up tmp file store all log/print message and set sys.stdout point to it.
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__create_tmp_file_for_log_and_set_stdout()
 
         patch_count = 100000
         self.__expected_truncated_patch_count = 555
@@ -262,12 +260,17 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_installation_truncated_msg_fields(complete_substatus_file_data, truncated_substatus_file_data)
 
         # Assert 'Count of patches removed from: [Assessment=0] [Installation=xxx] log message is called
-        self.__read_tmp_file_and_assert_log_msg(truncated_substatus_file_data, patch_count_installation=patch_count)
+        self.__assert_truncated_patches_removed(truncated_substatus_file_data, patch_count_installation=patch_count)
+
+        # Reset sys.stdout, close and delete tmp file
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__remove_tmp_file_reset_stdout()
 
     def test_only_installation_low_priority_patches_over_size_limit_truncated(self):
         """ Perform truncation on only installation with low priority patches (Pending, Exclude, Not_Selected), truncated status files have no Not_Selected patches.
-        Input (Before truncation): 1040 installation patches in status
-        Output (After truncation): 559 installation patches in status
+        Before truncation: 1040 installation patches in status
+        complete status file byte size: 235kb,
+        Expected (After truncation): 559 installation patches in status
         operation: Installation,
         installation substatus name: PatchInstallationSummary,
         installation substatus status: warning,
@@ -277,13 +280,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         first truncated installation patch state: Pending,
         last truncated installation patch state: Excluded,
         count of installation patches removed: 481,
-        complete status file byte size: > 128kb,
-        truncated status file byte size: < 126kb,
-        assert installation message json fields == truncated installation message json fields,
-        assert truncated status file byte size < completed status file byte size. """
+        truncated status file byte size: 126kb. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        # Set up tmp file store all log/print message and set sys.stdout point to it.
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__create_tmp_file_for_log_and_set_stdout()
 
         patch_count_pending = 400
         patch_count_exclude = 600
@@ -329,25 +332,30 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_installation_truncated_msg_fields(complete_substatus_file_data, truncated_substatus_file_data)
 
         # Assert 'Count of patches removed from: [Assessment=0] [Installation=xxx] log message is called
-        self.__read_tmp_file_and_assert_log_msg(truncated_substatus_file_data, patch_count_installation=patch_count)
+        self.__assert_truncated_patches_removed(truncated_substatus_file_data, patch_count_installation=patch_count)
+
+        # Reset sys.stdout, close and delete tmp file
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__remove_tmp_file_reset_stdout()
 
     def test_only_installation_patches_over_size_limit_with_status_error_truncated(self):
         """ Perform truncation on installation patches and substatus status is set to Error (not warning) due to per-existing patching errors
-        Input (Before truncation): 800 installation patches in status, 6 exceptions
-        Output (After truncation): 553 installation patches in status
+        Before truncation: 800 installation patches in status, 6 exceptions
+        completed status file byte size: 182kb,
+        Expected (After truncation): 553 installation patches in status
         operation: Installation,
         installation substatus name: PatchInstallationSummary,
         installation substatus status: error,
         installation errors code: 1 (error),
         installation errors details count: 5,
         count of installation patches removed: 247,
-        completed status file byte size: > 128kb,
-        truncated status file byte size: < 126kb,
-        assert installation message json fields == truncated installation message json fields,
-        assert truncated status file byte size < completed status file byte size. """
+        truncated status file byte size: 126kb. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        # Set up tmp file store all log/print message and set sys.stdout point to it.
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__create_tmp_file_for_log_and_set_stdout()
 
         # set up for expected variables use in assertions
         self.__expected_truncated_patch_count = 553
@@ -385,25 +393,30 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_installation_truncated_msg_fields(complete_substatus_file_data, truncated_substatus_file_data)
 
         # Assert 'Count of patches removed from: [Assessment=0] [Installation=xxx] log message is called
-        self.__read_tmp_file_and_assert_log_msg(truncated_substatus_file_data, patch_count_installation=patch_count)
+        self.__assert_truncated_patches_removed(truncated_substatus_file_data, patch_count_installation=patch_count)
+
+        # Reset sys.stdout, close and delete tmp file
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__remove_tmp_file_reset_stdout()
 
     def test_both_assessment_and_installation_over_size_limit_truncated(self):
         """ Perform truncation on assessment/installation patches.
-        Input (Before truncation): 700 assessment patches in status, 1200 installation patches in status
-        Output (After truncation): 374 assessment patches in status, 250 installation patches in status
+        Before truncation: 700 assessment patches in status, 1200 installation patches in status
+        complete status file byte size: 242kb,
+        Expected (After truncation): 374 assessment patches in status, 250 installation patches in status
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=warning],
         errors code: [assessment=0 (success)][installation=0 (success)],
         errors details count: [assessment=0][installation=0],
         count of patches removed from log: [assessment=326[installation=950],
-        complete status file byte size: > 128kb,
-        truncated status file byte size: < 126kb,
-        assert assessment / installation message json fields == assessment / installation truncated message json fields,
-        assert truncated status file size < completed status file size. """
+        truncated status file byte size: 126kb. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        # Set up tmp file store all log/print message and set sys.stdout point to it.
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__create_tmp_file_for_log_and_set_stdout()
 
         patch_count_assessment = 700
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_assessment)
@@ -454,25 +467,30 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_installation_truncated_msg_fields(complete_substatus_file_data, truncated_substatus_file_data, substatus_index=1)
 
         # Assert 'Count of patches removed from: [Assessment=xxx] [Installation=xxx] log message is called
-        self.__read_tmp_file_and_assert_log_msg(truncated_substatus_file_data, patch_count_assessment=patch_count_assessment, patch_count_installation=patch_count_installation, substatus_index=1)
+        self.__assert_truncated_patches_removed(truncated_substatus_file_data, patch_count_assessment=patch_count_assessment, patch_count_installation=patch_count_installation, substatus_index=1)
+
+        # Reset sys.stdout, close and delete tmp file
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__remove_tmp_file_reset_stdout()
 
     def test_both_assessment_and_installation__keep_min_5_assessment_patches_truncated(self):
         """ Perform truncation on very large assessment / installation patches and checks for time performance concern. but keep min 5 assessment patches.
-        Input (Before truncation): 100000 assessment patches in status, 100000 installation patches in status
-        Output (After truncation): 5 assessment patches in status, 549 installation patches in status
+        Before truncation: 100000 assessment patches in status, 100000 installation patches in status
+        complete status file byte size: 41,658kb,
+        Expected (After truncation): 5 assessment patches in status, 549 installation patches in status
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=warning],
         errors code: [assessment=0 (success)][installation=0 (success)],
         errors details count: [assessment=0][installation=0],
         count of patches removed from log: [assessment=99995[installation=99451],
-        complete status file byte size: > 128kb,
-        truncated status file byte size: < 126kb,
-        assert assessment / installation message json fields == assessment / installation truncated message json fields,
-        assert truncated status file size < completed status file size. """
+        truncated status file byte size: 126kb. """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        # Set up tmp file store all log/print message and set sys.stdout point to it.
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__create_tmp_file_for_log_and_set_stdout()
 
         patch_count_assessment = 100000
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_assessment)
@@ -516,24 +534,30 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_installation_truncated_msg_fields(complete_substatus_file_data, truncated_substatus_file_data, substatus_index=1)
         
         # Assert 'Count of patches removed from: [Assessment=xxx] [Installation=xxx] log message is called
-        self.__read_tmp_file_and_assert_log_msg(truncated_substatus_file_data, patch_count_assessment=patch_count_assessment, patch_count_installation=patch_count_installation, substatus_index=1)
+        self.__assert_truncated_patches_removed(truncated_substatus_file_data, patch_count_assessment=patch_count_assessment, patch_count_installation=patch_count_installation, substatus_index=1)
+
+        # Reset sys.stdout, close and delete tmp file
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__remove_tmp_file_reset_stdout()
 
     def test_both_assessment_and_installation_with_status_error_truncated(self):
         """ Perform truncation on assessment / installation patches but installation substatus status is set to Error (not warning) due to per-existing patching errors
         Before truncation: 800 assessment patches in status, 800 installation patches in status with 6 exception errors
         complete status file byte size: > 128kb,
-        After truncation: 5 assessment patches in status, 547 installation patches in status
+        Expected (After truncation): 5 assessment patches in status, 547 installation patches in status
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=error],
         errors code: [assessment=0 (success)][installation=1 (error)],
         errors details count: [assessment=0][installation=5],
         count of patches removed from log: [assessment=795][installation=253],
-
         truncated status file byte size: < 126kb """
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        # Set up tmp file store all log/print message and set sys.stdout point to it.
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__create_tmp_file_for_log_and_set_stdout()
 
         patch_count_assessment = 800
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_assessment)
@@ -586,7 +610,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_installation_truncated_msg_fields(complete_substatus_file_data, truncated_substatus_file_data, substatus_index=1)
 
         # Assert 'Count of patches removed from: [Assessment=xxx] [Installation=xxx] log message is called
-        self.__read_tmp_file_and_assert_log_msg(truncated_substatus_file_data, patch_count_assessment=patch_count_assessment, patch_count_installation=patch_count_installation, substatus_index=1)
+        self.__assert_truncated_patches_removed(truncated_substatus_file_data, patch_count_assessment=patch_count_assessment, patch_count_installation=patch_count_installation, substatus_index=1)
+
+        # Reset sys.stdout, close and delete tmp file
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__remove_tmp_file_reset_stdout()
 
     def test_truncation_method_time_performance(self):
         """ Perform truncation on very large packages to
@@ -594,6 +622,10 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        # Set up tmp file store all log/print message and set sys.stdout point to it.
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__create_tmp_file_for_log_and_set_stdout()
+
 
         # Start performance test prior truncation
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = False
@@ -618,6 +650,10 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         end_time_with_truncation = time.time()
         performance_time_with_truncation = end_time_with_truncation - start_time_with_truncation
         performance_time_formatted_with_truncation = self.__convert_performance_time_to_date_time_format(performance_time_with_truncation)
+
+        # Reset sys.stdout, close and delete tmp file
+        # Note: sys log/print will not display in terminal, for debugging comment __remove_tmp_file_reset_stdout and check the tmp file
+        self.__remove_tmp_file_reset_stdout()
 
         self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_no_truncation ' + performance_time_formatted_no_truncation )
         self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_with_truncation' + performance_time_formatted_with_truncation)
@@ -722,15 +758,11 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.temp_stdout.close()
         os.remove(self.temp_stdout.name)  # Remove the tmp file
 
-    def __read_tmp_file_and_assert_log_msg(self, substatus_file_data, patch_count_assessment=0, patch_count_installation=0, substatus_index=0):
-        self.temp_stdout.flush()
+    def __assert_truncated_patches_removed(self, substatus_file_data, patch_count_assessment=0, patch_count_installation=0, substatus_index=0):
         assessment_truncated_patches = 0 if patch_count_assessment == 0 else len(self.__get_message_json_from_substatus(substatus_file_data)['patches'])
         installation_truncated_patches = 0 if patch_count_installation == 0 else len(self.__get_message_json_from_substatus(substatus_file_data, substatus_index=substatus_index)['patches'])
-        expected_string = "Count of patches removed from: [Assessment="+str(patch_count_assessment - assessment_truncated_patches)+"]"+" [Installation="+str(patch_count_installation - installation_truncated_patches)+"]"
-
-        with open(self.temp_stdout.name, 'r') as temp_file:
-            captured_log_output = temp_file.read()
-            self.assertIn(expected_string, captured_log_output)
+        self.assertEqual(patch_count_assessment - assessment_truncated_patches, self.runtime.status_handler.get_num_assessment_patches_removed())
+        self.assertEqual(patch_count_installation - installation_truncated_patches, self.runtime.status_handler.get_num_installation_patches_removed())
 
     def __set_up_packages_func(self, val, random_char=None):
         """ populate packages and versions for truncation """
