@@ -22,7 +22,6 @@ import shutil
 import tempfile
 import time
 
-from six import text_type
 from core.src.bootstrap.Constants import Constants
 
 
@@ -145,19 +144,19 @@ class TelemetryWriter(object):
         Adds a telemetry event counter at the end of every event, irrespective of truncation, which can be used in debugging operation flow. """
 
         try:
-            print('full_message', full_message)
-            print('full_message type', type(full_message))
             message_size_limit_in_chars = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS
 
-            if isinstance(full_message, bytes):
-                full_message = full_message.decode('utf-8')
-
+            # if isinstance(full_message, str):
+            #     print('full_message type1', type(full_message))
+            #     full_message = full_message.decode('utf-8')
+            #     print('full_message type2', type(full_message))
+            print('full_message type1', type(full_message))
             formatted_message = re.sub(r"\s+", " ", full_message)
-            print('what is formatted_message', formatted_message)
 
             if len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS > message_size_limit_in_chars:
-                print('problem1')
-                self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(formatted_message if isinstance(formatted_message, str) else formatted_message.decode('utf-8')))
+                print('formatted_message type', type(formatted_message))
+                #self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(formatted_message if isinstance(formatted_message, six.text_type) else formatted_message))
+                self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(formatted_message.encode('utf-8')))
                 print('problem2')
                 formatted_message = formatted_message.encode('utf-8')
                 chars_dropped = len(formatted_message) - message_size_limit_in_chars + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS

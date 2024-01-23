@@ -109,12 +109,6 @@ class TestTelemetryWriter(unittest.TestCase):
         #message = u'a\xe2\x82\xacbc'  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
         message = u"a€bc"*3074  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
 
-        # if isinstance(message, unicode):  # For Python 2
-        #     message.encode('utf-8').decode('utf-8')
-        # print('what is message type', type(message))
-        # print('what is message', message)
-        # print('what is message encode', message.decode('utf-8'))
-
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
@@ -123,8 +117,8 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertEqual(events[-1]["TaskName"], "Test Task")
             self.assertTrue(len(events[-1]["Message"]) < len(message.encode('utf-8')))
             chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
-            self.assertTrue("a€bc" in events[-1]["Message"])
-            self.assertTrue("a€bc" * (len(message) + 1 - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])  # len(message) + 1 due to bad unicode will be replaced by �
+            self.assertTrue(u"a\u20acbc" in events[-1]["Message"])
+            self.assertTrue(u"a\u20acbc" * (len(message) + 1 - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])  # len(message) + 1 due to bad unicode will be replaced by �
             f.close()
 
     # TODO: The following 3 tests cause widespread test suite failures (on master), so leaving it out. And tracking in: Task 10912099: [Bug] Bug in telemetry writer - overwriting prior events in fast execution
