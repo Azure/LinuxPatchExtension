@@ -109,6 +109,13 @@ class TestTelemetryWriter(unittest.TestCase):
         #message = u'a\xe2\x82\xacbc'  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
         message = u"a€bc"*3074  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
 
+        print('encode message', type(message.encode('utf-8')))
+        print('encode message', message.encode('utf-8'))
+        print('message type2', type(message))
+        print('message info', message)
+        if isinstance(message, unicode):
+            print('this is unicode string')
+
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:

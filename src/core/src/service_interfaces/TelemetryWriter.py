@@ -151,6 +151,8 @@ class TelemetryWriter(object):
             #     full_message = full_message.decode('utf-8')
             #     print('full_message type2', type(full_message))
             print('full_message type1', type(full_message))
+            print('full_message ', full_message)
+
             formatted_message = re.sub(r"\s+", " ", full_message)
 
             if len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS > message_size_limit_in_chars:
