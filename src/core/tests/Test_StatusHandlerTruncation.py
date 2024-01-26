@@ -290,7 +290,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_both_assessment_and_installation_over_size_limit_truncated(self):
         """ Perform truncation on assessment/installation patches.
-        Before truncation: 700 assessment patches in status, 1200 installation patches in status
+        Before truncation: 700 assessment patches in status, 500 installation patches in status
         complete status file byte size: 242kb,
         Expected (After truncation): 374 assessment patches in status, 250 installation patches in status
         operation: Installation,
@@ -318,7 +318,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, self.__patch_count_assessment)
 
         # Assert installation summary
-        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, self.__patch_count_installation, substatus_index=1)
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, self.__patch_count_installation, installation_substatus_index=1)
 
         # Assert truncated status file
         truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
@@ -329,7 +329,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert installation truncation
         self.__expected_truncated_patch_count = 250
-        self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_installation, substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+        self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_installation, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
     def test_both_assessment_and_installation__keep_min_5_assessment_patches_truncated(self):
         """ Perform truncation on very large assessment / installation patches and checks for time performance concern. but keep min 5 assessment patches.
@@ -359,7 +359,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert installation summary
         self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS,
-            self.__patch_count_installation, substatus_index=1)
+            self.__patch_count_installation, installation_substatus_index=1)
 
         # Assert truncated status file
         truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
@@ -370,7 +370,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         # Assert installation truncation
         self.__expected_truncated_patch_count = 549
-        self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_installation, substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+        self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_installation, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
     def test_both_assessment_and_installation_with_status_error_truncated(self):
         """ Perform truncation on assessment / installation patches but installation substatus status is set to Error (not warning) due to per-existing patching errors
@@ -400,7 +400,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, self.__patch_count_assessment)
 
         # Assert no installation message errors
-        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, 'transitioning', self.__patch_count_installation, substatus_index=1)
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, 'transitioning', self.__patch_count_installation, installation_substatus_index=1)
 
         # Set up complete status file with exception errors - installation
         self.__add_multiple_exception_errors()
@@ -410,7 +410,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
 
         # Assert installation status file with multi error exceptions
-        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, self.__patch_count_installation, errors_count=5, errors_code=Constants.PatchOperationTopLevelErrorCode.ERROR, substatus_index=1)
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, self.__patch_count_installation, errors_count=5, errors_code=Constants.PatchOperationTopLevelErrorCode.ERROR, installation_substatus_index=1)
 
         # Assert truncated status file
         truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
@@ -422,7 +422,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert installation truncated status file with multi exceptions
         self.__expected_truncated_patch_count = 547
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, self.__patch_count_installation,
-            errors_count=5, errors_code=Constants.PatchOperationTopLevelErrorCode.ERROR, substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+            errors_count=5, errors_code=Constants.PatchOperationTopLevelErrorCode.ERROR, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
     def test_truncation_method_time_performance(self):
         """ Perform truncation on very large packages to
@@ -461,9 +461,9 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     # Setup functions for testing
     def __assert_patch_summary_from_status(self, substatus_file_data, operation, patch_summary, status, patch_count, errors_count=0,
-            errors_code=Constants.PatchOperationTopLevelErrorCode.SUCCESS, substatus_index=0, complete_substatus_file_data=None, is_under_internal_size_limit=False, is_truncated=False):
+            errors_code=Constants.PatchOperationTopLevelErrorCode.SUCCESS, installation_substatus_index=0, complete_substatus_file_data=None, is_under_internal_size_limit=False, is_truncated=False):
 
-        substatus_summary_data = substatus_file_data["status"]["substatus"][substatus_index]
+        substatus_summary_data = substatus_file_data["status"]["substatus"][installation_substatus_index]
         message = json.loads(substatus_summary_data["formattedMessage"]["message"])
         status_file_patch_count = len(message["patches"])
 
@@ -529,9 +529,9 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.assertEqual(assessment_msg['lastModifiedTime'], assessment_truncated_msg['lastModifiedTime'])
         self.assertEqual(assessment_msg['startedBy'], assessment_truncated_msg['startedBy'])
 
-    def __assert_installation_truncated_msg_fields(self, complete_substatus_file_data, truncated_substatus_file_data, substatus_index=0):
-        installation_msg = self.__get_message_json_from_substatus(complete_substatus_file_data, substatus_index=substatus_index)
-        installation_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data, substatus_index=substatus_index)
+    def __assert_installation_truncated_msg_fields(self, complete_substatus_file_data, truncated_substatus_file_data, installation_substatus_index=0):
+        installation_msg = self.__get_message_json_from_substatus(complete_substatus_file_data, installation_substatus_index=installation_substatus_index)
+        installation_truncated_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data, installation_substatus_index=installation_substatus_index)
 
         self.assertEqual(installation_msg['installationActivityId'], installation_truncated_msg['installationActivityId'])
         self.assertEqual(installation_msg['rebootStatus'], installation_truncated_msg['rebootStatus'])
@@ -573,8 +573,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             substatus_file_data = json.load(file_handle)[0]
         return substatus_file_data
 
-    def __get_message_json_from_substatus(self, substatus_file_data, substatus_index=0):
-        return json.loads(substatus_file_data["status"]["substatus"][substatus_index]["formattedMessage"]["message"])
+    def __get_message_json_from_substatus(self, substatus_file_data, installation_substatus_index=0):
+        return json.loads(substatus_file_data["status"]["substatus"][installation_substatus_index]["formattedMessage"]["message"])
 
     def __convert_performance_time_to_date_time_format(self, performance_time):
         performance_time = abs(performance_time)
