@@ -203,8 +203,7 @@ class StatusHandler(object):
 
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
 
-        # need to recomment
-        # self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
+        self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
