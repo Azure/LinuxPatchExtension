@@ -54,6 +54,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = 'assessment_only'
         self.__patch_count_assessment = 500
         self.__expected_truncated_patch_count = 500
+
         self.__set_up_status_file(run='assessment', config_operation=Constants.ASSESSMENT, patch_count=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
 
         # Assert complete status file
@@ -83,6 +84,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = 'assessment_only'
         self.__patch_count_assessment = 100000
         self.__expected_truncated_patch_count = 672
+
         self.__set_up_status_file(run='assessment', config_operation=Constants.ASSESSMENT, patch_count=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS, classification='Critical')
 
         # Assert complete status file
@@ -153,6 +155,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = 'installation_only'
         self.__patch_count_installation = 500
         self.__expected_truncated_patch_count = 500
+
         self.__set_up_status_file(run='installation', config_operation=Constants.INSTALLATION, patch_count=self.__patch_count_installation, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
 
         # Assert complete status file
@@ -182,6 +185,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = 'installation_only'
         self.__patch_count_installation = 100000
         self.__expected_truncated_patch_count = 555
+
         self.__set_up_status_file(run='installation', config_operation=Constants.INSTALLATION, patch_count=self.__patch_count_installation, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
 
         # Assert complete status file
