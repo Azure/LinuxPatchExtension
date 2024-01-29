@@ -21,7 +21,6 @@ import re
 import shutil
 import tempfile
 import time
-import traceback
 
 from six import text_type
 from core.src.bootstrap.Constants import Constants
@@ -214,7 +213,6 @@ class TelemetryWriter(object):
                 self.__write_event_using_temp_file(file_path, all_events)
 
         except Exception as e:
-            print(traceback.format_exc())  # great for analyze bug at specific point in the code, pushes exception down the stack
             self.composite_logger.log_telemetry_module_error("Error occurred while writing telemetry events. [Error={0}]".format(repr(e)))
             raise Exception("Internal reporting error. Execution could not complete.")
 

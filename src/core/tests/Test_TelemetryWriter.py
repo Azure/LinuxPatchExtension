@@ -315,7 +315,7 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue(len(events[-1]["Message"]) < len(message.encode('utf-8')))
             chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
             self.assertTrue(u"a\u20acbc" in events[-1]["Message"])
-            self.assertTrue(u"a\u20acbc" * (len(message) + 1 - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])  # len(message) + 1 due to bad unicode will be replaced by �
+            self.assertTrue(u"a\u20acb c" * (len(message) + 1 - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])  # len(message) + 1 due to bad unicode will be replaced by �
             f.close()
 
 if __name__ == '__main__':
