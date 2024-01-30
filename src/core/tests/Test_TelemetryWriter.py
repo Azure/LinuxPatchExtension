@@ -103,15 +103,15 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue("a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])
             f.close()
 
-    # def test_write_event_msg_size_limit_char_with_actual_unicode_str(self):
-    #     """ Perform 1 byte truncation on unicode str that is more than 1 byte, use decode('utf-8', errors='replace') to replace bad unicode with a good 1 byte char (�) """
-    #     message = u"a€bc"*3074  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
-    #     self.__assert_write_event_msg_size_limit_char(message)
+    def test_write_event_msg_size_limit_char_with_actual_unicode_str(self):
+        """ Perform 1 byte truncation on unicode str that is more than 1 byte, use decode('utf-8', errors='replace') to replace bad unicode with a good 1 byte char (�) """
+        message = u"a€bc"*3074  # €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
+        self.__assert_write_event_msg_size_limit_char(message)
 
-    # def test_write_event_msg_size_limit_char_with_unicode_point(self):
-    #     """ Perform 1 byte truncation on unicode code point str that is more than 1 byte, use decode('utf-8', errors='replace') to replace bad unicode with a good 1 byte char (�) """
-    #     message = u"a\u20acbc"*3074  # unicode code point €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
-    #     self.__assert_write_event_msg_size_limit_char(message)
+    def test_write_event_msg_size_limit_char_with_unicode_point(self):
+        """ Perform 1 byte truncation on unicode code point str that is more than 1 byte, use decode('utf-8', errors='replace') to replace bad unicode with a good 1 byte char (�) """
+        message = u"a\u20acbc"*3074  # unicode code point €(\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
+        self.__assert_write_event_msg_size_limit_char(message)
 
     # TODO: The following 3 tests cause widespread test suite failures (on master), so leaving it out. And tracking in: Task 10912099: [Bug] Bug in telemetry writer - overwriting prior events in fast execution
     # def test_write_event_size_limit(self):
@@ -304,18 +304,18 @@ class TestTelemetryWriter(unittest.TestCase):
             f.close()
             self.assertTrue(text_found.string.startswith("Message 1"))
 
-    # def __assert_write_event_msg_size_limit_char(self, message):
-    #     self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
-    #     latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
-    #     with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
-    #         events = json.load(f)
-    #         self.assertTrue(events is not None)
-    #         self.assertEqual(events[-1]["TaskName"], "Test Task")
-    #         self.assertTrue(len(events[-1]["Message"]) < len(message.encode('utf-8')))
-    #         chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
-    #         self.assertTrue(u"a\u20acbc" in events[-1]["Message"])
-    #         self.assertTrue(u"a\u20acb c" * (len(message) + 1 - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])  # len(message) + 1 due to bad unicode will be replaced by �
-    #         f.close()
+    def __assert_write_event_msg_size_limit_char(self, message):
+        self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
+        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
+            events = json.load(f)
+            self.assertTrue(events is not None)
+            self.assertEqual(events[-1]["TaskName"], "Test Task")
+            self.assertTrue(len(events[-1]["Message"]) < len(message.encode('utf-8')))
+            chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
+            self.assertTrue(u"a\u20acbc" in events[-1]["Message"])
+            self.assertTrue(u"a\u20acb c" * (len(message) + 1 - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])  # len(message) + 1 due to bad unicode will be replaced by �
+            f.close()
 
 if __name__ == '__main__':
     unittest.main()
