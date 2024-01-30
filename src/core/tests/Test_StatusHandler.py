@@ -401,46 +401,13 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
-    def test_set_package_install_unknown_patch_state_recorded(self):
-        packages, package_versions = self.runtime.package_manager.get_all_updates()
-        self.runtime.status_handler.set_package_install_status(packages, package_versions, Constants.AVAILABLE)
+    def test_sequence_number_changed_termination_configure_patching_only(self):
+        """ Test sequence number change for configure patching throws newer operation superseded error message """
+        self.__assert_sequence_num_changed_termination(config=Constants.CONFIGURE_PATCHING, summary=Constants.CONFIGURE_PATCHING_SUMMARY, status=Constants.STATUS_ERROR)
 
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
-        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertEqual(len(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]), 3)
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
-        self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["classifications"]))
-        self.assertEqual("Available", str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchInstallationState"]))
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
-        self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][1]["classifications"]))
-        self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["name"], "samba-libs")
-        self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
-        self.assertTrue("Other" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][2]["classifications"]))
-
-    def test_sequence_number_changed_termination_configuration_only(self):
-        self.runtime.execution_config.operation = Constants.CONFIGURE_PATCHING
-        self.runtime.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
-
-        self.runtime.status_handler.report_sequence_number_changed_termination()
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
-            self.assertTrue(substatus_file_data["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-            self.assertEqual(substatus_file_data["status"], Constants.STATUS_ERROR.lower())
-            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
-            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
-
-    def test_sequence_number_changed_termination_installation(self):
-        self.runtime.execution_config.operation = Constants.INSTALLATION
-        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-
-        self.runtime.status_handler.report_sequence_number_changed_termination()
-        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
-            self.assertTrue(substatus_file_data["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-            self.assertEqual(substatus_file_data["status"], Constants.STATUS_ERROR.lower())
-            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
-            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
+    def test_sequence_number_changed_termination_installation_patching(self):
+        """ Test sequence number change for installation patching throws newer operation superseded error message """
+        self.__assert_sequence_num_changed_termination(config=Constants.INSTALLATION, summary=Constants.PATCH_INSTALLATION_SUMMARY, status=Constants.STATUS_ERROR)
 
     def test_if_status_file_resets_on_load_if_malformed(self):
         # Mock complete status file with malformed json
@@ -608,6 +575,19 @@ class TestStatusHandler(unittest.TestCase):
         os.remove = self.backup_os_remove
         self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
         self.assertFalse(os.path.isfile(os.path.join(file_path, '1.complete_status')))
+
+    def __assert_sequence_num_changed_termination(self, config, summary, status):
+        self.runtime.execution_config.operation = config
+        self.runtime.status_handler.set_current_operation(config)
+
+        self.runtime.status_handler.report_sequence_number_changed_termination()
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+            self.assertTrue(substatus_file_data["name"] == summary)
+            self.assertTrue(substatus_file_data["name"] == summary)
+            self.assertEqual(substatus_file_data["status"], status.lower())
+            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):

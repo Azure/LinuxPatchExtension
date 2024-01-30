@@ -26,6 +26,7 @@ class StdOutFileMirror(object):
         self.env_layer = env_layer
         self.terminal = sys.stdout  # preserve for recovery
         self.file_logger = file_logger
+        self.encoding = 'UTF-8'
         splash = "\n,---.                        ,---.     |         |        ,-.-.                                        |    \n|---|,---,.   .,---.,---.    |---',---.|--- ,---.|---.    | | |,---.,---.,---.,---.,---.,-.-.,---.,---.|--- \n|   | .-' |   ||    |---'    |    ,---||    |    |   |    | | |,---||   |,---||   ||---'| | ||---'|   ||    \n`   ''---'`---'`    `---'    `    `---^`---'`---'`   '    ` ' '`---^`   '`---^`---|`---'` ' '`---'`   '`---'\n                                                                              `---'                         "
 
         if self.file_logger.log_file_handle is not None:
