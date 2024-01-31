@@ -13,11 +13,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Set up Python 3.9
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v3
         with:
           python-version: 3.9
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: '20'
       - name: Install dependencies
@@ -45,7 +45,7 @@ jobs:
           cd ../../extension/tests
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3.14.0
+        uses: codecov/codecov-action@v3
         with:
           flags: python39
           name: python-39
@@ -79,7 +79,7 @@ jobs:
             SETX PATH "%PATH%;C:\Python27"
           )
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: '20'
       - name: Cache dependencies
@@ -115,7 +115,7 @@ jobs:
           cd ../../extension/tests
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3.14.0
+        uses: codecov/codecov-action@v3
         with:
           flags: python27
           name: python-27
