@@ -11,9 +11,9 @@ jobs:
       PYTHONTRACEMALLOC: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
       - name: Set up Python 3.9
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v2
         with:
           python-version: 3.9
       - name: Set up Node.js 20
@@ -45,7 +45,7 @@ jobs:
           cd ../../extension/tests
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v2
         with:
           flags: python39
           name: python-39
