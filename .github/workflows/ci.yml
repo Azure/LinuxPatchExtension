@@ -11,9 +11,9 @@ jobs:
       PYTHONTRACEMALLOC: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Python 3.9
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9
       - name: Install dependencies
@@ -41,7 +41,7 @@ jobs:
           cd ../../extension/tests
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v3.1.5
         with:
           flags: python39
           name: python-39
@@ -60,9 +60,9 @@ jobs:
     needs: codecov-python-39
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Restore Python 2.7 cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: C:\Python27
           key: python27-cache
@@ -75,7 +75,7 @@ jobs:
             SETX PATH "%PATH%;C:\Python27"
           )
       - name: Cache dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: '%UserProfile%\.cache\pip'
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
@@ -107,7 +107,7 @@ jobs:
           cd ../../extension/tests
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v3.1.5
         with:
           flags: python27
           name: python-27
