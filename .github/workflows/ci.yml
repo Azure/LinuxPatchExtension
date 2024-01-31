@@ -16,6 +16,10 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.9
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - name: Install dependencies
         run: pip install coverage
       - name: Run extension tests
@@ -41,7 +45,7 @@ jobs:
           cd ../../extension/tests
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v3.14.0
         with:
           flags: python39
           name: python-39
@@ -74,6 +78,10 @@ jobs:
             choco install python2 -y
             SETX PATH "%PATH%;C:\Python27"
           )
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - name: Cache dependencies
         uses: actions/cache@v2
         with:
@@ -107,7 +115,7 @@ jobs:
           cd ../../extension/tests
           coverage xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v3.14.0
         with:
           flags: python27
           name: python-27
