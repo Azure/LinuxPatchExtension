@@ -862,8 +862,7 @@ class StatusHandler(object):
 
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload_json):
         """ Truncate substatus message patches when complete status file size is greater than 126kb """
-        self.composite_logger.log_debug("Begin patches truncation: [StatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(
-                str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
+        self.composite_logger.log_verbose("Begin patches truncation: [StatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
 
         truncated_status_file = json.loads(complete_status_file_payload_json)  # reload payload into python object
         low_pri_index = None
@@ -882,7 +881,7 @@ class StatusHandler(object):
         status_file_without_patches_size_in_bytes = self.__size_of_constant_status_data(copy.deepcopy(truncated_status_file), assessment_substatus_index, installation_substatus_index)  # Deepcopy, fully copies the object to avoid reference modifications
 
         max_allowed_patches_size_in_bytes = Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES - status_file_without_patches_size_in_bytes
-        self.composite_logger.log_debug("Status file limits evaluated. [FileSizeWithoutPatchesInBytes={0}] [MaxAllowedPatchesSizeInBytes={1}]".format(str(status_file_without_patches_size_in_bytes), str(max_allowed_patches_size_in_bytes)))
+        self.composite_logger.log_verbose("Status file limits evaluated. [FileSizeWithoutPatchesInBytes={0}] [MaxAllowedPatchesSizeInBytes={1}]".format(str(status_file_without_patches_size_in_bytes), str(max_allowed_patches_size_in_bytes)))
 
         while status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:
             # Start truncation process
@@ -890,16 +889,16 @@ class StatusHandler(object):
                 self.__start_truncation_process(self.__assessment_patches_copy, self.__installation_patches_copy, max_allowed_patches_size_in_bytes, low_pri_index)
 
             if len(self.__assessment_patches_removed) > 0:
-                self.composite_logger.log_debug("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
+                self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment, substatus_message=self.__assessment_substatus_msg_copy, substatus_index=assessment_substatus_index)
 
             if len(self.__installation_patches_removed) > 0:
-                self.composite_logger.log_debug("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_INSTALLATION_SUMMARY))
+                self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_INSTALLATION_SUMMARY))
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation, substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
 
             status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
 
-        self.composite_logger.log_debug("End patches truncation: [TruncatedStatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
+        self.composite_logger.log_verbose("End patches truncation: [TruncatedStatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
         return truncated_status_file
 
     def __split_assessment_patches(self, assessment_patches):
@@ -927,7 +926,7 @@ class StatusHandler(object):
         patches_retained_in_install_high_pri, patches_removed_from_install_high_pri, remaining_patches_size_available_in_bytes = self.__truncate_patches(installation_high_pri, max_allowed_patches_size_in_bytes)
         patches_retained_in_assessment, patches_removed_from_assessment, remaining_patches_size_available_in_bytes = self.__truncate_patches(remaining_assessment_patches, remaining_patches_size_available_in_bytes)
         patches_retained_in_install_low_pri, patches_removed_from_install_low_pri, remaining_patches_size_available_in_bytes = self.__truncate_patches(installation_low_pri, remaining_patches_size_available_in_bytes)
-        self.composite_logger.log_debug("Remaining patches size available in bytes after truncation: [RemainingPatchListSizeInBytes={0}]".format(remaining_patches_size_available_in_bytes))
+        self.composite_logger.log_verbose("Remaining patches size available in bytes after truncation: [RemainingPatchListSizeInBytes={0}]".format(remaining_patches_size_available_in_bytes))
 
         truncated_installation_patches = patches_retained_in_install_high_pri + patches_retained_in_install_low_pri
         patches_removed_from_installation = patches_removed_from_install_high_pri + patches_removed_from_install_low_pri
@@ -1026,7 +1025,7 @@ class StatusHandler(object):
 
         # Check for existing errors before recompose
         if error_code != Constants.PatchOperationTopLevelErrorCode.ERROR:
-            self.composite_logger.log_debug("Patches in substatus have been truncated hence updating status to [status={0}] [PreviousErrorCode={1}]".format(Constants.STATUS_WARNING, str(error_code)))
+            self.composite_logger.log_verbose("Patches in substatus have been truncated hence updating status to [status={0}] [PreviousErrorCode={1}]".format(Constants.STATUS_WARNING, str(error_code)))
             truncated_status_file['status']['substatus'][substatus_index]['status'] = Constants.STATUS_WARNING.lower()      # Update substatus status to warning
 
         self.composite_logger.log_verbose("Recompose truncated substatus")
