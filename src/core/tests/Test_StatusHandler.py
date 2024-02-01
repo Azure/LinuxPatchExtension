@@ -584,7 +584,6 @@ class TestStatusHandler(unittest.TestCase):
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
             self.assertTrue(substatus_file_data["name"] == summary)
-            self.assertTrue(substatus_file_data["name"] == summary)
             self.assertEqual(substatus_file_data["status"], status.lower())
             formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
             self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
