@@ -28,6 +28,4 @@ coverage:
         if_ci_failed: error
         if_not_found: failure
   ignore:
-    - "LinuxPatchExtension\src\core\src\external_dependencies/**/*"
-  omit:
-    - "LinuxPatchExtension\src\core\src\external_dependencies/**/*"
+    - "LinuxPatchExtension/src/core/src/external_dependencies/**/*"
