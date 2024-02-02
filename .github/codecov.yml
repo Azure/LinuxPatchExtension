@@ -28,4 +28,4 @@ coverage:
         if_ci_failed: error
         if_not_found: failure
     ignore:
-      - "src/core/src/external_dependencies/distro.py"
+      - "*/tests/Test_TelemetryWriter.py"
