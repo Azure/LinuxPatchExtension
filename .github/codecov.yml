@@ -28,4 +28,5 @@ coverage:
         if_ci_failed: error
         if_not_found: failure
     ignore:
-      - "*/external_dependencies/*"
+      - "*/core/src/external_dependencies/*"
+      - "*/external_dependencies/distro.py"
