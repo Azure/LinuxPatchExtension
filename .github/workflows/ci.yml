@@ -114,10 +114,10 @@ jobs:
           fail_ci_if_error: true
       - name: Read test output
         id: getoutput
-        run: echo "contents=$(cat err2.txt)" >> $GITHUB_OUTPUT
+        run: echo "CONTENTS=$(cat err.txt)" >> $GITHUB_ENV
       - name: Check if all tests passed
-        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
+        if: contains(env.CONTENTS, 'FAILED (failures=')
         run: |
-          echo "${{ steps.getoutput.outputs.contents }}"
           echo "There are failed tests"
+          echo "${{ env.CONTENTS }}"
           exit 1
