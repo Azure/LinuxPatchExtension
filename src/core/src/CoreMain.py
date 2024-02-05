@@ -131,7 +131,9 @@ class CoreMain(object):
             composite_logger.log_debug("Completed exception handling.\n")
 
         finally:
-            status_handler.log_truncated_patches()
+            if status_handler is not None:
+                status_handler.log_truncated_patches()
+
             # clean up temp folder of files created by Core after execution completes
             if self.is_temp_folder_available(bootstrapper.env_layer, execution_config):
                 composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
