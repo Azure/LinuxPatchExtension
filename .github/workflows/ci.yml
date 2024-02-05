@@ -26,8 +26,6 @@ jobs:
           echo '===============START EXTENSION TESTS...===============' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH EXTENSION TESTS...===============' >> ../../../err.txt
-      - name: Debug
-        run: cat err.txt
       - name: Run core tests
         continue-on-error: true
         shell: cmd
@@ -36,8 +34,6 @@ jobs:
           echo '===============START CORE TESTS...===============' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err.txt
-      - name: Debug
-        run: cat err.txt
       - name: Collect coverage
         run: |
           cd ./src/core/tests
@@ -52,12 +48,12 @@ jobs:
           fail_ci_if_error: true
       - name: Read test output
         id: getoutput
-        run: echo "contents=$(cat err.txt)" >> $GITHUB_OUTPUT
+        run: echo "CONTENTS=$(cat err.txt)" >> $GITHUB_ENV
       - name: Check if all tests passed
-        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
-        shell: cmd
+        if: contains(env.CONTENTS, 'FAILED (failures=')
         run: |
-          echo "${{ steps.getoutput.outputs.contents }}"
+          echo "There are failed tests"
+          echo "${{ env.CONTENTS }}"
           exit 1
   codecov-python-27:
     runs-on: windows-latest
