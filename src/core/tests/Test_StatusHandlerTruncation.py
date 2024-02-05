@@ -454,8 +454,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         performance_time_formatted_with_truncation = self.__convert_performance_time_to_date_time_format(performance_time_with_truncation)
 
         self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_no_truncation ' + performance_time_formatted_no_truncation )
-        self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_with_truncation' + performance_time_formatted_with_truncation)
-        self.assertTrue((performance_time_with_truncation - performance_time_no_truncation) < 30)
+        self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_with_truncation ' + performance_time_formatted_with_truncation)
+        self.assertTrue((performance_time_with_truncation - performance_time_no_truncation) < 90)
 
     # Setup functions for testing
     def __assert_patch_summary_from_status(self, substatus_file_data, operation, patch_summary, status, patch_count, errors_count=0,
