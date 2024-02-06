@@ -48,14 +48,12 @@ jobs:
           fail_ci_if_error: true
       - name: Read test output
         id: getoutput
-        run: |
-          echo "contents=$(cat err.txt)" >> $env:GITHUB_OUTPUT
+        run: echo "contents=$(Get-Content err2.txt)" >> $env:GITHUB_OUTPUT
       - name: Check if all tests passed
-        shell: cmd
-        if: "contains(${{ steps.getoutput.outputs.CONTENTS}} , 'FAILED (failures=')"
+        if: "contains(env.CONTENTS, 'FAILED (failures=')"
         run: |
           echo "There are failed tests"
-          echo "${{ steps.getoutput.outputs.CONTENTS}}"
+          echo "${{ env.CONTENTS }}"
           exit 1
   codecov-python-27:
     runs-on: windows-latest
