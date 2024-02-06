@@ -1064,5 +1064,45 @@ class StatusHandler(object):
     def __get_errors_from_substatus(self, substatus_msg):
         """ Get errors code and errors details from substatus message json """
         return substatus_msg['errors']['code'], substatus_msg['errors']['details']
+
+    def __create_assessment_tombstone_list(self, packages_removed_from_assessment):
+        """ Create a list of tombstone by classifications and classification_count , omit unclassified """
+        assessment_tombstone_map = {}
+        tombstone_record_list = []
+
+        # Map['classification', classification_count]
+        for package in packages_removed_from_assessment:
+            classifications = package['classifications'][0]
+            assessment_tombstone_map[classifications] = assessment_tombstone_map.get(classifications, 0) + 1
+
+        # Add assessment tombstone record per classifications except unclassified
+        for classification_name, patches_count_by_classification in assessment_tombstone_map.items():
+            if not classification_name == Constants.PackageClassification.UNCLASSIFIED:
+                tombstone_record_list.append(self.__create_assessment_tombstone(patches_count_by_classification, classification_name))
+
+        return tombstone_record_list
+
+    def __create_assessment_tombstone(self, patches_count_by_classification, classification_name):
+        """ Tombstone record for truncated assessment patches
+            Patch Name: xx additional updates of classification <classification_name> reported.
+            Classification: [Critical, Security, Other]
+        """
+        tombstone_name = str(patches_count_by_classification) + ' additional updates of classification ' + classification_name + ' reported',
+        return {
+            'patchId': 'Truncated_patch_list_id',
+            'name': tombstone_name,
+            'version': '0.0.0',
+            'classifications': [classification_name]
+        }
+
+    def __create_installation_tombstone(self):
+        """ Tombstone record for truncated installation """
+        return {
+            'patchId': 'Truncated_patch_list_id',
+            'name': 'Truncated_patch_list',
+            'version': '0.0.0',
+            'classifications': ['Other'],
+            'patchInstallationState': 'NotSelected'
+        }
     # endregion
 

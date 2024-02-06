@@ -978,7 +978,7 @@ class TestStatusHandler(unittest.TestCase):
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
         self.__create_temp_file_and_set_stdout()    # set tmp file for storing sys.stout()
-
+        ### delete
         # Start no truncation performance test
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = False
         no_truncate_start_time = time.time()
