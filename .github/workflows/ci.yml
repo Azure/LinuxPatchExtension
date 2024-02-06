@@ -53,9 +53,9 @@ jobs:
       - name: Check if all tests passed
         shell: bash
         run: |
-          if echo "$CONTENTS" | grep -q 'FAILED (failures='; then
+          if echo "${{ env.CONTENTS }}" | grep -q 'FAILED (failures='; then
             echo "There are failed tests"
-            echo "$CONTENTS"
+            echo "${{ env.CONTENTS }}"
             exit 1
           fi
   codecov-python-27:
