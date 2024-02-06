@@ -138,7 +138,7 @@ class ConfigurePatchingProcessor(object):
             self.composite_logger.log_error(error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR, current_operation_override_for_error=Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
-
+        ###
         # write consolidated status
         self.status_handler.set_configure_patching_substatus_json(status=status,
                                                                   automatic_os_patch_state=self.current_auto_os_patch_state,
