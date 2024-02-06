@@ -469,7 +469,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.assertEqual(substatus_file_data["status"]["operation"], operation)
         self.assertEqual(substatus_summary_data["name"], patch_summary)
         self.assertEqual(substatus_summary_data["status"], status.lower())
-        # remove comment if the codecov report pass
+
         if is_under_internal_size_limit:
             # Assert status file size < 126kb n 128kb
             substatus_file_in_bytes = len(json.dumps(substatus_file_data).encode('utf-8'))
@@ -478,7 +478,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
             if is_truncated:
                 self.assertEqual(status_file_patch_count, self.__expected_truncated_patch_count)
-                self.assertTrue(status_file_patch_count < patch_count)  # Assert length of truncated patches < patch_count post truncation
+                self.assertTrue(status_file_patch_count > patch_count)  # Assert length of truncated patches < patch_count post truncation
                 self.assertTrue(substatus_file_in_bytes < len(json.dumps(complete_substatus_file_data).encode('utf-8')))  # Assert truncated status file size < completed status file size
 
                 if self.__test_scenario == 'assessment_only':
