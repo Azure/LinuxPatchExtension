@@ -460,7 +460,14 @@ class LegacyEnvLayerExtensions():
                                  "Ubuntu:16.10/yakkety-security [amd64]) []\n" + \
                                  "Inst samba-libs [2:4.4.5+dfsg-2ubuntu5.2] (2:4.4.5+dfsg-2ubuntu5.4 " + \
                                  "Ubuntu:16.10/yakkety-updates, Ubuntu:16.10/yakkety-security [amd64]) []\n"
-                    elif cmd.find("--only-upgrade true -s install") > -1:
+                    elif cmd.find("grep -hR security /etc/apt/sources.list") > -1 or cmd.find("grep -hR \"\" /etc/apt/sources.list") > -1:
+                        code = 0
+                        output = ("deb-src http://azure.archive.ubuntu.com/ubuntu/ jammy-security main restricted\n"
+                                 "deb-src http://azure.archive.ubuntu.com/ubuntu/ jammy-security universe\n"
+                                 "deb-src http://azure.archive.ubuntu.com/ubuntu/ jammy-security multiverse\n"
+                                 "deb-src https://snapshot.ubuntu.com/ubuntu/20240301T000000Z jammy-security universe")
+                        self.write_to_file(os.path.join(self.temp_folder_path, "temp2.list"), output)
+                    elif cmd.find("--only-upgrade true -s install") > -1 or cmd.find("apt-get -y --only-upgrade true upgrade") > -1:
                         code = 0
                         output = "NOTE: This is only a simulation!\n" + \
                                  "      apt-get needs root privileges for real execution.\n" + \
@@ -526,10 +533,6 @@ class LegacyEnvLayerExtensions():
                         output = "      bash | 4.3-14ubuntu1.3 | http://us.archive.ubuntu.com/ubuntu xenial-updates/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1.2 | http://security.ubuntu.com/ubuntu xenial-security/main amd64 Packages\n" + \
                                  "      bash | 4.3-14ubuntu1 | http://us.archive.ubuntu.com/ubuntu xenial/main amd64 Packages"
-                    elif cmd.find('sudo grep -hR security /etc/apt/sources.list /etc/apt/sources.list.d/ >') > -1:
-                        self.write_to_file(os.path.join(self.temp_folder_path, "temp2.list"), "test temp file 2")
-                        code = 0
-                        output = "tmp file created"
                     elif cmd.find('sudo apt-get install ubuntu-advantage-tools -y') > -1:
                         code = 0
                     elif cmd.find('pro security-status --format=json') > -1:
@@ -980,7 +983,7 @@ class LegacyEnvLayerExtensions():
                         output = "Error: Cannot retrieve repository metadata (repomd.xml) for repository: addons. Please verify its path and try again"
             elif self.legacy_test_type == 'DependencyInstallSuccessfully':
                 if self.legacy_package_manager_name is Constants.APT:
-                    # Total 4 packages: git-man, git, grub-efi-amd64-signed and grub-efi-amd64-bin
+                    # Total 7 packages: git-man, git, grub-efi-amd64-signed, testPkg1, testPkg2, testPkg3 and grub-efi-amd64-bin
                     # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin
                     # All packages installs successfully
                     if cmd.find("dist-upgrade") > -1:
@@ -991,15 +994,27 @@ class LegacyEnvLayerExtensions():
                                  "Ubuntu:18.04/bionic-security [amd64])" \
                                  "Inst grub-efi-amd64-signed [1.187.2~18.04.1+2.06-2ubuntu14] " \
                                  "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst testPkg1 [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst testPkg2 [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst testPkg3 [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
                                  "Inst grub-efi-amd64-bin [2.06-2ubuntu14] " \
                                  "(2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])"
-                    elif cmd.find("apt-get -y --only-upgrade true -s install git-man git grub-efi-amd64-signed") > -1:
+                    elif cmd.find("apt-get -y --only-upgrade true -s install git-man git grub-efi-amd64-signed testPkg1 testPkg2 testPkg3") > -1:
                         code = 0
                         output = "Inst git-man [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
                                  "Ubuntu:18.04/bionic-security [all])" \
                                  "Inst git [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
                                  "Ubuntu:18.04/bionic-security [amd64])" \
                                  "Inst grub-efi-amd64-signed [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst testPkg1 [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst testPkg2 [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst testPkg3 [1.187.2~18.04.1+2.06-2ubuntu14] " \
                                  "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
                                  "Inst grub-efi-amd64-bin [2.06-2ubuntu14] " \
                                  "(2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])"
@@ -1021,6 +1036,18 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = "Listing... Done\n" + \
                                  "grub-efi-amd64-signed/bionic-updates,now 1.187.3~18.04.1+2.06-2ubuntu14.1 amd64 [installed]"
+                    elif cmd.find("sudo apt list --installed testPkg1") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "testPkg1/bionic-updates,now 1.187.3~18.04.1+2.06-2ubuntu14.1 amd64 [installed]"
+                    elif cmd.find("sudo apt list --installed testPkg2") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "testPkg2/bionic-updates,now 1.187.3~18.04.1+2.06-2ubuntu14.1 amd64 [installed]"
+                    elif cmd.find("sudo apt list --installed testPkg3") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "testPkg3/bionic-updates,now 1.187.3~18.04.1+2.06-2ubuntu14.1 amd64 [installed]"
                     elif cmd.find("sudo apt list --installed grub-efi-amd64-bin") > -1:
                         code = 0
                         output = "Listing... Done\n" + \
@@ -1033,7 +1060,7 @@ class LegacyEnvLayerExtensions():
                         output = "Package sucessfully installed!"
             elif self.legacy_test_type == 'DependencyInstallFailed':
                 if self.legacy_package_manager_name is Constants.APT:
-                    # Total 4 packages: git-man, git, grub-efi-amd64-signed and grub-efi-amd64-bin
+                    # Total 7 packages: git-man, git, grub-efi-amd64-signed, testPkg1, testPkg2, testPkg3 and grub-efi-amd64-bin
                     # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin
                     # Installation of grub-efi-amd64-bin fails and as grub-efi-amd64-signed is dependent, it also failed 
                     # Rest all packages install successfully
@@ -1044,6 +1071,12 @@ class LegacyEnvLayerExtensions():
                                  "Inst git [1:2.17.1-1ubuntu0.15] (1:2.17.1-1ubuntu0.16 Ubuntu:18.04/bionic-updates, " \
                                  "Ubuntu:18.04/bionic-security [amd64])" \
                                  "Inst grub-efi-amd64-signed [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst testPkg1 [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst testPkg2 [1.187.2~18.04.1+2.06-2ubuntu14] " \
+                                 "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
+                                 "Inst testPkg3 [1.187.2~18.04.1+2.06-2ubuntu14] " \
                                  "(1.187.3~18.04.1+2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64]) []" \
                                  "Inst grub-efi-amd64-bin [2.06-2ubuntu14] " \
                                  "(2.06-2ubuntu14.1 Ubuntu:18.04/bionic-updates [amd64])"
@@ -1074,6 +1107,18 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("sudo apt list --installed grub-efi-amd64-signed") > -1:
                         code = 0
                         output = "Listing... Done\n"
+                    elif cmd.find("sudo apt list --installed testPkg1") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "testPkg1/bionic-updates,now 1.187.3~18.04.1+2.06-2ubuntu14.1 amd64 [installed]"
+                    elif cmd.find("sudo apt list --installed testPkg2") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "testPkg2/bionic-updates,now 1.187.3~18.04.1+2.06-2ubuntu14.1 amd64 [installed]"
+                    elif cmd.find("sudo apt list --installed testPkg3") > -1:
+                        code = 0
+                        output = "Listing... Done\n" + \
+                                 "testPkg3/bionic-updates,now 1.187.3~18.04.1+2.06-2ubuntu14.1 amd64 [installed]"
                     elif cmd.find("sudo apt list --installed grub-efi-amd64-bin") > -1:
                         code = 0
                         output = "Listing... Done\n"
@@ -1127,6 +1172,15 @@ class LegacyEnvLayerExtensions():
                                  "3.13.1-102.el7_3.16                                      " + \
                                  "rhui-rhel-7-server-rhui-rpms\n" + \
                                  "libgcc.i686                                      " + \
+                                 "4.8.5-28.el7                                      " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n" + \
+                                 "testPkg1.i686                                      " + \
+                                 "4.8.5-28.el7                                      " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n" + \
+                                 "testPkg2.i686                                      " + \
+                                 "4.8.5-28.el7                                      " + \
+                                 "rhui-rhel-7-server-rhui-rpms\n" + \
+                                 "testPkg3.i686                                      " + \
                                  "4.8.5-28.el7                                      " + \
                                  "rhui-rhel-7-server-rhui-rpms\n" + \
                                  "libgcc.x86_64                                                " + \

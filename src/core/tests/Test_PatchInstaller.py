@@ -16,6 +16,7 @@
 
 import datetime
 import json
+import os
 import sys
 import unittest
 from core.src.bootstrap.Constants import Constants
@@ -229,6 +230,53 @@ class TestPatchInstaller(unittest.TestCase):
         obj.mock_unimport_uaclient_update_module()
         version_obj.mock_unimport_uaclient_version_module()
 
+    def test_patch_installer_for_azgps_coordinated(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = "PT235M"
+        argument_composer.health_store_id = "pub_offer_sku_2024.04.01"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.custom_sources_list = os.path.join(argument_composer.temp_folder, "temp2.list")
+        # Path change
+        runtime.set_legacy_test_type('HappyPath')
+        self.assertTrue(runtime.patch_installer.start_installation())
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date,"20240401T000000Z")  # supported and conditions met
+        runtime.stop()
+
+        argument_composer.maximum_duration = "PT30M"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+        self.assertFalse(runtime.patch_installer.start_installation())                 # failure is in unrelated patch installation batch processing
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: not enough time to use
+
+        runtime.package_manager.max_patch_publish_date = "Wrong"
+        runtime.package_manager.get_security_updates()      # exercises an exception path on bad data without throwing an exception (graceful degradation to security)
+        runtime.stop()
+
+        argument_composer.maximum_duration = "PT235M"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+        runtime.package_manager.install_security_updates_azgps_coordinated = lambda: (1, "Failed")
+        self.assertFalse(runtime.patch_installer.start_installation())
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: the strict SDP is forced to fail with the lambda above
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        runtime.set_legacy_test_type('HappyPath')
+        self.assertTrue(runtime.patch_installer.start_installation())
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # unsupported in Yum
+        runtime.stop()
+
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime.set_legacy_test_type('HappyPath')
+        self.assertFalse(runtime.patch_installer.start_installation())                 # failure is in unrelated patch installation batch processing
+        self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # unsupported in Zypper
+        runtime.stop()
+
     def test_mark_status_completed_esm_required(self):
         obj = MockUpdatesResult()
         obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_one_esm_update')
@@ -289,12 +337,15 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(4, installed_update_count)
+        self.assertEqual(7, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
     def test_dependency_install_failed(self):
+        # exclusion list contains grub-efi-amd64-bin
+        # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
+        # so, out of 7 packages, only 5 packages are installed and 2 are excluded
         current_time = datetime.datetime.utcnow()
         td = datetime.timedelta(hours=0, minutes=20)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
@@ -305,13 +356,13 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallFailed')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(2, installed_update_count)
+        self.assertEqual(5, installed_update_count)
         self.assertFalse(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
     def test_not_enough_time_for_batch_patching_dependency_installed_successfully(self):
-        # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
+        # total packages to install is 7, reboot_setting is 'Never', cutoff time for batch of 6 packages = (5*3) + (2*3) = 21
         # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
         # So td = 60-14 = 46
         current_time = datetime.datetime.utcnow()
@@ -325,13 +376,13 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(4, installed_update_count)
+        self.assertEqual(7, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
     def test_not_enough_time_for_batch_patching_dependency_install_failed(self):
-        # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
+        # total packages to install is 7, reboot_setting is 'Never', so cutoff time for batch = (5*3) + (2*3) = 21
         # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
         # So td = 60-14 = 46
         current_time = datetime.datetime.utcnow()
@@ -345,7 +396,7 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallFailed')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(2, installed_update_count)
+        self.assertEqual(5, installed_update_count)
         self.assertFalse(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
@@ -448,7 +499,7 @@ class TestPatchInstaller(unittest.TestCase):
     def test_dependent_package_excluded(self):
         # exclusion list contains grub-efi-amd64-bin
         # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
-        # so, out of 4 packages, only 2 packages are installed and 2 are excluded
+        # so, out of 7 packages, only 5 packages are installed and 2 are excluded
         current_time = datetime.datetime.utcnow()
         td = datetime.timedelta(hours=0, minutes=20)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
@@ -461,7 +512,7 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(2, installed_update_count)
+        self.assertEqual(5, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
@@ -469,12 +520,12 @@ class TestPatchInstaller(unittest.TestCase):
     def test_dependent_package_excluded_and_not_enough_time_for_batch_patching(self):
         # exclusion list contains grub-efi-amd64-bin
         # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
-        # so, out of 4 packages, only 2 packages are installed and 2 are excluded.
-        # total packages to install is 2, reboot_setting is 'Never', so cutoff time for batch = 2*5 = 10
-        # window size is 60 minutes, let time remain = 9 minutes so that not enough time to install in batch
-        # So td = 60-9 = 51
+        # so, out of 7 packages, only 5 packages are installed and 2 are excluded.
+        # total packages to install is 7, reboot_setting is 'Never', so cutoff time for batch of 6 packages= (5*3) + (2*3) = 21
+        # window size is 60 minutes, let time remain = 16 minutes so that not enough time to install in batch
+        # So td = 60-16 = 44
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=51)
+        td = datetime.timedelta(hours=0, minutes=44)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.patches_to_exclude = ["grub-efi-amd64-bin"]
@@ -484,7 +535,7 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(2, installed_update_count)
+        self.assertEqual(5, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
@@ -501,7 +552,7 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.set_legacy_test_type('ArchDependency')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(4, installed_update_count)
+        self.assertEqual(7, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
@@ -526,12 +577,7 @@ class TestPatchInstaller(unittest.TestCase):
     def test_healthstore_writes(self):
         self.healthstore_writes_helper("HealthStoreId", None, False, expected_patch_version="HealthStoreId")
         self.healthstore_writes_helper("HealthStoreId", "MaintenanceRunId", False, expected_patch_version="HealthStoreId")
-        self.healthstore_writes_helper(None, "MaintenanceRunId", False, expected_patch_version="MaintenanceRunId")
-        self.healthstore_writes_helper(None, "09/16/2021 08:24:42 AM +00:00", False, expected_patch_version="2021.09.16")
-        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", None, False, expected_patch_version="2021.09.16")
-        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", "09/17/2021 08:24:42 AM +00:00", False, expected_patch_version="2021.09.16")
-        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", "<some-guid>", False, expected_patch_version="2021.09.16")
-        self.healthstore_writes_helper("09/16/2021 08:24:42 AM +00:00", "<some-guid>", True, expected_patch_version="2021.09.16")
+        self.healthstore_writes_helper("pub_offer_sku_2020.10.20", None, False, expected_patch_version="pub_offer_sku_2020.10.20")
 
     def healthstore_writes_helper(self, health_store_id, maintenance_run_id, is_force_reboot, expected_patch_version):
         current_time = datetime.datetime.utcnow()

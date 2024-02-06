@@ -356,7 +356,7 @@ class TestExtConfigSettingsHandler(unittest.TestCase):
 
         # verify healthStoreId is read successfully
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.health_store_id), None)
-        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.health_store_id),"2021-09-15T12:12:14Z")
+        self.assertEqual(config_settings.__getattribute__(self.config_public_settings_fields.health_store_id),"pub_off_sku_2023.10.11")
 
         # verify assessmentMode is read successfully
         self.assertNotEqual(config_settings.__getattribute__(self.config_public_settings_fields.assessment_mode), None)
