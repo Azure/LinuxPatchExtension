@@ -53,10 +53,11 @@ jobs:
       - name: Check if all tests passed
         shell: bash
         run: |
-          echo "Contents: ${env.CONTENTS}"
-          if echo "${ env.CONTENTS }" | grep -q 'FAILED (failures='; then
+          CONTENTS=$(cat err.txt)
+          echo "Contents: $CONTENTS"
+          if echo "$CONTENTS" | grep -q 'FAILED (failures='; then
             echo "There are failed tests"
-            echo "${ env.CONTENTS }"
+            echo "$CONTENTS"
             exit 1
           fi
   codecov-python-27:
