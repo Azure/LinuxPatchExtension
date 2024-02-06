@@ -469,7 +469,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.assertEqual(substatus_file_data["status"]["operation"], operation)
         self.assertEqual(substatus_summary_data["name"], patch_summary)
         self.assertEqual(substatus_summary_data["status"], status.lower())
-
+        # remove comment if the codecov report pass
         if is_under_internal_size_limit:
             # Assert status file size < 126kb n 128kb
             substatus_file_in_bytes = len(json.dumps(substatus_file_data).encode('utf-8'))
