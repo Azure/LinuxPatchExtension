@@ -46,15 +46,15 @@ jobs:
           flags: python39
           name: python-39
           fail_ci_if_error: true
-      - name: Read test output
-        id: getoutput
-        run: echo "contents=$(cat err.txt)" >> $GITHUB_OUTPUT
-      - name: Check if all tests passed
-        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
-        shell: cmd
+      - name: Read test output and Check if all tests passed
+        shell: bash
         run: |
-          echo "${{ steps.getoutput.outputs.contents }}"
-          exit 1
+          CONTENTS=$(cat err.txt)
+          if echo "$CONTENTS" | grep -q 'FAILED (failures='; then
+            echo "There are failed tests"
+            echo "Contents: $CONTENTS"
+            exit 1
+          fi
   codecov-python-27:
     runs-on: windows-latest
     needs: codecov-python-39
@@ -112,12 +112,12 @@ jobs:
           flags: python27
           name: python-27
           fail_ci_if_error: true
-      - name: Read test output
-        id: getoutput
-        run: echo "contents=$(cat err2.txt)" >> $GITHUB_OUTPUT
-      - name: Check if all tests passed
-        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
+      - name: Read test output and Check if all tests passed
+        shell: bash
         run: |
-          echo "${{ steps.getoutput.outputs.contents }}"
-          echo "There are failed tests"
-          exit 1
+          CONTENTS=$(cat err2.txt)
+          if echo "$CONTENTS" | grep -q 'FAILED (failures='; then
+            echo "There are failed tests"
+            echo "Contents: $CONTENTS"
+            exit 1
+          fi

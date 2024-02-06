@@ -239,7 +239,7 @@ class StatusHandler(object):
 
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
-        self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
+        # self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
@@ -817,17 +817,24 @@ class StatusHandler(object):
         error_list.insert(0, detail)
         return True
 
-    def __set_errors_json(self, error_count_by_operation, errors_by_operation):
+    def __set_errors_json(self, error_count_by_operation, errors_by_operation, is_status_truncated=False):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
+        code = Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR
+
         if error_count_by_operation == 1 and errors_by_operation[0]['code'] == Constants.PatchOperationErrorCodes.INFORMATIONAL:    # special-casing for single informational messages
             message = errors_by_operation[0]['message']
             errors_by_operation = []
-            error_count_by_operation = 0
         else:
+            # Update msg error code to warning for truncation
+            if is_status_truncated:
+                error_count_by_operation += 1  # add 1 because of truncation creates a new error detail object
+                code = Constants.PatchOperationTopLevelErrorCode.WARNING if code != Constants.PatchOperationTopLevelErrorCode.ERROR else Constants.PatchOperationTopLevelErrorCode.ERROR
+
             message = "{0} error/s reported.".format(error_count_by_operation)
             message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
+
         return {
-            "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
+            "code": code,
             "details": errors_by_operation,
             "message": message
         }
@@ -890,13 +897,15 @@ class StatusHandler(object):
 
             if len(self.__assessment_patches_removed) > 0:
                 self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
-                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment, substatus_message=self.__assessment_substatus_msg_copy, substatus_index=assessment_substatus_index)
+                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment, count_total_errors=self.__assessment_total_error_count, substatus_message=self.__assessment_substatus_msg_copy, substatus_index=assessment_substatus_index)
 
             if len(self.__installation_patches_removed) > 0:
                 self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_INSTALLATION_SUMMARY))
-                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation, substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
+                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation, count_total_errors=self.__installation_total_error_count, substatus_message=self.__installation_substatus_msg_copy, substatus_index=installation_substatus_index)
 
             status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
+            status_file_agent_size_diff = status_file_size_in_bytes - Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES
+            max_allowed_patches_size_in_bytes -= status_file_agent_size_diff   # Reduce the max packages byte size by new error and new escape chars byte size
 
         self.composite_logger.log_verbose("End patches truncation: [TruncatedStatusFileSizeInBytes={0}] [InternalFileSizeLimitInBytes={1}]".format(str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
         return truncated_status_file
@@ -968,7 +977,7 @@ class StatusHandler(object):
             else:
                 left_index = mid_index + 1
 
-        truncated_patches = patches[:left_index - 1]
+        truncated_patches = patches[:left_index-1]
         patches_removed = patches[left_index - 1:]
         truncated_patches_size_in_bytes = self.__calc_patches_payload_size_on_disk(truncated_patches)
         return truncated_patches, patches_removed, max_allowed_patches_size_in_bytes - truncated_patches_size_in_bytes
@@ -1019,24 +1028,37 @@ class StatusHandler(object):
                 return substatus_index
         return None
 
-    def __recompose_truncated_status_file(self, truncated_status_file, truncated_patches, substatus_message, substatus_index):
+    def __recompose_truncated_status_file(self, truncated_status_file, truncated_patches, count_total_errors, substatus_message, substatus_index):
         """ Recompose status file with truncated patches """
-        error_code, _ = self.__get_errors_from_substatus(substatus_msg=substatus_message)
+        error_code, errors_details_list = self.__get_errors_from_substatus(substatus_msg=substatus_message)
 
         # Check for existing errors before recompose
         if error_code != Constants.PatchOperationTopLevelErrorCode.ERROR:
             self.composite_logger.log_verbose("Patches in substatus have been truncated hence updating status to [status={0}] [PreviousErrorCode={1}]".format(Constants.STATUS_WARNING, str(error_code)))
             truncated_status_file['status']['substatus'][substatus_index]['status'] = Constants.STATUS_WARNING.lower()      # Update substatus status to warning
 
+        truncated_msg_errors = self.__recompose_substatus_msg_errors(errors_details_list, count_total_errors)
+
         self.composite_logger.log_verbose("Recompose truncated substatus")
-        truncated_substatus_message = self.__update_patches_in_substatus(substatus_msg=substatus_message, substatus_msg_patches=truncated_patches)
+        truncated_substatus_message = self.__update_patches_in_substatus(substatus_msg=substatus_message, substatus_msg_patches=truncated_patches, substatus_msg_errors=truncated_msg_errors)
 
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_message)
         return truncated_status_file
 
-    def __update_patches_in_substatus(self, substatus_msg, substatus_msg_patches):
-        """ update the substatus message patches """
+    def __recompose_substatus_msg_errors(self, errors_details_list, count_total_errors):
+        """ Recompose truncated substatus message errors json """
+        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE)  # Reuse the errors object set up
+        self.__try_add_error(errors_details_list, truncated_error_detail)  # add new truncated error detail to beginning in errors details list
+        truncated_errors_json = self.__set_errors_json(count_total_errors, errors_details_list, is_status_truncated=True)
+
+        return truncated_errors_json
+
+    def __update_patches_in_substatus(self, substatus_msg, substatus_msg_patches, substatus_msg_errors=None):
+        """ update the substatus message patches and errors """
         substatus_msg['patches'] = substatus_msg_patches
+        if substatus_msg_errors:
+            substatus_msg['errors'] = substatus_msg_errors
+
         return substatus_msg
 
     def __get_errors_from_substatus(self, substatus_msg):
