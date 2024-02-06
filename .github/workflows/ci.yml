@@ -50,7 +50,7 @@ jobs:
         id: getoutput
         run: echo "contents=$(Get-Content err.txt)" >> $env:GITHUB_OUTPUT
       - name: Check if all tests passed
-        if: "contains(steps.getoutput.outputs.CONTENTS, 'FAILED (failures=') && not(contains(steps.getoutput.outputs.CONTENTS, 'OK'))"
+        if: "contains(steps.getoutput.outputs.CONTENTS, 'FAILED (failures=') && !(contains(steps.getoutput.outputs.CONTENTS, 'OK'))"
         run: |
           echo "${{ steps.getoutput.outputs.CONTENTS}}"
           echo "There are failed tests"
@@ -116,7 +116,7 @@ jobs:
         id: getoutput
         run: echo "contents=$(Get-Content err2.txt)" >> $env:GITHUB_OUTPUT
       - name: Check if all tests passed
-        if: "contains(steps.getoutput.outputs.CONTENTS, 'FAILED (failures=') && not(contains(steps.getoutput.outputs.CONTENTS, 'OK'))"
+        if: "contains(steps.getoutput.outputs.CONTENTS, 'FAILED (failures=') && !(contains(steps.getoutput.outputs.CONTENTS, 'OK'))"
         run: |
           echo "${{ steps.getoutput.outputs.CONTENTS}}"
           echo "There are failed tests"
