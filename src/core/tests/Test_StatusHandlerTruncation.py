@@ -478,7 +478,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
             if is_truncated:
                 self.assertEqual(status_file_patch_count, self.__expected_truncated_patch_count)
-                self.assertTrue(status_file_patch_count > patch_count)  # Assert length of truncated patches < patch_count post truncation
+                self.assertTrue(status_file_patch_count < patch_count)  # Assert length of truncated patches < patch_count post truncation
                 self.assertTrue(substatus_file_in_bytes < len(json.dumps(complete_substatus_file_data).encode('utf-8')))  # Assert truncated status file size < completed status file size
 
                 if self.__test_scenario == 'assessment_only':
