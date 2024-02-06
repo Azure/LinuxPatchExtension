@@ -266,7 +266,6 @@ class Constants(object):
 
     # Maintenance Window
     PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES = 5
-    
     # As per telemetry data, when batch size is 3, the average time taken per package installation for different package managers is as follow:
     # apt: 43 seconds
     # yum: 71 seconds

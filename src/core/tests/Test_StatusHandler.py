@@ -493,7 +493,7 @@ class TestStatusHandler(unittest.TestCase):
         self.assertEqual(formatted_message['patches'][0]['patchId'], patch_id_critical)
         self.assertEqual(formatted_message['patches'][0], expected_value_critical)
         self.assertEqual(formatted_message['patches'][0]['name'], 'python-samba0')
-
+    ###########################
     def test_load_status_and_set_package_install_status(self):
         patch_count_for_test = 5
         test_packages, test_package_versions = self.__set_up_packages_func(patch_count_for_test)
