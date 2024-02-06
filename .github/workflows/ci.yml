@@ -48,12 +48,12 @@ jobs:
           fail_ci_if_error: true
       - name: Read test output
         id: getoutput
-        run: echo "contents=$(Get-Content err.txt)" >> $env:GITHUB_OUTPUT
+        run: echo "::set-output name=contents::$(cat err.txt)"
       - name: Check if all tests passed
-        if: "contains(steps.getoutput.outputs.CONTENTS, 'FAILED (failures=') && !(contains(steps.getoutput.outputs.CONTENTS, 'OK'))"
+        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
+        shell: cmd
         run: |
-          echo "${{ steps.getoutput.outputs.CONTENTS}}"
-          echo "There are failed tests"
+          echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
   codecov-python-27:
     runs-on: windows-latest
@@ -114,10 +114,10 @@ jobs:
           fail_ci_if_error: true
       - name: Read test output
         id: getoutput
-        run: echo "contents=$(Get-Content err2.txt)" >> $env:GITHUB_OUTPUT
+        run: echo "::set-output name=contents::$(cat err2.txt)"
       - name: Check if all tests passed
-        if: "contains(steps.getoutput.outputs.CONTENTS, 'FAILED (failures=') && !(contains(steps.getoutput.outputs.CONTENTS, 'OK'))"
+        if: contains( steps.getoutput.outputs.contents, 'FAILED (failures=' )
+        shell: cmd
         run: |
-          echo "${{ steps.getoutput.outputs.CONTENTS}}"
-          echo "There are failed tests"
+          echo "${{ steps.getoutput.outputs.contents }}"
           exit 1
