@@ -49,10 +49,10 @@ jobs:
       - name: Read test output
         id: getoutput
         run: |
-          echo "contents=$(cat err2.txt)" >> $env:GITHUB_ENV
+          echo "contents=$(cat err.txt)" >> $env:GITHUB_ENV
       - name: Check if all tests passed
         shell: cmd
-        if: contains(env.CONTENTS, 'FAILED (failures=')
+        if: contains(steps.getoutput.outputs.CONTENTS, 'FAILED (failures=')
         run: |
           echo "There are failed tests"
           echo "%CONTENTS%"
