@@ -605,5 +605,6 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         return test_packages, test_package_versions
 
+
 if __name__ == '__main__':
     unittest.main()
