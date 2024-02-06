@@ -50,15 +50,11 @@ jobs:
         id: getoutput
         run: echo "contents=$(Get-Content err.txt)" >> $env:GITHUB_OUTPUT
       - name: Check if all tests passed
-        shell: cmd
-        if: "contains(env.CONTENTS, 'FAILED (failures=')"
+        if: "contains(steps.getoutput.outputs.CONTENTS, 'FAILED (failures=') && !(contains(steps.getoutput.outputs.CONTENTS, 'OK'))"
         run: |
-          if echo "${{ env.CONTENTS }}" | findstr /C:"FAILED (failures=" > nul
-          then
-            echo "There are failed tests"
-            echo %CONTENTS%
-            exit 1
-          fi
+          echo "${{ steps.getoutput.outputs.CONTENTS}}"
+          echo "There are failed tests"
+          exit 1
   codecov-python-27:
     runs-on: windows-latest
     needs: codecov-python-39
