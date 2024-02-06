@@ -50,7 +50,7 @@ jobs:
         id: getoutput
         run: echo "contents=$(Get-Content err.txt)" >> $env:GITHUB_OUTPUT
       - name: Check if all tests passed
-        if: "contains(env.CONTENTS, 'FAILED (failures=')"
+        if: "contains(${{ steps.getoutput.outputs.CONTENTS}}, 'FAILED (failures=')"
         run: |
           echo "There are failed tests"
           echo "${{ env.CONTENTS }}"
