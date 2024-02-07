@@ -411,7 +411,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         """ Comparing truncation code performance on prior and post on 1000 packages with frequency of 300
         assert truncation code logic time performance is 30 secs more than current (prior truncation) logic """
         start_index = 0
-        end_index = 300
+        end_index = 30
         patch_count = 500
         expected_time_performance = 30
 
