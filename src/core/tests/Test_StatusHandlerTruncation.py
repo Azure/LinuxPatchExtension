@@ -408,7 +408,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             errors_count=5, errors_code=Constants.PatchOperationTopLevelErrorCode.ERROR, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
     def test_truncation_method_time_performance(self):
-        """ Comparing truncation code performance on prior and post on 1000 packages with frequency of 300
+        """ Comparing truncation code performance on prior and post on 750 packages with frequency of 30
         assert truncation code logic time performance is 30 secs more than current (prior truncation) logic """
         start_index = 0
         end_index = 30
