@@ -493,6 +493,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         else:
             self.assertTrue(len(json.dumps(substatus_file_data)) > Constants.StatusTruncationConfig.AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES)  # Assert complete status file size > 128kb
             self.assertEqual(status_file_patch_count, patch_count)  # Assert length of message patches == patch_count prior truncation
+            self.assertEqual(message['patches'][-1]['patchId'], "Truncated_patch_list_id")  # Assert no tombstone record when there's no truncation
 
         # assert error
         self.assertEqual(message["errors"]["code"], errors_code)
