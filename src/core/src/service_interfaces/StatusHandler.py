@@ -239,7 +239,7 @@ class StatusHandler(object):
 
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
-        # self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
+        self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
@@ -977,7 +977,7 @@ class StatusHandler(object):
             else:
                 left_index = mid_index + 1
 
-        truncated_patches = patches[:left_index-1]
+        truncated_patches = patches[:left_index - 1]
         patches_removed = patches[left_index - 1:]
         truncated_patches_size_in_bytes = self.__calc_patches_payload_size_on_disk(truncated_patches)
         return truncated_patches, patches_removed, max_allowed_patches_size_in_bytes - truncated_patches_size_in_bytes
