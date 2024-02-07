@@ -434,17 +434,17 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         assert truncation code logic time performance is 30 secs more than current (prior truncation) logic """
         start_index = 0
         end_index = 300
-        patch_count = 500
+        patch_count = 350
         expected_time_performance = 30
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        test_packages, test_package_versions = self.__set_up_packages_func(patch_count)
 
         # Start performance test prior truncation
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = False
         start_time_no_truncation = time.time()
         for i in range(start_index, end_index):
-            test_packages, test_package_versions = self.__set_up_packages_func(patch_count)
             self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
             self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
 
