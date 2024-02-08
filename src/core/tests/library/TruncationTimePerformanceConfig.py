@@ -17,15 +17,7 @@
 
 class TruncationTimePerformanceConfig(object):
     """ Helps set up constants for comparing time performance of prior and post truncation logic unit test """
-    # Enum Backport to support Enum in python 2.7
-    class EnumBackport(object):
-        class __metaclass__(type):
-            def __iter__(self):
-                for item in self.__dict__:
-                    if item == self.__dict__[item]:
-                        yield item
-
-    class UTConfig(EnumBackport):
+    class UTConfig:
         MIN_OPERATION_ITERATIONS = 0
         MAX_OPERATION_ITERATIONS = 30
         NUMBER_OF_PATCHES = 350

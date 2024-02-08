@@ -26,7 +26,6 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 from core.tests.library.TruncationTimePerformanceConfig import TruncationTimePerformanceConfig
 
 
-
 class TestStatusHandlerTruncation(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
@@ -609,3 +608,4 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
