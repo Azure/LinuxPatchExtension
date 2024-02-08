@@ -888,6 +888,7 @@ class StatusHandler(object):
 
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
         """ Get truncated status file payload when status file byte size is more than 126kb """
+        self.__is_status_file_truncated = False  # Reset boolean for terminal scenario if status < 126kb, no truncation
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload_json byte size on disk
 
         if status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:  # perform truncation complete_status_file byte size > 126kb
@@ -1104,7 +1105,7 @@ class StatusHandler(object):
         """ Recompose truncated substatus message errors json """
         truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE)  # Reuse the errors object set up
         self.__try_add_error(errors_details_list, truncated_error_detail)  # add new truncated error detail to beginning in errors details list
-        truncated_errors_json = self.__set_errors_json(count_total_errors, errors_details_list, is_status_truncated=self.__is_status_file_truncated)
+        truncated_errors_json = self.__set_errors_json(count_total_errors, errors_details_list, is_status_truncated=True)
 
         return truncated_errors_json
 
