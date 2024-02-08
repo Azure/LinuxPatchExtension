@@ -239,7 +239,7 @@ class StatusHandler(object):
 
             package_classification_summary += "[P={0},V={1},C={2}] ".format(str(package_name), str(package_version), str(classification if classification is not None and classification_matching_package_found else "-"))
 
-        # self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
+        self.composite_logger.log_debug("Package install status summary (classification): " + package_classification_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
@@ -896,7 +896,7 @@ class StatusHandler(object):
                 self.__start_truncation_process(self.__assessment_patches_copy, self.__installation_patches_copy, max_allowed_patches_size_in_bytes, low_pri_index)
 
             if len(self.__assessment_patches_removed) > 0:
-                assessment_tombstone_list = self.__create_assessment_tombstones(self.__assessment_patches_removed)
+                assessment_tombstone_list = self.__create_assessment_tombstones_by_classification(self.__assessment_patches_removed)
                 patches_retained_in_assessment.extend(assessment_tombstone_list)     # Add assessment tombstone list
 
                 self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
@@ -982,7 +982,7 @@ class StatusHandler(object):
             else:
                 left_index = mid_index + 1
 
-        truncated_patches = patches[:left_index-1]
+        truncated_patches = patches[:left_index - 1]
         patches_removed = patches[left_index - 1:]
         truncated_patches_size_in_bytes = self.__calc_patches_payload_size_on_disk(truncated_patches)
         return truncated_patches, patches_removed, max_allowed_patches_size_in_bytes - truncated_patches_size_in_bytes
@@ -1070,7 +1070,7 @@ class StatusHandler(object):
         """ Get errors code and errors details from substatus message json """
         return substatus_msg['errors']['code'], substatus_msg['errors']['details']
 
-    def __create_assessment_tombstones(self, packages_removed_from_assessment):
+    def __create_assessment_tombstones_by_classification(self, packages_removed_from_assessment):
         """ Create list of tombstone per classification with max count of that classification, omit unclassified """
         assessment_tombstone_map = {}
         tombstone_record_list = []
