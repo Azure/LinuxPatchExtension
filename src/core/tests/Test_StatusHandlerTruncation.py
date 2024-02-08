@@ -23,6 +23,8 @@ import unittest
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
+from core.tests.library.TruncationTimePerformanceConfig import TruncationTimePerformanceConfig
+
 
 
 class TestStatusHandlerTruncation(unittest.TestCase):
@@ -120,6 +122,10 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert complete status file size > 128kb and no exceptions
         self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, 'transitioning', self.__patch_count_assessment)
 
+        # Assert status file < 126kb and substatus status remain 'transitioning'
+        truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
+        self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, 'transitioning', self.__patch_count_assessment, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+
         # Set up complete status file with exception errors
         self.__add_multiple_exception_errors()
         self.runtime.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
@@ -213,7 +219,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_exclude = 600
         patch_count_not_selected = 40
 
-        # random_char=random.choice(string.ascii_letters) ensure the packages are unique due to __set_up_packages_func remove duplicates
+        # random_char=random.choice(string.ascii_letters) ensure the packages are unique due to __set_up_patches_func remove duplicates
         self.__run_installation_package_set_up(patch_count_exclude, Constants.EXCLUDED, random_char=random.choice(string.ascii_letters))
         self.__run_installation_package_set_up(patch_count_not_selected, Constants.NOT_SELECTED, random_char=random.choice(string.ascii_letters))
         self.__set_up_status_file(run='installation', config_operation=Constants.INSTALLATION, patch_count=patch_count_pending, status=Constants.STATUS_SUCCESS, package_status=Constants.PENDING)
@@ -262,6 +268,10 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert complete status file size > 128kb and no exception errors
         self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, 'transitioning', self.__patch_count_installation)
 
+        # Assert status file < 126kb and substatus status remain 'transitioning'
+        truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
+        self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, 'transitioning', self.__patch_count_installation, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+
         # Set up complete status file with exception errors
         self.__add_multiple_exception_errors()
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
@@ -297,7 +307,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__patch_count_installation = patch_count_pending + patch_count_installed
 
         self.__set_up_status_file(run='assessment', config_operation=Constants.INSTALLATION, patch_count=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
-        self.__run_installation_package_set_up(patch_count_pending, Constants.PENDING, random_char=random.choice(string.ascii_letters))  # random_char=random.choice(string.ascii_letters) ensure the packages are unique due to __set_up_packages_func remove duplicates
+        self.__run_installation_package_set_up(patch_count_pending, Constants.PENDING, random_char=random.choice(string.ascii_letters))  # random_char=random.choice(string.ascii_letters) ensure the packages are unique due to __set_up_patches_func remove duplicates
         self.__set_up_status_file(run='installation', config_operation=Constants.INSTALLATION, patch_count=patch_count_installed, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
 
         # Assert complete status file
@@ -387,6 +397,10 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert no installation message errors
         self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, 'transitioning', self.__patch_count_installation, installation_substatus_index=1)
 
+        # Assert status file < 126kb and substatus status remain 'transitioning'
+        truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
+        self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, 'transitioning', self.__patch_count_installation, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+
         # Set up complete status file with exception errors - installation
         self.__add_multiple_exception_errors()
         self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
@@ -410,21 +424,17 @@ class TestStatusHandlerTruncation(unittest.TestCase):
     def test_truncation_method_time_performance(self):
         """ Comparing truncation code performance on prior and post on 750 packages with frequency of 30
         assert truncation code logic time performance is 30 secs more than current (prior truncation) logic """
-        start_index = 0
-        end_index = 30
-        patch_count = 350
-        expected_time_performance = 30
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
         # Start performance test prior truncation
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = False
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count)
+        test_patches, test_patches_version = self.__set_up_patches_func(TruncationTimePerformanceConfig.UTConfig.NUMBER_OF_PATCHES)
         start_time_no_truncation = time.time()
-        for i in range(start_index, end_index):
-            self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-            self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+        for i in range(TruncationTimePerformanceConfig.UTConfig.MIN_OPERATION_ITERATIONS, TruncationTimePerformanceConfig.UTConfig.MAX_OPERATION_ITERATIONS):
+            self.runtime.status_handler.set_package_assessment_status(test_patches, test_patches_version)
+            self.runtime.status_handler.set_package_install_status(test_patches, test_patches_version, Constants.INSTALLED)
 
         end_time_no_truncation = time.time()
         performance_time_no_truncation = end_time_no_truncation - start_time_no_truncation 
@@ -432,9 +442,9 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Start truncation performance test
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = True
         start_time_with_truncation = time.time()
-        for i in range(start_index, end_index):
-            self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-            self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+        for i in range(TruncationTimePerformanceConfig.UTConfig.MIN_OPERATION_ITERATIONS, TruncationTimePerformanceConfig.UTConfig.MAX_OPERATION_ITERATIONS):
+            self.runtime.status_handler.set_package_assessment_status(test_patches, test_patches_version)
+            self.runtime.status_handler.set_package_install_status(test_patches, test_patches_version, Constants.INSTALLED)
 
         end_time_with_truncation = time.time()
         performance_time_with_truncation = end_time_with_truncation - start_time_with_truncation
@@ -443,7 +453,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_no_truncation ' + performance_time_formatted_no_truncation )
         self.runtime.status_handler.composite_logger.log_debug('performance_time_formatted_with_truncation ' + performance_time_formatted_with_truncation)
-        self.assertTrue((performance_time_with_truncation - performance_time_no_truncation) < expected_time_performance)
+        self.assertTrue((performance_time_with_truncation - performance_time_no_truncation) < TruncationTimePerformanceConfig.UTConfig.EXPECTED_TRUNCATION_TIME_LIMIT_IN_SEC)
 
     # Setup functions for testing
     def __assert_patch_summary_from_status(self, substatus_file_data, operation, patch_summary, status, patch_count, errors_count=0,
@@ -543,8 +553,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.runtime.status_handler.set_current_operation(config_operation)
 
         if run == 'assessment':
-            test_packages, test_package_versions = self.__set_up_packages_func(patch_count)
-            self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, classification=classification, status=package_status)
+            test_patches, test_patches_version = self.__set_up_patches_func(patch_count)
+            self.runtime.status_handler.set_package_assessment_status(test_patches, test_patches_version, classification=classification, status=package_status)
 
             if status != 'transitioning':
                 self.runtime.status_handler.set_assessment_substatus_json(status=status)
@@ -558,8 +568,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.runtime.status_handler.log_truncated_patches()
 
     def __run_installation_package_set_up(self, patch_count, package_status, random_char=None):
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count, random_char=random_char)
-        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, package_status)
+        test_patches, test_patches_version = self.__set_up_patches_func(patch_count, random_char=random_char)
+        self.runtime.status_handler.set_package_install_status(test_patches, test_patches_version, package_status)
 
     def __get_substatus_file_json(self, status_file_path):
         with self.runtime.env_layer.file_system.open(status_file_path, 'r') as file_handle:
@@ -581,20 +591,20 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         formatted_time = "%d days, %d hours, %d minutes, %.6f seconds" % (int(days), int(hours), int(minutes), seconds)
         return formatted_time
 
-    def __set_up_packages_func(self, val, random_char=None):
+    def __set_up_patches_func(self, val, random_char=None):
         """ populate packages and versions for truncation """
-        test_packages = []
-        test_package_versions = []
+        test_patches_list = []
+        test_patches_version_list = []
 
         for i in range(0, val):
-            test_packages.append('python-samba' + str(i))
+            test_patches_list.append('python-samba' + str(i))
 
             if random_char is not None:
-                test_package_versions.append('2:4.4.5+dfsg-2ubuntu€' + random_char)
+                test_patches_version_list.append('2:4.4.5+dfsg-2ubuntu€' + random_char)
             else:
-                test_package_versions.append('2:4.4.5+dfsg-2ubuntu€')
+                test_patches_version_list.append('2:4.4.5+dfsg-2ubuntu€')
 
-        return test_packages, test_package_versions
+        return test_patches_list, test_patches_version_list
 
 
 if __name__ == '__main__':
