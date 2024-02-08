@@ -91,10 +91,10 @@ class StatusHandler(object):
 
         self.__current_operation = None
 
-        self.__track_truncation_timestamp = None
-        self.__truncated_status_file_json_dumps = None
-        self.__is_status_file_truncated = False
-        self.__force_truncation_on = False
+        self.__truncation_timestamp_tracker = None  # To allow truncation on upcoming operation when tracker > 60 sec (tentatively)
+        self.__truncated_status_file_json_dumps = None  # To keep status file truncated (not overwritten) when tracker < 60 sec (tentatively)
+        self.__is_status_file_truncated = False  # To track if status file is truncated throughout whole operation
+        self.__force_truncation_on = False  # When true apply truncation ignore track time during terminal state operation
 
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
         if (execution_config.maintenance_run_id is not None or execution_config.health_store_id is not None) and execution_config.operation.lower() == Constants.INSTALLATION.lower():
@@ -209,7 +209,7 @@ class StatusHandler(object):
 
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
 
-        self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
+        # self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
@@ -602,7 +602,7 @@ class StatusHandler(object):
         self.__configure_patching_errors = []
         self.__configure_patching_auto_assessment_errors = []
 
-        self.__track_truncation_timestamp = None
+        self.__truncation_timestamp_tracker = None
         self.__truncated_status_file_json_dumps = None
         self.__is_status_file_truncated = False
         self.__force_truncation_on = False
@@ -878,49 +878,41 @@ class StatusHandler(object):
         return len(self.__installation_patches_removed)
 
     def log_truncated_patches(self):
-        """ log details of all the removed patches from status """
+        """ Log details of all the removed patches from status """
         self.composite_logger.log_debug("Count of patches removed from: [Assessment={0}] [Installation={1}]".format(self.get_num_assessment_patches_removed(), self.get_num_installation_patches_removed()))
 
-    def __check_sys_and_truncation_time_by_x_sec(self):
-        """ check current sys time is more than truncation time stamp by 60 constant seconds to allow for truncation """
-        if self.__track_truncation_timestamp is None:
-            self.__track_truncation_timestamp = datetime.datetime.now()
-
-        curr_timestamp = datetime.datetime.now()
-
-        return (curr_timestamp - self.__track_truncation_timestamp).total_seconds() > Constants.StatusTruncationConfig.NO_TRUNCATION_LOGIC_IN_SEC
-
     def __set_force_truncation_true_for_terminal_status(self, substatus_status):
-        """ Set boolean for force truncation during terminal state (success or error) and if status file has been truncated """
+        """ Set force truncation to overwrite NO_TRUNCATION_LOGIC_IN_SEC timeframe when terminal state (success or error) and if status file has been truncated conditions are met """
         if self.__is_status_file_truncated and (substatus_status == Constants.STATUS_SUCCESS or substatus_status == Constants.STATUS_ERROR):
             self.__force_truncation_on = True
-
-    def __check_file_size_and_timestamp_for_truncation(self, status_file_payload_json_dumps):
-        status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload byte size on disk
-
-        if status_file_size_in_bytes > self.__internal_file_capacity:  # perform truncation complete_status_file byte size > 126kb
-            is_truncation_allowed = self.__check_sys_and_truncation_time_by_x_sec()
-
-            if is_truncation_allowed or self.__force_truncation_on:
-                truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
-                self.__truncated_status_file_json_dumps = json.dumps(truncated_status_file)
-
-            if is_truncation_allowed:
-                self.__track_truncation_timestamp = datetime.datetime.now()  # Reset timestamp for new 1 min interval
-
-        if self.__is_file_truncated:
-            return self.__truncated_status_file_json_dumps
-
-        return status_file_payload_json_dumps
 
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
         """ Get truncated status file payload when status file byte size is more than 126kb """
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload_json byte size on disk
 
         if status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:  # perform truncation complete_status_file byte size > 126kb
-            truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
-            status_file_payload_json_dumps = json.dumps(truncated_status_file)
+            is_truncation_allowed = True if self.__calc_truncation_timestamp_tracker() > Constants.StatusTruncationConfig.NO_TRUNCATION_LOGIC_IN_SEC else False
+
+            if is_truncation_allowed or self.__force_truncation_on:
+                truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
+                self.__truncated_status_file_json_dumps = json.dumps(truncated_status_file)
+
+            if is_truncation_allowed:
+                self.__truncation_timestamp_tracker = datetime.datetime.now()  # Reset timestamp tracker
+
+        if self.__is_status_file_truncated:
+            return self.__truncated_status_file_json_dumps
+
         return status_file_payload_json_dumps
+
+    def __calc_truncation_timestamp_tracker(self):
+        """ To determine whether truncation timestamp tracker is outside the 60 (tentatively) seconds timeframe to allow truncation on upcoming operation  """
+        if self.__truncation_timestamp_tracker is None:
+            self.__truncation_timestamp_tracker = datetime.datetime.now()
+
+        curr_timestamp = datetime.datetime.now()
+        self.composite_logger.log_verbose("Truncation tracking timestamp: [CurSysTimeStamp={0}] [TruncationTimeStamp={1}]".format(str(curr_timestamp), str(self.__truncation_timestamp_tracker)))
+        return (curr_timestamp - self.__truncation_timestamp_tracker).total_seconds()
 
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload_json):
         """ Truncate substatus message patches when complete status file size is greater than 126kb """
@@ -967,7 +959,9 @@ class StatusHandler(object):
             status_file_agent_size_diff = status_file_size_in_bytes - Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES
             max_allowed_patches_size_in_bytes -= status_file_agent_size_diff   # Reduce the max packages byte size by new error and new escape chars byte size
 
-        self.__is_status_file_truncated = True  # Track status file needs to be truncated
+        if len(self.__assessment_patches_removed) > 0 or len(self.__installation_patches_removed) > 0:
+            self.__is_status_file_truncated = True  # Track status file needs to be truncated
+
         self.composite_logger.log_verbose("End patches truncation: [IsStatusFileTruncated={0}][TruncatedStatusFileSizeInBytes={1}] [InternalFileSizeLimitInBytes={2}]".format(str(self.__is_status_file_truncated), str(status_file_size_in_bytes), str(Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES)))
         return truncated_status_file
 
@@ -1110,7 +1104,7 @@ class StatusHandler(object):
         """ Recompose truncated substatus message errors json """
         truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE)  # Reuse the errors object set up
         self.__try_add_error(errors_details_list, truncated_error_detail)  # add new truncated error detail to beginning in errors details list
-        truncated_errors_json = self.__set_errors_json(count_total_errors, errors_details_list, is_status_truncated=True)
+        truncated_errors_json = self.__set_errors_json(count_total_errors, errors_details_list, is_status_truncated=self.__is_status_file_truncated)
 
         return truncated_errors_json
 

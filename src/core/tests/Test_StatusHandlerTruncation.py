@@ -30,6 +30,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = None
         self.__patch_count_assessment = 0
         self.__patch_count_installation = 0
+        Constants.StatusTruncationConfig.NO_TRUNCATION_LOGIC_IN_SEC = -1  # ignore the cool time 60 sec, ut execution time is linear
 
     def tearDown(self):
         self.__test_scenario = None
