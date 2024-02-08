@@ -894,6 +894,7 @@ class StatusHandler(object):
             is_truncation_allowed = True if self.__calc_truncation_timestamp_tracker() > Constants.StatusTruncationConfig.NO_TRUNCATION_LOGIC_IN_SEC else False
 
             if is_truncation_allowed or self.__force_truncation_on:
+                self.composite_logger.log_verbose("Truncation variable tracking: [IsTruncationAllowed={0}] [IsForceTruncation={1}]".format(str(is_truncation_allowed), str(self.__force_truncation_on)))
                 truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
                 self.__truncated_status_file_json_dumps = json.dumps(truncated_status_file)
 
