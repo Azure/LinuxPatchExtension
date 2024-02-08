@@ -209,7 +209,7 @@ class StatusHandler(object):
 
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
 
-        # self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
+        self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
@@ -883,8 +883,7 @@ class StatusHandler(object):
 
     def __set_force_truncation_true_for_terminal_status(self, substatus_status):
         """ Set force truncation to overwrite NO_TRUNCATION_LOGIC_IN_SEC timeframe when terminal state (success or error) and if status file has been truncated conditions are met """
-        if self.__is_status_file_truncated and (substatus_status == Constants.STATUS_SUCCESS or substatus_status == Constants.STATUS_ERROR):
-            self.__force_truncation_on = True
+        self.__force_truncation_on = (substatus_status == Constants.STATUS_SUCCESS or substatus_status == Constants.STATUS_ERROR)
 
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
         """ Get truncated status file payload when status file byte size is more than 126kb """
