@@ -883,10 +883,7 @@ class StatusHandler(object):
 
     def __set_force_truncation_true_for_terminal_status(self, substatus_status):
         """ Set force truncation to overwrite NO_TRUNCATION_LOGIC_IN_SEC timeframe when terminal state (success or error) and if status file has been truncated conditions are met """
-        ## need to be removed
-        self.composite_logger.log_debug("substatus_status: [SubstatusStatus={0}]]".format(str(substatus_status)))
         self.__force_truncation_on = substatus_status == Constants.STATUS_SUCCESS or substatus_status == Constants.STATUS_ERROR
-        self.composite_logger.log_debug("what is IsForceTruncation : [IsForceTruncation={0}]]".format(str(self.__force_truncation_on)))
 
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
         """ Get truncated status file payload when status file byte size is more than 126kb """
@@ -920,7 +917,7 @@ class StatusHandler(object):
             self.__truncation_timestamp_tracker = datetime.datetime.now()
 
         curr_timestamp = datetime.datetime.now()
-        self.composite_logger.log_debug("[PrevTruncationAppliedTimeStamp={0}] [SysTimeStamp={1}] ".format(str(self.__truncation_timestamp_tracker), str(curr_timestamp)))
+        self.composite_logger.log_verbose("[PrevTruncationAppliedTimeStamp={0}] [SysTimeStamp={1}] ".format(str(self.__truncation_timestamp_tracker), str(curr_timestamp)))
         return (curr_timestamp - self.__truncation_timestamp_tracker).total_seconds()
 
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload_json):
@@ -1038,7 +1035,7 @@ class StatusHandler(object):
             else:
                 left_index = mid_index + 1
 
-        truncated_patches = patches[:left_index-1]
+        truncated_patches = patches[:left_index - 1]
         patches_removed = patches[left_index - 1:]
         truncated_patches_size_in_bytes = self.__calc_patches_payload_size_on_disk(truncated_patches)
         return truncated_patches, patches_removed, max_allowed_patches_size_in_bytes - truncated_patches_size_in_bytes
@@ -1117,7 +1114,7 @@ class StatusHandler(object):
     def __update_patches_in_substatus(self, substatus_msg, substatus_msg_patches, substatus_msg_errors=None):
         """ update the substatus message patches and errors """
         substatus_msg['patches'] = substatus_msg_patches
-        if substatus_msg_errors:
+        if substatus_msg_errors is not None:
             substatus_msg['errors'] = substatus_msg_errors
 
         return substatus_msg
