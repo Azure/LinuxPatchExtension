@@ -340,7 +340,7 @@ class StatusHandler(object):
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true_for_terminal_status(substatus_status=status)
+        self.__set_force_truncation_true_for_terminal_status(substatus_status=status, summary=Constants.PATCH_ASSESSMENT_SUMMARY)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -392,7 +392,7 @@ class StatusHandler(object):
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true_for_terminal_status(substatus_status=status)
+        self.__set_force_truncation_true_for_terminal_status(substatus_status=status, summary=Constants.PATCH_INSTALLATION_SUMMARY)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -457,7 +457,7 @@ class StatusHandler(object):
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true_for_terminal_status(substatus_status=status)
+        self.__set_force_truncation_true_for_terminal_status(substatus_status=status, summary="HealthStore")
 
         # Update complete status on disk
         self.__write_status_file()
@@ -493,7 +493,7 @@ class StatusHandler(object):
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true_for_terminal_status(substatus_status=status)
+        self.__set_force_truncation_true_for_terminal_status(substatus_status=status, summary="ConfigurePatchSummary")
 
         # Update complete status on disk
         self.__write_status_file()
@@ -847,6 +847,8 @@ class StatusHandler(object):
         if error_count_by_operation == 1 and errors_by_operation[0]['code'] == Constants.PatchOperationErrorCodes.INFORMATIONAL:    # special-casing for single informational messages
             message = errors_by_operation[0]['message']
             errors_by_operation = []
+            error_count_by_operation = 0
+
         else:
             # Update msg error code to warning for truncation
             if is_status_truncated:
@@ -881,8 +883,9 @@ class StatusHandler(object):
         """ Log details of all the removed patches from status """
         self.composite_logger.log_debug("Count of patches removed from: [Assessment={0}] [Installation={1}]".format(self.get_num_assessment_patches_removed(), self.get_num_installation_patches_removed()))
 
-    def __set_force_truncation_true_for_terminal_status(self, substatus_status):
+    def __set_force_truncation_true_for_terminal_status(self, substatus_status, summary):
         """ Set force truncation to overwrite NO_TRUNCATION_LOGIC_IN_SEC timeframe when terminal state (success or error) and if status file has been truncated conditions are met """
+        self.composite_logger.log_verbose("[SubstatusStatus={0}]  [summary]".format(str(substatus_status), str(summary)))
         self.__force_truncation_on = substatus_status == Constants.STATUS_SUCCESS or substatus_status == Constants.STATUS_ERROR
 
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
@@ -1088,14 +1091,15 @@ class StatusHandler(object):
 
     def __recompose_truncated_status_file(self, truncated_status_file, truncated_patches, count_total_errors, substatus_message, substatus_status, substatus_index):
         """ Recompose status file with truncated patches """
+        self.composite_logger.log_verbose("what is substatus_status [substatusStatus1={0}]".format(str(substatus_status)))
         truncated_msg_errors = None
         error_code, errors_details_list = self.__get_errors_from_substatus(substatus_msg=substatus_message)
 
         # Check for existing errors before recompose
-        if substatus_status != Constants.STATUS_TRANSITIONING:
+        if substatus_status == Constants.STATUS_SUCCESS:
             truncated_msg_errors = self.__recompose_substatus_msg_errors(errors_details_list, count_total_errors)  # Update substatus error message include truncated code and msg
 
-        if error_code != Constants.PatchOperationTopLevelErrorCode.ERROR and substatus_status != Constants.STATUS_TRANSITIONING:
+        if substatus_status == Constants.STATUS_SUCCESS:
             self.composite_logger.log_verbose("Patches in substatus have been truncated hence updating status to [status={0}] [PreviousErrorCode={1}]".format(Constants.STATUS_WARNING, str(error_code)))
             truncated_status_file['status']['substatus'][substatus_index]['status'] = Constants.STATUS_WARNING.lower()  # Update substatus status to warning
 
