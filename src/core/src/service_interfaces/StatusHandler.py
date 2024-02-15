@@ -817,24 +817,17 @@ class StatusHandler(object):
         error_list.insert(0, detail)
         return True
 
-    def __set_errors_json(self, error_count_by_operation, errors_by_operation, is_status_truncated=False):
+    def __set_errors_json(self, error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
-        code = Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR
-
         if error_count_by_operation == 1 and errors_by_operation[0]['code'] == Constants.PatchOperationErrorCodes.INFORMATIONAL:    # special-casing for single informational messages
             message = errors_by_operation[0]['message']
             errors_by_operation = []
+            error_count_by_operation = 0
         else:
-            # Update msg error code to warning for truncation
-            if is_status_truncated:
-                error_count_by_operation += 1  # add 1 because of truncation creates a new error detail object
-                code = Constants.PatchOperationTopLevelErrorCode.WARNING if code != Constants.PatchOperationTopLevelErrorCode.ERROR else Constants.PatchOperationTopLevelErrorCode.ERROR
-
-            message = "{0} error/s reported.".format(error_count_by_operation)
-            message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
+            message = self.__set_error_message(error_count_by_operation, errors_by_operation)
 
         return {
-            "code": code,
+            "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
             "details": errors_by_operation,
             "message": message
         }
@@ -845,6 +838,11 @@ class StatusHandler(object):
             "code": str(error_code),
             "message": str(formatted_message)
         }
+
+    def __set_error_message(self, error_count_by_operation, errors_by_operation):
+        message = "{0} error/s reported.".format(error_count_by_operation)
+        message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
+        return message
     # endregion
 
     # region - Patch Truncation
@@ -897,11 +895,11 @@ class StatusHandler(object):
 
             if len(self.__assessment_patches_removed) > 0:
                 self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
-                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment, count_total_errors=self.__assessment_total_error_count, substatus_message=self.__assessment_substatus_msg_copy, substatus_status=assessment_substatus_status, substatus_index=assessment_substatus_index)
+                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment, substatus_message=self.__assessment_substatus_msg_copy, substatus_status=assessment_substatus_status, substatus_index=assessment_substatus_index)
 
             if len(self.__installation_patches_removed) > 0:
                 self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_INSTALLATION_SUMMARY))
-                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation, count_total_errors=self.__installation_total_error_count, substatus_message=self.__installation_substatus_msg_copy, substatus_status=installation_substatus_status, substatus_index=installation_substatus_index)
+                truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation, substatus_message=self.__installation_substatus_msg_copy, substatus_status=installation_substatus_status, substatus_index=installation_substatus_index)
 
             status_file_size_in_bytes = self.__calc_status_size_on_disk(json.dumps(truncated_status_file))
             status_file_agent_size_diff = status_file_size_in_bytes - Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES
@@ -1028,15 +1026,15 @@ class StatusHandler(object):
                 return substatus_index, substatus_data['status']
         return None, None
 
-    def __recompose_truncated_status_file(self, truncated_status_file, truncated_patches, count_total_errors, substatus_message, substatus_status, substatus_index):
+    def __recompose_truncated_status_file(self, truncated_status_file, truncated_patches, substatus_message, substatus_status, substatus_index):
         """ Recompose status file with truncated patches """
         truncated_msg_errors = None
-        error_code, errors_details_list = self.__get_errors_from_substatus(substatus_msg=substatus_message)
+        error_code, errors_details = self.__get_errors_from_substatus(substatus_msg=substatus_message)
         is_terminal_state = substatus_status.lower() != Constants.STATUS_TRANSITIONING.lower()
 
         # Add truncated error message when terminal state is reached
         if is_terminal_state:
-            truncated_msg_errors = self.__recompose_truncated_substatus_msg_errors(errors_details_list, count_total_errors)
+            truncated_msg_errors = self.__recompose_truncated_substatus_msg_errors(error_code, errors_details)
 
         # Update status to warning when terminal state (except Error status) is reached
         if is_terminal_state and error_code != Constants.PatchOperationTopLevelErrorCode.ERROR:
@@ -1049,13 +1047,18 @@ class StatusHandler(object):
         truncated_status_file['status']['substatus'][substatus_index]['formattedMessage']['message'] = json.dumps(truncated_substatus_message)
         return truncated_status_file
 
-    def __recompose_truncated_substatus_msg_errors(self, errors_details_list, count_total_errors):
+    def __recompose_truncated_substatus_msg_errors(self, errors_code, errors_details):
         """ Recompose truncated substatus message errors json """
-        truncated_error_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE)  # Reuse the errors object set up
-        self.__try_add_error(errors_details_list, truncated_error_detail)  # add new truncated error detail to beginning in errors details list
-        truncated_errors_json = self.__set_errors_json(count_total_errors, errors_details_list, is_status_truncated=True)
+        truncated_errors_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE)  # Reuse the errors object set up
+        self.__try_add_error(errors_details, truncated_errors_detail)  # add new truncated error detail to beginning in errors details list
 
-        return truncated_errors_json
+        message = self.__set_error_message(error_count_by_operation=len(errors_details), errors_by_operation=errors_details)
+
+        return {
+            "code": Constants.PatchOperationTopLevelErrorCode.WARNING if errors_code != Constants.PatchOperationTopLevelErrorCode.ERROR else Constants.PatchOperationTopLevelErrorCode.ERROR,
+            "details": errors_details,
+            "message": message
+        }
 
     def __update_patches_and_errors_in_substatus(self, substatus_msg, substatus_msg_patches, substatus_msg_errors=None):
         """ update the substatus message patches and errors and return a new modified substatus message """
@@ -1069,4 +1072,3 @@ class StatusHandler(object):
         """ Get errors code and errors details from substatus message json """
         return substatus_msg['errors']['code'], substatus_msg['errors']['details']
     # endregion
-

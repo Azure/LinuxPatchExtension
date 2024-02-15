@@ -297,6 +297,50 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_ERROR, self.__patch_count_installation, errors_count=5, errors_code=Constants.PatchOperationTopLevelErrorCode.ERROR, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
+    def test_only_installation_patches_over_size_limit_with_informational_error_truncated(self):
+        """ Perform truncation on installation patches and substatus status is set to Error (not warning) due to per-existing patching errors
+        Before truncation: 800 installation patches in status, 6 exceptions
+        completed status file byte size: 182kb,
+        Expected (After truncation): ~553 installation patches in status
+        operation: Installation,
+        installation substatus name: PatchInstallationSummary,
+        installation substatus status: error,
+        installation errors code: 1 (error),
+        installation errors details count: 5,
+        installation errors details code: [PACKAGE_LIST_TRUNCATED, OPERATION_FAILED]
+        count of installation patches removed: 247,
+        truncated status file byte size: 126kb. """
+
+        self.__test_scenario = 'installation_only'
+        self.__patch_count_installation = 800
+
+        self.__set_up_status_file(run='installation', config_operation=Constants.INSTALLATION, patch_count=self.__patch_count_installation, package_status=Constants.INSTALLED)
+
+        # Set up complete status file before exceptions
+        complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
+
+        # Assert complete status file size > 128kb and no exception errors
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, 'transitioning', self.__patch_count_installation)
+
+        # Assert status file < 126kb and substatus status remain 'transitioning'
+        truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
+        self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, 'transitioning', self.__patch_count_installation, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+
+        # Set up complete status file with informational message
+        self.runtime.status_handler.add_error_to_status("informational", Constants.PatchOperationErrorCodes.INFORMATIONAL)
+        self.runtime.status_handler.set_installation_substatus_json(status=Constants.STATUS_SUCCESS)
+        self.runtime.status_handler.log_truncated_patches()
+
+        complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
+
+        # Assert complete status file with multi exception errors
+        self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, self.__patch_count_installation)
+
+        # Assert installation truncated status file with multi exception errors
+        truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
+
+        self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_installation, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+
     def test_both_assessment_and_installation_over_size_limit_truncated(self):
         """ Perform truncation on assessment/installation patches.
         Before truncation: 700 assessment patches in status, 500 installation patches in status
