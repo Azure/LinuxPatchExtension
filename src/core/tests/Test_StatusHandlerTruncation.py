@@ -487,14 +487,14 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
         self.runtime.execution_config.operation = Constants.INSTALLATION
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count)
+        test_patches, test_patches_version = self.__set_up_patches_func(patch_count)
 
         # Start performance test prior truncation
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = False
         start_time_no_truncation = time.time()
         for i in range(start_index, end_index):
-            self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-            self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+            self.runtime.status_handler.set_package_assessment_status(test_patches, test_patches_version)
+            self.runtime.status_handler.set_package_install_status(test_patches, test_patches_version, Constants.INSTALLED)
 
         end_time_no_truncation = time.time()
         performance_time_no_truncation = end_time_no_truncation - start_time_no_truncation 
@@ -503,9 +503,9 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         Constants.StatusTruncationConfig.TURN_ON_TRUNCATION = True
         start_time_with_truncation = time.time()
         for i in range(start_index, end_index):
-            test_packages, test_package_versions = self.__set_up_packages_func(patch_count)
-            self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions)
-            self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, Constants.INSTALLED)
+            test_patches, test_patches_version = self.__set_up_patches_func(patch_count)
+            self.runtime.status_handler.set_package_assessment_status(test_patches, test_patches_version)
+            self.runtime.status_handler.set_package_install_status(test_patches, test_patches_version, Constants.INSTALLED)
 
         end_time_with_truncation = time.time()
         performance_time_with_truncation = end_time_with_truncation - start_time_with_truncation
@@ -668,14 +668,14 @@ class TestStatusHandlerTruncation(unittest.TestCase):
     def __run_assessment_package_set_up(self, patch_count, classification, package_status='Available', random_char=None):
         if patch_count == 0:
             return
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count, random_char=random_char)
-        self.runtime.status_handler.set_package_assessment_status(test_packages, test_package_versions, classification, package_status)
+        test_patches, test_patches_version = self.__set_up_patches_func(patch_count, random_char=random_char)
+        self.runtime.status_handler.set_package_assessment_status(test_patches, test_patches_version, classification, package_status)
 
     def __run_installation_package_set_up(self, patch_count, package_status, random_char=None):
         if patch_count == 0:
             return
-        test_packages, test_package_versions = self.__set_up_packages_func(patch_count, random_char=random_char)
-        self.runtime.status_handler.set_package_install_status(test_packages, test_package_versions, package_status)
+        test_patches, test_patches_version = self.__set_up_patches_func(patch_count, random_char=random_char)
+        self.runtime.status_handler.set_package_install_status(test_patches, test_patches_version, package_status)
 
     def __get_substatus_file_json(self, status_file_path):
         with self.runtime.env_layer.file_system.open(status_file_path, 'r') as file_handle:
@@ -697,20 +697,20 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         formatted_time = "%d days, %d hours, %d minutes, %.6f seconds" % (int(days), int(hours), int(minutes), seconds)
         return formatted_time
 
-    def __set_up_packages_func(self, val, random_char=None):
+    def __set_up_patches_func(self, val, random_char=None):
         """ populate packages and versions for truncation """
-        test_packages = []
-        test_package_versions = []
+        test_patches_list = []
+        test_patches_versions_list = []
 
         for i in range(0, val):
-            test_packages.append('python-samba' + str(i))
+            test_patches_list.append('python-samba' + str(i))
 
             if random_char is not None:
-                test_package_versions.append('2:4.4.5+dfsg-2ubuntu€' + random_char)
+                test_patches_versions_list.append('2:4.4.5+dfsg-2ubuntu€' + random_char)
             else:
-                test_package_versions.append('2:4.4.5+dfsg-2ubuntu€')
+                test_patches_versions_list.append('2:4.4.5+dfsg-2ubuntu€')
 
-        return test_packages, test_package_versions
+        return test_patches_list, test_patches_versions_list
 
 
 if __name__ == '__main__':
