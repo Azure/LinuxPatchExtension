@@ -181,6 +181,7 @@ class Constants(object):
         INTERNAL_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
         AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
         MIN_ASSESSMENT_PATCHES_TO_RETAIN = 5
+        TRUNCATION_WARNING_MESSAGE = "Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists."
         TURN_ON_TRUNCATION = True
 
     # Wrapper-core handshake files
@@ -298,6 +299,7 @@ class Constants(object):
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
         UA_ESM_REQUIRED = "UA_ESM_REQUIRED"
+        TRUNCATION = "PACKAGE_LIST_TRUNCATED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
