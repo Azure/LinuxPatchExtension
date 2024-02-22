@@ -437,8 +437,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         Before truncation: 700 assessment patches in status, 500 installation patches in status
         complete status file byte size: 242kb,
         Expected (After truncation): ~368 assessment patches in status, ~250 installation patches in status
-        assessment tombstone records: 1,
-        installation tombstone records: 1,
+        tombstone records: [assessment=1 (Other)][installation=1],
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=warning],
@@ -480,8 +479,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         Before truncation: 100000 assessment patches in status, 100000 installation patches in status
         complete status file byte size: 41,658kb,
         Expected (After truncation): ~5 assessment patches in status, ~545 installation patches in status
-        assessment tombstone records: 1,
-        installation tombstone records: 1,
+        tombstone records: [assessment=1 (Other)][installation=1],
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=warning],
@@ -522,8 +520,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         Before truncation: 800 assessment patches in status, 800 installation patches in status with 6 exception errors
         complete status file byte size: > 128kb,
         Expected (After truncation): ~5 assessment patches in status, ~544 installation patches in status
-        assessment tombstone records: 1,
-        installation tombstone records: 1,
+        tombstone records: [assessment=1 (Security)][installation=1],
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=error],
