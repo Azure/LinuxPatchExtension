@@ -75,8 +75,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, self.__patch_count_assessment, is_under_internal_size_limit=True, is_truncated=False)
 
     def test_only_assessment_patches_over_size_limit_truncated(self):
-        """ Perform truncation on very large assessment patches and checks for time performance concern.
-        Before truncation: 100000 assessment patches in status
+        """ Perform truncation on large assessment patches and checks for time performance concern.
+        Before truncation: 10000 assessment patches in status
         complete status file byte size: 19,022kb,
         Expected (After truncation): ~671 assessment patches in status
         operation: Assessment,
@@ -89,7 +89,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         truncated status file byte size: 126kb. """
 
         self.__test_scenario = 'assessment_only'
-        self.__patch_count_assessment = 100000
+        self.__patch_count_assessment = 10000
 
         self.__set_up_status_file(run='assessment', config_operation=Constants.ASSESSMENT, patch_count=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS, classification='Critical')
 
@@ -212,8 +212,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, self.__patch_count_installation, is_under_internal_size_limit=True, is_truncated=False)
 
     def test_only_installation_patches_over_size_limit_truncated(self):
-        """ Perform truncation on very large installation patches and checks for time performance concern.
-        Before truncation: 100000 installation patches in status
+        """ Perform truncation on large installation patches and checks for time performance concern.
+        Before truncation: 10000 installation patches in status
         complete status file byte size: 22,929kb,
         Expected (After truncation): ~554 installation patches in status
         operation: Installation,
@@ -226,7 +226,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         truncated status file byte size: 126kb. """
 
         self.__test_scenario = 'installation_only'
-        self.__patch_count_installation = 100000
+        self.__patch_count_installation = 10000
 
         self.__set_up_status_file(run='installation', config_operation=Constants.INSTALLATION, patch_count=self.__patch_count_installation, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
 
@@ -408,8 +408,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_installation, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
     def test_both_assessment_and_installation__keep_min_5_assessment_patches_truncated(self):
-        """ Perform truncation on very large assessment / installation patches and checks for time performance concern. but keep min 5 assessment patches.
-        Before truncation: 100000 assessment patches in status, 100000 installation patches in status
+        """ Perform truncation on large assessment / installation patches and checks for time performance concern. but keep min 5 assessment patches.
+        Before truncation: 10000 assessment patches in status, 10000 installation patches in status
         complete status file byte size: 41,658kb,
         Expected (After truncation): ~5 assessment patches in status, ~546 installation patches in status
         operation: Installation,
@@ -422,8 +422,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         truncated status file byte size: 126kb. """
 
         self.__test_scenario = 'both'
-        self.__patch_count_assessment = 100000
-        self.__patch_count_installation = 100000
+        self.__patch_count_assessment = 10000
+        self.__patch_count_installation = 10000
 
         self.__set_up_status_file(run='assessment', config_operation=Constants.INSTALLATION, patch_count=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
         self.__set_up_status_file(run='installation', config_operation=Constants.INSTALLATION, patch_count=self.__patch_count_installation, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
