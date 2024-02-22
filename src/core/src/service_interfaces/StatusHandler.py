@@ -748,7 +748,7 @@ class StatusHandler(object):
             return
 
         # Compose error detail
-        error_detail = self.__set_errors_detail(error_code, message)
+        error_detail = self.__set_error_detail(error_code, message)
 
         # determine if a current operation override has been requested
         current_operation = self.__current_operation if current_operation_override_for_error == Constants.DEFAULT_UNSPECIFIED_VALUE else current_operation_override_for_error
@@ -824,7 +824,7 @@ class StatusHandler(object):
             errors_by_operation = []
             error_count_by_operation = 0
         else:
-            message = self.__compose_errors_message(error_count_by_operation, errors_by_operation)
+            message = self.__compose_error_message(error_count_by_operation, errors_by_operation)
 
         return {
             "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
@@ -832,14 +832,14 @@ class StatusHandler(object):
             "message": message
         }
 
-    def __set_errors_detail(self, error_code, message):
+    def __set_error_detail(self, error_code, message):
         formatted_message = self.__ensure_error_message_restriction_compliance(message)
         return {
             "code": str(error_code),
             "message": str(formatted_message)
         }
 
-    def __compose_errors_message(self, error_count_by_operation, errors_by_operation):
+    def __compose_error_message(self, error_count_by_operation, errors_by_operation):
         message = "{0} error/s reported.".format(error_count_by_operation)
         message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
         return message
@@ -1054,10 +1054,10 @@ class StatusHandler(object):
 
     def __recompose_truncated_substatus_msg_errors(self, errors_code, errors_details, count_total_errors):
         """ Recompose truncated substatus message errors json """
-        truncated_errors_detail = self.__set_errors_detail(Constants.PatchOperationErrorCodes.TRUNCATION, Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE)  # Reuse the errors object set up
+        truncated_errors_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE)  # Reuse the errors object set up
         self.__try_add_error(errors_details, truncated_errors_detail)  # add new truncated error detail to beginning in errors details list
 
-        message = self.__compose_errors_message(error_count_by_operation=count_total_errors + 1, errors_by_operation=errors_details)  # add 1 to count_total_errors because of truncation
+        message = self.__compose_error_message(error_count_by_operation=count_total_errors + 1, errors_by_operation=errors_details)  # add 1 to count_total_errors because of truncation
 
         return {
             "code": Constants.PatchOperationTopLevelErrorCode.WARNING if errors_code != Constants.PatchOperationTopLevelErrorCode.ERROR else Constants.PatchOperationTopLevelErrorCode.ERROR,
