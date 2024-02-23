@@ -880,7 +880,7 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Count of patches removed from: [Assessment={0}] [Installation={1}]".format(self.get_num_assessment_patches_removed(), self.get_num_installation_patches_removed()))
 
     def __set_force_truncation_on_terminal_status(self, substatus_status):
-        """ Set force truncation to overwrite NO_TRUNCATION_LOGIC_IN_SEC timeframe when terminal state (success or error) and if status file has been truncated conditions are met """
+        """ Set force truncation to overwrite NO_TRUNCATION_LOGIC_IN_SEC time frame when terminal state (success or error) and if status file has been truncated conditions are met """
         self.__force_truncation_on = substatus_status == Constants.STATUS_SUCCESS or substatus_status == Constants.STATUS_ERROR
 
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
