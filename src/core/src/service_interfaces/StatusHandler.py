@@ -340,7 +340,7 @@ class StatusHandler(object):
         self.__assessment_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_ASSESSMENT_SUMMARY, status, code, json.dumps(self.__assessment_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true_for_terminal_status(substatus_status=status)
+        self.__set_force_truncation_on_terminal_status(substatus_status=status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -392,7 +392,7 @@ class StatusHandler(object):
         self.__installation_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_INSTALLATION_SUMMARY, status, code, json.dumps(self.__installation_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true_for_terminal_status(substatus_status=status)
+        self.__set_force_truncation_on_terminal_status(substatus_status=status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -457,7 +457,7 @@ class StatusHandler(object):
         self.__metadata_for_healthstore_substatus_json = self.__new_substatus_json_for_operation(Constants.PATCH_METADATA_FOR_HEALTHSTORE, status, code, json.dumps(self.__metadata_for_healthstore_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true_for_terminal_status(substatus_status=status)
+        self.__set_force_truncation_on_terminal_status(substatus_status=status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -493,7 +493,7 @@ class StatusHandler(object):
         self.__configure_patching_substatus_json = self.__new_substatus_json_for_operation(Constants.CONFIGURE_PATCHING_SUMMARY, status, code, json.dumps(self.__configure_patching_summary_json))
 
         # Set force truncation true when final status is success or error
-        self.__set_force_truncation_true_for_terminal_status(substatus_status=status)
+        self.__set_force_truncation_on_terminal_status(substatus_status=status)
 
         # Update complete status on disk
         self.__write_status_file()
@@ -879,7 +879,7 @@ class StatusHandler(object):
         """ Log details of all the removed patches from status """
         self.composite_logger.log_debug("Count of patches removed from: [Assessment={0}] [Installation={1}]".format(self.get_num_assessment_patches_removed(), self.get_num_installation_patches_removed()))
 
-    def __set_force_truncation_true_for_terminal_status(self, substatus_status):
+    def __set_force_truncation_on_terminal_status(self, substatus_status):
         """ Set force truncation to overwrite NO_TRUNCATION_LOGIC_IN_SEC timeframe when terminal state (success or error) and if status file has been truncated conditions are met """
         self.__force_truncation_on = substatus_status == Constants.STATUS_SUCCESS or substatus_status == Constants.STATUS_ERROR
 
