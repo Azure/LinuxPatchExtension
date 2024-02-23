@@ -60,7 +60,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = 'assessment_only'
         self.__patch_count_assessment = 500
 
-        self.__write_assessment_to_status_file(config_operation=Constants.ASSESSMENT, patch_count_assessment=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS, classification='Other')
+        self.__write_assessment_to_status_file(config_operation=Constants.ASSESSMENT, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
 
         # Assert complete status file
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -94,7 +94,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_critical = 40000
         self.__patch_count_assessment = patch_count_other + patch_count_security + patch_count_critical
 
-        self.__write_assessment_to_status_file(config_operation=Constants.ASSESSMENT, patch_count_assessment=patch_count_critical, patch_count_security=patch_count_security, patch_count_other=patch_count_other, status=Constants.STATUS_SUCCESS)
+        self.__write_assessment_to_status_file(config_operation=Constants.ASSESSMENT, patch_count_critical=patch_count_critical, patch_count_security=patch_count_security, patch_count_other=patch_count_other, status=Constants.STATUS_SUCCESS)
 
         # Assert complete status file
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -131,7 +131,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_critical = 400
         self.__patch_count_assessment = patch_count_other + patch_count_security + patch_count_critical
 
-        self.__write_assessment_to_status_file(config_operation=Constants.ASSESSMENT, patch_count_assessment=patch_count_critical, patch_count_security=patch_count_security, patch_count_other=patch_count_other)
+        self.__write_assessment_to_status_file(config_operation=Constants.ASSESSMENT, patch_count_critical=patch_count_critical, patch_count_security=patch_count_security, patch_count_other=patch_count_other)
 
         # Set up complete status file before exceptions
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -180,7 +180,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = 'assessment_only'
         self.__patch_count_assessment = 1000
 
-        self.__write_assessment_to_status_file(config_operation=Constants.ASSESSMENT, patch_count_assessment=self.__patch_count_assessment, classification='Other')
+        self.__write_assessment_to_status_file(config_operation=Constants.ASSESSMENT, patch_count_other=self.__patch_count_assessment)
 
         # Set up complete status file with informational message
         self.runtime.status_handler.add_error_to_status("informational", Constants.PatchOperationErrorCodes.INFORMATIONAL)
@@ -214,7 +214,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = 'installation_only'
         self.__patch_count_installation = 500
 
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=self.__patch_count_installation, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation, status=Constants.STATUS_SUCCESS)
 
         # Assert complete status file
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -248,7 +248,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_installed = 40000
         self.__patch_count_installation = patch_count_pending + patch_count_not_selected + patch_count_installed
 
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=patch_count_installed, patch_count_excluded=patch_count_pending, patch_count_not_selected=patch_count_not_selected, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=patch_count_installed, patch_count_excluded=patch_count_pending, patch_count_not_selected=patch_count_not_selected, status=Constants.STATUS_SUCCESS)
 
         # Assert complete status file
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -285,7 +285,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_not_selected = 40
         self.__patch_count_installation = patch_count_pending + patch_count_exclude + patch_count_not_selected
 
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=patch_count_pending, patch_count_excluded=patch_count_exclude, patch_count_not_selected=patch_count_not_selected, status=Constants.STATUS_SUCCESS, package_status=Constants.PENDING)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_pending=patch_count_pending, patch_count_excluded=patch_count_exclude, patch_count_not_selected=patch_count_not_selected, status=Constants.STATUS_SUCCESS)
 
         # Assert complete status file
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -327,7 +327,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_installed = 500
         self.__patch_count_installation = patch_count_pending + patch_count_not_selected + patch_count_installed
 
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=patch_count_installed, patch_count_excluded=patch_count_pending, patch_count_not_selected=patch_count_not_selected,  package_status=Constants.INSTALLED)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=patch_count_installed, patch_count_excluded=patch_count_pending, patch_count_not_selected=patch_count_not_selected)
 
         # Set up complete status file before exceptions
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -373,7 +373,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = 'installation_only'
         self.__patch_count_installation = 800
 
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=self.__patch_count_installation, package_status=Constants.INSTALLED)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation)
 
         # Set up complete status file with informational message
         self.runtime.status_handler.add_error_to_status("informational", Constants.PatchOperationErrorCodes.INFORMATIONAL)
@@ -411,8 +411,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_installed = 500
         self.__patch_count_installation = patch_count_excluded + patch_count_installed
 
-        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_assessment=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS, classification='Other')
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=patch_count_installed, patch_count_excluded=patch_count_excluded, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
+        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=patch_count_installed, patch_count_excluded=patch_count_excluded, status=Constants.STATUS_SUCCESS)
 
         # Assert complete status file
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -453,8 +453,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         patch_count_installed = 250
         self.__patch_count_installation = patch_count_excluded + patch_count_installed
 
-        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_assessment=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS, classification='Other')
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=patch_count_installed, patch_count_excluded=patch_count_excluded, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
+        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=patch_count_installed, patch_count_excluded=patch_count_excluded, status=Constants.STATUS_SUCCESS)
 
         # Assert complete status file
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -493,8 +493,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__patch_count_assessment = 100000
         self.__patch_count_installation = 100000
 
-        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_assessment=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS, classification='Other')
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=self.__patch_count_installation, status=Constants.STATUS_SUCCESS, package_status=Constants.INSTALLED)
+        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation, status=Constants.STATUS_SUCCESS)
 
         # Assert complete status file
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -534,8 +534,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__patch_count_assessment = 800
         self.__patch_count_installation = 1000
 
-        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_assessment=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS, classification='Other')
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=self.__patch_count_installation, package_status=Constants.INSTALLED)
+        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation)
 
         # Set up complete status file before errors
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -590,8 +590,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__patch_count_assessment = 800
         self.__patch_count_installation = 1000
 
-        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_assessment=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS, classification='Other')
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installation=self.__patch_count_installation, package_status=Constants.INSTALLED)
+        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation)
 
         # Set up complete status file with informational message
         self.runtime.status_handler.add_error_to_status("informational", Constants.PatchOperationErrorCodes.INFORMATIONAL)
@@ -774,28 +774,31 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             self.assertEqual(truncated_substatus_msg['patches'][-3]['patchId'], "Truncated_patch_list_id")
             self.assertEqual(truncated_substatus_msg['patches'][-3]['classifications'], ['Critical'])
 
-    def __write_assessment_to_status_file(self, config_operation, patch_count_assessment, patch_count_security=0, patch_count_other=0, status='transitioning', classification='Critical'):
+    def __write_assessment_to_status_file(self, config_operation, patch_count_critical=0, patch_count_security=0, patch_count_other=0, status='transitioning'):
+        # patch_count are by classifications [Critical, Security, Other]
         self.runtime.execution_config.operation = config_operation
         self.runtime.status_handler.set_current_operation(config_operation)
 
         # random_char to ensure the patches are unique due to __set_up_packages_func remove duplicates
         self.__run_assessment_package_set_up(patch_count_other, classification='Other', random_char='b')  # Other assessment patches
         self.__run_assessment_package_set_up(patch_count_security, classification='Security', random_char='a')  # Security assessment patches
-        self.__run_assessment_package_set_up(patch_count_assessment, classification=classification)
+        self.__run_assessment_package_set_up(patch_count_critical, classification='Critical')  # Critical assessment patches
 
         if status != 'transitioning':
             self.runtime.status_handler.set_assessment_substatus_json(status=status)
 
         self.runtime.status_handler.log_truncated_patches()
 
-    def __write_installation_to_status_file(self, config_operation, patch_count_installation, patch_count_excluded=0, patch_count_not_selected=0, status='transitioning', package_status='Available'):
+    def __write_installation_to_status_file(self, config_operation, patch_count_installed=0, patch_count_pending=0, patch_count_excluded=0, patch_count_not_selected=0, status='transitioning'):
+        # patch_count are by package installed state [Installed, Pending, Excluded, Not_Selected]
         self.runtime.execution_config.operation = config_operation
         self.runtime.status_handler.set_current_operation(config_operation)
 
         # random_char to ensure the patches are unique due to __set_up_packages_func remove duplicates
-        self.__run_installation_package_set_up(patch_count_not_selected, Constants.NOT_SELECTED, random_char='b')  # NOT_SELECTED installation patches
-        self.__run_installation_package_set_up(patch_count_excluded, Constants.EXCLUDED, random_char='a')  # EXCLUDED installation patches
-        self.__run_installation_package_set_up(patch_count_installation, package_status)
+        self.__run_installation_package_set_up(patch_count_not_selected, Constants.NOT_SELECTED, random_char='c')  # NOT_SELECTED installation patches
+        self.__run_installation_package_set_up(patch_count_excluded, Constants.EXCLUDED, random_char='b')  # EXCLUDED installation patches
+        self.__run_installation_package_set_up(patch_count_pending, Constants.PENDING, random_char='a')  # PENDING installation patches
+        self.__run_installation_package_set_up(patch_count_installed, Constants.INSTALLED)  # INSTALLED installation patches
 
         if status != 'transitioning':
             self.runtime.status_handler.set_installation_substatus_json(status=status)

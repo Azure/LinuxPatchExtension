@@ -894,7 +894,7 @@ class StatusHandler(object):
                 self.__start_truncation_process(self.__assessment_patches_copy, self.__installation_patches_copy, max_allowed_patches_size_in_bytes, low_pri_index)
 
             if len(self.__assessment_patches_removed) > 0:
-                assessment_tombstone_list = self.__assessment_classification_count_map(self.__assessment_patches_removed)
+                assessment_tombstone_list = self.__create_assessment_tombstones_by_classification(self.__assessment_patches_removed)
                 patches_retained_in_assessment.extend(assessment_tombstone_list)     # Add assessment tombstone list
                 self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment, count_total_errors=self.__assessment_total_error_count, substatus_message=self.__assessment_substatus_msg_copy, substatus_status=assessment_substatus_status, substatus_index=assessment_substatus_index)
@@ -1075,18 +1075,18 @@ class StatusHandler(object):
         """ Get errors code and errors details from substatus message json """
         return substatus_msg['errors']['code'], substatus_msg['errors']['details']
 
-    def __assessment_classification_count_map(self, packages_removed_from_assessment):
+    def __create_assessment_tombstones_by_classification(self, packages_removed_from_assessment):
         """ Create list of tombstone per classification with max count of that classification, omit unclassified """
-        assessment_tombstone_map = {}
+        assessment_classification_count_map = collections.OrderedDict()
         tombstone_record_list = []
 
         # Map['classification', classification_count]
         for package in packages_removed_from_assessment:
             classifications = package['classifications'][0]
-            assessment_tombstone_map[classifications] = assessment_tombstone_map.get(classifications, 0) + 1
+            assessment_classification_count_map[classifications] = assessment_classification_count_map.get(classifications, 0) + 1
 
         # Add assessment tombstone record per classifications except unclassified
-        for classification_name, patches_count_by_classification in assessment_tombstone_map.items():
+        for classification_name, patches_count_by_classification in assessment_classification_count_map.items():
             if not classification_name == Constants.PackageClassification.UNCLASSIFIED:
                 tombstone_record_list.append(self.__create_assessment_tombstone(classification_name, patches_count_by_classification))
 
