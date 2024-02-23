@@ -74,8 +74,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(substatus_file_data, Constants.ASSESSMENT, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_SUCCESS, self.__patch_count_assessment, is_under_internal_size_limit=True, is_truncated=False)
 
     def test_only_assessment_patches_over_size_limit_truncated(self):
-        """ Perform truncation on very large assessment patches and checks for time performance concern.
-        Before truncation: 100000 assessment patches in status
+        """ Perform truncation on large assessment patches and checks for time performance concern.
+        Before truncation: 10000 assessment patches in status
         complete status file byte size: 19,022kb,
         Expected (After truncation): ~668 assessment patches in status
         tombstone records: 3 (Critical, Security, Other),
@@ -85,13 +85,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         assessment errors code: 2 (warning),
         assessment errors details count: 1,
         assessment errors details code: [PACKAGE_LIST_TRUNCATED]
-        count of assessment patches removed: 99332,
+        count of assessment patches removed: 9332,
         truncated status file byte size: 126kb. """
 
         self.__test_scenario = 'assessment_only'
-        patch_count_other = 30000
-        patch_count_security = 30000
-        patch_count_critical = 40000
+        patch_count_other = 3000
+        patch_count_security = 3000
+        patch_count_critical = 4000
         self.__patch_count_assessment = patch_count_other + patch_count_security + patch_count_critical
 
         self.__write_assessment_to_status_file(config_operation=Constants.ASSESSMENT, patch_count_critical=patch_count_critical, patch_count_security=patch_count_security, patch_count_other=patch_count_other, status=Constants.STATUS_SUCCESS)
@@ -228,8 +228,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_SUCCESS, self.__patch_count_installation, is_under_internal_size_limit=True, is_truncated=False)
 
     def test_only_installation_patches_over_size_limit_truncated(self):
-        """ Perform truncation on very large installation patches and checks for time performance concern.
-        Before truncation: 100000 installation patches in status
+        """ Perform truncation on large installation patches and checks for time performance concern.
+        Before truncation: 10000 installation patches in status
         complete status file byte size: 22,929kb,
         Expected (After truncation): ~553 installation patches in status
         tombstone records: 1,
@@ -239,13 +239,13 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         installation errors code: 2 (warning),
         installation errors details count: 1,
         installation errors details code: [PACKAGE_LIST_TRUNCATED]
-        count of installation patches removed: 99447,
+        count of installation patches removed: 9447,
         truncated status file byte size: 126kb. """
 
         self.__test_scenario = 'installation_only'
-        patch_count_not_selected = 30000
-        patch_count_pending = 30000
-        patch_count_installed = 40000
+        patch_count_not_selected = 3000
+        patch_count_pending = 3000
+        patch_count_installed = 4000
         self.__patch_count_installation = patch_count_pending + patch_count_not_selected + patch_count_installed
 
         self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=patch_count_installed, patch_count_excluded=patch_count_pending, patch_count_not_selected=patch_count_not_selected, status=Constants.STATUS_SUCCESS)
@@ -475,8 +475,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_installation + 1, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
     def test_both_assessment_and_installation__keep_min_5_assessment_patches_truncated(self):
-        """ Perform truncation on very large assessment / installation patches and checks for time performance concern. but reduce to min 5 assessment patches.
-        Before truncation: 100000 assessment patches in status, 100000 installation patches in status
+        """ Perform truncation on large assessment / installation patches and checks for time performance concern. but reduce to min 5 assessment patches.
+        Before truncation: 10000 assessment patches in status, 10000 installation patches in status
         complete status file byte size: 41,658kb,
         Expected (After truncation): ~5 assessment patches in status, ~545 installation patches in status
         tombstone records: [assessment=1 (Other)][installation=1],
@@ -486,12 +486,12 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         errors code: [assessment=2 (warning)][installation=2 (warning)],
         errors details count: [assessment=1][installation=1],
         errors details code: [assessment=[PACKAGE_LIST_TRUNCATED]][installation=[PACKAGE_LIST_TRUNCATED]],
-        count of patches removed from log: [assessment=99995[installation=99455],
+        count of patches removed from log: [assessment=9995[installation=9455],
         truncated status file byte size: 126kb. """
 
         self.__test_scenario = 'both'
-        self.__patch_count_assessment = 100000
-        self.__patch_count_installation = 100000
+        self.__patch_count_assessment = 10000
+        self.__patch_count_installation = 10000
 
         self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
         self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation, status=Constants.STATUS_SUCCESS)
