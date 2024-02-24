@@ -91,9 +91,9 @@ class StatusHandler(object):
 
         self.__current_operation = None
 
-        self.__truncation_timestamp_tracker = None  # To allow truncation on upcoming operation when tracker > 60 sec (tentatively)
-        self.__truncated_status_file_json_dumps = None  # To keep status file truncated (not overwritten) when tracker timestamp < 60 sec (tentatively)
-        self.__force_truncation_first_time = True  # Apply truncation only once initially tracker timestamp will be < 60 sec
+        self.__truncation_timestamp = None  # To allow truncation on upcoming operation when timestamp > 60 sec (tentatively)
+        self.__truncated_status_file_json_dumps = None  # To keep status file truncated (not overwritten) when timestamp < 60 sec (tentatively)
+        self.__force_truncation_first_time = True  # Apply truncation only once initially timestamp will be < 60 sec
         self.__force_truncation_on = False  # When true apply truncation ignore track timestamp during terminal state operation
 
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
@@ -602,7 +602,7 @@ class StatusHandler(object):
         self.__configure_patching_errors = []
         self.__configure_patching_auto_assessment_errors = []
 
-        self.__truncation_timestamp_tracker = None
+        self.__truncation_timestamp = None
         self.__truncated_status_file_json_dumps = None
         self.__force_truncation_first_time = True
         self.__force_truncation_on = False
@@ -888,7 +888,7 @@ class StatusHandler(object):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload_json byte size on disk
 
         if status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:  # perform truncation complete_status_file byte size > 126kb
-            is_truncation_allowed = self.__calc_truncation_timestamp_tracker() > Constants.StatusTruncationConfig.NO_TRUNCATION_LOGIC_IN_SEC
+            is_truncation_allowed = self.__calc_truncation_timestamp_in_sec() > Constants.StatusTruncationConfig.NO_TRUNCATION_LOGIC_IN_SEC
 
             if self.__force_truncation_first_time or is_truncation_allowed or self.__force_truncation_on:
                 self.composite_logger.log_verbose("[IsTruncationAllowed={0}] [IsForceTruncationOn={1}]".format(str(is_truncation_allowed), str(self.__force_truncation_on)))
@@ -896,27 +896,27 @@ class StatusHandler(object):
                 self.__truncated_status_file_json_dumps = json.dumps(truncated_status_file)
 
                 if is_truncation_allowed:
-                    self.__truncation_timestamp_tracker = datetime.datetime.now()  # Set tracker timestamp to newer time
+                    self.__truncation_timestamp = datetime.datetime.now()  # Set timestamp to newer time
 
                 if self.__force_truncation_first_time:
-                    self.__force_truncation_first_time = False  # Set to False because first time truncation applied during tracker timestamp < 60 sec
+                    self.__force_truncation_first_time = False  # Set to False because first time truncation applied during timestamp < 60 sec
 
                 return self.__truncated_status_file_json_dumps
 
-            # To ensure all newly status file remain in truncated state when complete statusfile > 126kb and timestamp tracker < 60 sec
+            # To ensure all newly status file remain in truncated state when complete statusfile > 126kb and timestamp < 60 sec
             if self.__truncated_status_file_json_dumps is not None and not is_truncation_allowed and not self.__force_truncation_on:
                 return self.__truncated_status_file_json_dumps
 
         return status_file_payload_json_dumps
 
-    def __calc_truncation_timestamp_tracker(self):
-        """ To determine whether truncation timestamp tracker is outside the 60 (tentatively) seconds timeframe to allow truncation on upcoming operation  """
-        if self.__truncation_timestamp_tracker is None:
-            self.__truncation_timestamp_tracker = datetime.datetime.now()
+    def __calc_truncation_timestamp_in_sec(self):
+        """ To determine whether truncation timestamp is outside the 60 (tentatively) seconds timeframe to allow truncation on upcoming operation  """
+        if self.__truncation_timestamp is None:
+            self.__truncation_timestamp = datetime.datetime.now()
 
         curr_timestamp = datetime.datetime.now()
-        self.composite_logger.log_verbose("[PrevTruncationAppliedTimeStamp={0}] [SysTimeStamp={1}] ".format(str(self.__truncation_timestamp_tracker), str(curr_timestamp)))
-        return (curr_timestamp - self.__truncation_timestamp_tracker).total_seconds()
+        self.composite_logger.log_verbose("[PrevTruncationAppliedTimeStamp={0}] [SysTimeStamp={1}] ".format(str(self.__truncation_timestamp), str(curr_timestamp)))
+        return (curr_timestamp - self.__truncation_timestamp).total_seconds()
 
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload_json):
         """ Truncate substatus message patches when complete status file size is greater than 126kb """
