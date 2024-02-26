@@ -880,7 +880,7 @@ class StatusHandler(object):
         self.composite_logger.log_debug("Count of patches removed from: [Assessment={0}] [Installation={1}]".format(self.get_num_assessment_patches_removed(), self.get_num_installation_patches_removed()))
 
     def __set_force_truncation_on_terminal_status(self, substatus_status):
-        """ Set force truncation to overwrite NO_TRUNCATION_LOGIC_IN_SEC time frame when terminal state (success or error) and if status file has been truncated conditions are met """
+        """ Set force truncation to overwrite DELAY_TRUNCATION_BY_SEC time frame when terminal state (success or error) and if status file has been truncated conditions are met """
         self.__force_truncation_on = substatus_status == Constants.STATUS_SUCCESS or substatus_status == Constants.STATUS_ERROR
 
     def __get_status_payload_with_truncated_patches(self, status_file_payload_json_dumps):
@@ -888,23 +888,21 @@ class StatusHandler(object):
         status_file_size_in_bytes = self.__calc_status_size_on_disk(status_file_payload_json_dumps)  # calc complete_status_file_payload_json byte size on disk
 
         if status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:  # perform truncation complete_status_file byte size > 126kb
-            is_truncation_allowed = self.__calc_truncation_timestamp_in_sec() > Constants.StatusTruncationConfig.NO_TRUNCATION_LOGIC_IN_SEC
+            is_truncation_allowed = self.__calc_truncation_timestamp_in_sec() > Constants.StatusTruncationConfig.DELAY_TRUNCATION_BY_SEC
 
             if self.__force_truncation_first_time or is_truncation_allowed or self.__force_truncation_on:
-                self.composite_logger.log_verbose("[IsTruncationAllowed={0}] [IsForceTruncationOn={1}]".format(str(is_truncation_allowed), str(self.__force_truncation_on)))
+                self.composite_logger.log_verbose("[ForceTruncationFirstTime={0}] [IsTruncationAllowed={1}] [IsForceTruncationOn={2}]".format(str(self.__force_truncation_first_time), str(is_truncation_allowed), str(self.__force_truncation_on)))
+
+                self.__truncation_timestamp = datetime.datetime.now()  # Set timestamp to newer time
+                self.__force_truncation_first_time = False  # Set to False because first time truncation applied during timestamp < 60 sec
+
                 truncated_status_file = self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps)
                 self.__truncated_status_file_json_dumps = json.dumps(truncated_status_file)
-
-                if is_truncation_allowed:
-                    self.__truncation_timestamp = datetime.datetime.now()  # Set timestamp to newer time
-
-                if self.__force_truncation_first_time:
-                    self.__force_truncation_first_time = False  # Set to False because first time truncation applied during timestamp < 60 sec
 
                 return self.__truncated_status_file_json_dumps
 
             # To ensure all newly status file remain in truncated state when complete statusfile > 126kb and timestamp < 60 sec
-            if self.__truncated_status_file_json_dumps is not None and not is_truncation_allowed and not self.__force_truncation_on:
+            elif self.__truncated_status_file_json_dumps is not None:
                 return self.__truncated_status_file_json_dumps
 
         return status_file_payload_json_dumps
