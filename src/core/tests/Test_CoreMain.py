@@ -986,6 +986,8 @@ class TestCoreMain(unittest.TestCase):
         message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
 
+        runtime.stop()
+
     def test_assessment_operation_fail_after_package_manager_reboot(self):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
