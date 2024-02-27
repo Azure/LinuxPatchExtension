@@ -748,7 +748,7 @@ class StatusHandler(object):
             return
 
         # Compose error detail
-        error_detail = self.__set_errors_detail(error_code, message)
+        error_detail = self.__set_error_detail(error_code, message)
 
         # determine if a current operation override has been requested
         current_operation = self.__current_operation if current_operation_override_for_error == Constants.DEFAULT_UNSPECIFIED_VALUE else current_operation_override_for_error
@@ -824,7 +824,7 @@ class StatusHandler(object):
             errors_by_operation = []
             error_count_by_operation = 0
         else:
-            message = self.__set_error_message(error_count_by_operation, errors_by_operation)
+            message = self.__compose_error_message(error_count_by_operation, errors_by_operation)
 
         return {
             "code": Constants.PatchOperationTopLevelErrorCode.SUCCESS if error_count_by_operation == 0 else Constants.PatchOperationTopLevelErrorCode.ERROR,
@@ -832,14 +832,14 @@ class StatusHandler(object):
             "message": message
         }
 
-    def __set_errors_detail(self, error_code, message):
+    def __set_error_detail(self, error_code, message):
         formatted_message = self.__ensure_error_message_restriction_compliance(message)
         return {
             "code": str(error_code),
             "message": str(formatted_message)
         }
 
-    def __set_error_message(self, error_count_by_operation, errors_by_operation):
+    def __compose_error_message(self, error_count_by_operation, errors_by_operation):
         message = "{0} error/s reported.".format(error_count_by_operation)
         message += " The latest {0} error/s are shared in detail. To view all errors, review this log file on the machine: {1}".format(len(errors_by_operation), self.__log_file_path) if error_count_by_operation > 0 else ""
         return message
@@ -894,10 +894,13 @@ class StatusHandler(object):
                 self.__start_truncation_process(self.__assessment_patches_copy, self.__installation_patches_copy, max_allowed_patches_size_in_bytes, low_pri_index)
 
             if len(self.__assessment_patches_removed) > 0:
+                assessment_tombstone_list = self.__create_assessment_tombstones_by_classification(self.__assessment_patches_removed)
+                patches_retained_in_assessment.extend(assessment_tombstone_list)     # Add assessment tombstone list
                 self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_ASSESSMENT_SUMMARY))
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_assessment, count_total_errors=self.__assessment_total_error_count, substatus_message=self.__assessment_substatus_msg_copy, substatus_status=assessment_substatus_status, substatus_index=assessment_substatus_index)
 
             if len(self.__installation_patches_removed) > 0:
+                patches_retained_in_installation.append(self.__create_installation_tombstone())    # Add installation tombstone records
                 self.composite_logger.log_verbose("Recomposing truncated status payload: [Substatus={0}]".format(Constants.PATCH_INSTALLATION_SUMMARY))
                 truncated_status_file = self.__recompose_truncated_status_file(truncated_status_file=truncated_status_file, truncated_patches=patches_retained_in_installation, count_total_errors=self.__installation_total_error_count, substatus_message=self.__installation_substatus_msg_copy, substatus_status=installation_substatus_status, substatus_index=installation_substatus_index)
 
@@ -1049,10 +1052,10 @@ class StatusHandler(object):
 
     def __recompose_truncated_substatus_msg_errors(self, errors_code, errors_details, count_total_errors):
         """ Recompose truncated substatus message errors json """
-        truncated_errors_detail = self.__set_errors_detail(Constants.PatchOperationErrorCodes.TRUNCATION, Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE)  # Reuse the errors object set up
+        truncated_errors_detail = self.__set_error_detail(Constants.PatchOperationErrorCodes.TRUNCATION, Constants.StatusTruncationConfig.TRUNCATION_WARNING_MESSAGE)  # Reuse the errors object set up
         self.__try_add_error(errors_details, truncated_errors_detail)  # add new truncated error detail to beginning in errors details list
 
-        message = self.__set_error_message(error_count_by_operation=count_total_errors + 1, errors_by_operation=errors_details)  # add 1 to count_total_errors because of truncation
+        message = self.__compose_error_message(error_count_by_operation=count_total_errors + 1, errors_by_operation=errors_details)  # add 1 to count_total_errors because of truncation
 
         return {
             "code": Constants.PatchOperationTopLevelErrorCode.WARNING if errors_code != Constants.PatchOperationTopLevelErrorCode.ERROR else Constants.PatchOperationTopLevelErrorCode.ERROR,
@@ -1071,4 +1074,44 @@ class StatusHandler(object):
     def __get_errors_from_substatus(self, substatus_msg):
         """ Get errors code and errors details from substatus message json """
         return substatus_msg['errors']['code'], substatus_msg['errors']['details']
+
+    def __create_assessment_tombstones_by_classification(self, packages_removed_from_assessment):
+        """ Create list of tombstone per classification with max count of that classification, omit unclassified """
+        assessment_classification_count_map = collections.OrderedDict()
+        tombstone_record_list = []
+
+        # Map['classification', classification_count]
+        for package in packages_removed_from_assessment:
+            classifications = package['classifications'][0]
+            assessment_classification_count_map[classifications] = assessment_classification_count_map.get(classifications, 0) + 1
+
+        # Add assessment tombstone record per classifications except unclassified
+        for classification_name, patches_count_by_classification in assessment_classification_count_map.items():
+            if not classification_name == Constants.PackageClassification.UNCLASSIFIED:
+                tombstone_record_list.append(self.__create_assessment_tombstone(classification_name, patches_count_by_classification))
+
+        return tombstone_record_list
+
+    def __create_assessment_tombstone(self, classification_name, patches_count_by_classification):
+        """ Tombstone record for truncated assessment
+            Patch Name: 20 additional updates of classification <classification_name> reported.
+            Classification: [Critical, Security, Other]
+        """
+        tombstone_name = str(patches_count_by_classification) + ' additional updates of classification ' + classification_name + ' reported',
+        return {
+            'patchId': 'Truncated_patch_list_id',
+            'name': tombstone_name,
+            'version': '0.0.0',
+            'classifications': [classification_name]
+        }
+
+    def __create_installation_tombstone(self):
+        """ Tombstone record for truncated installation """
+        return {
+            'patchId': 'Truncated_patch_list_id',
+            'name': 'Truncated_patch_list',
+            'version': '0.0.0',
+            'classifications': ['Other'],
+            'patchInstallationState': 'NotSelected'
+        }
     # endregion
