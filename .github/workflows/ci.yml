@@ -38,7 +38,7 @@ jobs:
         run: pwd
       - name: Print test output
         if: always()
-        run: cat ..\..\..\err.txt
+        run: D:\a\LinuxPatchExtension\LinuxPatchExtension\err.txt
       - name: Collect coverage
         run: |
           cd ./src/core/tests
