@@ -21,6 +21,7 @@ import unittest
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
+from threading import Event
 
 
 class TestStatusHandlerTruncation(unittest.TestCase):
@@ -37,7 +38,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = None
         self.__patch_count_assessment = 0
         self.__patch_count_installation = 0
-        Constants.StatusTruncationConfig.MIN_TRUNCATION_INTERVAL_IN_SEC = -1  # ignore the cool time 60 sec, ut execution time is linear
+        Constants.StatusTruncationConfig.MIN_TRUNCATION_INTERVAL_IN_SEC = 0  # ignore cool time 60 sec, truncation will apply both patches first time
 
     def tearDown(self):
         self.__test_scenario = None
@@ -77,7 +78,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
     def test_only_assessment_patches_over_size_limit_truncated(self):
         """ Perform truncation on large assessment patches and checks for time performance concern.
         Before truncation: 10000 assessment patches in status
-        complete status file byte size: 19,022kb,
+        complete status file byte size: 1882kb,
         Expected (After truncation): ~668 assessment patches in status
         tombstone records: 3 (Critical, Security, Other),
         operation: Assessment,
@@ -231,7 +232,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
     def test_only_installation_patches_over_size_limit_truncated(self):
         """ Perform truncation on large installation patches and checks for time performance concern.
         Before truncation: 10000 installation patches in status
-        complete status file byte size: 22,929kb,
+        complete status file byte size: 2285kb,
         Expected (After truncation): ~553 installation patches in status
         tombstone records: 1,
         operation: Installation,
@@ -478,7 +479,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
     def test_both_assessment_and_installation__keep_min_5_assessment_patches_truncated(self):
         """ Perform truncation on large assessment / installation patches and checks for time performance concern. but reduce to min 5 assessment patches.
         Before truncation: 10000 assessment patches in status, 10000 installation patches in status
-        complete status file byte size: 41,658kb,
+        complete status file byte size: 4148kb,
         Expected (After truncation): ~5 assessment patches in status, ~545 installation patches in status
         tombstone records: [assessment=1 (Other)][installation=1],
         operation: Installation,
@@ -618,7 +619,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         """ Perform truncation on assessment / installation patches to test MIN_TRUNCATION_INTERVAL_IN_SEC logic.
         Before truncation: 800 assessment patches in status, 800 installation patches in status
         complete status file byte size: 330kb,
-        Expected (After truncation): ~5 assessment patches in status, ~548 installation patches in status
+        Expected (After truncation): ~5 assessment patches in status, ~545 installation patches in status
         tombstone records: [assessment=1 (Other)][installation=1],
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
@@ -626,7 +627,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         errors code: [assessment=2 (warning)][installation=2 (warning)],
         errors details count: [assessment=1][installation=1],
         errors details code: [assessment=[PACKAGE_LIST_TRUNCATED]][installation=[PACKAGE_LIST_TRUNCATED]],
-        count of patches removed from log: [assessment=795[installation=252],
+        count of patches removed from log: [assessment=795[installation=255],
         truncated status file byte size: 126kb. """
 
         self.__test_scenario = 'both'
@@ -646,63 +647,62 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__assert_patch_summary_from_status(complete_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_TRANSITIONING,
             self.__patch_count_installation, installation_substatus_index=1)
 
-        # Assert first time truncation truncated status file
-        truncated_substatus_file_data_first_time = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
-        truncated__first_time_assessment_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data_first_time)
-        truncated__first_time_installation_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data_first_time, installation_substatus_index=1)
+        # Assert first time truncated status file
+        first_truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
+        first_truncated_assessment_msg = self.__get_message_json_from_substatus(first_truncated_substatus_file_data)
+        first_truncated_installation_msg = self.__get_message_json_from_substatus(first_truncated_substatus_file_data, installation_substatus_index=1)
 
         # Assert assessment truncation, self.__patch_count_assessment + 1 (expect 1 tombstone)
-        self.__assert_patch_summary_from_status(truncated_substatus_file_data_first_time, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_assessment + 1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+        self.__assert_patch_summary_from_status(first_truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_assessment + 1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
         # Assert installation truncation, self.__patch_count_installation + 1 (expect 1 tombstone)
-        self.__assert_patch_summary_from_status(truncated_substatus_file_data_first_time, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_installation + 1, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
+        self.__assert_patch_summary_from_status(first_truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_installation + 1, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
         # Assert no change to truncated status file
-        Constants.StatusTruncationConfig.MIN_TRUNCATION_INTERVAL_IN_SEC = 3
+        Constants.StatusTruncationConfig.MIN_TRUNCATION_INTERVAL_IN_SEC = 2  # modify cool time to 2 sec, truncation will not apply both patches
         self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment)
         self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation)
-        complete_substatus_file_data_no_change = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
 
         # Assert status file remains truncated
-        truncated_substatus_file_no_change = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
+        remained_truncated_substatus_file = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
 
         # Assert assessment truncation, self.__patch_count_assessment + 1 (expect 1 tombstone)
-        self.__assert_patch_summary_from_status(truncated_substatus_file_no_change, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_assessment + 1, complete_substatus_file_data=complete_substatus_file_data_no_change, is_under_internal_size_limit=True, is_truncated=True)
+        self.__assert_patch_summary_from_status(remained_truncated_substatus_file, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_assessment + 1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
         # Assert installation truncation, self.__patch_count_installation + 1 (expect 1 tombstone)
-        self.__assert_patch_summary_from_status(truncated_substatus_file_no_change, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_installation + 1, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data_no_change, is_under_internal_size_limit=True, is_truncated=True)
+        self.__assert_patch_summary_from_status(remained_truncated_substatus_file, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_installation + 1, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
         # Assert startTime and lastModifiedTime are equal
-        truncated_no_change_assessment_msg = self.__get_message_json_from_substatus(truncated_substatus_file_no_change)
-        truncated_no_change_installation_msg = self.__get_message_json_from_substatus(truncated_substatus_file_no_change, installation_substatus_index=1)
+        remained_truncated_assessment_msg = self.__get_message_json_from_substatus(remained_truncated_substatus_file)
+        remained_truncated_installation_msg = self.__get_message_json_from_substatus(remained_truncated_substatus_file, installation_substatus_index=1)
 
-        self.assertEqual(truncated__first_time_assessment_msg['startTime'], truncated_no_change_assessment_msg['startTime'])
-        self.assertEqual(truncated__first_time_assessment_msg['lastModifiedTime'], truncated_no_change_assessment_msg['lastModifiedTime'])
-        self.assertEqual(truncated__first_time_installation_msg['startTime'], truncated_no_change_installation_msg['startTime'])
-        self.assertEqual(truncated__first_time_installation_msg['lastModifiedTime'], truncated_no_change_installation_msg['lastModifiedTime'])
+        self.assertEqual(first_truncated_assessment_msg['startTime'], remained_truncated_assessment_msg['startTime'])
+        self.assertEqual(first_truncated_assessment_msg['lastModifiedTime'], remained_truncated_assessment_msg['lastModifiedTime'])
+        self.assertEqual(first_truncated_installation_msg['startTime'], remained_truncated_installation_msg['startTime'])
+        self.assertEqual(first_truncated_installation_msg['lastModifiedTime'], remained_truncated_installation_msg['lastModifiedTime'])
 
-        time.sleep(5)
+        Event().wait(2)  # Use event to pause ut execution for 2 sec to exceed MIN_TRUNCATION_INTERVAL_IN_SEC
         self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
         self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation, status=Constants.STATUS_SUCCESS)
-        complete_substatus_file_data_final = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
+        final_complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
 
-        # Assert final truncation startTime and lastModifiedTime are not equal
-        truncated_substatus_file_data_final = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
+        # Assert final truncated status file
+        final_truncated_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.status_file_path)
 
         # Assert assessment truncation, self.__patch_count_assessment + 1 (expect 1 tombstone)
-        self.__assert_patch_summary_from_status(truncated_substatus_file_data_final, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_assessment + 1, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, complete_substatus_file_data=complete_substatus_file_data_final, is_under_internal_size_limit=True, is_truncated=True)
+        self.__assert_patch_summary_from_status(final_truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_ASSESSMENT_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_assessment + 1, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, complete_substatus_file_data=final_complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
         # Assert installation truncation, self.__patch_count_installation + 1 (expect 1 tombstone)
-        self.__assert_patch_summary_from_status(truncated_substatus_file_data_final, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_installation + 1, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data_final, is_under_internal_size_limit=True, is_truncated=True)
+        self.__assert_patch_summary_from_status(final_truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_WARNING, self.__patch_count_installation + 1, errors_count=1, errors_code=Constants.PatchOperationTopLevelErrorCode.WARNING, installation_substatus_index=1, complete_substatus_file_data=final_complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
         # Assert startTime are equal but lastModifiedTime are not equal
-        truncated_final_assessment_msg = self.__get_message_json_from_substatus(truncated_substatus_file_no_change)
-        truncated_final_installation_msg = self.__get_message_json_from_substatus(truncated_substatus_file_no_change, installation_substatus_index=1)
+        final_truncated_assessment_msg = self.__get_message_json_from_substatus(final_truncated_substatus_file_data)
+        final_truncated_installation_msg = self.__get_message_json_from_substatus(final_truncated_substatus_file_data, installation_substatus_index=1)
 
-        self.assertEqual(truncated_no_change_assessment_msg['startTime'], truncated_final_assessment_msg['startTime'])
-        self.assertNotEqual(truncated_no_change_assessment_msg['lastModifiedTime'], truncated_final_assessment_msg['lastModifiedTime'])
-        self.assertEqual(truncated_no_change_installation_msg['startTime'], truncated_final_installation_msg['startTime'])
-        self.assertNotEqual(truncated_no_change_installation_msg['lastModifiedTime'], truncated_final_installation_msg['lastModifiedTime'])
+        self.assertEqual(remained_truncated_assessment_msg['startTime'], final_truncated_assessment_msg['startTime'])
+        self.assertNotEqual(remained_truncated_assessment_msg['lastModifiedTime'], final_truncated_assessment_msg['lastModifiedTime'])
+        self.assertEqual(remained_truncated_installation_msg['startTime'], final_truncated_installation_msg['startTime'])
+        self.assertNotEqual(remained_truncated_installation_msg['lastModifiedTime'], final_truncated_installation_msg['lastModifiedTime'])
 
     def test_truncation_method_time_performance(self):
         """ Comparing truncation code performance on prior and post on 350 patches with frequency of 30
