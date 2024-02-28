@@ -5,7 +5,7 @@ comment:
 github_checks:
     annotations: false
 ignore:
-  - "src/core/src/external_dependencies"
+  - "**/external_dependencies/*.py"
 coverage:
   precision: 2
   round: down
