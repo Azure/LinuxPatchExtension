@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import datetime
 
 
 class Constants(object):
@@ -183,6 +184,8 @@ class Constants(object):
         MIN_ASSESSMENT_PATCHES_TO_RETAIN = 5
         TRUNCATION_WARNING_MESSAGE = "Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists."
         TURN_ON_TRUNCATION = True
+        MIN_TRUNCATION_INTERVAL_IN_SEC = 60
+        EPOCH = datetime.datetime(1971, 1, 1, 0, 0, 0)
 
     # Wrapper-core handshake files
     EXT_STATE_FILE = 'ExtState.json'
