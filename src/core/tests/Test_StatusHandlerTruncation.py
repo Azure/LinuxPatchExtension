@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import datetime
 import json
 import time
 import unittest
@@ -38,7 +39,6 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__test_scenario = None
         self.__patch_count_assessment = 0
         self.__patch_count_installation = 0
-        Constants.StatusTruncationConfig.MIN_TRUNCATION_INTERVAL_IN_SEC = 0  # ignore cool time 60 sec, truncation will apply both patches first time
 
     def tearDown(self):
         self.__test_scenario = None
@@ -519,25 +519,25 @@ class TestStatusHandlerTruncation(unittest.TestCase):
 
     def test_both_assessment_and_installation_with_status_error_truncated(self):
         """ Perform truncation on assessment / installation patches but installation substatus status is set to Error (not warning) due to per-existing patching errors
-        Before truncation: 800 assessment patches in status, 800 installation patches in status with 6 exception errors
-        complete status file byte size: > 128kb,
-        Expected (After truncation): ~5 assessment patches in status, ~544 installation patches in status
-        tombstone records: [assessment=1 (Security)][installation=1],
+        Before truncation: 10 assessment patches in status, 800 installation patches in status with 6 exception errors
+        complete status file byte size: 229kb,
+        Expected (After truncation): ~6 assessment patches in status, ~544 installation patches in status
+        tombstone records: [assessment=1 (Other)][installation=1],
         operation: Installation,
         substatus name: [assessment=PatchAssessmentSummary][installation=PatchInstallationSummary],
         substatus status: [assessment=warning][installation=error],
         errors code: [assessment=2 (warning)][installation=1 (error)],
         errors details count: [assessment=1][installation=5],
         errors details code: [assessment=[PACKAGE_LIST_TRUNCATED]][installation=[PACKAGE_LIST_TRUNCATED, OPERATION_FAILED]],
-        count of patches removed from log: [assessment=795][installation=456],
+        count of patches removed from log: [assessment=4][installation=457],
         truncated status file byte size: < 126kb """
 
         self.__test_scenario = 'both'
-        self.__patch_count_assessment = 800
+        self.__patch_count_assessment = 10
         self.__patch_count_installation = 1000
 
         self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
-        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation)
+        self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation)  # first time truncation apply this operation
 
         # Set up complete status file before errors
         complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
@@ -634,7 +634,8 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.__patch_count_assessment = 800
         self.__patch_count_installation = 800
 
-        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment)
+        self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment)  # first time truncation apply here
+        self.runtime.status_handler._StatusHandler__truncation_timestamp = datetime.datetime.now() - datetime.timedelta(seconds=65)  # truncation_timestamp 65 sec behind sys time, truncation will apply on upcoming operation
         self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation)
 
         # Assert complete status file
@@ -658,8 +659,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert installation truncation, self.__patch_count_installation + 1 (expect 1 tombstone)
         self.__assert_patch_summary_from_status(first_truncated_substatus_file_data, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_installation + 1, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
-        # Assert no change to truncated status file
-        Constants.StatusTruncationConfig.MIN_TRUNCATION_INTERVAL_IN_SEC = 2  # modify cool time to 2 sec, truncation will not apply both patches
+        # Assert status file remains truncated, truncation_timestamp < 60 sec
         self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment)
         self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation)
 
@@ -672,7 +672,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         # Assert installation truncation, self.__patch_count_installation + 1 (expect 1 tombstone)
         self.__assert_patch_summary_from_status(remained_truncated_substatus_file, Constants.INSTALLATION, Constants.PATCH_INSTALLATION_SUMMARY, Constants.STATUS_TRANSITIONING, self.__patch_count_installation + 1, installation_substatus_index=1, complete_substatus_file_data=complete_substatus_file_data, is_under_internal_size_limit=True, is_truncated=True)
 
-        # Assert startTime and lastModifiedTime are equal
+        # Assert startTime and lastModifiedTime are equal - first time truncated and remained truncated status file
         remained_truncated_assessment_msg = self.__get_message_json_from_substatus(remained_truncated_substatus_file)
         remained_truncated_installation_msg = self.__get_message_json_from_substatus(remained_truncated_substatus_file, installation_substatus_index=1)
 
@@ -681,7 +681,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         self.assertEqual(first_truncated_installation_msg['startTime'], remained_truncated_installation_msg['startTime'])
         self.assertEqual(first_truncated_installation_msg['lastModifiedTime'], remained_truncated_installation_msg['lastModifiedTime'])
 
-        Event().wait(2)  # Use event to pause ut execution for 2 sec to exceed MIN_TRUNCATION_INTERVAL_IN_SEC
+        Event().wait(1)  # Use event to pause ut execution for 1 sec, so we will get new lastModifiedTime, this is terminal status truncation
         self.__write_assessment_to_status_file(config_operation=Constants.INSTALLATION, patch_count_other=self.__patch_count_assessment, status=Constants.STATUS_SUCCESS)
         self.__write_installation_to_status_file(config_operation=Constants.INSTALLATION, patch_count_installed=self.__patch_count_installation, status=Constants.STATUS_SUCCESS)
         final_complete_substatus_file_data = self.__get_substatus_file_json(self.runtime.execution_config.complete_status_file_path)
