@@ -17,11 +17,11 @@
 import json
 import time
 import unittest
+from threading import Event
 
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
-from threading import Event
 
 
 class TestStatusHandlerTruncation(unittest.TestCase):
