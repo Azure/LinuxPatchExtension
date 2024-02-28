@@ -91,9 +91,8 @@ class StatusHandler(object):
 
         self.__current_operation = None
 
-        self.__truncation_timestamp = None  # To allow truncation on upcoming operation when timestamp > 60 sec (tentatively)
+        self.__truncation_timestamp = datetime.datetime(1971, 1, 1, 0, 0, 0)  # January 1, 1971, 00:00:00, to allow truncation on upcoming operation when timestamp > 60 sec (tentatively)
         self.__truncated_status_file_json_dumps = None  # To keep status file truncated (not overwritten) when timestamp < 60 sec (tentatively)
-        self.__force_truncation_first_time = True  # Apply truncation only once initially timestamp will be < 60 sec
         self.__force_truncation_on = False  # When true apply truncation ignore track timestamp during terminal state operation
 
         # Update patch metadata summary in status for auto patching installation requests, to be reported to healthstore
@@ -209,7 +208,7 @@ class StatusHandler(object):
 
             package_install_status_summary += "[P={0},V={1}] ".format(str(package_name), str(package_version))
 
-        self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
+        # self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
@@ -602,9 +601,8 @@ class StatusHandler(object):
         self.__configure_patching_errors = []
         self.__configure_patching_auto_assessment_errors = []
 
-        self.__truncation_timestamp = None
+        self.__truncation_timestamp = datetime.datetime(1971, 1, 1, 0, 0, 0)
         self.__truncated_status_file_json_dumps = None
-        self.__force_truncation_first_time = True
         self.__force_truncation_on = False
 
         self.composite_logger.log_debug("Loading status file components [InitialLoad={0}].".format(str(initial_load)))
@@ -890,14 +888,10 @@ class StatusHandler(object):
         if status_file_size_in_bytes > Constants.StatusTruncationConfig.INTERNAL_FILE_SIZE_LIMIT_IN_BYTES:  # perform truncation complete_status_file byte size > 126kb
             is_truncation_allowed = self.__calc_truncation_timestamp_in_sec() > Constants.StatusTruncationConfig.MIN_TRUNCATION_INTERVAL_IN_SEC
 
-            if self.__force_truncation_first_time or is_truncation_allowed or self.__force_truncation_on:
-                self.composite_logger.log_verbose("[ForceTruncationFirstTime={0}] [IsTruncationAllowed={1}] [IsForceTruncationOn={2}]".format(str(self.__force_truncation_first_time), str(is_truncation_allowed), str(self.__force_truncation_on)))
-
-                self.__truncation_timestamp = datetime.datetime.now()  # Set timestamp to newer time
-                self.__force_truncation_first_time = False  # Set to False because first time truncation applied during timestamp < 60 sec
-
+            if is_truncation_allowed or self.__force_truncation_on:
+                self.composite_logger.log_verbose("[IsTruncationAllowed={0}] [IsForceTruncationOn={1}]".format(str(is_truncation_allowed), str(self.__force_truncation_on)))
+                self.__truncation_timestamp = datetime.datetime.now()  # Set timestamp to newer time for upcoming operations
                 self.__truncated_status_file_json_dumps = json.dumps(self.__create_truncated_status_file(status_file_size_in_bytes, status_file_payload_json_dumps))
-
                 status_file_payload_json_dumps = self.__truncated_status_file_json_dumps
 
             # To ensure all newly status file remain in truncated state when complete statusfile > 126kb and timestamp < 60 sec
@@ -908,11 +902,9 @@ class StatusHandler(object):
 
     def __calc_truncation_timestamp_in_sec(self):
         """ To determine whether truncation timestamp is outside the 60 (tentatively) seconds timeframe to allow truncation on upcoming operation  """
-        if self.__truncation_timestamp is None:
-            self.__truncation_timestamp = datetime.datetime.now()
-
         curr_timestamp = datetime.datetime.now()
         self.composite_logger.log_verbose("[PrevTruncationAppliedTimeStamp={0}] [SysTimeStamp={1}] ".format(str(self.__truncation_timestamp), str(curr_timestamp)))
+
         return (curr_timestamp - self.__truncation_timestamp).total_seconds()
 
     def __create_truncated_status_file(self, status_file_size_in_bytes, complete_status_file_payload_json):
