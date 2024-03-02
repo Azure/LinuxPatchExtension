@@ -41,9 +41,9 @@ jobs:
         run: D:\a\LinuxPatchExtension\LinuxPatchExtension\err.txt
       - name: Collect coverage
         run: |
-          cd ./src/core/tests
+          cd ./src/core
           coverage xml
-          cd ../../extension/tests
+          cd ../../extension
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.5
