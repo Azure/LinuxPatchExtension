@@ -80,12 +80,11 @@ class MaintenanceWindow(object):
         # Batch Size = 4, Cutoff = (5 * 3) + (2 * 1) = 17 minutes
         # Batch Size = 5, Cutoff = (5 * 3) + (2 * 2) = 19 minutes
         # Batch Size = 6, Cutoff = (5 * 3) + (2 * 3) = 21 minutes
-        if number_of_packages_in_batch <= 3:
+        if number_of_packages_in_batch <= Constants.NUMBER_OF_PACKAGES_IN_BATCH_COULD_TAKE_MAX_TIME_TO_INSTALL:
             cutoff_time_in_minutes = Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES * number_of_packages_in_batch
         else:
-            number_of_packages_could_take_max_time_to_install = 3
-            cutoff_time_in_minutes = Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES * number_of_packages_could_take_max_time_to_install
-            cutoff_time_in_minutes += Constants.PACKAGE_INSTALL_EXPECTED_AVG_TIME_IN_MINUTES * (number_of_packages_in_batch - number_of_packages_could_take_max_time_to_install)
+            cutoff_time_in_minutes = Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES * Constants.NUMBER_OF_PACKAGES_IN_BATCH_COULD_TAKE_MAX_TIME_TO_INSTALL
+            cutoff_time_in_minutes += Constants.PACKAGE_INSTALL_EXPECTED_AVG_TIME_IN_MINUTES * (number_of_packages_in_batch - Constants.NUMBER_OF_PACKAGES_IN_BATCH_COULD_TAKE_MAX_TIME_TO_INSTALL)
 
         if Constants.REBOOT_SETTINGS[self.execution_config.reboot_setting] != Constants.REBOOT_NEVER:
             cutoff_time_in_minutes = cutoff_time_in_minutes + Constants.REBOOT_BUFFER_IN_MINUTES

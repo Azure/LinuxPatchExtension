@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import datetime
 
 
 class Constants(object):
@@ -30,7 +31,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.49"
+    EXT_VERSION = "1.6.51"
 
     # Runtime environments
     TEST = 'Test'
@@ -176,6 +177,16 @@ class Constants(object):
     STATUS_SUCCESS = "Success"
     STATUS_WARNING = "Warning"
 
+    # Status file size
+    class StatusTruncationConfig(EnumBackport):
+        INTERNAL_FILE_SIZE_LIMIT_IN_BYTES = 126 * 1024
+        AGENT_FACING_STATUS_FILE_SIZE_LIMIT_IN_BYTES = 128 * 1024
+        MIN_ASSESSMENT_PATCHES_TO_RETAIN = 5
+        TRUNCATION_WARNING_MESSAGE = "Package lists were truncated to limit reporting data volume. In-VM logs contain complete lists."
+        TURN_ON_TRUNCATION = True
+        MIN_TRUNCATION_INTERVAL_IN_SEC = 60
+        EPOCH = datetime.datetime(1971, 1, 1, 0, 0, 0)
+
     # Wrapper-core handshake files
     EXT_STATE_FILE = 'ExtState.json'
     CORE_STATE_FILE = 'CoreState.json'
@@ -209,6 +220,7 @@ class Constants(object):
     MAX_IMDS_CONNECTION_RETRY_COUNT = 5
     MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT = 5
     MAX_BATCH_SIZE_FOR_PACKAGES = 6
+    NUMBER_OF_PACKAGES_IN_BATCH_COULD_TAKE_MAX_TIME_TO_INSTALL = 3
     MAX_COMPLETE_STATUS_FILES_TO_RETAIN = 10
 
     class PackageClassification(EnumBackport):
@@ -257,6 +269,18 @@ class Constants(object):
 
     # Maintenance Window
     PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES = 5
+    
+    # As per telemetry data, when batch size is 3, the average time taken per package installation for different package managers is as follow:
+    # apt: 43 seconds
+    # yum: 71 seconds
+    # zypper: 142 seconds
+    # Overall, including all package managers, the average time is 51 seconds.
+    # The average time taken per package installation is average of (total time taken to install the packages) / (total number of packages installed).
+    # The expected average time should be kept as max of average time taken by different packages managers. The max of average time is taken in zypper i.e. 142 seconds when batch size is 3.
+    # But as the batch size increases, the time taken to install package will decrease. Also, the average time is taken in consideration in calculating maintenance window cutoff only if the 
+    # batch size is greater than or equal to 4. So, keeping the expected average time as 2 minutes i.e. 120 seconds. It should be fine to keep expected time little lower than actual average time 
+    # observed in telemetry because there is PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES also in the calucalation of maintenance window cut off which will make the overall cutoff time enough to 
+    # install the batch of packages.
     PACKAGE_INSTALL_EXPECTED_AVG_TIME_IN_MINUTES = 2
 
     # Package Manager Setting
@@ -269,6 +293,7 @@ class Constants(object):
     class PatchOperationTopLevelErrorCode(EnumBackport):
         SUCCESS = 0
         ERROR = 1
+        WARNING = 2
 
     class PatchOperationErrorCodes(EnumBackport):
         INFORMATIONAL = "INFORMATIONAL"
@@ -277,6 +302,7 @@ class Constants(object):
         PACKAGE_MANAGER_FAILURE = "PACKAGE_MANAGER_FAILURE"
         NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
         UA_ESM_REQUIRED = "UA_ESM_REQUIRED"
+        TRUNCATION = "PACKAGE_LIST_TRUNCATED"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 

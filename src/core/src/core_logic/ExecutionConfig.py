@@ -94,6 +94,7 @@ class ExecutionConfig(object):
         self.activity_id = str(uuid.uuid4())
         self.included_classifications_list = self.included_package_name_mask_list = self.excluded_package_name_mask_list = []
         self.maintenance_run_id = None
+        self.health_store_id = None
         self.start_time = self.env_layer.datetime.standard_datetime_to_utc(datetime.datetime.utcnow())
         self.duration = Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION
         self.reboot_setting = Constants.REBOOT_NEVER
