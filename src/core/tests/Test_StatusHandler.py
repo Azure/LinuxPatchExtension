@@ -64,6 +64,19 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["startedBy"], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
 
+    def test_auto_assessment_throws_exception_on_healthstoreupdate(self):
+        # test with health_store_id not None
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.runtime.execution_config.maintenance_run_id = None
+        self.runtime.execution_config.health_store_id = "test"
+        self.assertRaises(Exception, lambda: StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type))
+
+        # test with maintenance_run_id not None
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.runtime.execution_config.maintenance_run_id = "test"
+        self.runtime.execution_config.health_store_id = None
+        self.assertRaises(Exception, lambda: StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type))
+
     def test_set_package_install_status(self):
         packages, package_versions = self.runtime.package_manager.get_all_updates()
         self.runtime.status_handler.set_package_install_status(packages, package_versions)

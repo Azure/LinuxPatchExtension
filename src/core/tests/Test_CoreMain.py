@@ -828,7 +828,7 @@ class TestCoreMain(unittest.TestCase):
     def test_auto_assessment_success_with_installation_in_prev_operation_on_same_sequence(self):
         """Unit test for auto assessment request with installation (Auto Patching) completed on the sequence before.
         Result: should contain PatchAssessmentSummary with an updated timestamp after auto assessment, and retain PatchInstallationSummary, ConfigurePatchingSummary and PatchMetadatForHealthStoreSummary from the installation(Auto Patching) operation"""
-        # operation #1: Assessment
+        # operation #1: Installation
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.INSTALLATION
         argument_composer.maintenance_run_id = "8/27/2021 02:00:00 PM +00:00"
@@ -880,6 +880,88 @@ class TestCoreMain(unittest.TestCase):
             status_file_data = json.load(file_handle)[0]["status"]
 
         # verifying the original operation name is preserved
+        self.assertTrue(status_file_data["operation"] == Constants.INSTALLATION)
+        substatus_file_data = status_file_data["substatus"]
+        self.assertEqual(len(substatus_file_data), 4)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        # check started by set to 'Platform'
+        self.assertTrue(json.loads(substatus_file_data[0]["formattedMessage"]["message"])['startedBy'], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
+        # verifying the older operation summary is preserved
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        # validate lastModifiedTime in InstallationSummary is preserved from the user initiated installation operation
+        last_modified_time_from_installation_substatus_after_platform_initiated_assessment = json.loads(substatus_file_data[1]["formattedMessage"]["message"])["lastModifiedTime"]
+        self.assertEqual(last_modified_time_from_installation_substatus_after_user_initiated_installation, last_modified_time_from_installation_substatus_after_platform_initiated_assessment)
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        # check status file for configure patching auto updates state
+        message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
+        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor
+        # check status file for configure patching assessment state
+        message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
+        self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
+
+        runtime.stop()
+
+    def test_auto_assessment_resets_maintenance_run_id_and_health_store_id_to_None(self):
+        # operation #1: Installation
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.INSTALLATION
+        argument_composer.maintenance_run_id = "8/27/2021 02:00:00 PM +00:00"
+        argument_composer.health_store_id = "8/28/2021 02:00:00 PM +00:00"
+        argument_composer.classifications_to_include = ["Security", "Critical"]
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type("SuccessInstallPath")
+        CoreMain(argument_composer.get_composed_arguments())
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            status_file_data = json.load(file_handle)[0]["status"]
+        self.assertTrue(status_file_data["operation"] == Constants.INSTALLATION)
+        substatus_file_data = status_file_data["substatus"]
+        self.assertEqual(len(substatus_file_data), 4)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        # check started by set to 'User'
+        self.assertTrue(json.loads(substatus_file_data[0]["formattedMessage"]["message"])['startedBy'], Constants.PatchAssessmentSummaryStartedBy.USER)
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        last_modified_time_from_installation_substatus_after_user_initiated_installation = json.loads(substatus_file_data[1]["formattedMessage"]["message"])["lastModifiedTime"]
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        # check status file for configure patching auto updates state
+        message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
+        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled in RuntimeCompositor, this is tested in Test-ConfigurePatchingProcessor
+        # check status file for configure patching assessment state
+        message = json.loads(substatus_file_data[3]["formattedMessage"]["message"])
+        self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.UNKNOWN)  # Configure patching for auto assessment did not execute since assessmentMode was not in input
+
+        # operation #2: Auto Assessment
+        runtime.stop()
+        argument_composer.maintenance_run_id = "8/27/2021 02:00:00 PM +00:00"
+        argument_composer.health_store_id = "8/28/2021 02:00:00 PM +00:00"
+        argument_composer.exec_auto_assess_only = True
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('SuccessInstallPath')
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check values of health_store_id and maintenance_run_id
+        self.assertEquals(runtime.execution_config.health_store_id, None)
+        self.assertEquals(runtime.execution_config.maintenance_run_id, None)
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 4)
         self.assertTrue(status_file_data["operation"] == Constants.INSTALLATION)
         substatus_file_data = status_file_data["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
