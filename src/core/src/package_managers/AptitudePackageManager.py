@@ -728,7 +728,7 @@ class AptitudePackageManager(PackageManager):
         """check if python version is at least 3.5"""
         return sys.version_info >= Constants.UbuntuProClientSettings.MINIMUM_PYTHON_VERSION_REQUIRED
 
-    def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+    def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
         Only required for yum. No-op for apt and zypper.
