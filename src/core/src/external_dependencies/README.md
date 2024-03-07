@@ -13,6 +13,11 @@ License: Apache License, version 2.0. License is included with the source, unmod
 
 Reason for inclusion: platform.linux_distribution is being removed in Python 3.8 and this is the commonly recommended replacement online.
 
+# 2. LooseVersion - an version compare API
+
+File(s): version.py
+
+Reason for inclusion: distutils.LooseVersion is being removed in Python 3.12.
 
 -----
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). 
