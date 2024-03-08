@@ -418,8 +418,8 @@ class TestStatusHandler(unittest.TestCase):
         """ Test sequence number change for configure patching throws newer operation superseded error message """
         self.__assert_sequence_num_changed_termination(config=Constants.CONFIGURE_PATCHING, summary=Constants.CONFIGURE_PATCHING_SUMMARY, status=Constants.STATUS_ERROR)
 
-    def test_sequence_number_changed_termination_installation_patching(self):
-        """ Test sequence number change for installation patching throws newer operation superseded error message """
+    def test_sequence_number_changed_termination_installation(self):
+        """ Test sequence number change for installation throws newer operation superseded error message """
         self.__assert_sequence_num_changed_termination(config=Constants.INSTALLATION, summary=Constants.PATCH_INSTALLATION_SUMMARY, status=Constants.STATUS_ERROR)
 
     def test_if_status_file_resets_on_load_if_malformed(self):
