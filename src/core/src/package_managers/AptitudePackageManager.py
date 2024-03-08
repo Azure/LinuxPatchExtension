@@ -33,6 +33,12 @@ class AptitudePackageManager(PackageManager):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         super(AptitudePackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
 
+        # Apt constant config
+        self.APT_SOURCES_LIST_PATH = '/etc/apt/sources.list'
+        self.APT_SOURCES_LIST_DIR_PATH = '/etc/apt/sources.list.d/'
+        self.APT_SOURCES_LIST_DIR_LIST_EXT = 'list'
+        self.APT_SOURCES_LIST_DIR_SRC_EXT = 'sources'
+
         # Accept EULA (End User License Agreement) as per the EULA settings set by user
         optional_accept_eula_in_cmd = "ACCEPT_EULA=Y" if execution_config.accept_package_eula else ""
 
@@ -42,7 +48,8 @@ class AptitudePackageManager(PackageManager):
         # Support to get updates and their dependencies
         self.cached_customer_source_list_formula = None
         self.custom_sources_list = os.path.join(execution_config.temp_folder, 'azgps-patch-custom-{0}.list'.format(str(uuid.uuid4())))
-        self.cmd_prep_custom_sources_list_template = 'sudo grep -hR <CLASSIFICATION> /etc/apt/sources.list /etc/apt/sources.list.d/ > ' + os.path.normpath(self.custom_sources_list)
+
+        self.cmd_prep_custom_sources_list_template = 'sudo grep -hR <CLASSIFICATION> /etc/apt/sources.list /etc/apt/sources.list.d/*.list > ' + os.path.normpath(self.custom_sources_list)
         self.cmd_dist_upgrade_simulation_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
 
         self.cmd_single_package_check_versions_template = 'apt-cache madison <PACKAGE-NAME>'
@@ -95,7 +102,13 @@ class AptitudePackageManager(PackageManager):
 
             command = self.cmd_prep_custom_sources_list_template.replace("<CLASSIFICATION>", base_classification if base_classification == "security" else "\"\"")
             code, out = self.env_layer.run_command_output(command, False, False)
+
+            self.__produce_custom_sources_list_with_classification_filter(self.custom_sources_list)
+
+            sources_content = self.__get_consolidated_sources_list_content()
+            self.env_layer.file_system.write_with_retry(self.custom_sources_list, sources_content, "w")
             sources_content = self.env_layer.file_system.read_with_retry(self.custom_sources_list)
+
             self.composite_logger.log_debug("[APM] Modified custom sources list with classification. [Code={0}][Out={1}][Content={2}]".format(str(code), str(out), str(sources_content)))   # non-zero error code to be investigated
 
             if max_patch_published_date != str():
@@ -121,6 +134,90 @@ class AptitudePackageManager(PackageManager):
             return str()    # defaults code to safety
 
         return self.custom_sources_list
+
+    def __produce_consolidated_source_list_on_disk_with_classification_filter(self, custom_sources_list, classification_filter=str()):
+        # type: (str) -> str
+        """ Generates the custom sources list produced on disk with a classification filter applied if specified  """
+
+    def __get_consolidated_sources_list_content(self):
+        # type: () -> str
+        """ Consolidates all list and sources files into a consistent format single source list """
+        # read basic sources list - exception being thrown are acceptable
+        sources_content = self.env_layer.file_system.read_with_retry(self.APT_SOURCES_LIST_PATH) if os.path.exists(self.APT_SOURCES_LIST_PATH) else str()
+        if not os.path.isdir(self.APT_SOURCES_LIST_DIR_PATH):
+            return sources_content
+
+        # process files in directory
+        dir_path = self.APT_SOURCES_LIST_DIR_PATH
+        for file_name in os.listdir(dir_path):
+            try:
+                file_path = os.path.join(dir_path, file_name)
+                if os.path.isdir(file_path):
+                    continue
+
+                if file_name.endswith(self.APT_SOURCES_LIST_DIR_LIST_EXT):
+                    self.composite_logger.log_verbose("[APM] Reading ")
+                    sources_content += "\n" + self.env_layer.file_system.read_with_retry(file_path)
+
+                if file_name.endswith(self.APT_SOURCES_LIST_DIR_SRC_EXT):
+                    sources_content += "\n" + self.__read_and_return_standard_list_format(file_path)
+            except Exception as error:      # does not throw to allow patching to happen with functioning sources
+                self.composite_logger.log_error("[APM] Error while processing consolidated sources list. [File={0}][Error={1}]".format(file_name, repr(error)))
+
+        return sources_content
+
+    def __read_deb882_style_and_return_one_line_style_list_format(self, file_path):
+        # type: (str) -> str
+        # Reads a *.sources file (DEB882-style) and returns data converted into a *.list (one-line-style) format
+        # Definite reference - https://manpages.debian.org/stretch/apt/sources.list.5.en.html
+        std_sources_content = str()
+        types = uris = suites = components = architectures = str()
+
+        try:
+            sources_content = self.env_layer.file_system.read_with_retry(file_path)
+            sources_content_lines = sources_content.splitlines()
+
+            for line in sources_content_lines:
+                if ": " not in line:
+                    continue
+
+                parts = line.split(": ")
+                key = parts[0].strip()
+                value = parts[1].strip()
+
+                if key == "Types: ":
+                    # store the last entry
+                    if types != str():
+                        std_sources_content += "\n" + self.__convert_deb822style_to_onelinestyle_format(types, uris, suites, components, architectures)
+
+                    # reset and start new entry
+                    types = value
+                    uris = suites = components = architectures = str()
+                elif key == "URIs: ":
+                    uris = value
+                elif key == "Suites: ":
+                    suites = value
+                elif key == "Components: ":
+                    components = value
+                elif key == "Architectures: ":
+                    architectures = value
+                else:
+                    # Ignoring: Languages, Targets, PDiffs, By-Hash, Signed-By, Check-Valid-Until, etc.
+                    self.composite_logger.log_verbose("[APM] Ignored deb822style key. [Key={0}][Value={1}]".format(str(key), str(value)))
+
+        except Exception as error:
+            self.composite_logger.log_error("[APM] Error while converting DEB882-style format to one-line-style. [File={0}][Error={1}]".format(file_path, repr(error)))
+
+        return std_sources_content
+
+    @staticmethod
+    def __convert_deb822style_to_onelinestyle_format(types=str(), uris=str(), suites=str(), components=str(), architectures=str()):
+        # type: (str, str, str, str, str) -> str
+        """ Converts DEB822-style parameters into one-line-style format """
+        line = types
+        line += str() if not architectures else " [arch={0}]".format(architectures.replace(" ",","))
+        line += " " + uris + " " + suites + " " + components
+        return line.strip()
 
     def refresh_repo(self, sources=str()):
         self.composite_logger.log("[APM] Refreshing local repo... [Sources={0}]".format(sources if sources != str() else "Default"))
