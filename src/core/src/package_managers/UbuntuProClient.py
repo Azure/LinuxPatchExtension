@@ -17,7 +17,7 @@
 """This is the Ubuntu Pro Client implementation"""
 import json
 from core.src.bootstrap.Constants import Constants
-from core.src.external_dependencies.version import LooseVersion
+from core.src.external_dependencies import version as packaging_version
 
 class UbuntuProClient:
     def __init__(self, env_layer, composite_logger):
@@ -52,7 +52,10 @@ class UbuntuProClient:
             from uaclient.api.u.pro.version.v1 import version
             version_result = version()
             ubuntu_pro_client_version = version_result.installed_version
-            is_minimum_ubuntu_pro_version_installed = LooseVersion(ubuntu_pro_client_version) >= LooseVersion(Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION)
+            if ubuntu_pro_client_version is not None:
+                #Ubuntu pro client version has os version appended. e.g: "30.0.0~18.04".We need to trim os version to get pro version.
+                trimmed_pro_client_version = ubuntu_pro_client_version.split("~")[0]
+                is_minimum_ubuntu_pro_version_installed = packaging_version.parse(trimmed_pro_client_version) >= packaging_version.parse(Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION)
             if ubuntu_pro_client_version is not None and is_minimum_ubuntu_pro_version_installed:
                 is_ubuntu_pro_client_working = True
                 self.is_ubuntu_pro_client_attached = self.log_ubuntu_pro_client_attached()

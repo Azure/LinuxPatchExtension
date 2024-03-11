@@ -1,215 +1,563 @@
-#
-# distutils/version.py
-#
-# Implements multiple version numbering conventions for the
-# Python Module Distribution Utilities.
-#
-# $Id$
-#
+# This file is dual licensed under the terms of the Apache License, Version
+# 2.0, and the BSD License. See the LICENSE file in the root of this repository
+# for complete details.
+"""
+.. testsetup::
 
-"""Provides classes to represent module version numbers (one class for
-each style of version numbering).  There are currently two such classes
-implemented: StrictVersion and LooseVersion.
-
-Every version number class implements the following interface:
-  * the 'parse' method takes a string and parses it to some internal
-    representation; if the string is an invalid version number,
-    'parse' raises a ValueError exception
-  * the class constructor takes an optional string argument which,
-    if supplied, is passed to 'parse'
-  * __str__ reconstructs the string that was passed to 'parse' (or
-    an equivalent string -- ie. one that will generate an equivalent
-    version number instance)
-  * __repr__ generates Python code to recreate the version number instance
-  * _cmp compares the current instance with either another instance
-    of the same class or a string (which will be parsed to an instance
-    of the same class, thus must follow the same rules)
+    from packaging.version import parse, Version
 """
 
+import itertools
 import re
+from typing import Any, Callable, NamedTuple, Optional, SupportsInt, Tuple, Union
 
-class Version:
-    """Abstract base class for version numbering classes.  Just provides
-    constructor (__init__) and reproducer (__repr__), because those
-    seem to be the same for all version numbering classes; and route
-    rich comparisons to _cmp.
+from ._structures import Infinity, InfinityType, NegativeInfinity, NegativeInfinityType
+
+__all__ = ["VERSION_PATTERN", "parse", "Version", "InvalidVersion"]
+
+LocalType = Tuple[Union[int, str], ...]
+
+CmpPrePostDevType = Union[InfinityType, NegativeInfinityType, Tuple[str, int]]
+CmpLocalType = Union[
+    NegativeInfinityType,
+    Tuple[Union[Tuple[int, str], Tuple[NegativeInfinityType, Union[int, str]]], ...],
+]
+CmpKey = Tuple[
+    int,
+    Tuple[int, ...],
+    CmpPrePostDevType,
+    CmpPrePostDevType,
+    CmpPrePostDevType,
+    CmpLocalType,
+]
+VersionComparisonMethod = Callable[[CmpKey, CmpKey], bool]
+
+
+class _Version(NamedTuple):
+    epoch: int
+    release: Tuple[int, ...]
+    dev: Optional[Tuple[str, int]]
+    pre: Optional[Tuple[str, int]]
+    post: Optional[Tuple[str, int]]
+    local: Optional[LocalType]
+
+
+def parse(version: str) -> "Version":
+    """Parse the given version string.
+
+    >>> parse('1.0.dev1')
+    <Version('1.0.dev1')>
+
+    :param version: The version string to parse.
+    :raises InvalidVersion: When the version string is not a valid version.
+    """
+    return Version(version)
+
+
+class InvalidVersion(ValueError):
+    """Raised when a version string is not a valid version.
+
+    >>> Version("invalid")
+    Traceback (most recent call last):
+        ...
+    packaging.version.InvalidVersion: Invalid version: 'invalid'
     """
 
-    def __init__ (self, vstring=None):
-        if vstring:
-            self.parse(vstring)
 
-    def __repr__ (self):
-        return "%s ('%s')" % (self.__class__.__name__, str(self))
+class _BaseVersion:
+    _key: Tuple[Any, ...]
 
-    def __eq__(self, other):
-        c = self._cmp(other)
-        if c is NotImplemented:
-            return c
-        return c == 0
+    def __hash__(self) -> int:
+        return hash(self._key)
 
-    def __lt__(self, other):
-        c = self._cmp(other)
-        if c is NotImplemented:
-            return c
-        return c < 0
+    # Please keep the duplicated `isinstance` check
+    # in the six comparisons hereunder
+    # unless you find a way to avoid adding overhead function calls.
+    def __lt__(self, other: "_BaseVersion") -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
 
-    def __le__(self, other):
-        c = self._cmp(other)
-        if c is NotImplemented:
-            return c
-        return c <= 0
+        return self._key < other._key
 
-    def __gt__(self, other):
-        c = self._cmp(other)
-        if c is NotImplemented:
-            return c
-        return c > 0
+    def __le__(self, other: "_BaseVersion") -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
 
-    def __ge__(self, other):
-        c = self._cmp(other)
-        if c is NotImplemented:
-            return c
-        return c >= 0
+        return self._key <= other._key
 
-# The rules according to Greg Stein:
-# 1) a version number has 1 or more numbers separated by a period or by
-#    sequences of letters. If only periods, then these are compared
-#    left-to-right to determine an ordering.
-# 2) sequences of letters are part of the tuple for comparison and are
-#    compared lexicographically
-# 3) recognize the numeric components may have leading zeroes
-#
-# The LooseVersion class below implements these rules: a version number
-# string is split up into a tuple of integer and string components, and
-# comparison is a simple tuple comparison.  This means that version
-# numbers behave in a predictable and obvious way, but a way that might
-# not necessarily be how people *want* version numbers to behave.  There
-# wouldn't be a problem if people could stick to purely numeric version
-# numbers: just split on period and compare the numbers as tuples.
-# However, people insist on putting letters into their version numbers;
-# the most common purpose seems to be:
-#   - indicating a "pre-release" version
-#     ('alpha', 'beta', 'a', 'b', 'pre', 'p')
-#   - indicating a post-release patch ('p', 'pl', 'patch')
-# but of course this can't cover all version number schemes, and there's
-# no way to know what a programmer means without asking him.
-#
-# The problem is what to do with letters (and other non-numeric
-# characters) in a version number.  The current implementation does the
-# obvious and predictable thing: keep them as strings and compare
-# lexically within a tuple comparison.  This has the desired effect if
-# an appended letter sequence implies something "post-release":
-# eg. "0.99" < "0.99pl14" < "1.0", and "5.001" < "5.001m" < "5.002".
-#
-# However, if letters in a version number imply a pre-release version,
-# the "obvious" thing isn't correct.  Eg. you would expect that
-# "1.5.1" < "1.5.2a2" < "1.5.2", but under the tuple/lexical comparison
-# implemented here, this just isn't so.
-#
-# Two possible solutions come to mind.  The first is to tie the
-# comparison algorithm to a particular set of semantic rules, as has
-# been done in the StrictVersion class above.  This works great as long
-# as everyone can go along with bondage and discipline.  Hopefully a
-# (large) subset of Python module programmers will agree that the
-# particular flavour of bondage and discipline provided by StrictVersion
-# provides enough benefit to be worth using, and will submit their
-# version numbering scheme to its domination.  The free-thinking
-# anarchists in the lot will never give in, though, and something needs
-# to be done to accommodate them.
-#
-# Perhaps a "moderately strict" version class could be implemented that
-# lets almost anything slide (syntactically), and makes some heuristic
-# assumptions about non-digits in version number strings.  This could
-# sink into special-case-hell, though; if I was as talented and
-# idiosyncratic as Larry Wall, I'd go ahead and implement a class that
-# somehow knows that "1.2.1" < "1.2.2a2" < "1.2.2" < "1.2.2pl3", and is
-# just as happy dealing with things like "2g6" and "1.13++".  I don't
-# think I'm smart enough to do it right though.
-#
-# In any case, I've coded the test suite for this module (see
-# ../test/test_version.py) specifically to fail on things like comparing
-# "1.2a2" and "1.2".  That's not because the *code* is doing anything
-# wrong, it's because the simple, obvious design doesn't match my
-# complicated, hairy expectations for real-world version numbers.  It
-# would be a snap to fix the test suite to say, "Yep, LooseVersion does
-# the Right Thing" (ie. the code matches the conception).  But I'd rather
-# have a conception that matches common notions about version numbers.
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
 
-class LooseVersion (Version):
+        return self._key == other._key
 
-    """Version numbering for anarchists and software realists.
-    Implements the standard interface for version number classes as
-    described above.  A version number consists of a series of numbers,
-    separated by either periods or strings of letters.  When comparing
-    version numbers, the numeric components will be compared
-    numerically, and the alphabetic components lexically.  The following
-    are all valid version numbers, in no particular order:
+    def __ge__(self, other: "_BaseVersion") -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
 
-        1.5.1
-        1.5.2b2
-        161
-        3.10a
-        8.02
-        3.4j
-        1996.07.12
-        3.2.pl0
-        3.1.1.6
-        2g6
-        11g
-        0.960923
-        2.2beta29
-        1.13++
-        5.5.kw
-        2.0b1pl0
+        return self._key >= other._key
 
-    In fact, there is no such thing as an invalid version number under
-    this scheme; the rules for comparison are simple and predictable,
-    but may not always give the results you want (for some definition
-    of "want").
+    def __gt__(self, other: "_BaseVersion") -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key > other._key
+
+    def __ne__(self, other: object) -> bool:
+        if not isinstance(other, _BaseVersion):
+            return NotImplemented
+
+        return self._key != other._key
+
+
+# Deliberately not anchored to the start and end of the string, to make it
+# easier for 3rd party code to reuse
+_VERSION_PATTERN = r"""
+    v?
+    (?:
+        (?:(?P<epoch>[0-9]+)!)?                           # epoch
+        (?P<release>[0-9]+(?:\.[0-9]+)*)                  # release segment
+        (?P<pre>                                          # pre-release
+            [-_\.]?
+            (?P<pre_l>alpha|a|beta|b|preview|pre|c|rc)
+            [-_\.]?
+            (?P<pre_n>[0-9]+)?
+        )?
+        (?P<post>                                         # post release
+            (?:-(?P<post_n1>[0-9]+))
+            |
+            (?:
+                [-_\.]?
+                (?P<post_l>post|rev|r)
+                [-_\.]?
+                (?P<post_n2>[0-9]+)?
+            )
+        )?
+        (?P<dev>                                          # dev release
+            [-_\.]?
+            (?P<dev_l>dev)
+            [-_\.]?
+            (?P<dev_n>[0-9]+)?
+        )?
+    )
+    (?:\+(?P<local>[a-z0-9]+(?:[-_\.][a-z0-9]+)*))?       # local version
+"""
+
+VERSION_PATTERN = _VERSION_PATTERN
+"""
+A string containing the regular expression used to match a valid version.
+
+The pattern is not anchored at either end, and is intended for embedding in larger
+expressions (for example, matching a version number as part of a file name). The
+regular expression should be compiled with the ``re.VERBOSE`` and ``re.IGNORECASE``
+flags set.
+
+:meta hide-value:
+"""
+
+
+class Version(_BaseVersion):
+    """This class abstracts handling of a project's versions.
+
+    A :class:`Version` instance is comparison aware and can be compared and
+    sorted using the standard Python interfaces.
+
+    >>> v1 = Version("1.0a5")
+    >>> v2 = Version("1.0")
+    >>> v1
+    <Version('1.0a5')>
+    >>> v2
+    <Version('1.0')>
+    >>> v1 < v2
+    True
+    >>> v1 == v2
+    False
+    >>> v1 > v2
+    False
+    >>> v1 >= v2
+    False
+    >>> v1 <= v2
+    True
     """
 
-    component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
+    _regex = re.compile(r"^\s*" + VERSION_PATTERN + r"\s*$", re.VERBOSE | re.IGNORECASE)
+    _key: CmpKey
 
-    def __init__ (self, vstring=None):
-        if vstring:
-            self.parse(vstring)
+    def __init__(self, version: str) -> None:
+        """Initialize a Version object.
+
+        :param version:
+            The string representation of a version which will be parsed and normalized
+            before use.
+        :raises InvalidVersion:
+            If the ``version`` does not conform to PEP 440 in any way then this
+            exception will be raised.
+        """
+
+        # Validate the version and parse it into pieces
+        match = self._regex.search(version)
+        if not match:
+            raise InvalidVersion(f"Invalid version: '{version}'")
+
+        # Store the parsed out pieces of the version
+        self._version = _Version(
+            epoch=int(match.group("epoch")) if match.group("epoch") else 0,
+            release=tuple(int(i) for i in match.group("release").split(".")),
+            pre=_parse_letter_version(match.group("pre_l"), match.group("pre_n")),
+            post=_parse_letter_version(
+                match.group("post_l"), match.group("post_n1") or match.group("post_n2")
+            ),
+            dev=_parse_letter_version(match.group("dev_l"), match.group("dev_n")),
+            local=_parse_local_version(match.group("local")),
+        )
+
+        # Generate a key which will be used for sorting
+        self._key = _cmpkey(
+            self._version.epoch,
+            self._version.release,
+            self._version.pre,
+            self._version.post,
+            self._version.dev,
+            self._version.local,
+        )
+
+    def __repr__(self) -> str:
+        """A representation of the Version that shows all internal state.
+
+        >>> Version('1.0.0')
+        <Version('1.0.0')>
+        """
+        return f"<Version('{self}')>"
+
+    def __str__(self) -> str:
+        """A string representation of the version that can be rounded-tripped.
+
+        >>> str(Version("1.0a5"))
+        '1.0a5'
+        """
+        parts = []
+
+        # Epoch
+        if self.epoch != 0:
+            parts.append(f"{self.epoch}!")
+
+        # Release segment
+        parts.append(".".join(str(x) for x in self.release))
+
+        # Pre-release
+        if self.pre is not None:
+            parts.append("".join(str(x) for x in self.pre))
+
+        # Post-release
+        if self.post is not None:
+            parts.append(f".post{self.post}")
+
+        # Development release
+        if self.dev is not None:
+            parts.append(f".dev{self.dev}")
+
+        # Local version segment
+        if self.local is not None:
+            parts.append(f"+{self.local}")
+
+        return "".join(parts)
+
+    @property
+    def epoch(self) -> int:
+        """The epoch of the version.
+
+        >>> Version("2.0.0").epoch
+        0
+        >>> Version("1!2.0.0").epoch
+        1
+        """
+        return self._version.epoch
+
+    @property
+    def release(self) -> Tuple[int, ...]:
+        """The components of the "release" segment of the version.
+
+        >>> Version("1.2.3").release
+        (1, 2, 3)
+        >>> Version("2.0.0").release
+        (2, 0, 0)
+        >>> Version("1!2.0.0.post0").release
+        (2, 0, 0)
+
+        Includes trailing zeroes but not the epoch or any pre-release / development /
+        post-release suffixes.
+        """
+        return self._version.release
+
+    @property
+    def pre(self) -> Optional[Tuple[str, int]]:
+        """The pre-release segment of the version.
+
+        >>> print(Version("1.2.3").pre)
+        None
+        >>> Version("1.2.3a1").pre
+        ('a', 1)
+        >>> Version("1.2.3b1").pre
+        ('b', 1)
+        >>> Version("1.2.3rc1").pre
+        ('rc', 1)
+        """
+        return self._version.pre
+
+    @property
+    def post(self) -> Optional[int]:
+        """The post-release number of the version.
+
+        >>> print(Version("1.2.3").post)
+        None
+        >>> Version("1.2.3.post1").post
+        1
+        """
+        return self._version.post[1] if self._version.post else None
+
+    @property
+    def dev(self) -> Optional[int]:
+        """The development number of the version.
+
+        >>> print(Version("1.2.3").dev)
+        None
+        >>> Version("1.2.3.dev1").dev
+        1
+        """
+        return self._version.dev[1] if self._version.dev else None
+
+    @property
+    def local(self) -> Optional[str]:
+        """The local version segment of the version.
+
+        >>> print(Version("1.2.3").local)
+        None
+        >>> Version("1.2.3+abc").local
+        'abc'
+        """
+        if self._version.local:
+            return ".".join(str(x) for x in self._version.local)
+        else:
+            return None
+
+    @property
+    def public(self) -> str:
+        """The public portion of the version.
+
+        >>> Version("1.2.3").public
+        '1.2.3'
+        >>> Version("1.2.3+abc").public
+        '1.2.3'
+        >>> Version("1.2.3+abc.dev1").public
+        '1.2.3'
+        """
+        return str(self).split("+", 1)[0]
+
+    @property
+    def base_version(self) -> str:
+        """The "base version" of the version.
+
+        >>> Version("1.2.3").base_version
+        '1.2.3'
+        >>> Version("1.2.3+abc").base_version
+        '1.2.3'
+        >>> Version("1!1.2.3+abc.dev1").base_version
+        '1!1.2.3'
+
+        The "base version" is the public version of the project without any pre or post
+        release markers.
+        """
+        parts = []
+
+        # Epoch
+        if self.epoch != 0:
+            parts.append(f"{self.epoch}!")
+
+        # Release segment
+        parts.append(".".join(str(x) for x in self.release))
+
+        return "".join(parts)
+
+    @property
+    def is_prerelease(self) -> bool:
+        """Whether this version is a pre-release.
+
+        >>> Version("1.2.3").is_prerelease
+        False
+        >>> Version("1.2.3a1").is_prerelease
+        True
+        >>> Version("1.2.3b1").is_prerelease
+        True
+        >>> Version("1.2.3rc1").is_prerelease
+        True
+        >>> Version("1.2.3dev1").is_prerelease
+        True
+        """
+        return self.dev is not None or self.pre is not None
+
+    @property
+    def is_postrelease(self) -> bool:
+        """Whether this version is a post-release.
+
+        >>> Version("1.2.3").is_postrelease
+        False
+        >>> Version("1.2.3.post1").is_postrelease
+        True
+        """
+        return self.post is not None
+
+    @property
+    def is_devrelease(self) -> bool:
+        """Whether this version is a development release.
+
+        >>> Version("1.2.3").is_devrelease
+        False
+        >>> Version("1.2.3.dev1").is_devrelease
+        True
+        """
+        return self.dev is not None
+
+    @property
+    def major(self) -> int:
+        """The first item of :attr:`release` or ``0`` if unavailable.
+
+        >>> Version("1.2.3").major
+        1
+        """
+        return self.release[0] if len(self.release) >= 1 else 0
+
+    @property
+    def minor(self) -> int:
+        """The second item of :attr:`release` or ``0`` if unavailable.
+
+        >>> Version("1.2.3").minor
+        2
+        >>> Version("1").minor
+        0
+        """
+        return self.release[1] if len(self.release) >= 2 else 0
+
+    @property
+    def micro(self) -> int:
+        """The third item of :attr:`release` or ``0`` if unavailable.
+
+        >>> Version("1.2.3").micro
+        3
+        >>> Version("1").micro
+        0
+        """
+        return self.release[2] if len(self.release) >= 3 else 0
 
 
-    def parse (self, vstring):
-        # I've given up on thinking I can reconstruct the version string
-        # from the parsed tuple -- so I just store the string here for
-        # use by __str__
-        self.vstring = vstring
-        components = [x for x in self.component_re.split(vstring)
-                              if x and x != '.']
-        for i, obj in enumerate(components):
-            try:
-                components[i] = int(obj)
-            except ValueError:
-                pass
+def _parse_letter_version(
+    letter: Optional[str], number: Union[str, bytes, SupportsInt, None]
+) -> Optional[Tuple[str, int]]:
 
-        self.version = components
+    if letter:
+        # We consider there to be an implicit 0 in a pre-release if there is
+        # not a numeral associated with it.
+        if number is None:
+            number = 0
+
+        # We normalize any letters to their lower case form
+        letter = letter.lower()
+
+        # We consider some words to be alternate spellings of other words and
+        # in those cases we want to normalize the spellings to our preferred
+        # spelling.
+        if letter == "alpha":
+            letter = "a"
+        elif letter == "beta":
+            letter = "b"
+        elif letter in ["c", "pre", "preview"]:
+            letter = "rc"
+        elif letter in ["rev", "r"]:
+            letter = "post"
+
+        return letter, int(number)
+    if not letter and number:
+        # We assume if we are given a number, but we are not given a letter
+        # then this is using the implicit post release syntax (e.g. 1.0-1)
+        letter = "post"
+
+        return letter, int(number)
+
+    return None
 
 
-    def __str__ (self):
-        return self.vstring
+_local_version_separators = re.compile(r"[\._-]")
 
 
-    def __repr__ (self):
-        return "LooseVersion ('%s')" % str(self)
+def _parse_local_version(local: Optional[str]) -> Optional[LocalType]:
+    """
+    Takes a string like abc.1.twelve and turns it into ("abc", 1, "twelve").
+    """
+    if local is not None:
+        return tuple(
+            part.lower() if not part.isdigit() else int(part)
+            for part in _local_version_separators.split(local)
+        )
+    return None
 
 
-    def _cmp (self, other):
-        if isinstance(other, str):
-            other = LooseVersion(other)
+def _cmpkey(
+    epoch: int,
+    release: Tuple[int, ...],
+    pre: Optional[Tuple[str, int]],
+    post: Optional[Tuple[str, int]],
+    dev: Optional[Tuple[str, int]],
+    local: Optional[LocalType],
+) -> CmpKey:
 
-        if self.version == other.version:
-            return 0
-        if self.version < other.version:
-            return -1
-        if self.version > other.version:
-            return 1
+    # When we compare a release version, we want to compare it with all of the
+    # trailing zeros removed. So we'll use a reverse the list, drop all the now
+    # leading zeros until we come to something non zero, then take the rest
+    # re-reverse it back into the correct order and make it a tuple and use
+    # that for our sorting key.
+    _release = tuple(
+        reversed(list(itertools.dropwhile(lambda x: x == 0, reversed(release))))
+    )
 
+    # We need to "trick" the sorting algorithm to put 1.0.dev0 before 1.0a0.
+    # We'll do this by abusing the pre segment, but we _only_ want to do this
+    # if there is not a pre or a post segment. If we have one of those then
+    # the normal sorting rules will handle this case correctly.
+    if pre is None and post is None and dev is not None:
+        _pre: CmpPrePostDevType = NegativeInfinity
+    # Versions without a pre-release (except as noted above) should sort after
+    # those with one.
+    elif pre is None:
+        _pre = Infinity
+    else:
+        _pre = pre
 
-# end class LooseVersion
+    # Versions without a post segment should sort before those with one.
+    if post is None:
+        _post: CmpPrePostDevType = NegativeInfinity
+
+    else:
+        _post = post
+
+    # Versions without a development segment should sort after those with one.
+    if dev is None:
+        _dev: CmpPrePostDevType = Infinity
+
+    else:
+        _dev = dev
+
+    if local is None:
+        # Versions without a local segment should sort before those with one.
+        _local: CmpLocalType = NegativeInfinity
+    else:
+        # Versions with a local segment need that segment parsed to implement
+        # the sorting rules in PEP440.
+        # - Alpha numeric segments sort before numeric segments
+        # - Alpha numeric segments sort lexicographically
+        # - Numeric segments sort numerically
+        # - Shorter versions sort before longer versions when the prefixes
+        #   match exactly
+        _local = tuple(
+            (i, "") if isinstance(i, int) else (NegativeInfinity, i) for i in local
+        )
+
+    return epoch, _release, _pre, _post, _dev, _local

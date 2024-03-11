@@ -33,7 +33,7 @@ VERY_FIRST_IMPORTS = [
     'from abc import ABCMeta, abstractmethod\n',
     'from datetime import timedelta\n',
     'from external_dependencies import distro\n',
-    'from external_dependencies.version import LooseVersion\n'
+    'from external_dependencies import version as packaging_version\n'
     'try:\n import urllib2 as urlreq   #Python 2.x \nexcept:\n import urllib.request as urlreq   #Python 3.x\n']
 GLOBAL_IMPORTS = set()
 
