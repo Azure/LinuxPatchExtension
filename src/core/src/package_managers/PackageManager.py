@@ -446,7 +446,7 @@ class PackageManager(object):
         pass
 
     @abstractmethod
-    def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+    def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
         Only required for yum. No-op for apt and zypper.
@@ -454,6 +454,7 @@ class PackageManager(object):
         Parameters:
         package_manager (PackageManager): Package manager used.
         package (string): Input package for which same package name but different architecture need to be added in the list package_and_dependencies.
+        version (string): version of the package.
         packages (List of strings): List of all packages selected by user to install.
         package_versions (List of strings): Versions of packages in packages list.
         package_and_dependencies (List of strings): List of packages along with dependencies. This function adds packages with same name as input parameter package
