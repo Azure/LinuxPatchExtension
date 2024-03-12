@@ -34,11 +34,16 @@ jobs:
           echo '===============START CORE TESTS...===============' >> ../../../err.txt
           coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err.txt
+      - name: Print current directory
+        run: pwd
+      - name: Print test output
+        if: always()
+        run: D:\a\LinuxPatchExtension\LinuxPatchExtension\err.txt
       - name: Collect coverage
         run: |
-          cd ./src/core/tests
+          cd ./src/core
           coverage xml
-          cd ../../extension/tests
+          cd ../../extension
           coverage xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.5
