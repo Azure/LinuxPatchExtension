@@ -288,7 +288,7 @@ class LegacyEnvLayerExtensions():
                                  "tcpdump.x86_64                                            " + \
                                  "14:4.9.2-3.el7                          " + \
                                  "rhui-rhel-7-server-rhui-rpms\n"
-                    elif cmd.find("assumeno selinux-policy") > -1:
+                    elif cmd.find("assumeno --skip-broken selinux-policy") > -1:
                         code = 1
                         output = " Resolving Dependencies\n" + \
                                  " --> Running transaction check\n" + \
@@ -306,7 +306,7 @@ class LegacyEnvLayerExtensions():
                                  " ---> Package selinux-policy-targeted.noarch 0:3.13.1-102.el7_3.16 " + \
                                  "will be an update\n" + \
                                  " --> Finished Dependency Resolution\n"
-                    elif cmd.find("sudo yum -y install sudo") > -1:
+                    elif cmd.find("sudo yum -y install --skip-broken sudo") > -1:
                         code = 0
                         output = "Loaded plugins: langpacks, product-id, search-disabled-repos\n" + \
                                  "Resolving Dependencies\n" + \
@@ -338,7 +338,7 @@ class LegacyEnvLayerExtensions():
                                  "Updated:\n" + \
                                  "  sudo.x86_64 0:1.8.6p7-22.el7_3\n" + \
                                  "Complete!\n"
-                    elif cmd.find(" sudo yum install --assumeno kmod-kvdo") > -1:
+                    elif cmd.find(" sudo yum install --assumeno --skip-broken kmod-kvdo") > -1:
                         code = 0
                         output = "Loaded plugins: langpacks, product-id, search-disabled-repos\n" + \
                                  "Resolving Dependencies\n" + \
