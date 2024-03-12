@@ -4,6 +4,8 @@ comment:
   require_changes: false
 github_checks:
     annotations: false
+ignore:
+  - "**/external_dependencies"
 coverage:
   precision: 2
   round: down
