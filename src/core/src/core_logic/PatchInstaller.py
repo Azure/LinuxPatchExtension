@@ -340,7 +340,7 @@ class PatchInstaller(object):
             package_and_dependencies = [package]
             package_and_dependency_versions = [version]
             
-            self.include_dependencies(package_manager, [package], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+            self.include_dependencies(package_manager, [package], [version], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # parent package install (+ dependencies) and parent package result management
             install_result = Constants.FAILED
@@ -440,7 +440,7 @@ class PatchInstaller(object):
             self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             self.composite_logger.log_error(message)
 
-    def include_dependencies(self, package_manager, packages_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+    def include_dependencies(self, package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add dependent packages in the list of packages to install i.e. package_and_dependencies.
         
@@ -465,8 +465,8 @@ class PatchInstaller(object):
             version = all_package_versions[all_packages.index(dependency)] if dependency in all_packages else Constants.DEFAULT_UNSPECIFIED_VALUE
             package_and_dependency_versions.append(version)
 
-        for package in packages_in_batch:
-            package_manager.add_arch_dependencies(package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        for package, version in zip(packages_in_batch, package_versions_in_batch):
+            package_manager.add_arch_dependencies(package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
         package_and_dependencies, package_and_dependency_versions = package_manager.dedupe_update_packages(package_and_dependencies, package_and_dependency_versions)
 
@@ -563,7 +563,7 @@ class PatchInstaller(object):
             package_and_dependencies = list(packages_in_batch)
             package_and_dependency_versions = list(package_versions_in_batch)
 
-            self.include_dependencies(package_manager, packages_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+            self.include_dependencies(package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             parent_packages_installed_in_batch_count = 0
             parent_packages_failed_in_batch_count = 0
