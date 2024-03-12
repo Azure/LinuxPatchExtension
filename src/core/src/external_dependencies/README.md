@@ -19,6 +19,8 @@ Source: https://pypi.org/project/packaging
 
 File(s): version.py
 
+License: Apache License, version 2.0. License is included with the source, unmodified.
+
 Reason for inclusion: distutils.LooseVersion is being removed in Python 3.11.
 
 -----
