@@ -281,6 +281,7 @@ class PatchInstaller(object):
         # Check for packages available and install them in batches. Some packages may not be installed due to:
         # (a) Not enough time remaining in maintenance window
         # (b) Failure during package installation
+
         # Start Batch Patching Phase1
         successful_parent_package_install_count_in_batch_patching_phase1 = 0
         if max_batch_size_for_packages_phase1 > 0:
