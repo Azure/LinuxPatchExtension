@@ -470,4 +470,8 @@ class PackageManager(object):
     @abstractmethod
     def separate_out_esm_packages(self, packages, package_versions):
         pass
-
+    
+    @abstractmethod
+    def get_package_install_expected_avg_time_in_minutes(self):
+        """Retrieves average time to install package in minutes."""
+        pass
