@@ -5,7 +5,8 @@ comment:
 github_checks:
     annotations: false
 ignore:
-  - "src/core/src/external_dependencies"
+  - "src/core/src/external_dependencies/_structures.py"
+  - "src/core/src/external_dependencies/version.py"
 coverage:
   precision: 2
   round: down
