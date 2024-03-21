@@ -219,8 +219,14 @@ class Constants(object):
     MAX_INSTALLATION_RETRY_COUNT = 3
     MAX_IMDS_CONNECTION_RETRY_COUNT = 5
     MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT = 5
-    MAX_BATCH_SIZE_FOR_PACKAGES = 300
     MAX_COMPLETE_STATUS_FILES_TO_RETAIN = 10
+
+    # Batch Patching Parameters
+    MAX_BATCH_SIZE_FOR_PACKAGES = 300
+    MAX_PHASES_FOR_BATCH_PATCHING = 2
+
+    # Batch size decay factor is factor to which batch size is decreased in batch patching to install remaining packages in case there are some package install failures with original batch size.
+    BATCH_SIZE_DECAY_FACTOR = 10
 
     class PackageClassification(EnumBackport):
         UNCLASSIFIED = 'Unclassified'
