@@ -67,8 +67,8 @@ class MaintenanceWindow(object):
         # Assuming that one of the packages in the batch could take maximum time to install and rest of the packages take average time.
         cutoff_time_in_minutes = Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES
         if number_of_packages_in_batch > 1:
-            package_install_expected_avg_time = package_manager.get_package_install_expected_avg_time()
-            cutoff_time += package_install_expected_avg_time * (number_of_packages_in_batch - 1)
+            package_install_expected_avg_time = package_manager.get_package_install_expected_avg_time_in_minutes()
+            cutoff_time_in_minutes += package_install_expected_avg_time * (number_of_packages_in_batch - 1)
 
         if Constants.REBOOT_SETTINGS[self.execution_config.reboot_setting] != Constants.REBOOT_NEVER:
             cutoff_time_in_minutes = cutoff_time_in_minutes + Constants.REBOOT_BUFFER_IN_MINUTES

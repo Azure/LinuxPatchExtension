@@ -80,7 +80,7 @@ class AptitudePackageManager(PackageManager):
         self.ubuntu_pro_client_all_updates_cached = []
         self.ubuntu_pro_client_all_updates_versions_cached = []
         
-        self.package_install_expected_avg_time_in_minutes = 0.7 # As per telemetry data, the average time to install package is around 42 seconds for apt.
+        self.package_install_expected_avg_time_in_minutes = 1.5 # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):

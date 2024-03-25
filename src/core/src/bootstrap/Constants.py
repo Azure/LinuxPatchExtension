@@ -225,8 +225,14 @@ class Constants(object):
     MAX_BATCH_SIZE_FOR_PACKAGES = 300
     MAX_PHASES_FOR_BATCH_PATCHING = 2
 
-    # Batch size decay factor is factor to which batch size is decreased in batch patching to install remaining packages in case there are some package install failures with original batch size.
+    # Batch size decay factor is factor to which batch size is decreased in batch patching to install remaining packages in case there
+    # are some package install failures with original batch size.
     BATCH_SIZE_DECAY_FACTOR = 10
+
+    # We need to keep some buffer time between calculation of batch size and starting batch patching because after calculating the batch size,
+    # there would be little time taken before the batch patching is started. The function is_package_install_time_available is called before installing a batch.
+    # If we do not keep buffer then is_package_install_time_available would return false.
+    BUFFER_TIME_FOR_BATCH_PATCHING_START_IN_MINUTES = 5
 
     class PackageClassification(EnumBackport):
         UNCLASSIFIED = 'Unclassified'
