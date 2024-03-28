@@ -54,7 +54,7 @@ class AptitudePackageManager(PackageManager):
         # Install update
         # --only-upgrade: upgrade only single package (only if it is installed)
         self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true install '''
-        self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true upgrade <SOURCES> '''
+        self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true dist-upgrade <SOURCES> '''
 
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
