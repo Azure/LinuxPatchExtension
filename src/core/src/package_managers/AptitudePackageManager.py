@@ -766,3 +766,4 @@ class AptitudePackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_minutes(self):
         return self.package_install_expected_avg_time_in_minutes
+
