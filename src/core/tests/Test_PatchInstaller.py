@@ -16,6 +16,7 @@
 
 import datetime
 import json
+import math
 import os
 import sys
 import unittest
@@ -710,6 +711,29 @@ class TestPatchInstaller(unittest.TestCase):
         # reset sys.version to original
         sys.version_info = original_version
         runtime.stop()
+
+    def test_get_max_batch_size(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = "PT1H"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        calculated_max_batch_size = runtime.patch_installer.get_max_batch_size(runtime.maintenance_window, runtime.package_manager)
+
+        # Deriving the expected max batch size below and checking if it is same as calculated max batch size.
+        expected_max_batch_size = 0
+
+        available_time_to_install_packages_in_minutes = 60
+        available_time_to_install_packages_in_minutes = available_time_to_install_packages_in_minutes - Constants.BUFFER_TIME_FOR_BATCH_PATCHING_START_IN_MINUTES
+
+        if available_time_to_install_packages_in_minutes > Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES:
+            available_time_to_install_packages = available_time_to_install_packages_in_minutes - Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES
+            expected_max_batch_size = expected_max_batch_size + 1
+
+            # Remaining packages take average expected time to install.
+            package_install_expected_avg_time_in_minutes = runtime.package_manager.get_package_install_expected_avg_time_in_minutes()
+            expected_max_batch_size += int(
+                math.floor(available_time_to_install_packages / package_install_expected_avg_time_in_minutes))
+
+        self.assertEqual(calculated_max_batch_size, expected_max_batch_size)
 
 if __name__ == '__main__':
     unittest.main()
