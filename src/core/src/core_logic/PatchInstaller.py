@@ -788,10 +788,10 @@ class PatchInstaller(object):
         # Taking assumption that 1 of the packages in the batch takes maximum expected time to install and remaining packages take average time to install.
         if available_time_to_install_packages > Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES:
             available_time_to_install_packages = available_time_to_install_packages - Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES
-            max_batch_size_for_packages = max_batch_size_for_packages + 1
+            max_batch_size_for_packages += 1
 
             # Remaining packages take average expected time to install.
-            package_install_expected_avg_time_in_minutes = package_manager.get_package_install_expected_avg_time_in_minutes()
+            package_install_expected_avg_time_in_minutes = package_manager.get_package_install_expected_avg_time_in_seconds() / 60
             max_batch_size_for_packages += int(math.floor(available_time_to_install_packages / package_install_expected_avg_time_in_minutes))
 
         if max_batch_size_for_packages > Constants.MAX_BATCH_SIZE_FOR_PACKAGES:

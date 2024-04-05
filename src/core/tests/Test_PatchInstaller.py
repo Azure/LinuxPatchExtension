@@ -726,10 +726,10 @@ class TestPatchInstaller(unittest.TestCase):
 
         if available_time_to_install_packages_in_minutes > Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES:
             available_time_to_install_packages = available_time_to_install_packages_in_minutes - Constants.PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES
-            expected_max_batch_size = expected_max_batch_size + 1
+            expected_max_batch_size += 1
 
             # Remaining packages take average expected time to install.
-            package_install_expected_avg_time_in_minutes = runtime.package_manager.get_package_install_expected_avg_time_in_minutes()
+            package_install_expected_avg_time_in_minutes = runtime.package_manager.get_package_install_expected_avg_time_in_seconds() / 60
             expected_max_batch_size += int(
                 math.floor(available_time_to_install_packages / package_install_expected_avg_time_in_minutes))
 

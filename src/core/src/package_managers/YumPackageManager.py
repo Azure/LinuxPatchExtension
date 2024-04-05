@@ -97,7 +97,7 @@ class YumPackageManager(PackageManager):
         
         self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
         
-        self.package_install_expected_avg_time_in_minutes = 1.5 # As per telemetry data, the average time to install package is around 90 seconds for yum.
+        self.package_install_expected_avg_time_in_seconds = 90 # As per telemetry data, the average time to install package is around 90 seconds for yum.
 
     def refresh_repo(self):
         pass  # Refresh the repo is no ops in YUM
@@ -996,6 +996,6 @@ class YumPackageManager(PackageManager):
 
         return packages, package_versions, esm_packages, esm_package_versions, esm_packages_found
 
-    def get_package_install_expected_avg_time_in_minutes(self):
-        return self.package_install_expected_avg_time_in_minutes
+    def get_package_install_expected_avg_time_in_seconds(self):
+        return self.package_install_expected_avg_time_in_seconds
 

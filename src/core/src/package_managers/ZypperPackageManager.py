@@ -87,7 +87,7 @@ class ZypperPackageManager(PackageManager):
         # # commands for YaST2 online update configuration
         # self.__init_constants_for_yast2_online_update_configuration()
 
-        self.package_install_expected_avg_time_in_minutes = 4 # As per telemetry data, the average time to install package is around 232 seconds for zypper.
+        self.package_install_expected_avg_time_in_seconds = 240 # As per telemetry data, the average time to install package is around 232 seconds for zypper.
 
     def refresh_repo(self):
         self.composite_logger.log("Refreshing local repo...")
@@ -838,6 +838,6 @@ class ZypperPackageManager(PackageManager):
 
         return packages, package_versions, esm_packages, esm_package_versions, esm_packages_found
 
-    def get_package_install_expected_avg_time_in_minutes(self):
-        return self.package_install_expected_avg_time_in_minutes
+    def get_package_install_expected_avg_time_in_seconds(self):
+        return self.package_install_expected_avg_time_in_seconds
 
