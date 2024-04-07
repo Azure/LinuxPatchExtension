@@ -715,7 +715,7 @@ class TestPatchInstaller(unittest.TestCase):
     def test_get_max_batch_size(self):
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = "PT1H"
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
         calculated_max_batch_size = runtime.patch_installer.get_max_batch_size(runtime.maintenance_window, runtime.package_manager)
 
         # Deriving the expected max batch size below and checking if it is same as calculated max batch size.
