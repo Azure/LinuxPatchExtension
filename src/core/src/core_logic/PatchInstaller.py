@@ -174,7 +174,7 @@ class PatchInstaller(object):
         remaining_time = maintenance_window.get_remaining_time_in_minutes()
 
         try:
-            all_packages, all_package_versions = package_manager.get_all_updates(True)
+            all_packages, all_package_versions = package_manager.get_all_updates(cached=False)
             packages, package_versions = package_manager.get_security_updates()
             self.last_still_needed_packages = list(all_packages)
             self.last_still_needed_package_versions = list(all_package_versions)
@@ -267,7 +267,7 @@ class PatchInstaller(object):
 
         patch_installation_successful = True
         maintenance_window_exceeded = False
-        all_packages, all_package_versions = package_manager.get_all_updates(True)  # cached is fine
+        all_packages, all_package_versions = package_manager.get_all_updates(cached=False)
         self.telemetry_writer.write_event("All available packages list: " + str(all_packages), Constants.TelemetryEventLevel.Verbose)
         self.last_still_needed_packages = list(all_packages)
         self.last_still_needed_package_versions = list(all_package_versions)
@@ -695,13 +695,13 @@ class PatchInstaller(object):
         """Periodically based on the condition check, writes out success records as required; returns count of detected installs.
            This is mostly to capture the dependencies that get silently installed recorded.
            VERY IMPORTANT NOTE: THIS ONLY WORKS IF EACH DEPENDENCY INSTALLED WAS THE VERY LATEST VERSION AVAILABLE.
-           So it's only here as a fall back method and shouldn't normally be required with newer code - it will be removed in the future."""
+           So it's only here as a fallback method and shouldn't normally be required with newer code - it will be removed in the future."""
         if not condition:
             return 0
 
         self.composite_logger.log_verbose("\nStarting status reconciliation...")
         start_time = time.time()
-        still_needed_packages, still_needed_package_versions = package_manager.get_all_updates(False)  # do not use cache
+        still_needed_packages, still_needed_package_versions = package_manager.get_all_updates(cached=False)  # do not use cache
         successful_packages = []
         successful_package_versions = []
         for i in range(0, len(self.last_still_needed_packages)):
@@ -720,7 +720,7 @@ class PatchInstaller(object):
     def get_not_included_updates(self, package_manager, included_packages):
         """Returns the list of updates not included given any list of packages that will be included"""
         self.composite_logger.log_debug("\nEvaluating for 'not included' packages...")
-        all_packages, all_package_versions = package_manager.get_all_updates(True)  # cached is fine
+        all_packages, all_package_versions = package_manager.get_all_updates(cached=True)  # cached is fine
         not_included_packages = []
         not_included_package_versions = []
         for i in range(0, len(all_packages)):
