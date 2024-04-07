@@ -734,6 +734,7 @@ class TestPatchInstaller(unittest.TestCase):
                 math.floor(available_time_to_install_packages / package_install_expected_avg_time_in_minutes))
 
         self.assertEqual(calculated_max_batch_size, expected_max_batch_size)
+        runtime.stop()
 
 if __name__ == '__main__':
     unittest.main()
