@@ -60,6 +60,7 @@ class ExecutionConfig(object):
         self.maintenance_run_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAINTENANCE_RUN_ID)
         self.health_store_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.HEALTH_STORE_ID)
         self.max_patch_publish_date = self.__get_max_patch_publish_date(self.health_store_id)
+        self.max_patch_publish_date = self.__get_max_patch_publish_date_from_inclusions(self.included_package_name_mask_list) if self.max_patch_publish_date == str() else self.max_patch_publish_date
         if self.operation == Constants.INSTALLATION:
             self.reboot_setting = self.config_settings[Constants.ConfigSettings.REBOOT_SETTING]     # expected to throw if not present
         else:
@@ -111,6 +112,22 @@ class ExecutionConfig(object):
 
         self.composite_logger.log_debug("[EC] Getting max patch publish date. [MaxPatchPublishDate={0}][HealthStoreId={1}]".format(str(max_patch_publish_date), str(health_store_id)))
         return max_patch_publish_date
+
+    def __get_max_patch_publish_date_from_inclusions(self, included_package_name_mask_list):
+        for i in range(0, len(included_package_name_mask_list)):
+            if not included_package_name_mask_list[i].startswith("*="):
+                self.composite_logger.log_verbose("[EC] Ignored [MaxPatchPublishDate={0}]".format(str(included_package_name_mask_list[i])))
+                continue
+
+            candidate = included_package_name_mask_list[i].replace("*=", "")
+            candidate_split = candidate.split("T")
+            if len(candidate) == 16 and len(candidate_split) == 2 and candidate_split[0].isdigit() and candidate_split[1].endswith("Z"):
+                self.composite_logger.log_debug("[EC] Discovered effective MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
+                return candidate
+
+            self.composite_logger.log_debug("[EC] Invalid match on MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
+
+        return str()
 
     @staticmethod
     def __get_value_from_argv(argv, key, default_value=Constants.DEFAULT_UNSPECIFIED_VALUE):
