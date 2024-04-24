@@ -840,7 +840,8 @@ class StatusHandler(object):
 
     def __set_errors_json(self, error_count_by_operation, errors_by_operation):
         """ Compose the error object json to be added in 'errors' in given operation's summary """
-        if error_count_by_operation == 1 and errors_by_operation[0]['code'] == Constants.PatchOperationErrorCodes.INFORMATIONAL:    # special-casing for single informational messages
+        information = Constants.PatchOperationErrorCodes.INFORMATIONAL
+        if error_count_by_operation == 1 and errors_by_operation[0]['code'] == information:    # special-casing for single informational messages
             message = errors_by_operation[0]['message']
             errors_by_operation = []
             error_count_by_operation = 0
