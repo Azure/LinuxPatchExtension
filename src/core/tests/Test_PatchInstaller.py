@@ -423,7 +423,7 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue("git" in package_and_dependencies)
         self.assertTrue("grub-efi-amd64-signed" in package_and_dependencies)
         self.assertTrue("grub-efi-amd64-bin" not in package_and_dependencies)
-        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
         self.assertEqual(4, len(package_and_dependencies))
         self.assertEqual(4, len(package_and_dependency_versions))
         self.assertTrue("git-man" in package_and_dependencies)
@@ -448,7 +448,7 @@ class TestPatchInstaller(unittest.TestCase):
         package_versions_in_batch = ["3.13.1-102.el7_3.16"]
         package_and_dependencies = list(packages_in_batch)
         package_and_dependency_versions = list(package_versions_in_batch)
-        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
         self.assertEqual(2, len(package_and_dependencies))
         self.assertEqual(2, len(package_and_dependency_versions))
         self.assertTrue(package_and_dependencies[0] == "selinux-policy.noarch")
@@ -473,7 +473,7 @@ class TestPatchInstaller(unittest.TestCase):
         package_versions_in_batch = ["5.60.7-8.1"]
         package_and_dependencies = list(packages_in_batch)
         package_and_dependency_versions = list(package_versions_in_batch)
-        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
         self.assertEqual(1, len(package_and_dependencies))
         self.assertEqual(1, len(package_and_dependency_versions))
         self.assertTrue(package_and_dependencies[0] == "libgcc")

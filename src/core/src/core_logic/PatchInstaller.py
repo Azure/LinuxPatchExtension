@@ -174,7 +174,7 @@ class PatchInstaller(object):
         remaining_time = maintenance_window.get_remaining_time_in_minutes()
 
         try:
-            all_packages, all_package_versions = package_manager.get_all_updates(True)
+            all_packages, all_package_versions = package_manager.get_all_updates(cached=False)
             packages, package_versions = package_manager.get_security_updates()
             self.last_still_needed_packages = list(all_packages)
             self.last_still_needed_package_versions = list(all_package_versions)
@@ -267,7 +267,7 @@ class PatchInstaller(object):
 
         patch_installation_successful = True
         maintenance_window_exceeded = False
-        all_packages, all_package_versions = package_manager.get_all_updates(True)  # cached is fine
+        all_packages, all_package_versions = package_manager.get_all_updates(cached=False)
         self.telemetry_writer.write_event("All available packages list: " + str(all_packages), Constants.TelemetryEventLevel.Verbose)
         self.last_still_needed_packages = list(all_packages)
         self.last_still_needed_package_versions = list(all_package_versions)
@@ -340,7 +340,7 @@ class PatchInstaller(object):
             package_and_dependencies = [package]
             package_and_dependency_versions = [version]
             
-            self.include_dependencies(package_manager, [package], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+            self.include_dependencies(package_manager, [package], [version], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # parent package install (+ dependencies) and parent package result management
             install_result = Constants.FAILED
@@ -440,7 +440,7 @@ class PatchInstaller(object):
             self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             self.composite_logger.log_error(message)
 
-    def include_dependencies(self, package_manager, packages_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+    def include_dependencies(self, package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add dependent packages in the list of packages to install i.e. package_and_dependencies.
         
@@ -465,8 +465,8 @@ class PatchInstaller(object):
             version = all_package_versions[all_packages.index(dependency)] if dependency in all_packages else Constants.DEFAULT_UNSPECIFIED_VALUE
             package_and_dependency_versions.append(version)
 
-        for package in packages_in_batch:
-            package_manager.add_arch_dependencies(package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        for package, version in zip(packages_in_batch, package_versions_in_batch):
+            package_manager.add_arch_dependencies(package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
         package_and_dependencies, package_and_dependency_versions = package_manager.dedupe_update_packages(package_and_dependencies, package_and_dependency_versions)
 
@@ -563,7 +563,7 @@ class PatchInstaller(object):
             package_and_dependencies = list(packages_in_batch)
             package_and_dependency_versions = list(package_versions_in_batch)
 
-            self.include_dependencies(package_manager, packages_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+            self.include_dependencies(package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             parent_packages_installed_in_batch_count = 0
             parent_packages_failed_in_batch_count = 0
@@ -660,13 +660,13 @@ class PatchInstaller(object):
         """Periodically based on the condition check, writes out success records as required; returns count of detected installs.
            This is mostly to capture the dependencies that get silently installed recorded.
            VERY IMPORTANT NOTE: THIS ONLY WORKS IF EACH DEPENDENCY INSTALLED WAS THE VERY LATEST VERSION AVAILABLE.
-           So it's only here as a fall back method and shouldn't normally be required with newer code - it will be removed in the future."""
+           So it's only here as a fallback method and shouldn't normally be required with newer code - it will be removed in the future."""
         if not condition:
             return 0
 
         self.composite_logger.log_verbose("\nStarting status reconciliation...")
         start_time = time.time()
-        still_needed_packages, still_needed_package_versions = package_manager.get_all_updates(False)  # do not use cache
+        still_needed_packages, still_needed_package_versions = package_manager.get_all_updates(cached=False)  # do not use cache
         successful_packages = []
         successful_package_versions = []
         for i in range(0, len(self.last_still_needed_packages)):
@@ -685,7 +685,7 @@ class PatchInstaller(object):
     def get_not_included_updates(self, package_manager, included_packages):
         """Returns the list of updates not included given any list of packages that will be included"""
         self.composite_logger.log_debug("\nEvaluating for 'not included' packages...")
-        all_packages, all_package_versions = package_manager.get_all_updates(True)  # cached is fine
+        all_packages, all_package_versions = package_manager.get_all_updates(cached=True)  # cached is fine
         not_included_packages = []
         not_included_package_versions = []
         for i in range(0, len(all_packages)):
