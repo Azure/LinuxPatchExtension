@@ -458,7 +458,7 @@ class PatchInstaller(object):
         installed_update_count_in_batch_patching = 0
         patch_installation_successful_in_batch_patching = True
 
-        for phase in range(Constants.MAX_PHASES_FOR_BATCH_PATCHING):
+        for phase in range(Constants.PackageBatchConfig.MAX_PHASES_FOR_BATCH_PATCHING):
             if len(packages) == 0:
                 break
 
@@ -486,7 +486,7 @@ class PatchInstaller(object):
 
             stopwatch_for_phase.write_telemetry_for_stopwatch(str(batch_phase_processing_perf_log))
 
-            max_batch_size_for_packages = int(max_batch_size_for_packages / Constants.BATCH_SIZE_DECAY_FACTOR)
+            max_batch_size_for_packages = int(max_batch_size_for_packages / Constants.PackageBatchConfig.BATCH_SIZE_DECAY_FACTOR)
 
             if total_packages_to_install_count < max_batch_size_for_packages:
                 # All the packages will be attempted in single batch as max batch size is larger than total packages.
@@ -779,7 +779,7 @@ class PatchInstaller(object):
         if Constants.REBOOT_SETTINGS[self.execution_config.reboot_setting] != Constants.REBOOT_NEVER:
             available_time_to_install_packages = available_time_to_install_packages - Constants.REBOOT_BUFFER_IN_MINUTES
 
-        available_time_to_install_packages = available_time_to_install_packages - Constants.BUFFER_TIME_FOR_BATCH_PATCHING_START_IN_MINUTES
+        available_time_to_install_packages = available_time_to_install_packages - Constants.PackageBatchConfig.BUFFER_TIME_FOR_BATCH_PATCHING_START_IN_MINUTES
 
         self.composite_logger.log_debug("Avaliable time in minutes to install packages (after removing buffer time): {0}".format(available_time_to_install_packages))
 
@@ -791,11 +791,11 @@ class PatchInstaller(object):
             max_batch_size_for_packages += 1
 
             # Remaining packages take average expected time to install.
-            package_install_expected_avg_time_in_minutes = package_manager.get_package_install_expected_avg_time_in_seconds() / 60
+            package_install_expected_avg_time_in_minutes = package_manager.get_package_install_expected_avg_time_in_seconds() / 60.0
             max_batch_size_for_packages += int(math.floor(available_time_to_install_packages / package_install_expected_avg_time_in_minutes))
 
-        if max_batch_size_for_packages > Constants.MAX_BATCH_SIZE_FOR_PACKAGES:
-            max_batch_size_for_packages = Constants.MAX_BATCH_SIZE_FOR_PACKAGES
+        if max_batch_size_for_packages > Constants.PackageBatchConfig.MAX_BATCH_SIZE_FOR_PACKAGES:
+            max_batch_size_for_packages = Constants.PackageBatchConfig.MAX_BATCH_SIZE_FOR_PACKAGES
 
         self.composite_logger.log_debug("Calculated max batch size is: {0}".format(max_batch_size_for_packages))
 
