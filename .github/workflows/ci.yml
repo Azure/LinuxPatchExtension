@@ -9,6 +9,7 @@ jobs:
     runs-on: windows-latest
     env:
       PYTHONTRACEMALLOC: 1
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,6 +47,8 @@ jobs:
           flags: python39
           name: python-39
           fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Read test output and Check if all tests passed
         shell: bash
         run: |
@@ -57,6 +60,8 @@ jobs:
           fi
   codecov-python-27:
     runs-on: windows-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     needs: codecov-python-39
     steps:
       - name: Checkout
@@ -112,6 +117,8 @@ jobs:
           flags: python27
           name: python-27
           fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Read test output and Check if all tests passed
         shell: bash
         run: |
