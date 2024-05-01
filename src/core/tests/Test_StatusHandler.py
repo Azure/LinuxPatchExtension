@@ -64,6 +64,19 @@ class TestStatusHandler(unittest.TestCase):
         self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]["patchId"]))
         self.assertEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["startedBy"], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
 
+    def test_auto_assessment_throws_exception_on_healthstoreupdate(self):
+        # test with health_store_id not None
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.runtime.execution_config.maintenance_run_id = None
+        self.runtime.execution_config.health_store_id = "test"
+        self.assertRaises(Exception, lambda: StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type))
+
+        # test with maintenance_run_id not None
+        self.runtime.execution_config.exec_auto_assess_only = True
+        self.runtime.execution_config.maintenance_run_id = "test"
+        self.runtime.execution_config.health_store_id = None
+        self.assertRaises(Exception, lambda: StatusHandler(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.vm_cloud_type))
+
     def test_set_package_install_status(self):
         packages, package_versions = self.runtime.package_manager.get_all_updates()
         self.runtime.status_handler.set_package_install_status(packages, package_versions)
@@ -401,6 +414,14 @@ class TestStatusHandler(unittest.TestCase):
             self.assertEqual(installation_patches_sorted[12]["name"], "test-package-2")  # | Other              | Excluded    |
             self.assertEqual(installation_patches_sorted[13]["name"], "test-package-1")  # | Other              | NotSelected |
 
+    def test_sequence_number_changed_termination_configure_patching_only(self):
+        """ Test sequence number change for configure patching throws newer operation superseded error message """
+        self.__assert_sequence_num_changed_termination(config=Constants.CONFIGURE_PATCHING, summary=Constants.CONFIGURE_PATCHING_SUMMARY, status=Constants.STATUS_ERROR)
+
+    def test_sequence_number_changed_termination_installation(self):
+        """ Test sequence number change for installation throws newer operation superseded error message """
+        self.__assert_sequence_num_changed_termination(config=Constants.INSTALLATION, summary=Constants.PATCH_INSTALLATION_SUMMARY, status=Constants.STATUS_ERROR)
+
     def test_if_status_file_resets_on_load_if_malformed(self):
         # Mock complete status file with malformed json
         sample_json = '[{"version": 1.0, "timestampUTC": "2023-05-13T07:38:07Z", "statusx": {"name": "Azure Patch Management", "operation": "Installation", "status": "success", "code": 0, "formattedMessage": {"lang": "en-US", "message": ""}, "substatusx": []}}]'
@@ -567,6 +588,18 @@ class TestStatusHandler(unittest.TestCase):
         os.remove = self.backup_os_remove
         self.runtime.env_layer.file_system.delete_files_from_dir(file_path, '*.complete.status')
         self.assertFalse(os.path.isfile(os.path.join(file_path, '1.complete_status')))
+
+    def __assert_sequence_num_changed_termination(self, config, summary, status):
+        self.runtime.execution_config.operation = config
+        self.runtime.status_handler.set_current_operation(config)
+
+        self.runtime.status_handler.report_sequence_number_changed_termination()
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"][0]
+            self.assertTrue(substatus_file_data["name"] == summary)
+            self.assertEqual(substatus_file_data["status"], status.lower())
+            formatted_message = json.loads(substatus_file_data['formattedMessage']['message'])
+            self.assertTrue(formatted_message["errors"]["details"][0]["code"] == Constants.PatchOperationErrorCodes.NEWER_OPERATION_SUPERSEDED)
 
     # Setup functions to populate packages and versions for truncation
     def __set_up_packages_func(self, val):

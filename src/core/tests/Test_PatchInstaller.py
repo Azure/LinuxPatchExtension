@@ -337,12 +337,15 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(4, installed_update_count)
+        self.assertEqual(7, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
     def test_dependency_install_failed(self):
+        # exclusion list contains grub-efi-amd64-bin
+        # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
+        # so, out of 7 packages, only 5 packages are installed and 2 are excluded
         current_time = datetime.datetime.utcnow()
         td = datetime.timedelta(hours=0, minutes=20)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
@@ -353,13 +356,13 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallFailed')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(2, installed_update_count)
+        self.assertEqual(5, installed_update_count)
         self.assertFalse(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
     def test_not_enough_time_for_batch_patching_dependency_installed_successfully(self):
-        # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
+        # total packages to install is 7, reboot_setting is 'Never', cutoff time for batch of 6 packages = (5*3) + (2*3) = 21
         # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
         # So td = 60-14 = 46
         current_time = datetime.datetime.utcnow()
@@ -373,13 +376,13 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(4, installed_update_count)
+        self.assertEqual(7, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
 
     def test_not_enough_time_for_batch_patching_dependency_install_failed(self):
-        # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
+        # total packages to install is 7, reboot_setting is 'Never', so cutoff time for batch = (5*3) + (2*3) = 21
         # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
         # So td = 60-14 = 46
         current_time = datetime.datetime.utcnow()
@@ -393,7 +396,7 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallFailed')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(2, installed_update_count)
+        self.assertEqual(5, installed_update_count)
         self.assertFalse(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
@@ -420,7 +423,7 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertTrue("git" in package_and_dependencies)
         self.assertTrue("grub-efi-amd64-signed" in package_and_dependencies)
         self.assertTrue("grub-efi-amd64-bin" not in package_and_dependencies)
-        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
         self.assertEqual(4, len(package_and_dependencies))
         self.assertEqual(4, len(package_and_dependency_versions))
         self.assertTrue("git-man" in package_and_dependencies)
@@ -445,7 +448,7 @@ class TestPatchInstaller(unittest.TestCase):
         package_versions_in_batch = ["3.13.1-102.el7_3.16"]
         package_and_dependencies = list(packages_in_batch)
         package_and_dependency_versions = list(package_versions_in_batch)
-        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
         self.assertEqual(2, len(package_and_dependencies))
         self.assertEqual(2, len(package_and_dependency_versions))
         self.assertTrue(package_and_dependencies[0] == "selinux-policy.noarch")
@@ -470,7 +473,7 @@ class TestPatchInstaller(unittest.TestCase):
         package_versions_in_batch = ["5.60.7-8.1"]
         package_and_dependencies = list(packages_in_batch)
         package_and_dependency_versions = list(package_versions_in_batch)
-        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+        runtime.patch_installer.include_dependencies(runtime.package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_packages_version, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
         self.assertEqual(1, len(package_and_dependencies))
         self.assertEqual(1, len(package_and_dependency_versions))
         self.assertTrue(package_and_dependencies[0] == "libgcc")
@@ -496,7 +499,7 @@ class TestPatchInstaller(unittest.TestCase):
     def test_dependent_package_excluded(self):
         # exclusion list contains grub-efi-amd64-bin
         # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
-        # so, out of 4 packages, only 2 packages are installed and 2 are excluded
+        # so, out of 7 packages, only 5 packages are installed and 2 are excluded
         current_time = datetime.datetime.utcnow()
         td = datetime.timedelta(hours=0, minutes=20)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
@@ -509,7 +512,7 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(2, installed_update_count)
+        self.assertEqual(5, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
@@ -517,12 +520,12 @@ class TestPatchInstaller(unittest.TestCase):
     def test_dependent_package_excluded_and_not_enough_time_for_batch_patching(self):
         # exclusion list contains grub-efi-amd64-bin
         # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
-        # so, out of 4 packages, only 2 packages are installed and 2 are excluded.
-        # total packages to install is 2, reboot_setting is 'Never', so cutoff time for batch = 2*5 = 10
-        # window size is 60 minutes, let time remain = 9 minutes so that not enough time to install in batch
-        # So td = 60-9 = 51
+        # so, out of 7 packages, only 5 packages are installed and 2 are excluded.
+        # total packages to install is 7, reboot_setting is 'Never', so cutoff time for batch of 6 packages= (5*3) + (2*3) = 21
+        # window size is 60 minutes, let time remain = 16 minutes so that not enough time to install in batch
+        # So td = 60-16 = 44
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=51)
+        td = datetime.timedelta(hours=0, minutes=44)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.patches_to_exclude = ["grub-efi-amd64-bin"]
@@ -532,7 +535,7 @@ class TestPatchInstaller(unittest.TestCase):
         # Path change
         runtime.set_legacy_test_type('DependencyInstallSuccessfully')
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(2, installed_update_count)
+        self.assertEqual(5, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()
@@ -549,7 +552,7 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.set_legacy_test_type('ArchDependency')
         # As all the packages should get installed using batch patching, get_remaining_packages_to_install should return 0 packages
         installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates(runtime.maintenance_window, runtime.package_manager, simulate=True)
-        self.assertEqual(4, installed_update_count)
+        self.assertEqual(7, installed_update_count)
         self.assertTrue(update_run_successful)
         self.assertFalse(maintenance_window_exceeded)
         runtime.stop()

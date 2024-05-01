@@ -54,7 +54,7 @@ class AptitudePackageManager(PackageManager):
         # Install update
         # --only-upgrade: upgrade only single package (only if it is installed)
         self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true install '''
-        self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true upgrade <SOURCES> '''
+        self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true dist-upgrade <SOURCES> '''
 
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
@@ -728,7 +728,7 @@ class AptitudePackageManager(PackageManager):
         """check if python version is at least 3.5"""
         return sys.version_info >= Constants.UbuntuProClientSettings.MINIMUM_PYTHON_VERSION_REQUIRED
 
-    def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+    def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
         Only required for yum. No-op for apt and zypper.
