@@ -66,11 +66,8 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.stop()
 
     def test_yum_install_success_not_enough_time_for_batch_patching(self):
-        # total packages to install is 2, reboot_setting is 'Never', so cutoff time for batch = 2*5 = 10
-        # window size is 60 minutes, let time remain = 9 minutes so that not enough time to install in batch
-        # So td = 60-9 = 51
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=51)
+        td = datetime.timedelta(hours=0, minutes=50)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = 'Never'
@@ -118,11 +115,8 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.stop()
 
     def test_zypper_install_success_not_enough_time_for_batch_patching(self):
-        # total packages to install is 2, reboot_setting is 'Never', so cutoff time for batch = 2*5 = 10
-        # window size is 60 minutes, let time remain = 9 minutes so that not enough time to install in batch
-        # So td = 60-9 = 51
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=51)
+        td = datetime.timedelta(hours=0, minutes=50)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
@@ -308,11 +302,8 @@ class TestPatchInstaller(unittest.TestCase):
         version_obj.mock_unimport_uaclient_version_module()
 
     def test_apt_install_success_not_enough_time_for_batch_patching(self):
-        # total packages to install is 3, reboot_setting is 'Never', so cutoff time for batch = 3*5 = 15
-        # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
-        # So td = 60-14 = 46
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=46)
+        td = datetime.timedelta(hours=0, minutes=50)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
@@ -363,11 +354,8 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.stop()
 
     def test_not_enough_time_for_batch_patching_dependency_installed_successfully(self):
-        # total packages to install is 7, reboot_setting is 'Never', cutoff time for batch of 6 packages = (5*3) + (2*3) = 21
-        # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
-        # So td = 60-14 = 46
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=46)
+        td = datetime.timedelta(hours=0, minutes=50)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = 'Never'
@@ -383,11 +371,8 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.stop()
 
     def test_not_enough_time_for_batch_patching_dependency_install_failed(self):
-        # total packages to install is 7, reboot_setting is 'Never', so cutoff time for batch = (5*3) + (2*3) = 21
-        # window size is 60 minutes, let time remain = 14 minutes so that not enough time to install in batch
-        # So td = 60-14 = 46
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=46)
+        td = datetime.timedelta(hours=0, minutes=50)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = 'Never'
@@ -519,14 +504,8 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.stop()
 
     def test_dependent_package_excluded_and_not_enough_time_for_batch_patching(self):
-        # exclusion list contains grub-efi-amd64-bin
-        # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
-        # so, out of 7 packages, only 5 packages are installed and 2 are excluded.
-        # total packages to install is 7, reboot_setting is 'Never', so cutoff time for batch of 6 packages= (5*3) + (2*3) = 21
-        # window size is 60 minutes, let time remain = 16 minutes so that not enough time to install in batch
-        # So td = 60-16 = 44
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=44)
+        td = datetime.timedelta(hours=0, minutes=50)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.patches_to_exclude = ["grub-efi-amd64-bin"]
