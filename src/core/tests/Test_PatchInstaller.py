@@ -339,7 +339,7 @@ class TestPatchInstaller(unittest.TestCase):
         # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin, so grub-efi-amd64-signed should also get excluded
         # so, out of 7 packages, only 5 packages are installed and 2 are excluded
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=20)
+        td = datetime.timedelta(hours=0, minutes=42)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
