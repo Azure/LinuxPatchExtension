@@ -328,7 +328,7 @@ class TestPatchInstaller(unittest.TestCase):
 
     def test_dependency_installed_successfully(self):
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=20)
+        td = datetime.timedelta(hours=0, minutes=42)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
@@ -543,7 +543,7 @@ class TestPatchInstaller(unittest.TestCase):
 
     def test_arch_dependency_install_success(self):
         current_time = datetime.datetime.utcnow()
-        td = datetime.timedelta(hours=0, minutes=20)
+        td = datetime.timedelta(hours=0, minutes=42)
         job_start_time = (current_time - td).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
         argument_composer = ArgumentComposer()
         argument_composer.maximum_duration = 'PT1H'
