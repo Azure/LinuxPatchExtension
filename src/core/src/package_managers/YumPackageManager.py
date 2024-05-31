@@ -36,10 +36,10 @@ class YumPackageManager(PackageManager):
         self.yum_check_security = 'sudo yum -q --security check-update'
         self.single_package_check_versions = 'sudo yum list available <PACKAGE-NAME> --showduplicates'
         self.single_package_check_installed = 'sudo yum list installed <PACKAGE-NAME>'
-        self.single_package_upgrade_simulation_cmd = 'LANG=en_US.UTF8 sudo yum install --assumeno '
+        self.single_package_upgrade_simulation_cmd = 'LANG=en_US.UTF8 sudo yum install --assumeno --skip-broken '
 
         # Install update
-        self.single_package_upgrade_cmd = 'sudo yum -y install '
+        self.single_package_upgrade_cmd = 'sudo yum -y install --skip-broken '
         self.all_but_excluded_upgrade_cmd = 'sudo yum -y update --exclude='
 
         # Package manager exit code(s)
@@ -96,6 +96,8 @@ class YumPackageManager(PackageManager):
                                        "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
         
         self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
+        
+        self.package_install_expected_avg_time_in_seconds = 90 # As per telemetry data, the average time to install package is around 90 seconds for yum.
 
     def refresh_repo(self):
         pass  # Refresh the repo is no ops in YUM
@@ -958,12 +960,13 @@ class YumPackageManager(PackageManager):
         return process_count != 0  # True if there were any
     # endregion Reboot Management
 
-    def add_arch_dependencies(self, package_manager, package, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+    def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
         Parameters:
         package_manager (PackageManager): Package manager used.
         package (string): Input package for which same package name but different architecture need to be added in the list package_and_dependencies.
+        version (string): version of the package.
         packages (List of strings): List of all packages selected by user to install.
         package_versions (List of strings): Versions of packages in packages list.
         package_and_dependencies (List of strings): List of packages along with dependencies. This function adds packages with same name as input parameter package
@@ -972,7 +975,7 @@ class YumPackageManager(PackageManager):
         """
         package_name_without_arch = package_manager.get_product_name_without_arch(package)
         for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
-            if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies:
+            if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies and possible_arch_dependency_version == version:
                 package_and_dependencies.append(possible_arch_dependency)
                 package_and_dependency_versions.append(possible_arch_dependency_version)
 
@@ -992,4 +995,7 @@ class YumPackageManager(PackageManager):
         esm_packages_found = False
 
         return packages, package_versions, esm_packages, esm_package_versions, esm_packages_found
+
+    def get_package_install_expected_avg_time_in_seconds(self):
+        return self.package_install_expected_avg_time_in_seconds
 
