@@ -158,11 +158,12 @@ class AptitudePackageManager(PackageManager):
                     continue
 
                 if file_name.endswith(self.APT_SOURCES_LIST_DIR_LIST_EXT):
-                    self.composite_logger.log_verbose("[APM] Reading ")
                     sources_content += "\n" + self.env_layer.file_system.read_with_retry(file_path)
 
                 if file_name.endswith(self.APT_SOURCES_LIST_DIR_SRC_EXT):
                     sources_content += "\n" + self.__read_and_return_standard_list_format(file_path)
+
+                self.composite_logger.log_verbose("[APM] Reading ")
             except Exception as error:      # does not throw to allow patching to happen with functioning sources
                 self.composite_logger.log_error("[APM] Error while processing consolidated sources list. [File={0}][Error={1}]".format(file_name, repr(error)))
 
