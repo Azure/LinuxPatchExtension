@@ -97,7 +97,7 @@ class AptitudePackageManager(PackageManager):
             if max_patch_published_date != str() and len(max_patch_published_date) != 16:
                 raise Exception("[APM] Invalid max patch published date received. [Value={0}]".format(str(max_patch_published_date)))
 
-            formula = "F-[{0}]-[{1}]".format(max_patch_published_date, base_classification)
+            formula = "F-{0}-{1}".format(max_patch_published_date, base_classification)
             if self.cached_customer_source_list_formula == formula:
                 return self.custom_sources_list
             self.cached_customer_source_list_formula = formula
@@ -223,7 +223,7 @@ class AptitudePackageManager(PackageManager):
         return line.strip()
 
     def refresh_repo(self, sources=str()):
-        self.composite_logger.log("[APM] Refreshing local repo... [Sources={0}]".format(sources if sources != str() else "Default"))
+        self.composite_logger.log("[APM] Refreshing local repo... [Sources={0}][Formula={1}]".format(sources if sources != str() else "Default", str(self.cached_customer_source_list_formula)))
         self.invoke_package_manager(self.__generate_command(self.cmd_repo_refresh_template, sources))
 
     @staticmethod
