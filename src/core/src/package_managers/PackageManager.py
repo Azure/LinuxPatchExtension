@@ -66,7 +66,7 @@ class PackageManager(object):
         try:
             self.refresh_repo()
         except Exception as error:
-            self.composite_logger.log_error("Error in refreshing cache from machine sources. [Error={0}]".format(repr(error)))
+            self.composite_logger.log_debug("Error in refreshing cache from machine sources. [Error={0}]".format(repr(error)))
 
     # region Get Available Updates
     @abstractmethod
