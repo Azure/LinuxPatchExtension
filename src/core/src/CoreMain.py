@@ -29,6 +29,7 @@ class CoreMain(object):
         stdout_file_mirror = bootstrapper.stdout_file_mirror
         telemetry_writer = bootstrapper.telemetry_writer
         lifecycle_manager = status_handler = execution_config = None
+        package_manager = None
 
         # Init operation statuses
         patch_operation_requested = Constants.UNKNOWN
@@ -101,7 +102,6 @@ class CoreMain(object):
                     patch_installer.mark_installation_completed()
                     overall_patch_installation_operation_successful = True
                 self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger)
-
         except Exception as error:
             # Privileged operation handling for non-production use
             if Constants.EnvLayer.PRIVILEGED_OP_MARKER in repr(error):
@@ -133,6 +133,9 @@ class CoreMain(object):
         finally:
             if status_handler is not None:
                 status_handler.log_truncated_patches()
+
+            if package_manager is not None:
+                package_manager.refresh_repo_safely()
 
             # clean up temp folder of files created by Core after execution completes
             if self.is_temp_folder_available(bootstrapper.env_layer, execution_config):

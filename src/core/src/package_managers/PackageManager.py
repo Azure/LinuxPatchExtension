@@ -61,6 +61,13 @@ class PackageManager(object):
         """Resynchronize the package index files from their sources."""
         pass
 
+    def refresh_repo_safely(self):
+        """Resynchronize the package index files from machine sources."""
+        try:
+            self.refresh_repo()
+        except Exception as error:
+            self.composite_logger.log_debug("Error in refreshing cache from machine sources. [Error={0}]".format(repr(error)))
+
     # region Get Available Updates
     @abstractmethod
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
