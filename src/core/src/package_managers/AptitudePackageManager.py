@@ -146,26 +146,27 @@ class AptitudePackageManager(PackageManager):
         """ Consolidates all list and sources files into a consistent format single source list """
         # read basic sources list - exception being thrown are acceptable
         sources_content = self.env_layer.file_system.read_with_retry(self.APT_SOURCES_LIST_PATH) if os.path.exists(self.APT_SOURCES_LIST_PATH) else str()
-        if not os.path.isdir(self.APT_SOURCES_LIST_DIR_PATH):
+
+        if os.path.isdir(self.APT_SOURCES_LIST_DIR_PATH):
             return sources_content
 
-        # process files in directory
-        dir_path = self.APT_SOURCES_LIST_DIR_PATH
-        for file_name in os.listdir(dir_path):
-            try:
-                file_path = os.path.join(dir_path, file_name)
-                if os.path.isdir(file_path):
-                    continue
+            # process files in directory
+            dir_path = self.APT_SOURCES_LIST_DIR_PATH
+            for file_name in os.listdir(dir_path):
+                try:
+                    file_path = os.path.join(dir_path, file_name)
+                    if os.path.isdir(file_path):
+                        continue
 
-                if file_name.endswith(self.APT_SOURCES_LIST_DIR_LIST_EXT):
-                    sources_content += "\n" + self.env_layer.file_system.read_with_retry(file_path)
+                    if file_name.endswith(self.APT_SOURCES_LIST_DIR_LIST_EXT):
+                        sources_content += "\n" + self.env_layer.file_system.read_with_retry(file_path)
 
-                if file_name.endswith(self.APT_SOURCES_LIST_DIR_SRC_EXT):
-                    sources_content += "\n" + self.__read_and_return_standard_list_format(file_path)
+                    if file_name.endswith(self.APT_SOURCES_LIST_DIR_SRC_EXT):
+                        sources_content += "\n" + self.__read_and_return_standard_list_format(file_path)
 
-                self.composite_logger.log_verbose("[APM] Reading ")
-            except Exception as error:      # does not throw to allow patching to happen with functioning sources
-                self.composite_logger.log_error("[APM] Error while processing consolidated sources list. [File={0}][Error={1}]".format(file_name, repr(error)))
+                    self.composite_logger.log_verbose("[APM] Reading ")
+                except Exception as error:      # does not throw to allow patching to happen with functioning sources
+                    self.composite_logger.log_error("[APM] Error while processing consolidated sources list. [File={0}][Error={1}]".format(file_name, repr(error)))
 
         return sources_content
 
