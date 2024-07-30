@@ -17,6 +17,7 @@
 """ The patch install orchestrator """
 import datetime
 import math
+import os
 import sys
 import time
 from core.src.bootstrap.Constants import Constants
@@ -49,6 +50,8 @@ class PatchInstaller(object):
         self.skipped_esm_packages = []
         self.skipped_esm_package_versions = []
         self.esm_packages_found_without_attach = False  # Flag used to record if esm packages excluded as ubuntu vm not attached.
+        
+        self.install_patches_in_single_batch = False
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
@@ -280,7 +283,7 @@ class PatchInstaller(object):
         attempted_parent_package_install_count_in_batch_patching = self.attempted_parent_package_install_count
         successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
 
-        if len(packages) == 0:
+        if len(packages) == 0 or self.is_install_patches_in_single_batch_enabled():
             self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
@@ -458,6 +461,7 @@ class PatchInstaller(object):
         installed_update_count_in_batch_patching = 0
         patch_installation_successful_in_batch_patching = True
 
+
         for phase in range(Constants.PackageBatchConfig.MAX_PHASES_FOR_BATCH_PATCHING):
             if len(packages) == 0:
                 break
@@ -531,7 +535,7 @@ class PatchInstaller(object):
         not_attempted_and_failed_package_versions (List of strings): Versions of packages in the list not_attempted_and_failed_packages.
         
         """
-        number_of_batches = int(math.ceil(len(packages) / float(max_batch_size_for_packages)))
+        number_of_batches = int(math.ceil(len(packages) / float(max_batch_size_for_packages))) if self.is_install_patches_in_single_batch_enabled() == False else 1
         self.composite_logger.log("\nDividing package install in batches. \nNumber of packages to be installed: " + str(len(packages)) + "\nBatch Size: " + str(max_batch_size_for_packages) + "\nNumber of batches: " + str(number_of_batches))
         installed_update_count = 0
         patch_installation_successful = True
@@ -555,8 +559,13 @@ class PatchInstaller(object):
             if self.lifecycle_manager is not None:
                 self.lifecycle_manager.lifecycle_status_check()
 
-            begin_index = batch_index * max_batch_size_for_packages
-            end_index = begin_index + max_batch_size_for_packages - 1
+            if self.install_patches_in_single_batch() == False: 
+               begin_index = batch_index * max_batch_size_for_packages
+               end_index = begin_index + max_batch_size_for_packages - 1
+            else:
+               begin_index = batch_index * len(packages)
+               end_index = begin_index + len(packages) - 1
+            
             end_index = min(end_index, len(packages) - 1)
 
             packages_in_batch = []
@@ -800,4 +809,16 @@ class PatchInstaller(object):
         self.composite_logger.log_debug("Calculated max batch size is: {0}".format(max_batch_size_for_packages))
 
         return max_batch_size_for_packages
+    
+    def is_install_patches_in_single_batch_enabled(self, maintenance_window, package_manager):
+        """"""
+        if self.install_patches_in_single_batch == True:
+            return self.install_patches_in_single_batch
+        
+        no_inclusion_exclusion_criteria = not (self.package_filter.is_exclusion_list_present() or self.package_filter.is_inclusion_list_present())
+        classification_criteria = self.package_filter.is_msft_critsec_classification_only()
+        suse_criteria = self.env_layer.get_package_manager() == Constants.YUM
+        user_flag_criteria = os.path.exists(Constants.INSTALL_PATCHS_IN_SINGLE_BATCH)
+        self.install_patches_in_single_batch =  no_inclusion_exclusion_criteria and classification_criteria and suse_criteria and user_flag_criteria
 
+        return self.install_patches_in_single_batch
