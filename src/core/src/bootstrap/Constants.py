@@ -92,6 +92,9 @@ class Constants(object):
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
 
+    #File to install packages at once
+    INSTALL_PATCHS_IN_SINGLE_BATCH = "/tmp/fasttrack-patch-installation"
+
     # Auto assessment shell script name
     CORE_AUTO_ASSESS_SH_FILE_NAME = "MsftLinuxPatchAutoAssess.sh"
     AUTO_ASSESSMENT_SERVICE_NAME = "MsftLinuxPatchAutoAssess"

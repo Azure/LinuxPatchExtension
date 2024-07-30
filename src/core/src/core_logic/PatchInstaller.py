@@ -17,6 +17,7 @@
 """ The patch install orchestrator """
 import datetime
 import math
+import os
 import sys
 import time
 from core.src.bootstrap.Constants import Constants
@@ -49,6 +50,8 @@ class PatchInstaller(object):
         self.skipped_esm_packages = []
         self.skipped_esm_package_versions = []
         self.esm_packages_found_without_attach = False  # Flag used to record if esm packages excluded as ubuntu vm not attached.
+        
+        self.install_patches_in_single_batch = False
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
@@ -458,6 +461,7 @@ class PatchInstaller(object):
         installed_update_count_in_batch_patching = 0
         patch_installation_successful_in_batch_patching = True
 
+
         for phase in range(Constants.PackageBatchConfig.MAX_PHASES_FOR_BATCH_PATCHING):
             if len(packages) == 0:
                 break
@@ -800,4 +804,17 @@ class PatchInstaller(object):
         self.composite_logger.log_debug("Calculated max batch size is: {0}".format(max_batch_size_for_packages))
 
         return max_batch_size_for_packages
+    
+    def is_installed_patches_in_single_batch_enabled(self, maintenance_window, package_manager):
+        """"""
+        if self.install_patches_in_single_batch == True:
+            return self.install_patches_in_single_batch
+        
+        no_inclusion_exclusion_criteria = not (self.package_filter.is_exclusion_list_present() or self.package_filter.is_inclusion_list_present())
+        classification_criteria = self.package_filter.is_msft_critsec_classification_only()
+        suse_criteria = self.env_layer.get_package_manager() == Constants.YUM
+        user_flag_criteria = os.path.exists(Constants.INSTALL_PATCHS_IN_SINGLE_BATCH)
+        self.install_patches_in_single_batch =  no_inclusion_exclusion_criteria and classification_criteria and suse_criteria and user_flag_criteria
+
+        return self.install_patches_in_single_batch
 
