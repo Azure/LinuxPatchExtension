@@ -283,7 +283,7 @@ class PatchInstaller(object):
         attempted_parent_package_install_count_in_batch_patching = self.attempted_parent_package_install_count
         successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
 
-        if len(packages) == 0:
+        if len(packages) == 0 or self.is_install_patches_in_single_batch_enabled():
             self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
@@ -535,7 +535,7 @@ class PatchInstaller(object):
         not_attempted_and_failed_package_versions (List of strings): Versions of packages in the list not_attempted_and_failed_packages.
         
         """
-        number_of_batches = int(math.ceil(len(packages) / float(max_batch_size_for_packages)))
+        number_of_batches = int(math.ceil(len(packages) / float(max_batch_size_for_packages))) if self.is_install_patches_in_single_batch_enabled() == False else 1
         self.composite_logger.log("\nDividing package install in batches. \nNumber of packages to be installed: " + str(len(packages)) + "\nBatch Size: " + str(max_batch_size_for_packages) + "\nNumber of batches: " + str(number_of_batches))
         installed_update_count = 0
         patch_installation_successful = True
@@ -559,8 +559,13 @@ class PatchInstaller(object):
             if self.lifecycle_manager is not None:
                 self.lifecycle_manager.lifecycle_status_check()
 
-            begin_index = batch_index * max_batch_size_for_packages
-            end_index = begin_index + max_batch_size_for_packages - 1
+            if self.install_patches_in_single_batch() == False: 
+               begin_index = batch_index * max_batch_size_for_packages
+               end_index = begin_index + max_batch_size_for_packages - 1
+            else:
+               begin_index = batch_index * len(packages)
+               end_index = begin_index + len(packages) - 1
+            
             end_index = min(end_index, len(packages) - 1)
 
             packages_in_batch = []
@@ -805,7 +810,7 @@ class PatchInstaller(object):
 
         return max_batch_size_for_packages
     
-    def is_installed_patches_in_single_batch_enabled(self, maintenance_window, package_manager):
+    def is_install_patches_in_single_batch_enabled(self, maintenance_window, package_manager):
         """"""
         if self.install_patches_in_single_batch == True:
             return self.install_patches_in_single_batch
@@ -817,4 +822,3 @@ class PatchInstaller(object):
         self.install_patches_in_single_batch =  no_inclusion_exclusion_criteria and classification_criteria and suse_criteria and user_flag_criteria
 
         return self.install_patches_in_single_batch
-
