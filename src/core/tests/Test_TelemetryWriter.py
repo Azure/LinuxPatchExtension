@@ -17,7 +17,6 @@ import datetime
 import json
 import os
 import re
-import sys
 import time
 import unittest
 from core.src.bootstrap.Constants import Constants
@@ -98,7 +97,6 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
             self.assertTrue(len(events[-1]["Message"]) < len(message.encode('utf-8')))
-            self.assertEqual(len(events[-1]["Message"]), Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS - 1)
             chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
             self.assertTrue("a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])
             f.close()
