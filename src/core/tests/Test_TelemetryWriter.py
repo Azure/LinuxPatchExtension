@@ -17,6 +17,7 @@ import datetime
 import json
 import os
 import re
+import sys
 import time
 import unittest
 from core.src.bootstrap.Constants import Constants
@@ -97,6 +98,7 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
             self.assertTrue(len(events[-1]["Message"]) < len(message.encode('utf-8')))
+            self.assertEqual(len(events[-1]["Message"]), Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS - 1)
             chars_dropped = len(message.encode('utf-8')) - Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
             self.assertTrue("a"*(len(message.encode('utf-8')) - chars_dropped) + ". [{0} chars dropped]".format(chars_dropped) in events[-1]["Message"])
             f.close()
@@ -105,6 +107,8 @@ class TestTelemetryWriter(unittest.TestCase):
         """ Perform 1 byte truncation on char that is more than 1 byte, use decode('utf-8', errors='replace') to replace bad unicode with a good 1 byte char (\uFFFD) """
 
         message = "a\u20acbc" * 3074  # (\xe2\x82\xac) is 3 bytes char can be written in windows console w/o encoding
+        min_msg_limit_in_bytes = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS - Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
+        max_msg_limit_in_bytes = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
@@ -113,7 +117,8 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertEqual(events[-1]["TaskName"], "Test Task")
             self.assertTrue(len(events[-1]["Message"]) < len(message.encode('utf-8')))
             self.assertTrue("a\u20acbc" in events[-1]["Message"])
-            self.assertTrue(len(events[-1]["Message"]) < Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS)
+            self.assertTrue(len(events[-1]["Message"].encode('utf-8')) > min_msg_limit_in_bytes)
+            self.assertTrue(len(events[-1]["Message"].encode('utf-8')) < max_msg_limit_in_bytes)
 
             f.close()
 
