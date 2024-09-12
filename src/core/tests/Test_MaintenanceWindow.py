@@ -15,6 +15,8 @@
 # Requires Python 2.7+
 
 import datetime
+from io import StringIO
+import sys
 import unittest
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -63,6 +65,10 @@ class TestMaintenanceWindow(unittest.TestCase):
         runtime.stop()
 
     def test_RemainingTime_log_to_stdout_true(self):
+        # Arrange, Capture stdout
+        captured_output = StringIO()
+        sys.stdout = captured_output  # Redirect stdout to the StringIO object
+
         argument_composer = ArgumentComposer()
         argument_composer.start_time = "2017-02-15T18:15:12.9828835Z"
         argument_composer.maximum_duration = "PT1H"
@@ -71,7 +77,14 @@ class TestMaintenanceWindow(unittest.TestCase):
         current_time = datetime.datetime.strptime('2017-02-15 18:30:20', "%Y-%m-%d %H:%M:%S")
         remaining_time = runtime.maintenance_window.get_remaining_time_in_minutes(current_time, log_to_stdout=True)
 
+        # Restore stdout
+        sys.stdout = sys.__stdout__
+
+        # Assert
+        output = captured_output.getvalue()
         self.assertEqual(int(remaining_time), 44)
+        self.assertIn("Maintenance Window Utilization:", output)  # Verify the log output contains the expected text
+
         runtime.stop()
 
     def test_RemainingTime_raise_exception(self):
@@ -152,4 +165,3 @@ class TestMaintenanceWindow(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
