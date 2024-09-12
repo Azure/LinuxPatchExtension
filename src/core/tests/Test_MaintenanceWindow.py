@@ -62,6 +62,20 @@ class TestMaintenanceWindow(unittest.TestCase):
         self.assertEqual(int(remaining_time), 0)
         runtime.stop()
 
+    def test_RemainingTime_raise_exception(self):
+        # Arrange
+        argument_composer = ArgumentComposer()
+        argument_composer.start_time = "Invalid datetime format"
+        argument_composer.maximum_duration = "PT1H"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+
+        # Assert
+        with self.assertRaises(ValueError) as context:
+            runtime.maintenance_window.get_remaining_time_in_minutes()
+        self.assertIn("Invalid datetime format", str(context.exception))
+
+        runtime.stop()
+
     def test_check_available_time(self):
         argument_composer = ArgumentComposer()
         argument_composer.start_time = (datetime.datetime.utcnow() - datetime.timedelta(minutes=39)).strftime("%Y-%m-%dT%H:%M:%S.9999Z")
