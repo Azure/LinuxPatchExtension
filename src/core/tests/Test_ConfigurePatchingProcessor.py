@@ -17,6 +17,9 @@ import json
 import os
 import re
 import unittest
+import sys
+from io import StringIO
+
 from core.src.CoreMain import CoreMain
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -42,6 +45,9 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             return Constants.AutomaticOSPatchStates.DISABLED
         else:
             return Constants.AutomaticOSPatchStates.UNKNOWN
+
+    def mock_get_current_auto_os_patch_state(self):
+        raise Exception("Mocked Exception")
     #endregion Mocks
 
     def test_operation_success_for_configure_patching_request_for_apt_with_default_updates_config(self):
@@ -307,6 +313,44 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
 
         # stop test runtime
+        runtime.stop()
+
+    def test_configure_patching_raise_exception(self):
+        # arrange capture std IO
+        captured_output = StringIO()
+        sys.stdout = captured_output
+
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
+        argument_composer.assessment_mode = Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.set_legacy_test_type('HappyPath')
+
+        # mock swap
+        backup_package_manager_get_current_auto_os_patch_state = runtime.package_manager.get_current_auto_os_patch_state
+        runtime.package_manager.get_current_auto_os_patch_state = self.mock_get_current_auto_os_patch_state
+
+        runtime.configure_patching_processor.start_configure_patching()
+
+        # restore sdt.out ouptput
+        sys.stdout = sys.__stdout__
+
+        # assert
+        output = captured_output.getvalue()
+        self.assertIn("Error while processing patch mode configuration", output)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 1)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_TRANSITIONING.lower())
+
+        # restore
+        runtime.package_manager.get_current_auto_os_patch_state = backup_package_manager_get_current_auto_os_patch_state
+
         runtime.stop()
 
     def __check_telemetry_events(self, runtime):
