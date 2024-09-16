@@ -45,7 +45,6 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             return Constants.AutomaticOSPatchStates.DISABLED
         else:
             return Constants.AutomaticOSPatchStates.UNKNOWN
-
     def mock_get_current_auto_os_patch_state(self):
         raise Exception("Mocked Exception")
     #endregion Mocks
@@ -315,7 +314,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # stop test runtime
         runtime.stop()
 
-    def test_configure_patching_raise_exception(self):
+    def test_configure_patching_raise_exception_auto_os_patch_state(self):
         # arrange capture std IO
         captured_output = StringIO()
         sys.stdout = captured_output
@@ -350,6 +349,25 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         # restore
         runtime.package_manager.get_current_auto_os_patch_state = backup_package_manager_get_current_auto_os_patch_state
+
+        runtime.stop()
+
+    def test_configure_patching_raise_exception_auto_assessment_systemd(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.CONFIGURE_PATCHING
+        argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
+        argument_composer.assessment_mode = Constants.AssessmentModes.AUTOMATIC_BY_PLATFORM
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+
+        # mock swap
+        back_up_auto_assess_service_manager = runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists
+        runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists = lambda: False
+
+        self.assertRaises(Exception,
+                          runtime.configure_patching_processor.start_configure_patching())
+        # restore
+        runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists = back_up_auto_assess_service_manager
 
         runtime.stop()
 
