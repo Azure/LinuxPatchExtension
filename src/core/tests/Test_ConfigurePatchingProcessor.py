@@ -364,8 +364,8 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         back_up_auto_assess_service_manager = runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists
         runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists = lambda: False
 
-        self.assertRaises(Exception,
-                          runtime.configure_patching_processor.start_configure_patching())
+        self.assertRaises(Exception, runtime.configure_patching_processor.start_configure_patching())
+
         # restore
         runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists = back_up_auto_assess_service_manager
 
