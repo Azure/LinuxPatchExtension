@@ -67,6 +67,7 @@ class TestMaintenanceWindow(unittest.TestCase):
     def test_RemainingTime_log_to_stdout_true(self):
         # Arrange, Capture stdout
         captured_output = StringIO()
+        original_stdout = sys.stdout
         sys.stdout = captured_output  # Redirect stdout to the StringIO object
 
         argument_composer = ArgumentComposer()
@@ -78,7 +79,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         remaining_time = runtime.maintenance_window.get_remaining_time_in_minutes(current_time, log_to_stdout=True)
 
         # Restore stdout
-        sys.stdout = sys.__stdout__
+        sys.stdout = original_stdout
 
         # Assert
         output = captured_output.getvalue()
