@@ -347,7 +347,6 @@ class TestYumPackageManager(unittest.TestCase):
 
         # test for get_available_updates
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
-        print('available updates', package_versions)
         self.assertIsNotNone(available_updates)
         self.assertIsNotNone(package_versions)
         self.assertEqual(len(available_updates), 4)
@@ -684,8 +683,6 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_filter)
 
         return package_manager.get_available_updates(package_filter)
-
-
 
 if __name__ == '__main__':
     unittest.main()

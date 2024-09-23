@@ -163,7 +163,6 @@ class YumPackageManager(PackageManager):
         other_package_versions = []
 
         all_packages, all_package_versions = self.get_all_updates(True)
-
         security_packages, security_package_versions = self.get_security_updates()
         if len(security_packages) == 0 and 'CentOS' in str(self.env_layer.platform.linux_distribution()):  # deliberately terminal - erring on the side of caution to avoid dissat in uninformed customers
             self.composite_logger.log_error("Please review patch management documentation for information on classification-based patching on YUM.")
@@ -181,12 +180,12 @@ class YumPackageManager(PackageManager):
         return other_packages, other_package_versions
 
     def __is_image_rhel8_higher_skip_security_plugin(self):
-        """Check image RHEL8+ to disable yum-plugin-security """
+        """Check image RHEL8+ to disable install yum-plugin-security """
         if self.env_layer.platform.linux_distribution() is not None:
             os_offer, os_version, os_code = self.env_layer.platform.linux_distribution();
 
             if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
-                self.composite_logger.log_debug("Disable RHEL8+ yum-plugin-security: Os Version " + str(os_version))
+                self.composite_logger.log_debug("Disable RHEL8+ install yum-plugin-security: Os Version " + str(os_version))
                 return True
 
         return False
