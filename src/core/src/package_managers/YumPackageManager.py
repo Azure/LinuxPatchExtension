@@ -142,6 +142,9 @@ class YumPackageManager(PackageManager):
 
     def get_security_updates(self):
         """Get missing security updates"""
+        if self.__is_image_rhel8_higher_for_security_plugin():
+            return [], []
+
         self.composite_logger.log("\nDiscovering 'security' packages...")
         self.install_yum_security_prerequisite()
         out = self.invoke_package_manager(self.yum_check_security)
@@ -160,6 +163,7 @@ class YumPackageManager(PackageManager):
         other_package_versions = []
 
         all_packages, all_package_versions = self.get_all_updates(True)
+
         security_packages, security_package_versions = self.get_security_updates()
         if len(security_packages) == 0 and 'CentOS' in str(self.env_layer.platform.linux_distribution()):  # deliberately terminal - erring on the side of caution to avoid dissat in uninformed customers
             self.composite_logger.log_error("Please review patch management documentation for information on classification-based patching on YUM.")
@@ -175,6 +179,20 @@ class YumPackageManager(PackageManager):
 
         self.composite_logger.log("Discovered " + str(len(other_packages)) + " 'other' package entries.")
         return other_packages, other_package_versions
+
+    def __is_image_rhel8_higher_for_security_plugin(self):
+
+        if self.env_layer.platform.linux_distribution() is not None:
+            os_offer, os_version, os_code = self.env_layer.platform.linux_distribution();
+            print('what is ', os_offer)
+            print('what is os_version', os_version)
+            print('what is os_code', os_code)
+
+            if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
+                print('did this get called Linux')
+                return True
+
+        return False
 
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         pass
