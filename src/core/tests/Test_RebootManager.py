@@ -114,27 +114,27 @@ class TestRebootManager(unittest.TestCase):
         runtime.stop()
 
     def test_start_reboot(self):
-        pass
-        # reboot_setting_in_api = 'Always'
-        # argument_composer = ArgumentComposer()
-        # argument_composer.reboot_setting = reboot_setting_in_api
-        # runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        # reboot_manager = runtime.reboot_manager
-        #
-        # # Validate single reboot scenario
-        # runtime.status_handler.is_reboot_pending = True
-        # result = reboot_manager.start_reboot_if_required_and_time_available(20)
-        # self.assertEqual(result, True)
-        #
-        # # mock completing the reboot once, with no reboot required
-        # runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.REQUIRED)
-        # runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
-        # runtime.status_handler.is_reboot_pending = False
-        # runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)
-        #
-        # # no further reboot should be required
-        # self.assertEqual(reboot_manager.start_reboot_if_required_and_time_available(20), False)
-        # runtime.stop()
+        reboot_setting_in_api = 'Always'
+        argument_composer = ArgumentComposer()
+        argument_composer.reboot_setting = reboot_setting_in_api
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        runtime.container.get('reboot_manager').start_reboot()
+        reboot_manager = runtime.reboot_manager
+
+        # Validate single reboot scenario
+        runtime.status_handler.is_reboot_pending = True
+        result = reboot_manager.start_reboot_if_required_and_time_available(20)
+        self.assertEqual(result, True)
+
+        # mock completing the reboot once, with no reboot required
+        runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.REQUIRED)
+        runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+        runtime.status_handler.is_reboot_pending = False
+        runtime.status_handler.set_installation_reboot_status(Constants.RebootStatus.COMPLETED)
+
+        # no further reboot should be required
+        self.assertEqual(reboot_manager.start_reboot_if_required_and_time_available(20), False)
+        runtime.stop()
 
 
 if __name__ == '__main__':

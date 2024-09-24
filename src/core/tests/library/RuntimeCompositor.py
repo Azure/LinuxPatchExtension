@@ -100,7 +100,7 @@ class RuntimeCompositor(object):
         self.reconfigure_package_manager()
         self.configure_patching_processor = self.container.get('configure_patching_processor')
         self.reboot_manager = self.container.get('reboot_manager')
-        self.reconfigure_reboot_manager()
+        # self.reconfigure_reboot_manager()
         self.package_filter = self.container.get('package_filter')
         self.patch_assessor = self.container.get('patch_assessor')
         self.patch_installer = self.container.get('patch_installer')
