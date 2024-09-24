@@ -165,5 +165,6 @@ class TestMaintenanceWindow(unittest.TestCase):
         self.assertEqual(False, runtime.maintenance_window.is_package_install_time_available(runtime.package_manager, remaining_time_in_minutes, number_of_packages))
         runtime.stop()
 
+
 if __name__ == '__main__':
     unittest.main()

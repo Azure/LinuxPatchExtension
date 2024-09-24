@@ -23,7 +23,7 @@ from core.src.bootstrap.Constants import Constants
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
-from core.src.core_logic.Stopwatch import Stopwatch
+
 
 class TestPatchAssessor(unittest.TestCase):
     def setUp(self):
@@ -165,7 +165,6 @@ class TestPatchAssessor(unittest.TestCase):
         err_msg = "{0}=".format(str(Constants.PerfLogTrackerParams.ERROR_MSG))
         self.assertTrue(err_msg in str(self.runtime.patch_assessor.stopwatch.task_details))
 
-
     def test_stopwatch_properties_assessment_fail(self):
         self.runtime.set_legacy_test_type('UnalignedPath')
         self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
@@ -181,7 +180,6 @@ class TestPatchAssessor(unittest.TestCase):
             self.runtime.patch_assessor.start_assessment()
         self.assertEqual(str(context.exception), Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info))
 
-    
     def test_raise_add_error_to_status(self):
         self.runtime.package_manager.get_all_updates = lambda: self.raise_ex()
         
