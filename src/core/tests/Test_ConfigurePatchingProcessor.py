@@ -18,7 +18,7 @@ import os
 import re
 import unittest
 import sys
-from io import StringIO
+from six import StringIO
 
 from core.src.CoreMain import CoreMain
 from core.src.bootstrap.Constants import Constants
