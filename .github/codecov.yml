@@ -29,5 +29,4 @@ comment:
           if_not_found: failure
     ignore:
       - "test_*.py"
-      paths:
-        - "tests/"
+      - "tests/"
