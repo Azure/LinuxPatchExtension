@@ -9,24 +9,25 @@ comment:
     round: down
     range: "70...100"
     status:
-    project:
-      default:
-      target: 75%
-      threshold: 0%
-      if_ci_failed: error
-      if_not_found: failure
-    patch:
-      default:
-      target: 100%
-      threshold: 0%
-      if_ci_failed: error
-      if_not_found: failure
-    changes:
-      default:
-      target: 100%
-      threshold: 0%
-      if_ci_failed: error
-      if_not_found: failure
-  coverage:
+      project:
+        default:
+          target: 75%
+          threshold: 0%
+          if_ci_failed: error
+          if_not_found: failure
+      patch:
+        default:
+          target: 100%
+          threshold: 0%
+          if_ci_failed: error
+          if_not_found: failure
+      changes:
+        default:
+          target: 100%
+          threshold: 0%
+          if_ci_failed: error
+          if_not_found: failure
     ignore:
       - "test_*.py"
+      paths:
+        - "tests/"
