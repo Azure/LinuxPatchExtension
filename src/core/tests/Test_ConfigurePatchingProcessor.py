@@ -18,7 +18,10 @@ import os
 import re
 import unittest
 import sys
-from six import StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
 
 from core.src.CoreMain import CoreMain
 from core.src.bootstrap.Constants import Constants
