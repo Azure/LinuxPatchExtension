@@ -17,7 +17,7 @@
 import datetime
 import sys
 import unittest
-from six import StringIO
+from io import StringIO
 
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
