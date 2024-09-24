@@ -185,7 +185,7 @@ class YumPackageManager(PackageManager):
             os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
 
             if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
-                self.composite_logger.log_debug("Disable RHEL8+ install yum-plugin-security: Os Version " + str(os_version))
+                self.composite_logger.log_debug("Verify RHEL image version: " + str(os_version))
                 return True
 
         return False
