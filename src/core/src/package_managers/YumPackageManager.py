@@ -142,11 +142,11 @@ class YumPackageManager(PackageManager):
 
     def get_security_updates(self):
         """Get missing security updates"""
-        if self.__is_image_rhel8_higher_skip_security_plugin():
-            return [], []
-
         self.composite_logger.log("\nDiscovering 'security' packages...")
-        self.install_yum_security_prerequisite()
+
+        if not self.__is_image_rhel8_higher():
+            self.install_yum_security_prerequisite()
+
         out = self.invoke_package_manager(self.yum_check_security)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
 
@@ -179,10 +179,10 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log("Discovered " + str(len(other_packages)) + " 'other' package entries.")
         return other_packages, other_package_versions
 
-    def __is_image_rhel8_higher_skip_security_plugin(self):
-        """Check image RHEL8+ to disable install yum-plugin-security """
+    def __is_image_rhel8_higher(self):
+        """ Check if image is RHEL8+ set true else false """
         if self.env_layer.platform.linux_distribution() is not None:
-            os_offer, os_version, os_code = self.env_layer.platform.linux_distribution();
+            os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
 
             if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
                 self.composite_logger.log_debug("Disable RHEL8+ install yum-plugin-security: Os Version " + str(os_version))
