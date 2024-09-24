@@ -121,7 +121,8 @@ class TestRebootManager(unittest.TestCase):
         Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES = -20
 
         with self.assertRaises(Exception) as context:
-            runtime.container.get('reboot_manager').start_reboot()
+            runtime.use_original_rm_start_reboot()
+            runtime.reboot_manager.start_reboot()
 
         # assert
         self.assertIn("Reboot failed to proceed on the machine in a timely manner.", repr(context.exception))

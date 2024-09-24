@@ -15,9 +15,6 @@
 # Requires Python 2.7+
 
 """Reboot management"""
-import datetime
-import subprocess
-import sys
 import time
 from core.src.bootstrap.Constants import Constants
 
@@ -67,7 +64,7 @@ class RebootManager(object):
     def start_reboot(self, message="Azure Patch Management initiated a reboot after a patch installation run."):
         """ Perform a system reboot """
         self.composite_logger.log("\nThe machine is set to reboot in " + self.minutes_to_shutdown + " minutes.")
-        print('did this get called')
+
         self.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
         reboot_init_time = self.env_layer.datetime.datetime_utcnow()
         self.env_layer.reboot_machine(self.reboot_cmd + self.minutes_to_shutdown + ' ' + message)
@@ -86,8 +83,7 @@ class RebootManager(object):
                 self.composite_logger.file_logger.flush()
                 self.composite_logger.log("Waiting for machine reboot. [ElapsedTimeInMinutes={0}] [MaxTimeInMinutes={1}]".format(str(elapsed_time_in_minutes), str(max_allowable_time_to_reboot_in_minutes)))
                 self.composite_logger.file_logger.flush()
-                # time.sleep(60)
-                return
+                time.sleep(60)
 
     def start_reboot_if_required_and_time_available(self, current_time_available):
         """ Starts a reboot if required. Happens only at the end of the run if required. """
