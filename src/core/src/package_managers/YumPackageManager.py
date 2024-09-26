@@ -144,7 +144,7 @@ class YumPackageManager(PackageManager):
         """Get missing security updates"""
         self.composite_logger.log("\nDiscovering 'security' packages...")
 
-        if not self.__is_image_rhel8_higher():
+        if not self.__is_image_rhel8_or_higher():
             self.install_yum_security_prerequisite()
 
         out = self.invoke_package_manager(self.yum_check_security)
@@ -179,8 +179,8 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log("Discovered " + str(len(other_packages)) + " 'other' package entries.")
         return other_packages, other_package_versions
 
-    def __is_image_rhel8_higher(self):
-        """ Check if image is RHEL8+ set true else false """
+    def __is_image_rhel8_or_higher(self):
+        """ Check if image is RHEL8+ return true else false """
         if self.env_layer.platform.linux_distribution() is not None:
             os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
 

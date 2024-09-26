@@ -626,7 +626,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertTrue(available_updates[0] == "grub2-tools.x86_64")
         self.assertTrue(package_versions[0] == "1:2.02-142.el8")
 
-    def test_rhel8_image_lower_with_security_plugin(self):
+    def test_rhel7_image_with_security_plugin(self):
         """Unit test for yum package manager rhel images below 8 and Classification = Security"""
         # mock linux_distribution
         backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
