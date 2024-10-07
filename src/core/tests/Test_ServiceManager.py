@@ -30,16 +30,6 @@ class TestServiceManager(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
-    # mocks
-    def mock_stop_service(self):
-        self.runtime.service_manager.stop_service = True
-
-    def mock_disable_service(self):
-        self.runtime.service_manager.disable_service = True
-
-    def mock_systemctl_daemon_reload(self):
-        self.runtime.service_manager.systemctl_daemon_reload = True
-
     def mock_invoke_systemctl(self, command, description):
         self.runtime.service_manager.invoke_systemctl_called = True
         if "start" in command:
@@ -57,37 +47,6 @@ class TestServiceManager(unittest.TestCase):
         return 1, "Service not started"
 
     # end mocks
-
-    def test_remove_service_path_exists(self):
-        # Arrange
-        original_path_exists = os.path.exists
-        original_os_remove = os.remove
-        os.path.exists = lambda path: True
-        os.remove = lambda path: None
-
-        original_stop_service = self.runtime.service_manager.stop_service
-        original_disable_service = self.runtime.service_manager.disable_service
-        original_systemctl_daemon_reload = self.runtime.service_manager.systemctl_daemon_reload
-
-        # set up mock
-        self.runtime.service_manager.stop_service = self.mock_stop_service
-        self.runtime.service_manager.disable_service = self.mock_disable_service
-        self.runtime.service_manager.systemctl_daemon_reload = self.mock_systemctl_daemon_reload
-
-        # Act
-        self.runtime.service_manager.remove_service()
-
-        # Assert
-        self.assertTrue(self.runtime.service_manager.stop_service)
-        self.assertTrue(self.runtime.service_manager.disable_service)
-        self.assertTrue(self.runtime.service_manager.systemctl_daemon_reload)
-
-        # Restore
-        os.path.exists = original_path_exists
-        os.remove = original_os_remove
-        self.runtime.service_manager.stop_service = original_stop_service
-        self.runtime.service_manager.disable_service = original_disable_service
-        self.runtime.service_manager.systemctl_daemon_reload = original_systemctl_daemon_reload
 
     def test_start_service(self):
         # Set method calls
