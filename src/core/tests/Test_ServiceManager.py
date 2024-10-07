@@ -50,7 +50,7 @@ class TestServiceManager(unittest.TestCase):
 
     # end mocks
 
-    def test_remove_service(self):
+    def test_remove_service_path_exists(self):
         # Arrange
         original_path_exists = os.path.exists
         original_os_remove = os.remove
@@ -68,6 +68,22 @@ class TestServiceManager(unittest.TestCase):
         # Restore
         os.path.exists = original_path_exists
         os.remove = original_os_remove
+
+    def test_remove_service_path_does_not_exists(self):
+        # Arrange
+        original_path_exists = os.path.exists
+        os.path.exists = lambda path: False
+
+        # Act
+        self.runtime.service_manager.remove_service()
+
+        # Assert
+        self.assertTrue(self.runtime.service_manager.stop_service)
+        self.assertTrue(self.runtime.service_manager.disable_service)
+        self.assertTrue(self.runtime.service_manager.systemctl_daemon_reload)
+
+        # Restore
+        os.path.exists = original_path_exists
 
 
 if __name__ == '__main__':
