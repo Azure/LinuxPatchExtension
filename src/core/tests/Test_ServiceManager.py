@@ -44,18 +44,16 @@ class TestServiceManager(unittest.TestCase):
         self.runtime.service_manager.invoke_systemctl_called = True
         if "start" in command:
             return 0, "Service started"
-        elif "Reloading" in command:
+        elif "reload-or-restart" in command:
             return 0, "Reloading the service"
         elif "status" in command:
             return 0, "Getting the service status"
-        elif "enable" in command:
-            return 0, "Enabling the service"
+        elif "enable" in command or "is-enabled" in command:
+            return 0, "Enabling the service or Checking Service is enabled"
         elif "disable" in command:
             return 0, "Disabling the service"
         elif "is-active" in command:
             return 0, "Checking if service is active"
-        elif "is-enabled" in command:
-            return 0, "Checking if service is enabled"
         return 1, "Service not started"
 
     # end mocks
