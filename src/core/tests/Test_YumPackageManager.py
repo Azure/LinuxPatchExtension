@@ -347,7 +347,6 @@ class TestYumPackageManager(unittest.TestCase):
 
         # test for get_available_updates
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
-        print('available updates', package_versions)
         self.assertIsNotNone(available_updates)
         self.assertIsNotNone(package_versions)
         self.assertEqual(len(available_updates), 4)
@@ -627,47 +626,29 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertTrue(available_updates[0] == "grub2-tools.x86_64")
         self.assertTrue(package_versions[0] == "1:2.02-142.el8")
 
-    def test_rhel8_image_lower_with_security_plugin(self):
+    def test_rhel7_image_with_security_plugin(self):
         """Unit test for yum package manager rhel images below 8 and Classification = Security"""
         # mock linux_distribution
         backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux7_distribution_to_return_redhat
 
-        available_updates, package_versions = self.__set_up_happy_path_method()
-
-        # test for get_available_updates
-        self.assertIsNotNone(available_updates)
-        self.assertIsNotNone(package_versions)
-        self.assertEqual(len(available_updates), 2)
-        self.assertEqual(len(package_versions), 2)
-        self.assertEqual(available_updates[0], "libgcc.i686")
-        self.assertEqual(package_versions[0], "4.8.5-28.el7")
-        self.assertEqual(available_updates[1], "tcpdump.x86_64")
-        self.assertEqual(package_versions[1], "14:4.9.2-3.el7")
+        self.__assert_test_rhel8_image()
 
         # restore linux_distribution
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
 
     def test_rhel8_image_higher_no_security_plugin(self):
-        """Unit test for yum package manager rhel images >= 8 and Classification = Security, no security packages"""
+        """Unit test for yum package manager rhel images >= 8 and Classification = Security"""
         # mock linux_distribution
         backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux8_distribution_to_return_redhat
 
-        available_updates, package_versions = self.__set_up_happy_path_method()
-
-        # test for get_available_updates
-        self.assertIsNotNone(available_updates)
-        self.assertIsNotNone(package_versions)
-        self.assertEqual(len(available_updates), 1)
-        self.assertEqual(len(package_versions), 1)
-        self.assertEqual(available_updates[0], "tcpdump.x86_64")
-        self.assertEqual(package_versions[0], "14:4.9.2-3.el7")
+        self.__assert_test_rhel8_image()
 
         # restore linux_distribution
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
 
-    def __set_up_happy_path_method(self):
+    def __assert_test_rhel8_image(self):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
@@ -683,9 +664,17 @@ class TestYumPackageManager(unittest.TestCase):
         package_filter = self.container.get('package_filter')
         self.assertIsNotNone(package_filter)
 
-        return package_manager.get_available_updates(package_filter)
+        available_updates, package_versions = package_manager.get_available_updates(package_filter)
 
-
+        # test for get_available_updates
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
+        self.assertEqual(len(available_updates), 2)
+        self.assertEqual(len(package_versions), 2)
+        self.assertEqual(available_updates[0], "libgcc.i686")
+        self.assertEqual(package_versions[0], "4.8.5-28.el7")
+        self.assertEqual(available_updates[1], "tcpdump.x86_64")
+        self.assertEqual(package_versions[1], "14:4.9.2-3.el7")
 
 if __name__ == '__main__':
     unittest.main()

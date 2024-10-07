@@ -142,11 +142,11 @@ class YumPackageManager(PackageManager):
 
     def get_security_updates(self):
         """Get missing security updates"""
-        if self.__is_image_rhel8_higher_skip_security_plugin():
-            return [], []
-
         self.composite_logger.log("\nDiscovering 'security' packages...")
-        self.install_yum_security_prerequisite()
+
+        if not self.__is_image_rhel8_or_higher():
+            self.install_yum_security_prerequisite()
+
         out = self.invoke_package_manager(self.yum_check_security)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
 
@@ -163,7 +163,6 @@ class YumPackageManager(PackageManager):
         other_package_versions = []
 
         all_packages, all_package_versions = self.get_all_updates(True)
-
         security_packages, security_package_versions = self.get_security_updates()
         if len(security_packages) == 0 and 'CentOS' in str(self.env_layer.platform.linux_distribution()):  # deliberately terminal - erring on the side of caution to avoid dissat in uninformed customers
             self.composite_logger.log_error("Please review patch management documentation for information on classification-based patching on YUM.")
@@ -180,13 +179,13 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log("Discovered " + str(len(other_packages)) + " 'other' package entries.")
         return other_packages, other_package_versions
 
-    def __is_image_rhel8_higher_skip_security_plugin(self):
-        """Check image RHEL8+ to disable yum-plugin-security """
+    def __is_image_rhel8_or_higher(self):
+        """ Check if image is RHEL8+ return true else false """
         if self.env_layer.platform.linux_distribution() is not None:
-            os_offer, os_version, os_code = self.env_layer.platform.linux_distribution();
+            os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
 
             if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
-                self.composite_logger.log_debug("Disable RHEL8+ yum-plugin-security: Os Version " + str(os_version))
+                self.composite_logger.log_debug("Verify RHEL image version: " + str(os_version))
                 return True
 
         return False
