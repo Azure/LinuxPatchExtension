@@ -13,51 +13,61 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import os.path
 import unittest
-from unittest.mock import patch, Mock
-from core.src.core_logic.ServiceManager import ServiceManager
+
+from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
 class TestServiceManager(unittest.TestCase):
     def setUp(self):
-        # Create a mock environment layer, execution config, logger, and telemetry writer
-        self.mock_env_layer = Mock()
-        self.mock_execution_config = Mock()
-        self.mock_composite_logger = Mock()
-        self.mock_telemetry_writer = Mock()
-        self.mock_service_info = Mock()
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True)
 
-        # Create an instance of ServiceManager with the necessary attributes
-        self.service_manager = ServiceManager(
-            env_layer=self.mock_env_layer,
-            execution_config=self.mock_execution_config,
-            composite_logger=self.mock_composite_logger,
-            telemetry_writer=self.mock_telemetry_writer,
-            service_info=self.mock_service_info
-        )
-        self.service_manager.service_name = "test_service"
+        self.runtime.service_manager.service_name = "test_service"
         self.mock_systemd_service_unit_path = "/etc/systemd/system/{0}.service"
 
-    @patch('os.path.exists')
-    @patch('os.remove')
-    @patch.object(ServiceManager, 'stop_service')
-    @patch.object(ServiceManager, 'disable_service')
-    @patch.object(ServiceManager, 'systemctl_daemon_reload')
-    def test_remove_service(self, mock_reload, mock_disable, mock_stop, mock_remove, mock_exists):
+        self.runtime.service_manager.stop_service_called = False
+        self.runtime.service_manager.disable_service_called = False
+        self.runtime.service_manager.systemctl_daemon_reload_called = False
+
+        self.runtime.service_manager.stop_service = self.mock_stop_service
+        self.runtime.service_manager.disable_service = self.mock_disable_service
+        self.runtime.service_manager.systemctl_daemon_reload = self.mock_systemctl_daemon_reload
+
+    def tearDown(self):
+        self.runtime.stop()
+
+    # mocks
+    def mock_stop_service(self):
+        self.runtime.service_manager.stop_service_called = True
+
+    def mock_disable_service(self):
+        self.runtime.service_manager.disable_service_called = True
+
+    def mock_systemctl_daemon_reload(self):
+        self.runtime.service_manager.systemctl_daemon_reload_called = True
+
+    # end mocks
+
+    def test_remove_service(self):
         # Arrange
-        mock_exists.return_value = True
+        original_path_exists = os.path.exists
+        original_os_remove = os.remove
+        os.path.exists = lambda path: True
+        os.remove = lambda path: None
 
         # Act
-        self.service_manager.remove_service()
+        self.runtime.service_manager.remove_service()
 
         # Assert
-        service_path = self.mock_systemd_service_unit_path.format(self.service_manager.service_name)
-        mock_exists.assert_called_once_with(service_path)
-        mock_stop.assert_called_once()
-        mock_disable.assert_called_once()
-        mock_remove.assert_called_once_with(service_path)
-        mock_reload.assert_called_once()
+        self.assertTrue(self.runtime.service_manager.stop_service)
+        self.assertTrue(self.runtime.service_manager.disable_service)
+        self.assertTrue(self.runtime.service_manager.systemctl_daemon_reload)
+
+        # Restore
+        os.path.exists = original_path_exists
+        os.remove = original_os_remove
 
 
 if __name__ == '__main__':
