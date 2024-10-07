@@ -73,21 +73,24 @@ class TestServiceManager(unittest.TestCase):
         self.runtime.service_manager.disable_service = original_disable_service
         self.runtime.service_manager.systemctl_daemon_reload = original_systemctl_daemon_reload
 
-    def test_remove_service_path_does_not_exists(self):
-        # Arrange
-        original_path_exists = os.path.exists
-        os.path.exists = lambda path: False
+    def test_start_service(self):
+        # Track method calls
+        self.runtime.service_manager.invoke_systemctl_called = False
+
+        def invoke_systemctl(command, description):
+            self.runtime.service_manager.invoke_systemctl_called = True
+            if "start" in command:
+                return 0, "Service started"
+            return 1, "Service not started"
+
+        self.runtime.service_manager.invoke_systemctl = invoke_systemctl
 
         # Act
-        self.runtime.service_manager.remove_service()
+        result = self.runtime.service_manager.start_service()
 
         # Assert
-        self.assertTrue(self.runtime.service_manager.stop_service)
-        self.assertTrue(self.runtime.service_manager.disable_service)
-        self.assertTrue(self.runtime.service_manager.systemctl_daemon_reload)
-
-        # Restore
-        os.path.exists = original_path_exists
+        self.assertTrue(result, "Service should be started")
+        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called, "invoke_systemctl was not called")
 
 
 if __name__ == '__main__':
