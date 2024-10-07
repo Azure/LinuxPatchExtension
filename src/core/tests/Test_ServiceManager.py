@@ -27,26 +27,18 @@ class TestServiceManager(unittest.TestCase):
         self.runtime.service_manager.service_name = "test_service"
         self.mock_systemd_service_unit_path = "/etc/systemd/system/{0}.service"
 
-        self.runtime.service_manager.stop_service_called = False
-        self.runtime.service_manager.disable_service_called = False
-        self.runtime.service_manager.systemctl_daemon_reload_called = False
-
-        self.runtime.service_manager.stop_service = self.mock_stop_service
-        self.runtime.service_manager.disable_service = self.mock_disable_service
-        self.runtime.service_manager.systemctl_daemon_reload = self.mock_systemctl_daemon_reload
-
     def tearDown(self):
         self.runtime.stop()
 
     # mocks
     def mock_stop_service(self):
-        self.runtime.service_manager.stop_service_called = True
+        self.runtime.service_manager.stop_service = True
 
     def mock_disable_service(self):
-        self.runtime.service_manager.disable_service_called = True
+        self.runtime.service_manager.disable_service = True
 
     def mock_systemctl_daemon_reload(self):
-        self.runtime.service_manager.systemctl_daemon_reload_called = True
+        self.runtime.service_manager.systemctl_daemon_reload = True
 
     # end mocks
 
@@ -56,6 +48,15 @@ class TestServiceManager(unittest.TestCase):
         original_os_remove = os.remove
         os.path.exists = lambda path: True
         os.remove = lambda path: None
+
+        original_stop_service = self.runtime.service_manager.stop_service
+        original_disable_service = self.runtime.service_manager.disable_service
+        original_systemctl_daemon_reload = self.runtime.service_manager.systemctl_daemon_reload
+
+        # set up mock
+        self.runtime.service_manager.stop_service = self.mock_stop_service
+        self.runtime.service_manager.disable_service = self.mock_disable_service
+        self.runtime.service_manager.systemctl_daemon_reload = self.mock_systemctl_daemon_reload
 
         # Act
         self.runtime.service_manager.remove_service()
@@ -68,6 +69,9 @@ class TestServiceManager(unittest.TestCase):
         # Restore
         os.path.exists = original_path_exists
         os.remove = original_os_remove
+        self.runtime.service_manager.stop_service = original_stop_service
+        self.runtime.service_manager.disable_service = original_disable_service
+        self.runtime.service_manager.systemctl_daemon_reload = original_systemctl_daemon_reload
 
     def test_remove_service_path_does_not_exists(self):
         # Arrange
