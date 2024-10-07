@@ -40,6 +40,24 @@ class TestServiceManager(unittest.TestCase):
     def mock_systemctl_daemon_reload(self):
         self.runtime.service_manager.systemctl_daemon_reload = True
 
+    def mock_invoke_systemctl(self, command, description):
+        self.runtime.service_manager.invoke_systemctl_called = True
+        if "start" in command:
+            return 0, "Service started"
+        elif "Reloading" in command:
+            return 0, "Reloading the service"
+        elif "status" in command:
+            return 0, "Getting the service status"
+        elif "enable" in command:
+            return 0, "Enabling the service"
+        elif "disable" in command:
+            return 0, "Disabling the service"
+        elif "is-active" in command:
+            return 0, "Checking if service is active"
+        elif "is-enabled" in command:
+            return 0, "Checking if service is enabled"
+        return 1, "Service not started"
+
     # end mocks
 
     def test_remove_service_path_exists(self):
@@ -74,23 +92,108 @@ class TestServiceManager(unittest.TestCase):
         self.runtime.service_manager.systemctl_daemon_reload = original_systemctl_daemon_reload
 
     def test_start_service(self):
-        # Track method calls
+        # Set method calls
         self.runtime.service_manager.invoke_systemctl_called = False
 
-        def invoke_systemctl(command, description):
-            self.runtime.service_manager.invoke_systemctl_called = True
-            if "start" in command:
-                return 0, "Service started"
-            return 1, "Service not started"
-
-        self.runtime.service_manager.invoke_systemctl = invoke_systemctl
+        self.runtime.service_manager.invoke_systemctl = self.mock_invoke_systemctl
 
         # Act
         result = self.runtime.service_manager.start_service()
 
         # Assert
         self.assertTrue(result, "Service should be started")
-        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called, "invoke_systemctl was not called")
+        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called)
+
+    def test_stop_service(self):
+        # Set method calls
+        self.runtime.service_manager.invoke_systemctl_called = False
+
+        self.runtime.service_manager.invoke_systemctl = self.mock_invoke_systemctl
+
+        # Act
+        result = self.runtime.service_manager.reload_service()
+
+        # Assert
+        self.assertTrue(result, "Reloading the service.")
+        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called)
+
+    def test_reload_service(self):
+        # Set method calls
+        self.runtime.service_manager.invoke_systemctl_called = False
+
+        self.runtime.service_manager.invoke_systemctl = self.mock_invoke_systemctl
+
+        # Act
+        result = self.runtime.service_manager.stop_service()
+
+        # Assert
+        self.assertFalse(result, "Service should not be started")
+        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called)
+
+    def test_get_service_status(self):
+        # Set method calls
+        self.runtime.service_manager.invoke_systemctl_called = False
+
+        self.runtime.service_manager.invoke_systemctl = self.mock_invoke_systemctl
+
+        # Act
+        result = self.runtime.service_manager.get_service_status()
+
+        # Assert
+        self.assertTrue(result, "Getting the service status")
+        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called)
+
+    def test_enable_service(self):
+        # Set method calls
+        self.runtime.service_manager.invoke_systemctl_called = False
+
+        self.runtime.service_manager.invoke_systemctl = self.mock_invoke_systemctl
+
+        # Act
+        result = self.runtime.service_manager.enable_service()
+
+        # Assert
+        self.assertTrue(result, "Enabling the service")
+        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called)
+
+    def test_disable_service(self):
+        # Set method calls
+        self.runtime.service_manager.invoke_systemctl_called = False
+
+        self.runtime.service_manager.invoke_systemctl = self.mock_invoke_systemctl
+
+        # Act
+        result = self.runtime.service_manager.disable_service()
+
+        # Assert
+        self.assertTrue(result, "Disabling the service")
+        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called)
+
+    def test_is_service_active(self):
+        # Set method calls
+        self.runtime.service_manager.invoke_systemctl_called = False
+
+        self.runtime.service_manager.invoke_systemctl = self.mock_invoke_systemctl
+
+        # Act
+        result = self.runtime.service_manager.is_service_active()
+
+        # Assert
+        self.assertTrue(result, "Checking if service is active")
+        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called)
+
+    def test_is_service_enabled(self):
+        # Set method calls
+        self.runtime.service_manager.invoke_systemctl_called = False
+
+        self.runtime.service_manager.invoke_systemctl = self.mock_invoke_systemctl
+
+        # Act
+        result = self.runtime.service_manager.is_service_enabled()
+
+        # Assert
+        self.assertTrue(result, "Checking if service is enabled")
+        self.assertTrue(self.runtime.service_manager.invoke_systemctl_called)
 
 
 if __name__ == '__main__':
