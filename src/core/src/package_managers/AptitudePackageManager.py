@@ -54,7 +54,7 @@ class AptitudePackageManager(PackageManager):
         # Install update
         # --only-upgrade: upgrade only single package (only if it is installed)
         self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true install '''
-        self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true upgrade <SOURCES> '''
+        self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true dist-upgrade <SOURCES> '''
 
         # Package manager exit code(s)
         self.apt_exitcode_ok = 0
@@ -79,6 +79,8 @@ class AptitudePackageManager(PackageManager):
 
         self.ubuntu_pro_client_all_updates_cached = []
         self.ubuntu_pro_client_all_updates_versions_cached = []
+        
+        self.package_install_expected_avg_time_in_seconds = 90 # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
@@ -761,4 +763,7 @@ class AptitudePackageManager(PackageManager):
 
         self.composite_logger.log_debug("Filter esm packages : [TotalPackagesCount={0}][EsmPackagesCount={1}]".format(len(packages), len(ua_esm_required_packages)))
         return non_esm_packages, non_esm_package_versions, ua_esm_required_packages, ua_esm_required_package_versions, ua_esm_required_packages_found
+
+    def get_package_install_expected_avg_time_in_seconds(self):
+        return self.package_install_expected_avg_time_in_seconds
 
