@@ -43,6 +43,7 @@ except ImportError:
 class RuntimeCompositor(object):
     def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE):
         # Init data
+        self.original_rm_start_reboot = None
         self.current_env = Constants.DEV
         os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
@@ -105,6 +106,7 @@ class RuntimeCompositor(object):
         self.patch_assessor = self.container.get('patch_assessor')
         self.patch_installer = self.container.get('patch_installer')
         self.maintenance_window = self.container.get('maintenance_window')
+        self.service_manager = self.container.get('auto_assess_service_manager')
         self.vm_cloud_type = bootstrapper.configuration_factory.vm_cloud_type
         # Extension handler dependency
         self.write_ext_state_file(self.lifecycle_manager.ext_state_file_path, self.execution_config.sequence_number, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"), self.execution_config.operation)
@@ -150,10 +152,17 @@ class RuntimeCompositor(object):
             self.env_layer.etc_environment_file_path = os.getcwd()
 
     def reconfigure_reboot_manager(self):
+        # Preserve the original reboot manager start_reboot method
+        self.original_rm_start_reboot = self.reboot_manager.start_reboot
+
+        # Reassign start_reboot to a new mock method
         self.reboot_manager.start_reboot = self.start_reboot
 
     def start_reboot(self, message="Test initiated reboot mock"):
         self.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+
+    def use_original_rm_start_reboot(self):
+        self.reboot_manager.start_reboot = self.original_rm_start_reboot
 
     def reconfigure_package_manager(self):
         self.backup_get_current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state
