@@ -150,12 +150,12 @@ class EnvLayer(object):
                 if self.require_tty_setting not in str(setting):
                     continue
 
-                if re.match('.*!' + self.require_tty_setting, setting):
-                    setting_substr_without_requiretty = re.search('(.*)!' + self.require_tty_setting, setting).group(1).strip()
+                if re.match(r'.*!' + self.require_tty_setting, setting):
+                    setting_substr_without_requiretty = re.search(r'(.*)!' + self.require_tty_setting, setting).group(1).strip()
                     if self.is_tty_defaults_set(setting_substr_without_requiretty):
                         tty_set_to_required = False
                 else:
-                    setting_substr_without_requiretty = re.search('(.*)' + self.require_tty_setting, setting).group(1).strip()
+                    setting_substr_without_requiretty = re.search(r'(.*)' + self.require_tty_setting, setting).group(1).strip()
                     if self.is_tty_defaults_set(setting_substr_without_requiretty):
                         tty_set_to_required = True
 
