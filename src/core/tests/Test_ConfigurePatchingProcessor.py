@@ -18,7 +18,11 @@ import os
 import re
 import unittest
 import sys
-from io import StringIO
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
 
 from core.src.CoreMain import CoreMain
 from core.src.bootstrap.Constants import Constants
@@ -317,6 +321,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
     def test_configure_patching_raise_exception_auto_os_patch_state(self):
         # arrange capture std IO
         captured_output = StringIO()
+        original_stdout = sys.stdout
         sys.stdout = captured_output
 
         argument_composer = ArgumentComposer()
@@ -334,7 +339,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         runtime.configure_patching_processor.start_configure_patching()
 
         # restore sdt.out ouptput
-        sys.stdout = sys.__stdout__
+        sys.stdout = original_stdout
 
         # assert
         output = captured_output.getvalue()
