@@ -16,6 +16,7 @@
 
 """ The patch install orchestrator """
 import datetime
+from datetime import timedelta
 import math
 import os
 import sys
@@ -461,7 +462,6 @@ class PatchInstaller(object):
         installed_update_count_in_batch_patching = 0
         patch_installation_successful_in_batch_patching = True
 
-
         for phase in range(Constants.PackageBatchConfig.MAX_PHASES_FOR_BATCH_PATCHING):
             if len(packages) == 0:
                 break
@@ -488,7 +488,8 @@ class PatchInstaller(object):
                                          self.failed_parent_package_install_count, "RemainingPackagesToInstall", str(len(packages)), Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_installation_successful),
                                          "IsMaintenanceWindowBatchCutoffReached", str(maintenance_window_batch_cutoff_reached))
 
-            stopwatch_for_phase.write_telemetry_for_stopwatch(str(batch_phase_processing_perf_log))
+            if self.install_patches_in_single_batch() == False:
+                stopwatch_for_phase.write_telemetry_for_stopwatch(str(batch_phase_processing_perf_log))
 
             max_batch_size_for_packages = int(max_batch_size_for_packages / Constants.PackageBatchConfig.BATCH_SIZE_DECAY_FACTOR)
 
@@ -815,10 +816,14 @@ class PatchInstaller(object):
         if self.install_patches_in_single_batch == True:
             return self.install_patches_in_single_batch
         
+        dur = datetime.datetime.strptime(self.duration, "%H:%M:%S")
+        dura = timedelta(hours=dur.hour, minutes=dur.minute, seconds=dur.second)
+        total_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(dura)
+        max_maintenance_window_criteria = total_time_in_minutes >= Constants.MAX_PATCH_DURATION
         no_inclusion_exclusion_criteria = not (self.package_filter.is_exclusion_list_present() or self.package_filter.is_inclusion_list_present())
-        classification_criteria = self.package_filter.is_msft_critsec_classification_only()
-        suse_criteria = self.env_layer.get_package_manager() == Constants.YUM
-        user_flag_criteria = os.path.exists(Constants.INSTALL_PATCHS_IN_SINGLE_BATCH)
-        self.install_patches_in_single_batch =  no_inclusion_exclusion_criteria and classification_criteria and suse_criteria and user_flag_criteria
-
+        classification_criteria = self.package_filter.is_msft_critsec_classification_only()       
+        suse_criteria = self.env_layer.get_package_manager() == Constants.ZYPPER
+        user_flag_criteria = os.path.exists(Constants.INSTALL_PATCHES_IN_SINGLE_BATCH)
+        self.install_patches_in_single_batch =  max_maintenance_window_criteria and no_inclusion_exclusion_criteria and classification_criteria and suse_criteria and user_flag_criteria
+        self.composite_logger.log_debug("Single Back Criteria: max maintenace window: {0}, no inclusion/exclusion {1}, classification {2}, Package Manager {3}, User Flag {4}".format(max_maintenance_window_criteria, no_inclusion_exclusion_criteria, classification_criteria, suse_criteria, user_flag_criteria))
         return self.install_patches_in_single_batch
