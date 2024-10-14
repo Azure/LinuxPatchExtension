@@ -51,7 +51,7 @@ class Constants(object):
     # Max values
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
     MAX_AUTO_ASSESSMENT_WAIT_FOR_MAIN_CORE_EXEC_IN_MINUTES = 3 * 60
-    MAX_PATCH_DURATION = 235
+    MAX_PATCH_OPERATION_DURATION_IN_MINUTES = 235
 
     class SystemPaths(EnumBackport):
         SYSTEMD_ROOT = "/etc/systemd/system/"

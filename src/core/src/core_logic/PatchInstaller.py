@@ -819,7 +819,7 @@ class PatchInstaller(object):
         dur = datetime.datetime.strptime(self.duration, "%H:%M:%S")
         dura = timedelta(hours=dur.hour, minutes=dur.minute, seconds=dur.second)
         total_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(dura)
-        max_maintenance_window_criteria = total_time_in_minutes >= Constants.MAX_PATCH_DURATION
+        max_maintenance_window_criteria = total_time_in_minutes >= Constants.MAX_PATCH_OPERATION_DURATION_IN_MINUTES
         no_inclusion_exclusion_criteria = not (self.package_filter.is_exclusion_list_present() or self.package_filter.is_inclusion_list_present())
         classification_criteria = self.package_filter.is_msft_critsec_classification_only()       
         suse_criteria = self.env_layer.get_package_manager() == Constants.ZYPPER
