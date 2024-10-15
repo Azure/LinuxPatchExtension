@@ -13,6 +13,15 @@ License: Apache License, version 2.0. License is included with the source, unmod
 
 Reason for inclusion: platform.linux_distribution is being removed in Python 3.8 and this is the commonly recommended replacement online.
 
+# 2. Packaging.Version - an version compare API
+
+Source: https://pypi.org/project/packaging
+
+File(s): version.py
+
+License: Apache License, version 2.0. License is included with the source, unmodified.
+
+Reason for inclusion: distutils.LooseVersion is being removed in Python 3.11.
 
 -----
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). 
