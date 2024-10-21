@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 import os
+import time
 
 from core.src.bootstrap.Bootstrapper import Bootstrapper
 from core.src.bootstrap.Constants import Constants
@@ -51,7 +52,12 @@ class CoreMain(object):
 
             # Environment startup
             bootstrapper.bootstrap_splash_text()
-            bootstrapper.basic_environment_health_check()
+
+            if status_handler.get_installation_reboot() == Constants.RebootStatus.COMPLETED:
+                self.__retry_sudo_check_after_reboot(6, 300, bootstrapper, composite_logger)
+            else:
+                bootstrapper.basic_environment_health_check()
+
             lifecycle_manager.execution_start_check()  # terminates if this instance shouldn't be running (redundant)
 
             # Execution config retrieval
@@ -174,3 +180,21 @@ class CoreMain(object):
                and execution_config.temp_folder is not None \
                and os.path.exists(execution_config.temp_folder)
 
+    def __retry_sudo_check_after_reboot(self, retries=6, time_interval=300, bootstrapper=None, composite_logger=None):
+        attempts = 0
+        max_attempts = retries
+
+        while attempts < max_attempts:
+            try:
+                bootstrapper.basic_environment_health_check()
+                break
+            except Exception as e:
+                attempts += 1
+                composite_logger.log_debug("Attempt failed, error={0} ", e)
+
+                if attempts < max_attempts:
+                    composite_logger.log_debug("Retrying Interval={0} sec", time_interval)
+                    time.sleep(time_interval)
+                else:
+                    composite_logger.log_debug("Max retries={0} reached after attempts={1}. Exiting ", max_attempts, attempts)
+                    raise
