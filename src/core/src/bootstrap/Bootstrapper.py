@@ -19,6 +19,8 @@ import base64
 import json
 import os
 import sys
+import time
+
 from core.src.bootstrap.ConfigurationFactory import ConfigurationFactory
 from core.src.bootstrap.Constants import Constants
 from core.src.bootstrap.Container import Container
@@ -175,3 +177,22 @@ class Bootstrapper(object):
             if raise_if_not_sudo:
                 raise
 
+    def retry_check_sudo_status(self, retries=6, time_interval=300):
+        """ Retry check sudo status in os within half an hour at interval 300 sec(5 min) """
+        attempts = 0
+        max_attempts = retries
+
+        while attempts < max_attempts:
+            try:
+                self.check_sudo_status()
+                break
+            except Exception as e:
+                attempts += 1
+                self.composite_logger.log_debug("Attempt failed, error={0} ", e)
+
+                if attempts < max_attempts:
+                    self.composite_logger.log_debug("Retrying Interval={0} sec", time_interval)
+                    time.sleep(time_interval)
+                else:
+                    self.composite_logger.log_debug("Max retries={0} reached after attempts={1}. Exiting ", max_attempts, attempts)
+                    raise

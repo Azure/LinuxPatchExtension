@@ -53,8 +53,8 @@ class CoreMain(object):
             # Environment startup
             bootstrapper.bootstrap_splash_text()
 
-            if status_handler.get_installation_reboot() == Constants.RebootStatus.COMPLETED:
-                self.__retry_sudo_check_after_reboot(6, 300, bootstrapper, composite_logger)
+            if status_handler is not None and status_handler.get_installation_reboot() == Constants.RebootStatus.COMPLETED:
+                bootstrapper.retry_check_sudo_status(retries=6, time_interval=300)
             else:
                 bootstrapper.basic_environment_health_check()
 
@@ -179,22 +179,3 @@ class CoreMain(object):
                and execution_config is not None \
                and execution_config.temp_folder is not None \
                and os.path.exists(execution_config.temp_folder)
-
-    def __retry_sudo_check_after_reboot(self, retries=6, time_interval=300, bootstrapper=None, composite_logger=None):
-        attempts = 0
-        max_attempts = retries
-
-        while attempts < max_attempts:
-            try:
-                bootstrapper.basic_environment_health_check()
-                break
-            except Exception as e:
-                attempts += 1
-                composite_logger.log_debug("Attempt failed, error={0} ", e)
-
-                if attempts < max_attempts:
-                    composite_logger.log_debug("Retrying Interval={0} sec", time_interval)
-                    time.sleep(time_interval)
-                else:
-                    composite_logger.log_debug("Max retries={0} reached after attempts={1}. Exiting ", max_attempts, attempts)
-                    raise
