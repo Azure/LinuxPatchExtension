@@ -14,7 +14,6 @@
 #
 # Requires Python 2.7+
 import os
-import time
 
 from core.src.bootstrap.Bootstrapper import Bootstrapper
 from core.src.bootstrap.Constants import Constants
@@ -52,12 +51,7 @@ class CoreMain(object):
 
             # Environment startup
             bootstrapper.bootstrap_splash_text()
-
-            if status_handler is not None and status_handler.get_installation_reboot() == Constants.RebootStatus.COMPLETED:
-                bootstrapper.retry_check_sudo_status(retries=6, time_interval=300)
-            else:
-                bootstrapper.basic_environment_health_check()
-
+            bootstrapper.basic_environment_health_check()
             lifecycle_manager.execution_start_check()  # terminates if this instance shouldn't be running (redundant)
 
             # Execution config retrieval

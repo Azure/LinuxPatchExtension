@@ -144,39 +144,52 @@ class Bootstrapper(object):
         self.composite_logger.log("Process id: " + str(os.getpid()))
 
         # Ensure sudo works in the environment
+        # perform retry logic if it fails
         sudo_check_result = self.check_sudo_status()
         self.composite_logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
 
     def check_sudo_status(self, raise_if_not_sudo=True):
         """ Checks if we can invoke sudo successfully. """
-        try:
-            self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
-            return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
-            # output should look like either this (bad):
-            #   [sudo] password for username:
-            #   False
-            # or this (good):
-            #   uid=0(root) gid=0(root) groups=0(root)
-            #   True
+        retry_interval = 300
+        max_attemps = 6
+        for attempt in range (max_attemps):
+            try:
+                self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
+                return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
+                # output should look like either this (bad):
+                #   [sudo] password for username:
+                #   False
+                # or this (good):
+                #   uid=0(root) gid=0(root) groups=0(root)
+                #   True
 
-            output_lines = output.splitlines()
-            if len(output_lines) < 2:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
+                output_lines = output.splitlines()
+                if len(output_lines) < 2:
+                    raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
 
-            if output_lines[1] == "True":
-                return True
-            elif output_lines[1] == "False":
-                if raise_if_not_sudo:
-                    raise Exception("Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
-                return False
-            else:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
-        except Exception as exception:
-            self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
-                                            "Exception details: " + str(exception))
-            if raise_if_not_sudo:
-                raise
+                if output_lines[1] == "True":
+                    return True
+                elif output_lines[1] == "False":
+                    if raise_if_not_sudo:
+                        raise Exception("Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
+                    return False
+                else:
+                    raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
+            except Exception as exception:
+                self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
+                                                "Exception details: " + str(exception))
+                if attempt == max_attemps - 1:
+                    self.composite_logger.log_error("Maximum retry attempts reached.")
+                    if raise_if_not_sudo:
+                        raise
+                    return False
 
+                self.composite_logger.log_error("Retrying sudo status check in 5 minutes...")
+                time.sleep(retry_interval)
+
+    # log when we do retry
+    # gather if retry happens, how many time it succeeded or failed
+    # key log msg - succeeded after try, fail after retry
     def retry_check_sudo_status(self, retries=6, time_interval=300):
         """ Retry check sudo status in os within half an hour at interval 300 sec(5 min) """
         attempts = 0
@@ -188,11 +201,11 @@ class Bootstrapper(object):
                 break
             except Exception as e:
                 attempts += 1
-                self.composite_logger.log_debug("Attempt failed, error={0} ", e)
+                self.composite_logger.log_debug("Attempt failed, error={0}", e)
 
                 if attempts < max_attempts:
                     self.composite_logger.log_debug("Retrying Interval={0} sec", time_interval)
                     time.sleep(time_interval)
                 else:
-                    self.composite_logger.log_debug("Max retries={0} reached after attempts={1}. Exiting ", max_attempts, attempts)
+                    self.composite_logger.log_debug("Max retries={0} reached after attempts={1}. Exiting", max_attempts, attempts)
                     raise
