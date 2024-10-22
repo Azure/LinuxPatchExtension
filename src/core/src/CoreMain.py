@@ -173,3 +173,4 @@ class CoreMain(object):
                and execution_config is not None \
                and execution_config.temp_folder is not None \
                and os.path.exists(execution_config.temp_folder)
+
