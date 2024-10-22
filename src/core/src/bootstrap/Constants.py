@@ -94,7 +94,7 @@ class Constants(object):
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
 
     #File to install packages at once
-    INSTALL_PATCHES_IN_SINGLE_BATCH = "/var/lib/azure/linuxpatchextension/fasttrack-patch-installation"
+    INSTALL_PATCHES_IN_SINGLE_BATCH = "/var/lib/azure/linuxpatchextension/fasttrack-patch-installation.settings"
 
     # Auto assessment shell script name
     CORE_AUTO_ASSESS_SH_FILE_NAME = "MsftLinuxPatchAutoAssess.sh"
