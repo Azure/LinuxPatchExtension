@@ -19,6 +19,8 @@ import base64
 import json
 import os
 import sys
+import time
+
 from core.src.bootstrap.ConfigurationFactory import ConfigurationFactory
 from core.src.bootstrap.Constants import Constants
 from core.src.bootstrap.Container import Container
@@ -142,36 +144,46 @@ class Bootstrapper(object):
         self.composite_logger.log("Process id: " + str(os.getpid()))
 
         # Ensure sudo works in the environment
+        # perform retry logic if it fails
         sudo_check_result = self.check_sudo_status()
         self.composite_logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
 
     def check_sudo_status(self, raise_if_not_sudo=True):
         """ Checks if we can invoke sudo successfully. """
-        try:
-            self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
-            return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
-            # output should look like either this (bad):
-            #   [sudo] password for username:
-            #   False
-            # or this (good):
-            #   uid=0(root) gid=0(root) groups=0(root)
-            #   True
+        for attempts in range(Constants.MAX_CHECK_SUDO_RETRY_COUNT):
+            try:
+                self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
+                return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
+                # output should look like either this (bad):
+                #   [sudo] password for username:
+                #   False
+                # or this (good):
+                #   uid=0(root) gid=0(root) groups=0(root)
+                #   True
 
-            output_lines = output.splitlines()
-            if len(output_lines) < 2:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
+                output_lines = output.splitlines()
+                if len(output_lines) < 2:
+                    raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
 
-            if output_lines[1] == "True":
-                return True
-            elif output_lines[1] == "False":
-                if raise_if_not_sudo:
-                    raise Exception("Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
-                return False
-            else:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
-        except Exception as exception:
-            self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
-                                            "Exception details: " + str(exception))
-            if raise_if_not_sudo:
-                raise
+                if output_lines[1] == "True":
+                    self.composite_logger.log("Sudo Check Successfully [Attempts={0}][MaxAttempts={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
+                    return True
+                elif output_lines[1] == "False":
+                    if raise_if_not_sudo:
+                        self.composite_logger.log("Sudo Check Failed [Attempts={0}][MaxAttempts={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
+                        raise Exception("Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
+                    return False
+                else:
+                    self.composite_logger.log("Sudo Check Failed [Attempts={0}][MaxAttempts={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
+                    raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
+            except Exception as exception:
+                self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
+                                                "Exception details: " + str(exception))
+                if attempts == Constants.MAX_CHECK_SUDO_RETRY_COUNT - 1:
+                    self.composite_logger.log("Sudo Check Failed, reached [MaxAttempts={0}]".format(str(attempts)))
+                    if raise_if_not_sudo:
+                        raise
+                    return False
 
+                self.composite_logger.log_error("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][Attempts={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
