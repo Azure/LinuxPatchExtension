@@ -220,6 +220,8 @@ class Constants(object):
     MAX_IMDS_CONNECTION_RETRY_COUNT = 5
     MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT = 5
     MAX_COMPLETE_STATUS_FILES_TO_RETAIN = 10
+    MAX_CHECK_SUDO_RETRY_COUNT = 6
+    MAX_CHECK_SUDO_INTERVAL_IN_SEC = 300
 
     class PackageBatchConfig(EnumBackport):
         # Batch Patching Parameters
