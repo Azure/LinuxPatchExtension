@@ -825,5 +825,5 @@ class PatchInstaller(object):
         suse_criteria = self.env_layer.get_package_manager() == Constants.ZYPPER
         user_flag_criteria = os.path.exists(Constants.INSTALL_PATCHES_IN_SINGLE_BATCH)
         self.install_patches_in_single_batch =  max_maintenance_window_criteria and no_inclusion_exclusion_criteria and classification_criteria and suse_criteria and user_flag_criteria
-        self.composite_logger.log_debug("Single Back Criteria: max maintenace window: {0}, no inclusion/exclusion {1}, classification {2}, Package Manager {3}, User Flag {4}".format(max_maintenance_window_criteria, no_inclusion_exclusion_criteria, classification_criteria, suse_criteria, user_flag_criteria))
+        self.composite_logger.log_debug("Single Back Criteria: max maintenace window:{0}, no inclusion/exclusion {1}, classification {2}, Package Manager {3}, User Flag {4}".format(max_maintenance_window_criteria, no_inclusion_exclusion_criteria, classification_criteria, suse_criteria, user_flag_criteria))
         return self.install_patches_in_single_batch
