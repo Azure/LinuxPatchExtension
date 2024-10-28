@@ -72,12 +72,13 @@ class RuntimeCompositor(object):
         # Adapted bootstrapper
         self.bootstrapper = Bootstrapper(self.argv, capture_stdout=False)
 
+        # Reconfigure env layer for legacy mode tests
+        self.env_layer = self.bootstrapper.env_layer
+
         # Overriding sudo status check
         if self.set_mock_sudo_status:
             Bootstrapper.check_sudo_status = self.check_sudo_status
 
-        # Reconfigure env layer for legacy mode tests
-        self.env_layer = self.bootstrapper.env_layer
         if legacy_mode:
             self.legacy_env_layer_extensions = LegacyEnvLayerExtensions(package_manager_name)
             self.reconfigure_env_layer_to_legacy_mode()
@@ -166,6 +167,12 @@ class RuntimeCompositor(object):
 
     def check_sudo_status(self, raise_if_not_sudo=True):
         return True
+
+    # def mock_ev_layer_return(self):
+    #     self.env_layer.run_command_output = self.mock_layer
+
+    def mock_layer(self):
+        return 0, 'True'
 
     def get_current_auto_os_patch_state(self):
         return Constants.AutomaticOSPatchStates.DISABLED
