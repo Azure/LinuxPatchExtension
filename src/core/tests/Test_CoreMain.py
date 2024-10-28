@@ -1215,6 +1215,24 @@ class TestCoreMain(unittest.TestCase):
         os.remove = self.backup_os_remove
         runtime.stop()
 
+    def test_retry_check_sudo_status_attempts_failed(self):
+        # test retry logic in check sudo status all attempts failed
+        Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC = 1
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT, set_mock_sudo_status=False)
+        CoreMain(argument_composer.get_composed_arguments())
+
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
+        self.assertTrue(Constants.PatchOperationErrorCodes.OPERATION_FAILED in substatus_file_data[0]["formattedMessage"]["message"])
+        self.assertTrue('Unexpected sudo check result' in substatus_file_data[0]["formattedMessage"]["message"])
+
+        runtime.stop()
+
     def __check_telemetry_events(self, runtime):
         all_events = os.listdir(runtime.telemetry_writer.events_folder_path)
         self.assertTrue(len(all_events) > 0)
