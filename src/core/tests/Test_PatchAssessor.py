@@ -180,7 +180,7 @@ class TestPatchAssessor(unittest.TestCase):
             self.runtime.patch_assessor.start_assessment()
         self.assertEqual(str(context.exception), Constants.PYTHON_NOT_COMPATIBLE_ERROR_MSG.format(sys.version_info))
 
-    def test_raise_add_error_to_status(self):
+    def test_patch_assessment_throws_exception(self):
         self.runtime.package_manager.get_all_updates = lambda: self.raise_ex()
         
         with self.assertRaises(Exception) as context:
@@ -191,7 +191,7 @@ class TestPatchAssessor(unittest.TestCase):
 
     def raise_ex(self):
         raise Exception()
-    
+
     def mock_refresh_repo(self):
         pass
 
