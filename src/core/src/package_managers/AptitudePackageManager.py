@@ -19,7 +19,6 @@ import json
 import os
 import re
 import sys
-from compiler.ast import Const
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
