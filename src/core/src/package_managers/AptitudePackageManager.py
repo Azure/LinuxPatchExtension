@@ -19,7 +19,7 @@ import json
 import os
 import re
 import sys
-import uuid
+from compiler.ast import Const
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
@@ -33,32 +33,36 @@ class AptitudePackageManager(PackageManager):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         super(AptitudePackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
 
-        # Apt constant config
+        # Apt constants config
         self.APT_SOURCES_LIST_PATH = '/etc/apt/sources.list'
         self.APT_SOURCES_LIST_DIR_PATH = '/etc/apt/sources.list.d/'
         self.APT_SOURCES_LIST_DIR_LIST_EXT = 'list'
         self.APT_SOURCES_LIST_DIR_SRC_EXT = 'sources'
 
-        # Accept EULA (End User License Agreement) as per the EULA settings set by user
-        optional_accept_eula_in_cmd = "ACCEPT_EULA=Y" if execution_config.accept_package_eula else ""
+        # Support to get packages and their dependencies
+        custom_source_timestamp = self.env_layer.datetime.timestamp()
+        self.custom_source_list_template = os.path.join(execution_config.temp_folder, 'azgps-src-{0}-<FORMULA>.list'.format(str(custom_source_timestamp)))
+        self.custom_source_parts_dir_template = os.path.join(execution_config.temp_folder, 'azgps-src-{0}-<FORMULA>.d'.format(str(custom_source_timestamp)))
+        self.current_source_formula = "none"
+        self.current_source_list = self.custom_source_list_template.replace("<FORMULA>", self.current_source_formula)
+        self.current_source_parts_dir = self.custom_source_parts_dir_template.replace("<FORMULA>", self.current_source_formula)
+        self.current_source_parts_file_name = "azgps-src-parts.sources"
 
         # Repo refresh
         self.cmd_repo_refresh_template = 'sudo apt-get -q update <SOURCES>'
-
-        # Support to get updates and their dependencies
-        self.cached_customer_source_list_formula = None
-        self.custom_sources_list = os.path.join(execution_config.temp_folder, 'azgps-patch-custom-{0}.list'.format(str(uuid.uuid4())))
-
-        self.cmd_prep_custom_sources_list_template = 'sudo grep -hR <CLASSIFICATION> /etc/apt/sources.list /etc/apt/sources.list.d/*.list > ' + os.path.normpath(self.custom_sources_list)
         self.cmd_dist_upgrade_simulation_template = 'LANG=en_US.UTF8 sudo apt-get -s dist-upgrade <SOURCES> '  # Dist-upgrade simulation template - <SOURCES> needs to be replaced before use; sudo is used as sometimes the sources list needs sudo to be readable
 
+        # Accept EULA (End User License Agreement) as per the EULA settings set by user
+        optional_accept_eula_in_cmd = "ACCEPT_EULA=Y" if execution_config.accept_package_eula else ""
+
+        # Package evaluations
         self.cmd_single_package_check_versions_template = 'apt-cache madison <PACKAGE-NAME>'
         self.cmd_single_package_find_install_dpkg_template = 'sudo dpkg -s <PACKAGE-NAME>'
         self.cmd_single_package_find_install_apt_template = 'sudo apt list --installed <PACKAGE-NAME>'
         self.single_package_upgrade_simulation_cmd = '''DEBIAN_FRONTEND=noninteractive ''' + optional_accept_eula_in_cmd + ''' LANG=en_US.UTF8 apt-get -y --only-upgrade true -s install '''
         self.single_package_dependency_resolution_template = 'DEBIAN_FRONTEND=noninteractive ' + optional_accept_eula_in_cmd + ' LANG=en_US.UTF8 apt-get -y --only-upgrade true -s install <PACKAGE-NAME> '
 
-        # Install update
+        # Package installation
         # --only-upgrade: upgrade only single package (only if it is installed)
         self.single_package_upgrade_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true install '''
         self.install_security_updates_azgps_coordinated_cmd = '''sudo DEBIAN_FRONTEND=noninteractive LANG=en_US.UTF8 ''' + optional_accept_eula_in_cmd + ''' apt-get -y --only-upgrade true dist-upgrade <SOURCES> '''
@@ -87,69 +91,75 @@ class AptitudePackageManager(PackageManager):
         self.ubuntu_pro_client_all_updates_cached = []
         self.ubuntu_pro_client_all_updates_versions_cached = []
         
-        self.package_install_expected_avg_time_in_seconds = 90 # As per telemetry data, the average time to install package is around 81 seconds for apt.
+        self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
-        # type: (str, str) -> str
+        # type: (str, str) -> (str, str)
         """ Prepares the custom sources list for use in a command. Idempotent. """
         try:
+            # basic input validation
             if max_patch_published_date != str() and len(max_patch_published_date) != 16:
                 raise Exception("[APM] Invalid max patch published date received. [Value={0}]".format(str(max_patch_published_date)))
+            if base_classification != str() and base_classification != Constants.PackageClassification.SECURITY:
+                raise Exception("[APM] Invalid classification selection received. [Value={0}]".format(str(base_classification)))
 
-            formula = "F-{0}-{1}".format(max_patch_published_date, base_classification)
-            if self.cached_customer_source_list_formula == formula:
-                return self.custom_sources_list
-            self.cached_customer_source_list_formula = formula
+            # utilize caching if data exists and cache is also in the desired state
+            formula = "{0}-{1}".format(max_patch_published_date if max_patch_published_date != str() else "any", base_classification.lower() if base_classification != str() else "all")
+            if self.current_source_formula == formula:
+                return self.current_source_parts_dir, self.current_source_list     # no need to refresh repo as state should match
 
-            command = self.cmd_prep_custom_sources_list_template.replace("<CLASSIFICATION>", base_classification if base_classification == "security" else "\"\"")
-            code, out = self.env_layer.run_command_output(command, False, False)
+            # utilize caching with refresh repo if data exists but cache is not in the desired state
+            self.current_source_formula = formula
+            self.current_source_parts_dir = self.custom_source_parts_dir_template.replace("<FORMULA>", formula)
+            self.current_source_list = self.custom_source_list_template.replace("<FORMULA>", formula)
+            if os.path.exists(self.current_source_list) and os.path.isdir(self.current_source_parts_dir):
+                self.refresh_repo(source_parts_dir=self.current_source_parts_dir, source_list=self.current_source_list)     # refresh repo as requested state has changed
+                return self.current_source_parts_dir, self.current_source_parts_dir
 
-            self.__produce_custom_sources_list_with_classification_filter(self.custom_sources_list)
+            # Produce data for combination not seen previously in this execution - source list
+            source_list_content = self.__read_one_line_style_list_format(self.APT_SOURCES_LIST_PATH, max_patch_published_date, base_classification) if os.path.exists(self.APT_SOURCES_LIST_PATH) else str()
+            self.env_layer.file_system.write_with_retry(self.current_source_list, source_list_content, "w")
+            self.composite_logger.log_verbose("[APM] Source list content written. [List={0}][Content={1}]".format(self.current_source_list, source_list_content))
 
-            sources_content = self.__get_consolidated_sources_list_content()
-            self.env_layer.file_system.write_with_retry(self.custom_sources_list, sources_content, "w")
-            sources_content = self.env_layer.file_system.read_with_retry(self.custom_sources_list)
+            # Produce data for combination not seen previously in this execution - source parts
+            current_source_parts_deb882_style_file = os.path.join(self.current_source_parts_dir, self.current_source_parts_file_name)
+            if os.path.exists(current_source_parts_deb882_style_file):
+                os.remove(current_source_parts_deb882_style_file)
+            if os.path.isdir(self.current_source_parts_dir):
+                os.remove(self.current_source_parts_dir)
+            os.makedirs(self.current_source_parts_dir)
+            source_parts_deb882_style_content, source_parts_list_content = self.__get_consolidated_source_parts_content(max_patch_published_date, base_classification)
+            self.env_layer.file_system.write_with_retry(current_source_parts_deb882_style_file, source_parts_deb882_style_content, "w")
+            self.composite_logger.log_verbose("[APM] Source parts debstyle882 content written. [Dir={0}][Content={1}]".format(current_source_parts_deb882_style_file, source_parts_deb882_style_content))
+            self.env_layer.file_system.write_with_retry(self.current_source_list, source_parts_list_content, "a")
+            self.composite_logger.log_verbose("[APM] Source parts list content appended. [List={0}][Content={1}]".format(self.current_source_list, source_parts_list_content))
 
-            self.composite_logger.log_debug("[APM] Modified custom sources list with classification. [Code={0}][Out={1}][Content={2}]".format(str(code), str(out), str(sources_content)))   # non-zero error code to be investigated
+            # verify files exist
+            if not os.path.isdir(self.current_source_parts_dir):
+                raise Exception("[APM] Expected directory not found. [Dir={0}]".format(self.current_source_parts_dir))
+            if not os.path.exists(self.current_source_parts_deb882_style_file):
+                raise Exception("[APM] Expected file not found. [File={0}]".format(self.current_source_parts_deb882_style_file))
+            if not os.path.exists(self.current_source_list):
+                raise Exception("[APM] Expected file not found. [File={0}]".format(self.current_source_list))
 
-            if max_patch_published_date != str():
-                target = "://snapshot.ubuntu.com/ubuntu/{0}".format(self.max_patch_publish_date)
-
-                if "://snapshot.ubuntu.com/ubuntu/" in sources_content:
-                    sources_content_split = sources_content.split(" ")
-                    for i in range(0, len(sources_content_split)):
-                        if "://snapshot.ubuntu.com/ubuntu/" in sources_content_split[i]:
-                            sources_content.replace(sources_content_split[i], target)
-
-                sources_content = sources_content.replace("://azure.archive.ubuntu.com/ubuntu/", target)
-                sources_content = sources_content.replace("://in.archive.ubuntu.com/ubuntu/", target)
-                sources_content = sources_content.replace("://security.ubuntu.com/ubuntu/", target)
-                sources_content = sources_content.replace("http://snapshot.ubuntu.com/", "https://snapshot.ubuntu.com/")
-                self.composite_logger.log_debug("[APM] Modified custom sources list with snapshot. [Code={0}][Out={1}][Content={2}]".format(str(code), str(out), str(sources_content)))
-
-                self.env_layer.file_system.write_with_retry_using_temp_file(self.custom_sources_list, sources_content)
-
-            self.refresh_repo(sources=self.custom_sources_list)
         except Exception as error:
             self.composite_logger.log_error("[APM] Error in modifying custom sources list. [Error={0}]".format(repr(error)))
-            return str()    # defaults code to safety
+            return str(), str()    # defaults code to safety
 
-        return self.custom_sources_list
+        # Refresh repo
+        self.refresh_repo(source_parts_dir=self.current_source_parts_dir, source_list=self.current_source_list)
 
-    def __produce_consolidated_source_list_on_disk_with_classification_filter(self, custom_sources_list, classification_filter=str()):
-        # type: (str) -> str
-        """ Generates the custom sources list produced on disk with a classification filter applied if specified  """
+        return self.current_source_parts_dir, self.current_source_list
 
-    def __get_consolidated_sources_list_content(self):
-        # type: () -> str
+    def __get_consolidated_source_parts_content(self, max_patch_published_date, base_classification):
+        # type: (str, str) -> (str, str)
         """ Consolidates all list and sources files into a consistent format single source list """
         # read basic sources list - exception being thrown are acceptable
-        sources_content = self.env_layer.file_system.read_with_retry(self.APT_SOURCES_LIST_PATH) if os.path.exists(self.APT_SOURCES_LIST_PATH) else str()
+        source_parts_list_content = str()
+        source_parts_deb882_style_content = str()
 
         if os.path.isdir(self.APT_SOURCES_LIST_DIR_PATH):
-            return sources_content
-
             # process files in directory
             dir_path = self.APT_SOURCES_LIST_DIR_PATH
             for file_name in os.listdir(dir_path):
@@ -158,91 +168,111 @@ class AptitudePackageManager(PackageManager):
                     if os.path.isdir(file_path):
                         continue
 
-                    if file_name.endswith(self.APT_SOURCES_LIST_DIR_LIST_EXT):
-                        sources_content += "\n" + self.env_layer.file_system.read_with_retry(file_path)
+                    if file_name.endswith(self.APT_SOURCES_LIST_DIR_LIST_EXT):    # .list type
+                        source_parts_list_content += "\n" + self.__read_one_line_style_list_format(file_path, max_patch_published_date, base_classification)
+                    elif file_name.endswith(self.APT_SOURCES_LIST_DIR_SRC_EXT):   # .sources type
+                        source_parts_deb882_style_content += "\n" + self.__read_deb882_style_format(file_path, max_patch_published_date, base_classification)
 
-                    if file_name.endswith(self.APT_SOURCES_LIST_DIR_SRC_EXT):
-                        sources_content += "\n" + self.__read_and_return_standard_list_format(file_path)
-
-                    self.composite_logger.log_verbose("[APM] Reading ")
                 except Exception as error:      # does not throw to allow patching to happen with functioning sources
                     self.composite_logger.log_error("[APM] Error while processing consolidated sources list. [File={0}][Error={1}]".format(file_name, repr(error)))
 
-        return sources_content
+        return source_parts_deb882_style_content, source_parts_list_content
 
-    def __read_deb882_style_and_return_one_line_style_list_format(self, file_path):
-        # type: (str) -> str
-        # Reads a *.sources file (DEB882-style) and returns data converted into a *.list (one-line-style) format
-        # Definite reference - https://manpages.debian.org/stretch/apt/sources.list.5.en.html
-        std_sources_content = str()
-        types = uris = suites = components = architectures = str()
+    def __read_one_line_style_list_format(self, file_path, max_patch_published_date, base_classification):
+        # type: (str, str, str) -> str
+        # Reads a *.list file and returns only lines that are functionally required
+        self.composite_logger.log_verbose("[APM] Reading source list for consolidation. [FilePath={0}]".format(file_path))
+
+        std_source_list_content = str()
+        sources_content = self.env_layer.file_system.read_with_retry(file_path)
+        self.composite_logger.log_verbose("[APM][Srclist] Input source list file. [FilePath={0}][Content={1}]".format(file_path, sources_content))
+        sources_content_lines = sources_content.splitlines()
+
+        for line in sources_content_lines:
+            if len(line.strip()) != 0 and not line.strip().startswith("#"):
+                if base_classification == Constants.PackageClassification.SECURITY and "security" not in line:
+                    continue
+                std_source_list_content += "\n" + self.__apply_max_patch_publish_date(sources_content=line, max_patch_publish_date=max_patch_published_date)
+
+        self.composite_logger.log_verbose("[APM][Srclist] Output source list slice. [FilePath={0}][TransformedContent={1}]".format(file_path, std_source_list_content))
+        return std_source_list_content
+
+    def __read_deb882_style_format(self, file_path, max_patch_published_date, base_classification):
+        # type: (str, str, str) -> str
+        std_source_parts_content = str()
+        stanza = str()
 
         try:
-            sources_content = self.env_layer.file_system.read_with_retry(file_path)
-            sources_content_lines = sources_content.splitlines()
+            source_parts_content = self.env_layer.file_system.read_with_retry(file_path)
+            self.composite_logger.log_verbose("[APM][Deb882] Input source parts file. [FilePath={0}][Content={1}]".format(file_path, source_parts_content))
+            source_parts_content_lines = source_parts_content.splitlines()
 
-            for line in sources_content_lines:
-                if ": " not in line:
+            for line in source_parts_content_lines:
+                if line.startswith("#"):    # comments
                     continue
 
-                parts = line.split(": ")
-                key = parts[0].strip()
-                value = parts[1].strip()
+                if len(line.strip()) == 0:  # stanza separating line
+                    if stanza != str():
+                        if base_classification == str() or (base_classification == Constants.PackageClassification.SECURITY and "security" in stanza):
+                            std_source_parts_content += self.__apply_max_patch_publish_date(sources_content=stanza, max_patch_publish_date=max_patch_published_date) + '\n'
+                        stanza = str()
+                        continue
 
-                if key == "Types: ":
-                    # store the last entry
-                    if types != str():
-                        std_sources_content += "\n" + self.__convert_deb822style_to_onelinestyle_format(types, uris, suites, components, architectures)
-
-                    # reset and start new entry
-                    types = value
-                    uris = suites = components = architectures = str()
-                elif key == "URIs: ":
-                    uris = value
-                elif key == "Suites: ":
-                    suites = value
-                elif key == "Components: ":
-                    components = value
-                elif key == "Architectures: ":
-                    architectures = value
-                else:
-                    # Ignoring: Languages, Targets, PDiffs, By-Hash, Signed-By, Check-Valid-Until, etc.
-                    self.composite_logger.log_verbose("[APM] Ignored deb822style key. [Key={0}][Value={1}]".format(str(key), str(value)))
+                stanza += line + '\n'
 
         except Exception as error:
-            self.composite_logger.log_error("[APM] Error while converting DEB882-style format to one-line-style. [File={0}][Error={1}]".format(file_path, repr(error)))
+            self.composite_logger.log_error("[APM][Deb882] Error while reading DEB882-style format. [File={0}][Error={1}]".format(file_path, repr(error)))
 
-        return std_sources_content
+        self.composite_logger.log_verbose("[APM][Deb882] Output source parts slice. [FilePath={0}][TransformedContent={1}]".format(file_path, std_source_parts_content))
+        return std_source_parts_content
 
-    @staticmethod
-    def __convert_deb822style_to_onelinestyle_format(types=str(), uris=str(), suites=str(), components=str(), architectures=str()):
-        # type: (str, str, str, str, str) -> str
-        """ Converts DEB822-style parameters into one-line-style format """
-        line = types
-        line += str() if not architectures else " [arch={0}]".format(architectures.replace(" ",","))
-        line += " " + uris + " " + suites + " " + components
-        return line.strip()
-
-    def refresh_repo(self, sources=str()):
-        self.composite_logger.log("[APM] Refreshing local repo... [Sources={0}][Formula={1}]".format(sources if sources != str() else "Default", str(self.cached_customer_source_list_formula)))
-        self.invoke_package_manager(self.__generate_command(self.cmd_repo_refresh_template, sources))
-
-    @staticmethod
-    def __generate_command(command_template, new_sources_list=str()):
+    def __apply_max_patch_publish_date(self, sources_content, max_patch_publish_date):
         # type: (str, str) -> str
+        if max_patch_publish_date is str():
+            return sources_content
+
+        candidates = ["://azure.archive.ubuntu.com/ubuntu/", "archive.ubuntu.com/ubuntu/", "security.ubuntu.com/ubuntu/", "://snapshot.ubuntu.com/ubuntu/"]
+        target = "://snapshot.ubuntu.com/ubuntu/{0}".format(max_patch_publish_date)
+        matched = False
+
+        for candidate in candidates:
+            if candidate in sources_content:
+                sources_content_split = sources_content.split(" ")
+                for i in range(0, len(sources_content_split)):
+                    if candidate in sources_content_split[i]:
+                        sources_content = sources_content.replace(sources_content_split[i], target)
+                        sources_content = sources_content.replace("http://snapshot.ubuntu.com/", "https://snapshot.ubuntu.com/")
+                        matched = True
+
+        if not matched:
+            self.composite_logger.log_debug("[APM] Repo unsupported for snapshot. [RepoInfo={0}]".format(sources_content))
+
+        return sources_content
+
+    def refresh_repo(self, source_parts_dir=str(), source_list=str()):
+        self.composite_logger.log("[APM] Refreshing local repo... [SourcePartsDir={0}][SourceList={1}]".format(source_parts_dir, source_list))
+        self.invoke_package_manager(self.__generate_command_with_custom_sources(self.cmd_repo_refresh_template, source_parts_dir, source_list))
+
+    @staticmethod
+    def __generate_command_with_custom_sources(command_template, source_parts=str(), source_list=str()):
+        # type: (str, str, str) -> str
         """ Prepares a standard command to use custom sources. Pre-requisite: Refresh repo post list change. """
-        return command_template.replace('<SOURCES>', ('-oDir::Etc::Sourcelist={0}'.format(str(new_sources_list))) if new_sources_list != str() else str())
+        if source_parts == str() and source_list == str():
+            return command_template.replace('<SOURCES>', str())
+        else:
+            return command_template.replace('<SOURCES>', ('-oDir::Etc::SourceParts={0}/ -oDir::Etc::SourceList={1}'.format(str(source_parts) if source_parts != str() else "/dev/null",
+                                                                                                                          str(source_list) if source_list != str() else "/dev/null")))
     # endregion Sources Management
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
-        self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
+        self.composite_logger.log_verbose('[APM] Invoking package manager. [Command={0}]'.format(command))
         code, out = self.env_layer.run_command_output(command, False, False)
 
         if code != self.apt_exitcode_ok and self.STR_DPKG_WAS_INTERRUPTED in out:
             self.composite_logger.log_error('[ERROR] YOU NEED TO TAKE ACTION TO PROCEED. The package manager on this machine is not in a healthy state, and '
-                                            'Patch Management cannot proceed successfully. Before the next Patch Operation, please run the following '
+                                            'Patch Management cannot proceed successfully. Before the next Pa-oDir::Etc::SourceParts=tch Operation, please run the following '
                                             'command and perform any configuration steps necessary on the machine to return it to a healthy state: '
                                             'sudo dpkg --configure -a')
             self.telemetry_writer.write_execution_error(command, code, out)
@@ -251,39 +281,28 @@ class AptitudePackageManager(PackageManager):
             if raise_on_exception:
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         elif code != self.apt_exitcode_ok:
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+            self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
+            error_msg = "Customer environment error: Investigate and resolve unexpected return code (\'{0}\') from package manager on command: {1}".format(str(code), command)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             if raise_on_exception:
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
-            self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_verbose("==========================================================================\n\n")
+            self.composite_logger.log_debug('[APM] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         return out, code
 
     def invoke_apt_cache(self, command):
         """Invoke apt-cache using the command input"""
-        self.composite_logger.log_debug('Invoking apt-cache using: ' + command)
+        self.composite_logger.log_verbose('[APM] Invoking apt-cache using: ' + command)
         code, out = self.env_layer.run_command_output(command, False, False)
         if code != 0:
-            self.composite_logger.log('[ERROR] apt-cache was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from apt-cache: " + str(code))
-            self.composite_logger.log_warning(" - Output from apt-cache: \n|\t" + "\n|\t".join(out.splitlines()))
-            error_msg = 'Unexpected return code (' + str(code) + ') from apt-cache on command: ' + command
+            self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
+            error_msg = "Customer environment error: Investigate and resolve unexpected return code (\'{0}\') from package manager on command: {1}".format(str(code), command)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more known return codes should be added as appropriate
         else:  # verbose diagnostic log
-            self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from apt-cache: " + str(code))
-            self.composite_logger.log_debug(" - Output from apt-cache: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_verbose("==========================================================================\n\n")
+            self.composite_logger.log_verbose('[APM] Invoked apt-cache. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         return out
 
     # region Classification-based (incl. All) update check
@@ -293,7 +312,7 @@ class AptitudePackageManager(PackageManager):
         all_updates_versions = []
         ubuntu_pro_client_all_updates_query_success = False
 
-        self.composite_logger.log_debug("\nDiscovering all packages...")
+        self.composite_logger.log_verbose("[APM] Discovering all packages...")
         # use Ubuntu Pro Client cached list when the conditions are met.
         if self.__pro_client_prereq_met and not len(self.ubuntu_pro_client_all_updates_cached) == 0:
             all_updates = self.ubuntu_pro_client_all_updates_cached
@@ -304,25 +323,27 @@ class AptitudePackageManager(PackageManager):
             all_updates_versions = self.all_update_versions_cached
 
         if cached and not len(all_updates) == 0:
-            self.composite_logger.log_debug("Get all updates : [Cached={0}][PackagesCount={1}]]".format(cached, len(all_updates)))
+            self.composite_logger.log_debug("[APM] Get all updates : [Cached={0}][PackagesCount={1}]]".format(cached, len(all_updates)))
             return all_updates, all_updates_versions
 
         # when cached is False, query both default way and using Ubuntu Pro Client.
-        cmd = self.__generate_command(self.cmd_dist_upgrade_simulation_template, self.__get_custom_sources_to_spec(self.max_patch_publish_date))
+        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=str())
+        cmd = self.__generate_command_with_custom_sources(command_template=self.cmd_dist_upgrade_simulation_template, source_parts=source_parts, source_list=source_list)
         out = self.invoke_package_manager(cmd)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
 
         if self.__pro_client_prereq_met:
             ubuntu_pro_client_all_updates_query_success, self.ubuntu_pro_client_all_updates_cached, self.ubuntu_pro_client_all_updates_versions_cached = self.ubuntu_pro_client.get_all_updates()
+            pro_client_missed_updates = list(set(self.all_updates_cached) - set(self.ubuntu_pro_client_all_updates_cached))
+            all_updates_missed_updates = list(set(self.ubuntu_pro_client_all_updates_cached) - set(self.all_updates_cached))
+            self.composite_logger.log_debug("[APM-Pro] Get all updates : [DefaultAllPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientAllPackagesCount={2}]"
+                                            .format(len(self.all_updates_cached), ubuntu_pro_client_all_updates_query_success, len(self.ubuntu_pro_client_all_updates_cached)))
+            if len(pro_client_missed_updates) > 0:       # not good, needs investigation
+                self.composite_logger.log_debug("[APM-Pro][!] Pro client missed updates found. [Count={0}][Updates={1}]".format(len(pro_client_missed_updates), pro_client_missed_updates))
+            if len(all_updates_missed_updates) > 0:     # interesting, for review
+                self.composite_logger.log_debug("[APM-Pro] Pro client only updates found. [Count={0}][Updates={1}]".format(len(all_updates_missed_updates), all_updates_missed_updates))
 
-        self.composite_logger.log_debug("Get all updates : [DefaultAllPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientAllPackagesCount={2}]".format(len(self.all_updates_cached), ubuntu_pro_client_all_updates_query_success, len(self.ubuntu_pro_client_all_updates_cached)))
-
-        # Get the list of updates that are present in only one of the two lists.
-        different_updates = list(set(self.all_updates_cached) - set(self.ubuntu_pro_client_all_updates_cached)) + list(set(self.ubuntu_pro_client_all_updates_cached) - set(self.all_updates_cached))
-        self.composite_logger.log_debug("Get all updates : [DifferentUpdatesCount={0}][Updates={1}]".format(len(different_updates), different_updates))
-
-        # Prefer Ubuntu Pro Client output when available.
-        if ubuntu_pro_client_all_updates_query_success:
+        if ubuntu_pro_client_all_updates_query_success:     # this needs to be revisited based on logs above
             return self.ubuntu_pro_client_all_updates_cached, self.ubuntu_pro_client_all_updates_versions_cached
         else:
             return self.all_updates_cached, self.all_update_versions_cached
@@ -333,17 +354,24 @@ class AptitudePackageManager(PackageManager):
         ubuntu_pro_client_security_packages = []
         ubuntu_pro_client_security_package_versions = []
 
-        self.composite_logger.log("\nDiscovering 'security' packages...")
-        cmd = self.__generate_command(self.cmd_dist_upgrade_simulation_template, self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification="security"))
+        self.composite_logger.log_verbose("[APM] Discovering 'security' packages...")
+        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=str())
+        cmd = self.__generate_command_with_custom_sources(self.cmd_dist_upgrade_simulation_template, source_parts=source_parts, source_list=source_list)
         out = self.invoke_package_manager(cmd)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
+        self.composite_logger.log_debug("[APM] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
 
         if self.__pro_client_prereq_met:
             ubuntu_pro_client_security_updates_query_success, ubuntu_pro_client_security_packages, ubuntu_pro_client_security_package_versions = self.ubuntu_pro_client.get_security_updates()
+            pro_client_missed_updates = list(set(security_packages) - set(ubuntu_pro_client_security_packages))
+            sec_updates_missed_updates = list(set(ubuntu_pro_client_security_packages) - set(security_packages))
+            self.composite_logger.log_debug("[APM-Pro][Sec] Get Security Updates : [DefaultSecurityPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientSecurityPackagesCount={2}]".format(len(security_packages), ubuntu_pro_client_security_updates_query_success, len(ubuntu_pro_client_security_packages)))
+            if len(pro_client_missed_updates) > 0:       # not good, needs investigation
+                self.composite_logger.log_debug("[APM-Pro][Sec][!] Pro client missed updates found. [Count={0}][Updates={1}]".format(len(pro_client_missed_updates), pro_client_missed_updates))
+            if len(sec_updates_missed_updates) > 0:     # interesting, for review
+                self.composite_logger.log_debug("[APM-Pro][Sec] Pro client only updates found. [Count={0}][Updates={1}]".format(len(sec_updates_missed_updates), sec_updates_missed_updates))
 
-        self.composite_logger.log_debug("Get Security Updates : [DefaultSecurityPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientSecurityPackagesCount={2}]".format(len(security_packages), ubuntu_pro_client_security_updates_query_success, len(ubuntu_pro_client_security_packages)))
-
-        if ubuntu_pro_client_security_updates_query_success:
+        if ubuntu_pro_client_security_updates_query_success:     # this needs to be revisited based on logs above
             return ubuntu_pro_client_security_packages, ubuntu_pro_client_security_package_versions
         else:
             return security_packages, security_package_versions
@@ -357,7 +385,7 @@ class AptitudePackageManager(PackageManager):
         if self.__pro_client_prereq_met:
             ubuntu_pro_client_security_esm_updates_query_success, ubuntu_pro_client_security_esm_packages, ubuntu_pro_client_security_package_esm_versions = self.ubuntu_pro_client.get_security_esm_updates()
 
-        self.composite_logger.log_debug("Get Security ESM updates : [UbuntuProClientQuerySuccess={0}][UbuntuProClientSecurityEsmPackagesCount={1}]".format(ubuntu_pro_client_security_esm_updates_query_success, len(ubuntu_pro_client_security_esm_packages)))
+        self.composite_logger.log_debug("[APM-Pro] Get Security ESM updates : [UbuntuProClientQuerySuccess={0}][UbuntuProClientSecurityEsmPackagesCount={1}]".format(ubuntu_pro_client_security_esm_updates_query_success, len(ubuntu_pro_client_security_esm_packages)))
         return ubuntu_pro_client_security_esm_updates_query_success, ubuntu_pro_client_security_esm_packages, ubuntu_pro_client_security_package_esm_versions
 
     def get_other_updates(self):
@@ -368,7 +396,7 @@ class AptitudePackageManager(PackageManager):
         other_packages = []
         other_package_versions = []
 
-        self.composite_logger.log("\nDiscovering 'other' packages...")
+        self.composite_logger.log_verbose("[APM] Discovering 'other' packages...")
         all_packages, all_package_versions = self.get_all_updates(True)
         security_packages, security_package_versions = self.get_security_updates()
 
@@ -379,8 +407,7 @@ class AptitudePackageManager(PackageManager):
 
         if self.__pro_client_prereq_met:
             ubuntu_pro_client_other_updates_query_success, ubuntu_pro_client_other_packages, ubuntu_pro_client_other_package_versions = self.ubuntu_pro_client.get_other_updates()
-
-        self.composite_logger.log_debug("Get Other Updates : [DefaultOtherPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientOtherPackagesCount={2}]".format(len(other_packages), ubuntu_pro_client_other_updates_query_success, len(ubuntu_pro_client_other_packages)))
+            self.composite_logger.log_debug("[APM-Pro] Get Other Updates : [DefaultOtherPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientOtherPackagesCount={2}]".format(len(other_packages), ubuntu_pro_client_other_updates_query_success, len(ubuntu_pro_client_other_packages)))
 
         if ubuntu_pro_client_other_updates_query_success:
             return ubuntu_pro_client_other_packages, ubuntu_pro_client_other_package_versions
@@ -399,7 +426,7 @@ class AptitudePackageManager(PackageManager):
         # Inst python3-update-manager [1:16.10.7] (1:16.10.8 Ubuntu:16.10/yakkety-updates [all]) [update-manager-core:amd64 ]
         # Inst update-manager-core [1:16.10.7] (1:16.10.8 Ubuntu:16.10/yakkety-updates [all])
 
-        self.composite_logger.log_debug("\nExtracting package and version data...")
+        self.composite_logger.log_verbose("[APM] Extracting package and version data...")
         packages = []
         versions = []
 
@@ -411,7 +438,7 @@ class AptitudePackageManager(PackageManager):
             packages.append(package[0])
             versions.append(package[1])
 
-        self.composite_logger.log_debug(" - Extracted package and version data for " + str(len(packages)) + " packages [BASIC].")
+        self.composite_logger.log_verbose("[APM] Extracted package and version data for " + str(len(packages)) + " packages [BASIC].")
 
         # Discovering ESM packages - Distro versions with extended security maintenance
         lines = output.strip().split('\n')
@@ -431,7 +458,7 @@ class AptitudePackageManager(PackageManager):
         for package in esm_packages:
             packages.append(package)
             versions.append(Constants.UA_ESM_REQUIRED)
-        self.composite_logger.log_debug(" - Extracted package and version data for " + str(len(packages)) + " packages [TOTAL].")
+        self.composite_logger.log_verbose("[APM] Extracted package and version data for " + str(len(packages)) + " packages [TOTAL].")
 
         return packages, versions
     # endregion
@@ -445,7 +472,8 @@ class AptitudePackageManager(PackageManager):
         return
 
     def install_security_updates_azgps_coordinated(self):
-        command = self.__generate_command(self.install_security_updates_azgps_coordinated_cmd, self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification="security"))
+        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=str())
+        command = self.__generate_command_with_custom_sources(self.install_security_updates_azgps_coordinated_cmd, source_parts=source_parts, source_list=source_list)
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
     # endregion
@@ -467,20 +495,20 @@ class AptitudePackageManager(PackageManager):
         for line in lines:
             package_details = line.split(' |')
             if len(package_details) == 3:
-                self.composite_logger.log_debug(" - Applicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Applicable line: " + str(line))
                 package_versions.append(package_details[1].strip())
             else:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
 
         return package_versions
 
     def is_package_version_installed(self, package_name, package_version):
         """ Returns true if the specific package version is installed """
 
-        self.composite_logger.log_debug("\nCHECKING PACKAGE INSTALL STATUS FOR: " + str(package_name) + " (" + str(package_version) + ")")
+        self.composite_logger.log_verbose("\nCHECKING PACKAGE INSTALL STATUS FOR: " + str(package_name) + " (" + str(package_version) + ")")
 
         # DEFAULT METHOD
-        self.composite_logger.log_debug(" - [1/2] Verifying install status with Dpkg.")
+        self.composite_logger.log_verbose(" - [1/2] Verifying install status with Dpkg.")
         cmd = self.cmd_single_package_find_install_dpkg_template.replace('<PACKAGE-NAME>', package_name)
         code, output = self.env_layer.run_command_output(cmd, False, False)
         lines = output.strip().split('\n')
@@ -491,13 +519,13 @@ class AptitudePackageManager(PackageManager):
             # Use dpkg --info (= dpkg-deb --info) to examine archive files,
             # and dpkg --contents (= dpkg-deb --contents) to list their contents.
             #  ------------------------------------------ -------------------
-            self.composite_logger.log_debug("    - Return code: 1. The package is likely NOT present on the system.")
+            self.composite_logger.log_verbose("    - Return code: 1. The package is likely NOT present on the system.")
             for line in lines:
                 if 'not installed' in line and package_name in line:
-                    self.composite_logger.log_debug("    - Discovered to be not installed: " + str(line))
+                    self.composite_logger.log_verbose("    - Discovered to be not installed: " + str(line))
                     return False
                 else:
-                    self.composite_logger.log_debug("    - Inapplicable line: " + str(line))
+                    self.composite_logger.log_verbose("    - Inapplicable line: " + str(line))
 
             self.telemetry_writer.write_event("[Installed check] Return code: 1. Unable to verify package not present on the system: " + str(output), Constants.TelemetryEventLevel.Verbose)
         elif code == 0:  # likely found
@@ -513,35 +541,35 @@ class AptitudePackageManager(PackageManager):
             # Version: 5.7.25-0ubuntu0.16.04.2
             # Depends: mysql-server-5.7
             #  ------------------------------------------ --------------------
-            self.composite_logger.log_debug("    - Return code: 0. The package is likely present on the system.")
+            self.composite_logger.log_verbose("    - Return code: 0. The package is likely present on the system.")
             composite_found_flag = 0
             for line in lines:
                 if 'Package: ' in line:
                     if package_name in line:
                         composite_found_flag = composite_found_flag | 1
                     else:  # should never hit for the way this is invoked, hence telemetry
-                        self.composite_logger.log_debug("    - Did not match name: " + str(package_name) + " (" + str(line) + ")")
+                        self.composite_logger.log_verbose("    - Did not match name: " + str(package_name) + " (" + str(line) + ")")
                         self.telemetry_writer.write_event("[Installed check] Name did not match: " + package_name + " (line=" + str(line) + ")(out=" + str(output) + ")", Constants.TelemetryEventLevel.Verbose)
                     continue
                 if 'Version: ' in line:
                     if package_version in line:
                         composite_found_flag = composite_found_flag | 2
                     else:  # should never hit for the way this is invoked, hence telemetry
-                        self.composite_logger.log_debug("    - Did not match version: " + str(package_version) + " (" + str(line) + ")")
+                        self.composite_logger.log_verbose("    - Did not match version: " + str(package_version) + " (" + str(line) + ")")
                         self.telemetry_writer.write_event("[Installed check] Version did not match: " + str(package_version) + " (line=" + str(line) + ")(out=" + str(output) + ")", Constants.TelemetryEventLevel.Verbose)
                     continue
                 if 'Status: ' in line:
                     if 'install ok installed' in line:
                         composite_found_flag = composite_found_flag | 4
                     else:  # should never hit for the way this is invoked, hence telemetry
-                        self.composite_logger.log_debug("    - Did not match status: " + str(package_name) + " (" + str(line) + ")")
+                        self.composite_logger.log_verbose("    - Did not match status: " + str(package_name) + " (" + str(line) + ")")
                         self.telemetry_writer.write_event("[Installed check] Status did not match: 'install ok installed' (line=" + str(line) + ")(out=" + str(output) + ")", Constants.TelemetryEventLevel.Verbose)
                     continue
                 if composite_found_flag & 7 == 7:  # whenever this becomes true, the exact package version is installed
-                    self.composite_logger.log_debug("    - Package, Version and Status matched. Package is detected as 'Installed'.")
+                    self.composite_logger.log_verbose("    - Package, Version and Status matched. Package is detected as 'Installed'.")
                     return True
-                self.composite_logger.log_debug("    - Inapplicable line: " + str(line))
-            self.composite_logger.log_debug("    - Install status check did NOT find the package installed: (composite_found_flag=" + str(composite_found_flag) + ")")
+                self.composite_logger.log_verbose("    - Inapplicable line: " + str(line))
+            self.composite_logger.log_verbose("    - Install status check did NOT find the package installed: (composite_found_flag=" + str(composite_found_flag) + ")")
             self.telemetry_writer.write_event("Install status check did NOT find the package installed: (composite_found_flag=" + str(composite_found_flag) + ")(output=" + output + ")", Constants.TelemetryEventLevel.Verbose)
         else:  # This is not expected to execute. If it does, the details will show up in telemetry. Improve this code with that information.
             self.composite_logger.log_debug("    - Unexpected return code from dpkg: " + str(code) + ". Output: " + str(output))
@@ -551,7 +579,7 @@ class AptitudePackageManager(PackageManager):
         # Sample output format
         # Listing... Done
         # apt/xenial-updates,now 1.2.29 amd64 [installed]
-        self.composite_logger.log_debug(" - [2/2] Verifying install status with Apt.")
+        self.composite_logger.log_verbose(" - [2/2] Verifying install status with Apt.")
         cmd = self.cmd_single_package_find_install_apt_template.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_package_manager(cmd)
         lines = output.strip().split('\n')
@@ -559,24 +587,24 @@ class AptitudePackageManager(PackageManager):
         for line in lines:
             package_details = line.split(' ')
             if len(package_details) < 4:
-                self.composite_logger.log_debug("    - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose("    - Inapplicable line: " + str(line))
             else:
-                self.composite_logger.log_debug("    - Applicable line: " + str(line))
+                self.composite_logger.log_verbose("    - Applicable line: " + str(line))
                 discovered_package_name = package_details[0].split('/')[0]  # index out of bounds check is deliberately not being done
                 if discovered_package_name != package_name:
-                    self.composite_logger.log_debug("      - Did not match name: " + discovered_package_name + " (" + package_name + ")")
+                    self.composite_logger.log_verbose("      - Did not match name: " + discovered_package_name + " (" + package_name + ")")
                     continue
                 if package_details[1] != package_version:
-                    self.composite_logger.log_debug("      - Did not match version: " + package_details[1] + " (" + str(package_details[1]) + ")")
+                    self.composite_logger.log_verbose("      - Did not match version: " + package_details[1] + " (" + str(package_details[1]) + ")")
                     continue
                 if 'installed' not in package_details[3]:
-                    self.composite_logger.log_debug("      - Did not find status: " + str(package_details[3] + " (" + str(package_details[3]) + ")"))
+                    self.composite_logger.log_verbose("      - Did not find status: " + str(package_details[3] + " (" + str(package_details[3]) + ")"))
                     continue
-                self.composite_logger.log_debug("      - Package version specified was determined to be installed.")
+                self.composite_logger.log_verbose("      - Package version specified was determined to be installed.")
                 self.telemetry_writer.write_event("[Installed check] Fallback code disagreed with dpkg.", Constants.TelemetryEventLevel.Verbose)
                 return True
 
-        self.composite_logger.log_debug("   - Package version specified was determined to NOT be installed.")
+        self.composite_logger.log_verbose("   - Package version specified was determined to NOT be installed.")
         return False
 
     def get_dependent_list(self, packages):
@@ -589,7 +617,7 @@ class AptitudePackageManager(PackageManager):
 
         cmd = self.single_package_dependency_resolution_template.replace('<PACKAGE-NAME>', package_names)
 
-        self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(cmd))
+        self.composite_logger.log_verbose("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(cmd))
         output = self.invoke_package_manager(cmd)
 
         dependencies, dependency_versions = self.extract_packages_and_versions(output)
@@ -598,7 +626,7 @@ class AptitudePackageManager(PackageManager):
             if package in dependencies:
                 dependencies.remove(package)
 
-        self.composite_logger.log_debug(str(len(dependencies)) + " dependent packages were found for packages '" + str(packages) + "'.")
+        self.composite_logger.log_verbose(str(len(dependencies)) + " dependent packages were found for packages '" + str(packages) + "'.")
         return dependencies
 
     def get_product_name(self, package_name):
@@ -786,7 +814,7 @@ class AptitudePackageManager(PackageManager):
         if ubuntu_pro_client_check_success:  # Prefer Ubuntu Pro Client reboot status.
             reported_reboot_status = ubuntu_pro_client_reboot_status
 
-        self.composite_logger.log_debug("Reboot required advanced debug flags:[DefaultPendingFileExists={0}][DefaultPendingProcessesExists={1}][UbuntuProClientCheckSuccessful={2}][UbuntuProClientRebootStatus={3}][ReportedRebootStatus={4}][DefaultException={5}]".format(default_pending_file_exists, default_pending_processes_exists, ubuntu_pro_client_check_success, ubuntu_pro_client_reboot_status, reported_reboot_status, default_exception))
+        self.composite_logger.log_debug("[APM] Reboot required advanced debug flags: [DefaultPendingFileExists={0}][DefaultPendingProcessesExists={1}][UbuntuProClientCheckSuccessful={2}][UbuntuProClientRebootStatus={3}][ReportedRebootStatus={4}][DefaultException={5}]".format(default_pending_file_exists, default_pending_processes_exists, ubuntu_pro_client_check_success, ubuntu_pro_client_reboot_status, reported_reboot_status, default_exception))
         return reported_reboot_status
 
     def check_pro_client_prerequisites(self):
@@ -798,14 +826,14 @@ class AptitudePackageManager(PackageManager):
         except Exception as error:
             exception_error = repr(error)
 
-        self.composite_logger.log_debug("Ubuntu Pro Client pre-requisite checks:[IsFeatureEnabled={0}][IsOSVersionCompatible={1}][IsPythonCompatible={2}][Error={3}]".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed(), exception_error))
+        self.composite_logger.log_debug("[APM-Pro] Ubuntu Pro Client pre-requisite checks:[IsFeatureEnabled={0}][IsOSVersionCompatible={1}][IsPythonCompatible={2}][Error={3}]".format(Constants.UbuntuProClientSettings.FEATURE_ENABLED, self.__get_os_major_version() <= Constants.UbuntuProClientSettings.MAX_OS_MAJOR_VERSION_SUPPORTED, self.__is_minimum_required_python_installed(), exception_error))
         return self.__pro_client_prereq_met
 
     def set_security_esm_package_status(self, operation, packages):
         """Set the security-ESM classification for the esm packages."""
         security_esm_update_query_success, security_esm_updates, security_esm_updates_versions = self.get_security_esm_updates()
         if self.__pro_client_prereq_met and security_esm_update_query_success and len(security_esm_updates) > 0:
-            self.telemetry_writer.write_event("set Security-ESM package status:[Operation={0}][Updates={1}]".format(operation, str(security_esm_updates)), Constants.TelemetryEventLevel.Verbose)
+            self.telemetry_writer.write_event("[APM] Set Security-ESM package status:[Operation={0}][Updates={1}]".format(operation, str(security_esm_updates)), Constants.TelemetryEventLevel.Verbose)
             if operation == Constants.ASSESSMENT:
                 self.status_handler.set_package_assessment_status(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
                 # If the Ubuntu Pro Client is not attached, set the error with the code UA_ESM_REQUIRED. This will be used in portal to mark the VM as unattached to pro.
@@ -814,7 +842,7 @@ class AptitudePackageManager(PackageManager):
             elif operation == Constants.INSTALLATION:
                 if security_esm_update_query_success:
                     esm_packages_selected_to_install = [package for package in packages if package in security_esm_updates]
-                    self.composite_logger.log_debug("Setting security ESM package status. [SelectedEsmPackagesCount={0}]".format(len(esm_packages_selected_to_install)))
+                    self.composite_logger.log_debug("[APM] Setting security ESM package status. [SelectedEsmPackagesCount={0}]".format(len(esm_packages_selected_to_install)))
                 self.status_handler.set_package_install_status_classification(security_esm_updates, security_esm_updates_versions, Constants.PackageClassification.SECURITY_ESM)
 
     def __get_os_major_version(self):
@@ -860,7 +888,7 @@ class AptitudePackageManager(PackageManager):
         if ua_esm_required_packages_found:
             self.status_handler.add_error_to_status("{0} patches requires Ubuntu Pro for Infrastructure with Extended Security Maintenance".format(len(ua_esm_required_packages)), Constants.PatchOperationErrorCodes.UA_ESM_REQUIRED) # Set the error status with the esm_package details. Will be used in portal.
 
-        self.composite_logger.log_debug("Filter esm packages : [TotalPackagesCount={0}][EsmPackagesCount={1}]".format(len(packages), len(ua_esm_required_packages)))
+        self.composite_logger.log_debug("[APM] Filter esm packages : [TotalPackagesCount={0}][EsmPackagesCount={1}]".format(len(packages), len(ua_esm_required_packages)))
         return non_esm_packages, non_esm_package_versions, ua_esm_required_packages, ua_esm_required_package_versions, ua_esm_required_packages_found
 
     def get_package_install_expected_avg_time_in_seconds(self):
