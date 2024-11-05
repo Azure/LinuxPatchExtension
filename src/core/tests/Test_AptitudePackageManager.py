@@ -588,7 +588,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_upgrade_cmd)
 
-    def test_maxpatchpublishdate(self):
+    def test_maxpatchpublishdate_mitigation_mode(self):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
@@ -596,14 +596,16 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         argument_composer = ArgumentComposer()
         argument_composer.classifications_to_include = [Constants.PackageClassification.CRITICAL]
-        argument_composer.patches_to_include = ["*=20230101T010101Z"]
+        argument_composer.patches_to_include = ["AzGPS_Mitigation_Mode_No_SLA", "MaxPatchPublishDate=20250101T010203Z"]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         container = self.runtime.container
         execution_config = container.get('execution_config')
-        self.assertEqual(execution_config.max_patch_publish_date, "20230101T010101Z")
-
+        self.assertEqual(execution_config.max_patch_publish_date, "20250101T010203Z")
         self.runtime.stop()
-        argument_composer.patches_to_include = ["*=20230101"]
+
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PackageClassification.CRITICAL]
+        argument_composer.patches_to_include = ["MaxPatchPublishDate=20250101T010203Z"]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         container = self.runtime.container
         execution_config = container.get('execution_config')

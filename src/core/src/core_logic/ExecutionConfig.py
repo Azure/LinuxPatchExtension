@@ -115,18 +115,36 @@ class ExecutionConfig(object):
         return max_patch_publish_date
 
     def __get_max_patch_publish_date_from_inclusions(self, included_package_name_mask_list):
+        # type (str) -> str
+        # This is for AzGPS mitigation mode execution for Strict safe-deployment of patches.
+        mitigation_mode_flag = False
+        candidate = str()
+
         for i in range(0, len(included_package_name_mask_list)):
-            if not included_package_name_mask_list[i].startswith("*="):
+            if mitigation_mode_flag and candidate != str():
+                break
+
+            if included_package_name_mask_list[i] == "AzGPS_Mitigation_Mode_No_SLA":
+                mitigation_mode_flag = True
+                continue
+
+            if candidate != str():
+                continue
+
+            if not included_package_name_mask_list[i].startswith("MaxPatchPublishDate="):
                 self.composite_logger.log_verbose("[EC] Ignored [MaxPatchPublishDate={0}]".format(str(included_package_name_mask_list[i])))
                 continue
 
-            candidate = included_package_name_mask_list[i].replace("*=", "")
+            candidate = included_package_name_mask_list[i].replace("MaxPatchPublishDate=", "")
             candidate_split = candidate.split("T")
             if len(candidate) == 16 and len(candidate_split) == 2 and candidate_split[0].isdigit() and candidate_split[1].endswith("Z"):
                 self.composite_logger.log_debug("[EC] Discovered effective MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
-                return candidate
+            else:
+                self.composite_logger.log_debug("[EC] Invalid match on MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
 
-            self.composite_logger.log_debug("[EC] Invalid match on MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
+        if mitigation_mode_flag and candidate != str():
+            self.composite_logger.log_warning("AzGPS Mitigation Mode: There is no support or SLA for execution in this mode without explicit direction from AzGPS engineering.")
+            return candidate
 
         return str()
 
