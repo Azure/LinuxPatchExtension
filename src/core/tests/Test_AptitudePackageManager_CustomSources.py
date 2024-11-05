@@ -13,22 +13,19 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import json
 import os
 import shutil
 import unittest
-from os import makedirs
 
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.ExecutionConfig import ExecutionConfig
-from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequiredResult, MockUpdatesResult
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
-from core.src.package_managers import AptitudePackageManager, UbuntuProClient
+from core.src.package_managers import AptitudePackageManager
 
 
-class TestAptitudePackageManager_CustomSource(unittest.TestCase):
+class TestAptitudePackageManager_CustomSources(unittest.TestCase):
     def setUp(self):
         self.argument_composer = ArgumentComposer().get_composed_arguments()
         self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
@@ -36,39 +33,6 @@ class TestAptitudePackageManager_CustomSource(unittest.TestCase):
 
     def tearDown(self):
         self.runtime.stop()
-
-    #region Mocks
-    def mock_read_with_retry_raise_exception(self):
-        raise Exception
-
-    def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
-        raise Exception
-
-    def mock_linux_distribution_to_return_ubuntu_focal(self):
-        return ['Ubuntu', '20.04', 'focal']
-
-    def mock_is_pro_working_return_true(self):
-        return True
-
-    def mock_minimum_required_python_installed_return_true(self):
-        return True
-
-    def mock_install_or_update_pro_raise_exception(self):
-        raise Exception
-
-    def mock_do_processes_require_restart_raises_exception(self):
-        raise Exception
-
-    def mock_is_reboot_pending_returns_False(self):
-        return False, False
-
-    def mock_os_path_isfile_raise_exception(self, file):
-        raise Exception
-
-    def mock_get_security_updates_return_empty_list(self):
-        return [], []
-
-    # endregion Mocks
 
     def test_sources_list_and_parts_combinations(self):
         # EULA accepted in settings and commands updated accordingly

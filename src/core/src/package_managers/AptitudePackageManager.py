@@ -39,12 +39,10 @@ class AptitudePackageManager(PackageManager):
         self.APT_SOURCES_LIST_DIR_SRC_EXT = 'sources'
 
         # Support to get packages and their dependencies
-        custom_source_timestamp = self.env_layer.datetime.timestamp()
+        custom_source_timestamp = self.env_layer.datetime.timestamp().replace(":",".")
         self.custom_source_list_template = os.path.join(execution_config.temp_folder, 'azgps-src-{0}-<FORMULA>.list'.format(str(custom_source_timestamp)))
         self.custom_source_parts_dir_template = os.path.join(execution_config.temp_folder, 'azgps-src-{0}-<FORMULA>.d'.format(str(custom_source_timestamp)))
-        self.current_source_formula = "none"
-        self.current_source_list = self.custom_source_list_template.replace("<FORMULA>", self.current_source_formula)
-        self.current_source_parts_dir = self.custom_source_parts_dir_template.replace("<FORMULA>", self.current_source_formula)
+        self.current_source_parts_dir = self.current_source_list = self.current_source_formula = None
         self.current_source_parts_file_name = "azgps-src-parts.sources"
 
         # Repo refresh
@@ -114,7 +112,7 @@ class AptitudePackageManager(PackageManager):
             self.current_source_list = self.custom_source_list_template.replace("<FORMULA>", formula)
             if os.path.exists(self.current_source_list) and os.path.isdir(self.current_source_parts_dir):
                 self.refresh_repo(source_parts_dir=self.current_source_parts_dir, source_list=self.current_source_list)     # refresh repo as requested state has changed
-                return self.current_source_parts_dir, self.current_source_parts_dir
+                return self.current_source_parts_dir, self.current_source_list
 
             # Produce data for combination not seen previously in this execution - source list
             source_list_content = self.__read_one_line_style_list_format(self.APT_SOURCES_LIST_PATH, max_patch_published_date, base_classification) if os.path.exists(self.APT_SOURCES_LIST_PATH) else str()
@@ -137,8 +135,8 @@ class AptitudePackageManager(PackageManager):
             # verify files exist
             if not os.path.isdir(self.current_source_parts_dir):
                 raise Exception("[APM] Expected directory not found. [Dir={0}]".format(self.current_source_parts_dir))
-            if not os.path.exists(self.current_source_parts_deb882_style_file):
-                raise Exception("[APM] Expected file not found. [File={0}]".format(self.current_source_parts_deb882_style_file))
+            if not os.path.exists(os.path.join(self.current_source_parts_dir, self.current_source_parts_file_name)):
+                raise Exception("[APM] Expected file not found. [File={0}]".format(os.path.join(self.current_source_parts_dir, self.current_source_parts_file_name)))
             if not os.path.exists(self.current_source_list):
                 raise Exception("[APM] Expected file not found. [File={0}]".format(self.current_source_list))
 
@@ -175,7 +173,7 @@ class AptitudePackageManager(PackageManager):
                 except Exception as error:      # does not throw to allow patching to happen with functioning sources
                     self.composite_logger.log_error("[APM] Error while processing consolidated sources list. [File={0}][Error={1}]".format(file_name, repr(error)))
 
-        return source_parts_deb882_style_content, source_parts_list_content
+        return source_parts_deb882_style_content.strip(), source_parts_list_content.strip()
 
     def __read_one_line_style_list_format(self, file_path, max_patch_published_date, base_classification):
         # type: (str, str, str) -> str
@@ -194,7 +192,7 @@ class AptitudePackageManager(PackageManager):
                 std_source_list_content += "\n" + self.__apply_max_patch_publish_date(sources_content=line, max_patch_publish_date=max_patch_published_date)
 
         self.composite_logger.log_verbose("[APM][Srclist] Output source list slice. [FilePath={0}][TransformedContent={1}]".format(file_path, std_source_list_content))
-        return std_source_list_content
+        return std_source_list_content.strip()
 
     def __read_deb882_style_format(self, file_path, max_patch_published_date, base_classification):
         # type: (str, str, str) -> str
@@ -202,7 +200,7 @@ class AptitudePackageManager(PackageManager):
         stanza = str()
 
         try:
-            source_parts_content = self.env_layer.file_system.read_with_retry(file_path)
+            source_parts_content = self.env_layer.file_system.read_with_retry(file_path) + "\n"
             self.composite_logger.log_verbose("[APM][Deb882] Input source parts file. [FilePath={0}][Content={1}]".format(file_path, source_parts_content))
             source_parts_content_lines = source_parts_content.splitlines()
 
@@ -231,7 +229,7 @@ class AptitudePackageManager(PackageManager):
             return sources_content
 
         candidates = ["://azure.archive.ubuntu.com/ubuntu/", "archive.ubuntu.com/ubuntu/", "security.ubuntu.com/ubuntu/", "://snapshot.ubuntu.com/ubuntu/"]
-        target = "://snapshot.ubuntu.com/ubuntu/{0}".format(max_patch_publish_date)
+        target = "https://snapshot.ubuntu.com/ubuntu/{0}".format(max_patch_publish_date)
         matched = False
 
         for candidate in candidates:

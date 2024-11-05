@@ -49,6 +49,7 @@ class RuntimeCompositor(object):
         self.vm_cloud_type = vm_cloud_type
         Constants.SystemPaths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
         self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
+        self.scratch_path = os.path.join(os.path.curdir, "scratch")
 
         # speed up test execution
         Constants.MAX_FILE_OPERATION_RETRY_COUNT = 1
