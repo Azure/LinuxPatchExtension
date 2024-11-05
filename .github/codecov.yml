@@ -5,7 +5,8 @@ comment:
 github_checks:
     annotations: false
 ignore:
-  - "distro.py"
+  - "**/distro.py"
+  - "src/external_dependencies"
 coverage:
   precision: 2
   round: down
