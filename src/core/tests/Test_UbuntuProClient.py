@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import imp
+import types
 import sys
 import types
 import unittest
@@ -63,7 +63,7 @@ class MockVersionResult(MockSystemModules):
             mock_method = getattr(self, method_name)
             setattr(sys.modules['uaclient.api.u.pro.version.v1'], mock_name, mock_method)
         else:
-            version_module = imp.new_module('version_module')
+            version_module = types.ModuleType('version_module')
             mock_method = getattr(self, method_name)
             setattr(version_module, mock_name, mock_method)
             self.assign_sys_modules_with_mock_module('uaclient.api.u.pro.version.v1', version_module)
@@ -91,7 +91,7 @@ class MockRebootRequiredResult(MockSystemModules):
             mock_method = getattr(self, method_name)
             setattr(sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'], mock_name, mock_method)
         else:
-            reboot_module = imp.new_module('reboot_module')
+            reboot_module = types.ModuleType('reboot_module')
             mock_method = getattr(self, method_name)
             setattr(reboot_module, mock_name, mock_method)
             self.assign_sys_modules_with_mock_module('uaclient.api.u.pro.security.status.reboot_required.v1', reboot_module)
@@ -135,7 +135,7 @@ class MockUpdatesResult(MockSystemModules):
             mock_method = getattr(self, method_name)
             setattr(sys.modules['uaclient.api.u.pro.packages.updates.v1'], mock_name, mock_method)
         else:
-            update_module = imp.new_module('update_module')
+            update_module = types.ModuleType('update_module')
             mock_method = getattr(self, method_name)
             setattr(update_module, mock_name, mock_method)
             self.assign_sys_modules_with_mock_module('uaclient.api.u.pro.packages.updates.v1', update_module)
