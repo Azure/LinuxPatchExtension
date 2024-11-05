@@ -118,7 +118,9 @@ class ExecutionConfig(object):
         # type (str) -> str
         # This is for AzGPS mitigation mode execution for Strict safe-deployment of patches.
         mitigation_mode_flag = False
+        mitigation_mode_flag_pos = -1
         candidate = str()
+        candidate_pos = -1
 
         for i in range(0, len(included_package_name_mask_list)):
             if mitigation_mode_flag and candidate != str():
@@ -126,24 +128,24 @@ class ExecutionConfig(object):
 
             if included_package_name_mask_list[i] == "AzGPS_Mitigation_Mode_No_SLA":
                 mitigation_mode_flag = True
+                mitigation_mode_flag_pos = i
                 continue
 
-            if candidate != str():
-                continue
-
-            if not included_package_name_mask_list[i].startswith("MaxPatchPublishDate="):
-                self.composite_logger.log_verbose("[EC] Ignored [MaxPatchPublishDate={0}]".format(str(included_package_name_mask_list[i])))
+            if candidate != str() or not included_package_name_mask_list[i].startswith("MaxPatchPublishDate="):
                 continue
 
             candidate = included_package_name_mask_list[i].replace("MaxPatchPublishDate=", "")
             candidate_split = candidate.split("T")
             if len(candidate) == 16 and len(candidate_split) == 2 and candidate_split[0].isdigit() and candidate_split[1].endswith("Z"):
                 self.composite_logger.log_debug("[EC] Discovered effective MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
+                candidate_pos = i
             else:
                 self.composite_logger.log_debug("[EC] Invalid match on MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
 
         if mitigation_mode_flag and candidate != str():
             self.composite_logger.log_warning("AzGPS Mitigation Mode: There is no support or SLA for execution in this mode without explicit direction from AzGPS engineering.")
+            included_package_name_mask_list.pop(mitigation_mode_flag_pos)
+            included_package_name_mask_list.pop(candidate_pos - 1 if mitigation_mode_flag_pos < candidate_pos else candidate_pos)
             return candidate
 
         return str()

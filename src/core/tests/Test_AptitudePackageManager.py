@@ -601,15 +601,27 @@ class TestAptitudePackageManager(unittest.TestCase):
         container = self.runtime.container
         execution_config = container.get('execution_config')
         self.assertEqual(execution_config.max_patch_publish_date, "20250101T010203Z")
+        self.assertEqual(len(execution_config.included_package_name_mask_list), 0) # inclusion list is sanitized
         self.runtime.stop()
 
         argument_composer = ArgumentComposer()
         argument_composer.classifications_to_include = [Constants.PackageClassification.CRITICAL]
-        argument_composer.patches_to_include = ["MaxPatchPublishDate=20250101T010203Z"]
+        argument_composer.patches_to_include = ["*kernel*", "MaxPatchPublishDate=20250101T010203Z", "AzGPS_Mitigation_Mode_No_SLA"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        container = self.runtime.container
+        execution_config = container.get('execution_config')
+        self.assertEqual(execution_config.max_patch_publish_date, "20250101T010203Z")
+        self.assertEqual(len(execution_config.included_package_name_mask_list), 1)  # inclusion list is sanitized
+        self.runtime.stop()
+
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PackageClassification.CRITICAL]
+        argument_composer.patches_to_include = ["MaxPatchPublishDate=20250101T010203Z", "*firefox=1.1"]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         container = self.runtime.container
         execution_config = container.get('execution_config')
         self.assertEqual(execution_config.max_patch_publish_date, "")
+        self.assertEqual(len(execution_config.included_package_name_mask_list), 2)
 
     def test_eula_acceptance_file_read_success(self):
         self.runtime.stop()
