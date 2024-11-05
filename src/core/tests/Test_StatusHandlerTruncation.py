@@ -937,9 +937,9 @@ class TestStatusHandlerTruncation(unittest.TestCase):
             test_patches_list.append('python-samba' + str(i))
 
             if random_char is not None:
-                test_patches_version_list.append('2:4.4.5+dfsg-2ubuntu€' + random_char)
+                test_patches_version_list.append('2:4.4.5+dfsg-2ubuntu\u20ac' + random_char)
             else:
-                test_patches_version_list.append('2:4.4.5+dfsg-2ubuntu€')
+                test_patches_version_list.append('2:4.4.5+dfsg-2ubuntu\u20ac')
 
         return test_patches_list, test_patches_version_list
 
