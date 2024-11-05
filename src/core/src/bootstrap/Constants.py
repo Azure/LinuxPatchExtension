@@ -31,7 +31,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.53"
+    EXT_VERSION = "1.6.55"
 
     # Runtime environments
     TEST = 'Test'
@@ -219,9 +219,21 @@ class Constants(object):
     MAX_INSTALLATION_RETRY_COUNT = 3
     MAX_IMDS_CONNECTION_RETRY_COUNT = 5
     MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT = 5
-    MAX_BATCH_SIZE_FOR_PACKAGES = 6
-    NUMBER_OF_PACKAGES_IN_BATCH_COULD_TAKE_MAX_TIME_TO_INSTALL = 3
     MAX_COMPLETE_STATUS_FILES_TO_RETAIN = 10
+
+    class PackageBatchConfig(EnumBackport):
+        # Batch Patching Parameters
+        MAX_BATCH_SIZE_FOR_PACKAGES = 300
+        MAX_PHASES_FOR_BATCH_PATCHING = 2
+
+        # Batch size decay factor is factor to which batch size is decreased in batch patching to install remaining packages in case there
+        # are some package install failures with original batch size.
+        BATCH_SIZE_DECAY_FACTOR = 10
+
+        # We need to keep some buffer time between calculation of batch size and starting batch patching because after calculating the batch size,
+        # there would be little time taken before the batch patching is started. The function is_package_install_time_available is called before installing a batch.
+        # If we do not keep buffer then is_package_install_time_available would return false.
+        BUFFER_TIME_FOR_BATCH_PATCHING_START_IN_MINUTES = 5
 
     class PackageClassification(EnumBackport):
         UNCLASSIFIED = 'Unclassified'
@@ -269,19 +281,6 @@ class Constants(object):
 
     # Maintenance Window
     PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES = 5
-    
-    # As per telemetry data, when batch size is 3, the average time taken per package installation for different package managers is as follow:
-    # apt: 43 seconds
-    # yum: 71 seconds
-    # zypper: 142 seconds
-    # Overall, including all package managers, the average time is 51 seconds.
-    # The average time taken per package installation is average of (total time taken to install the packages) / (total number of packages installed).
-    # The expected average time should be kept as max of average time taken by different packages managers. The max of average time is taken in zypper i.e. 142 seconds when batch size is 3.
-    # But as the batch size increases, the time taken to install package will decrease. Also, the average time is taken in consideration in calculating maintenance window cutoff only if the 
-    # batch size is greater than or equal to 4. So, keeping the expected average time as 2 minutes i.e. 120 seconds. It should be fine to keep expected time little lower than actual average time 
-    # observed in telemetry because there is PACKAGE_INSTALL_EXPECTED_MAX_TIME_IN_MINUTES also in the calucalation of maintenance window cut off which will make the overall cutoff time enough to 
-    # install the batch of packages.
-    PACKAGE_INSTALL_EXPECTED_AVG_TIME_IN_MINUTES = 2
 
     # Package Manager Setting
     PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION = "RepeatUpdateRun"
@@ -316,8 +315,8 @@ class Constants(object):
     TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = 41943040
     TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS = 25  # buffer for the chars dropped text added at the end of the truncated telemetry message
     TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS = 15  # buffer for telemetry event counter text added at the end of every message sent to telemetry
-    TELEMETRY_MAX_EVENT_COUNT_THROTTLE = 60
-    TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 60
+    TELEMETRY_MAX_EVENT_COUNT_THROTTLE = 360
+    TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 300
 
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):
