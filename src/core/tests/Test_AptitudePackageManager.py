@@ -597,11 +597,11 @@ class TestAptitudePackageManager(unittest.TestCase):
         # classic happy path mode
         argument_composer = ArgumentComposer()
         argument_composer.classifications_to_include = [Constants.PackageClassification.CRITICAL]
-        argument_composer.patches_to_include = ["AzGPS_Mitigation_Mode_No_SLA", "MaxPatchPublishDate=20250101T010203Z"]
+        argument_composer.patches_to_include = ["AzGPS_Mitigation_Mode_No_SLA", "MaxPatchPublishDate=20250101T010203Z", "*kernel*"]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         execution_config = self.runtime.container.get('execution_config')
         self.assertEqual(execution_config.max_patch_publish_date, "20250101T010203Z")
-        self.assertEqual(len(execution_config.included_package_name_mask_list), 0) # inclusion list is sanitized
+        self.assertEqual(len(execution_config.included_package_name_mask_list), 1) # inclusion list is sanitized
         self.runtime.stop()
 
         # retains valid inclusions while honoring mitigation mode entries

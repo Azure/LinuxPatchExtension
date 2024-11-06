@@ -132,7 +132,7 @@ class ExecutionConfig(object):
                 continue
 
             if candidate != str() or not included_package_name_mask_list[i].startswith("MaxPatchPublishDate="):
-                continue
+                continue    # good candidate already found, or candidate not found and
 
             candidate = included_package_name_mask_list[i].replace("MaxPatchPublishDate=", "")
             candidate_split = candidate.split("T")
