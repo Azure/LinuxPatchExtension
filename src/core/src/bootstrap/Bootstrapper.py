@@ -19,7 +19,7 @@ import base64
 import json
 import os
 import sys
-import threading
+import time
 
 from core.src.bootstrap.ConfigurationFactory import ConfigurationFactory
 from core.src.bootstrap.Constants import Constants
@@ -154,6 +154,7 @@ class Bootstrapper(object):
             try:
                 self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
                 return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
+                print('what is return_code', return_code, 'whats output', output)
                 # output should look like either this (bad):
                 #   [sudo] password for username:
                 #   False
@@ -187,4 +188,4 @@ class Bootstrapper(object):
                     return False
 
                 self.composite_logger.log_error("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][Attempts={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
-                threading.Event().wait(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
+                time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
