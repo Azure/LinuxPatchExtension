@@ -15,11 +15,16 @@
 # Requires Python 2.7+
 
 import datetime
-from io import StringIO
 import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
 import unittest
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
+
 
 class TestMaintenanceWindow(unittest.TestCase):
     def setUp(self):
@@ -67,6 +72,7 @@ class TestMaintenanceWindow(unittest.TestCase):
     def test_RemainingTime_log_to_stdout_true(self):
         # Arrange, Capture stdout
         captured_output = StringIO()
+        original_output = sys.stdout
         sys.stdout = captured_output  # Redirect stdout to the StringIO object
 
         argument_composer = ArgumentComposer()
@@ -78,7 +84,7 @@ class TestMaintenanceWindow(unittest.TestCase):
         remaining_time = runtime.maintenance_window.get_remaining_time_in_minutes(current_time, log_to_stdout=True)
 
         # Restore stdout
-        sys.stdout = sys.__stdout__
+        sys.stdout = original_output
 
         # Assert
         output = captured_output.getvalue()
