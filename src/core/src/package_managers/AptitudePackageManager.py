@@ -18,6 +18,7 @@
 import json
 import os
 import re
+import shutil
 import sys
 
 from core.src.package_managers.PackageManager import PackageManager
@@ -128,9 +129,7 @@ class AptitudePackageManager(PackageManager):
             # Source parts debstyle882-only initialization
             current_source_parts_deb882_style_file = os.path.join(self.current_source_parts_dir, self.current_source_parts_file_name)
             if os.path.isdir(self.current_source_parts_dir):
-                if os.path.exists(current_source_parts_deb882_style_file):
-                    os.remove(current_source_parts_deb882_style_file)
-                os.remove(self.current_source_parts_dir)
+                shutil.rmtree(self.current_source_parts_dir)
 
             # Create the folder and write to it only if there is debstyle882 content to be written
             if len(source_parts_deb882_style_content) > 0:
