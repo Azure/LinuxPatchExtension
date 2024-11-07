@@ -277,7 +277,7 @@ class AptitudePackageManager(PackageManager):
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
-            error_msg = "Customer environment error: Investigate and resolve unexpected return code (\'{0}\') from package manager on command: {1}".format(str(code), command)
+            error_msg = "Customer environment error: Investigate and resolve unexpected return code ({0}) from package manager on command: {1}".format(str(code), command)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             if raise_on_exception:
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
