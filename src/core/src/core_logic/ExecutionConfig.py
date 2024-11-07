@@ -58,8 +58,9 @@ class ExecutionConfig(object):
         self.included_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_INCLUDE, [])
         self.excluded_package_name_mask_list = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.PATCHES_TO_EXCLUDE, [])
         self.maintenance_run_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.MAINTENANCE_RUN_ID)
-        self.health_store_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.HEALTH_STORE_ID)
-        self.max_patch_publish_date = self.__get_max_patch_publish_date(self.health_store_id)
+        self.max_patch_publish_date = self.__get_max_patch_publish_date_from_inclusions(self.included_package_name_mask_list)   # supersedes in a mitigation scenario
+        self.health_store_id = self.__get_execution_configuration_value_safely(self.config_settings, Constants.ConfigSettings.HEALTH_STORE_ID) if self.max_patch_publish_date == str() else str()
+        self.max_patch_publish_date = self.__get_max_patch_publish_date(self.health_store_id) if self.max_patch_publish_date == str() else self.max_patch_publish_date
         if self.operation == Constants.INSTALLATION:
             self.reboot_setting = self.config_settings[Constants.ConfigSettings.REBOOT_SETTING]     # expected to throw if not present
         else:
@@ -112,6 +113,45 @@ class ExecutionConfig(object):
 
         self.composite_logger.log_debug("[EC] Getting max patch publish date. [MaxPatchPublishDate={0}][HealthStoreId={1}]".format(str(max_patch_publish_date), str(health_store_id)))
         return max_patch_publish_date
+
+    def __get_max_patch_publish_date_from_inclusions(self, included_package_name_mask_list):
+        # type (str) -> str
+        # This is for AzGPS mitigation mode execution for Strict safe-deployment of patches.
+        mitigation_mode_flag = False
+        mitigation_mode_flag_pos = -1
+        candidate = str()
+        candidate_pos = -1
+
+        for i in range(0, len(included_package_name_mask_list)):
+            if mitigation_mode_flag and candidate != str():
+                break   # everything we're looking for has been found
+
+            if included_package_name_mask_list[i] == "AzGPS_Mitigation_Mode_No_SLA":
+                mitigation_mode_flag = True
+                mitigation_mode_flag_pos = i
+                continue    # mitigation mode flag found
+
+            if candidate != str() or not included_package_name_mask_list[i].startswith("MaxPatchPublishDate="):
+                continue    # good candidate already found, or candidate not found and does not match what we are looking for
+
+            candidate = included_package_name_mask_list[i].replace("MaxPatchPublishDate=", "")
+            candidate_split = candidate.split("T")
+            if (len(candidate) == 16 and len(candidate_split) == 2 and candidate_split[0].isdigit() and len(candidate_split[0]) == 8
+                    and candidate_split[1].endswith("Z") and candidate_split[1][0:6].isdigit()):
+                self.composite_logger.log_debug("[EC] Discovered effective MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
+                candidate_pos = i
+            else:
+                self.composite_logger.log_debug("[EC] Invalid match on MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
+                candidate = str()
+
+        # if everything we're looking for is present, remove them from the list
+        if mitigation_mode_flag and candidate != str() and mitigation_mode_flag_pos != -1 and candidate_pos != -1:
+            self.composite_logger.log_warning("AzGPS Mitigation Mode: There is no support or SLA for execution in this mode without explicit direction from AzGPS engineering.")
+            included_package_name_mask_list.pop(mitigation_mode_flag_pos)
+            included_package_name_mask_list.pop(candidate_pos - 1 if mitigation_mode_flag_pos < candidate_pos else candidate_pos)
+            return candidate
+
+        return str()
 
     @staticmethod
     def __get_value_from_argv(argv, key, default_value=Constants.DEFAULT_UNSPECIFIED_VALUE):
