@@ -135,12 +135,11 @@ class ExecutionConfig(object):
                 continue    # good candidate already found, or candidate not found and does not match what we are looking for
 
             candidate = included_package_name_mask_list[i].replace("MaxPatchPublishDate=", "")
-            candidate_split = candidate.split("T")
-            if (len(candidate) == 16 and len(candidate_split) == 2 and candidate_split[0].isdigit() and len(candidate_split[0]) == 8
-                    and candidate_split[1].endswith("Z") and candidate_split[1][0:6].isdigit()):
+            try:
+                datetime.datetime.strptime(candidate, "%Y%m%dT%H%M%SZ")
                 self.composite_logger.log_debug("[EC] Discovered effective MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
                 candidate_pos = i
-            else:
+            except ValueError:
                 self.composite_logger.log_debug("[EC] Invalid match on MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
                 candidate = str()
 

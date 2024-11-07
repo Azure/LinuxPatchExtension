@@ -606,7 +606,6 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         # retains valid inclusions while honoring mitigation mode entries
         argument_composer = ArgumentComposer()
-        argument_composer.classifications_to_include = [Constants.PackageClassification.CRITICAL]
         argument_composer.patches_to_include = ["*kernel*", "MaxPatchPublishDate=20250101T010203Z", "AzGPS_Mitigation_Mode_No_SLA"]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         execution_config = self.runtime.container.get('execution_config')
@@ -616,7 +615,6 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         # missing required disclaimer entry
         argument_composer = ArgumentComposer()
-        argument_composer.classifications_to_include = [Constants.PackageClassification.CRITICAL]
         argument_composer.patches_to_include = ["MaxPatchPublishDate=20250101T010203Z", "*firefox=1.1"]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         execution_config = self.runtime.container.get('execution_config')
@@ -626,7 +624,6 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         # badly formatted date
         argument_composer = ArgumentComposer()
-        argument_composer.classifications_to_include = [Constants.PackageClassification.CRITICAL]
         argument_composer.patches_to_include = ["*firefox*", "MaxPatchPublishDate=20250101010203Z", "AzGPS_Mitigation_Mode_No_SLA", "*kernel*"]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         execution_config = self.runtime.container.get('execution_config')
