@@ -120,25 +120,23 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_verbose("[APM] Source list content written. [List={0}][Content={1}]".format(self.current_source_list, source_list_content))
 
             # Produce data for combination not seen previously in this execution - source parts
-            current_source_parts_deb882_style_file = os.path.join(self.current_source_parts_dir, self.current_source_parts_file_name)
-            if os.path.exists(current_source_parts_deb882_style_file):
-                os.remove(current_source_parts_deb882_style_file)
-            if os.path.isdir(self.current_source_parts_dir):
-                os.remove(self.current_source_parts_dir)
-            os.makedirs(self.current_source_parts_dir)
             source_parts_deb882_style_content, source_parts_list_content = self.__get_consolidated_source_parts_content(max_patch_published_date, base_classification)
-            self.env_layer.file_system.write_with_retry(current_source_parts_deb882_style_file, source_parts_deb882_style_content, "w")
-            self.composite_logger.log_verbose("[APM] Source parts debstyle882 content written. [Dir={0}][Content={1}]".format(current_source_parts_deb882_style_file, source_parts_deb882_style_content))
-            self.env_layer.file_system.write_with_retry(self.current_source_list, source_parts_list_content, "a")
-            self.composite_logger.log_verbose("[APM] Source parts list content appended. [List={0}][Content={1}]".format(self.current_source_list, source_parts_list_content))
+            if len(source_parts_list_content) > 0:  # list(s) in source parts
+                self.env_layer.file_system.write_with_retry(self.current_source_list, "\n" + source_parts_list_content, "a")
+                self.composite_logger.log_verbose("[APM] Source parts list content appended. [List={0}][Content={1}]".format(self.current_source_list, source_parts_list_content))
 
-            # verify files exist
-            if not os.path.isdir(self.current_source_parts_dir):
-                raise Exception("[APM] Expected directory not found. [Dir={0}]".format(self.current_source_parts_dir))
-            if not os.path.exists(os.path.join(self.current_source_parts_dir, self.current_source_parts_file_name)):
-                raise Exception("[APM] Expected file not found. [File={0}]".format(os.path.join(self.current_source_parts_dir, self.current_source_parts_file_name)))
-            if not os.path.exists(self.current_source_list):
-                raise Exception("[APM] Expected file not found. [File={0}]".format(self.current_source_list))
+            # Source parts debstyle882-only initialization
+            current_source_parts_deb882_style_file = os.path.join(self.current_source_parts_dir, self.current_source_parts_file_name)
+            if os.path.isdir(self.current_source_parts_dir):
+                if os.path.exists(current_source_parts_deb882_style_file):
+                    os.remove(current_source_parts_deb882_style_file)
+                os.remove(self.current_source_parts_dir)
+
+            # Create the folder and write to it only if there is debstyle882 content to be written
+            if len(source_parts_deb882_style_content) > 0:
+                os.makedirs(self.current_source_parts_dir)
+                self.env_layer.file_system.write_with_retry(current_source_parts_deb882_style_file, source_parts_deb882_style_content, "w")
+                self.composite_logger.log_verbose("[APM] Source parts debstyle882 content written. [Dir={0}][Content={1}]".format(current_source_parts_deb882_style_file, source_parts_deb882_style_content))
 
         except Exception as error:
             self.composite_logger.log_error("[APM] Error in modifying custom sources list. [Error={0}]".format(repr(error)))

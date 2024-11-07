@@ -135,7 +135,7 @@ class ExecutionConfig(object):
                 continue    # good candidate already found, or candidate not found and does not match what we are looking for
 
             candidate = included_package_name_mask_list[i].replace("MaxPatchPublishDate=", "")
-            candidate_split = candidate.split("T")
+            candidate_split = candidate.split("T")  # 20240401T160000Z = 16 chars; splits on T; 20240401 = 8 chars (all digits); 160000 = 6 chars (all digits)
             if (len(candidate) == 16 and len(candidate_split) == 2 and candidate_split[0].isdigit() and len(candidate_split[0]) == 8
                     and candidate_split[1].endswith("Z") and candidate_split[1][0:6].isdigit()):
                 self.composite_logger.log_debug("[EC] Discovered effective MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
