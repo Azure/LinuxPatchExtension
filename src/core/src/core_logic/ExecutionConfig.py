@@ -124,15 +124,15 @@ class ExecutionConfig(object):
 
         for i in range(0, len(included_package_name_mask_list)):
             if mitigation_mode_flag and candidate != str():
-                break
+                break   # everything we're looking for has been found
 
             if included_package_name_mask_list[i] == "AzGPS_Mitigation_Mode_No_SLA":
                 mitigation_mode_flag = True
                 mitigation_mode_flag_pos = i
-                continue
+                continue    # mitigation mode flag found
 
             if candidate != str() or not included_package_name_mask_list[i].startswith("MaxPatchPublishDate="):
-                continue    # good candidate already found, or candidate not found and
+                continue    # good candidate already found, or candidate not found and does not match what we are looking for
 
             candidate = included_package_name_mask_list[i].replace("MaxPatchPublishDate=", "")
             candidate_split = candidate.split("T")
@@ -144,6 +144,7 @@ class ExecutionConfig(object):
                 self.composite_logger.log_debug("[EC] Invalid match on MaxPatchPublishDate in patch inclusions. [MaxPatchPublishDate={0}]".format(str(candidate)))
                 candidate = str()
 
+        # if everything we're looking for is present, remove them from the list
         if mitigation_mode_flag and candidate != str() and mitigation_mode_flag_pos != -1 and candidate_pos != -1:
             self.composite_logger.log_warning("AzGPS Mitigation Mode: There is no support or SLA for execution in this mode without explicit direction from AzGPS engineering.")
             included_package_name_mask_list.pop(mitigation_mode_flag_pos)
