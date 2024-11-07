@@ -13,8 +13,8 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
 import unittest
+
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -111,6 +111,34 @@ class TestRebootManager(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         reboot_manager = runtime.reboot_manager
         self.assertEqual(reboot_manager.start_reboot_if_required_and_time_available(10), False)
+        runtime.stop()
+
+    def test_reboot_if_required_no_reboot_pending(self):
+        reboot_setting_in_api = 'IfRequired'
+        argument_composer = ArgumentComposer()
+        argument_composer.reboot_setting = reboot_setting_in_api
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        reboot_manager = runtime.reboot_manager
+
+        # Validate single reboot scenario
+        runtime.status_handler.is_reboot_pending = False
+        self.assertEqual(reboot_manager.start_reboot_if_required_and_time_available(20), False)
+        runtime.stop()
+
+    def test_start_reboot_raise_exception(self):
+        reboot_setting_in_api = 'Always'
+        argument_composer = ArgumentComposer()
+        argument_composer.reboot_setting = reboot_setting_in_api
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES = -20
+
+        with self.assertRaises(Exception) as context:
+            runtime.use_original_rm_start_reboot()
+            runtime.reboot_manager.start_reboot()
+
+        # assert
+        self.assertIn("Reboot failed to proceed on the machine in a timely manner.", repr(context.exception))
+        self.assertEqual(context.exception.args[1], "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         runtime.stop()
 
 

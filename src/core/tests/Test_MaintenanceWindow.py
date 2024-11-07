@@ -15,9 +15,16 @@
 # Requires Python 2.7+
 
 import datetime
+import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
 import unittest
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
+
 
 class TestMaintenanceWindow(unittest.TestCase):
     def setUp(self):
@@ -60,6 +67,44 @@ class TestMaintenanceWindow(unittest.TestCase):
         remaining_time = runtime.maintenance_window.get_remaining_time_in_minutes(current_time)
 
         self.assertEqual(int(remaining_time), 0)
+        runtime.stop()
+
+    def test_RemainingTime_log_to_stdout_true(self):
+        # Arrange, Capture stdout
+        captured_output = StringIO()
+        original_output = sys.stdout
+        sys.stdout = captured_output  # Redirect stdout to the StringIO object
+
+        argument_composer = ArgumentComposer()
+        argument_composer.start_time = "2017-02-15T18:15:12.9828835Z"
+        argument_composer.maximum_duration = "PT1H"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+
+        current_time = datetime.datetime.strptime('2017-02-15 18:30:20', "%Y-%m-%d %H:%M:%S")
+        remaining_time = runtime.maintenance_window.get_remaining_time_in_minutes(current_time, log_to_stdout=True)
+
+        # Restore stdout
+        sys.stdout = original_output
+
+        # Assert
+        output = captured_output.getvalue()
+        self.assertEqual(int(remaining_time), 44)
+        self.assertIn("Maintenance Window Utilization:", output)  # Verify the log output contains the expected text
+
+        runtime.stop()
+
+    def test_RemainingTime_raise_exception(self):
+        # Arrange
+        argument_composer = ArgumentComposer()
+        argument_composer.start_time = "Invalid datetime format"
+        argument_composer.maximum_duration = "PT1H"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True)
+
+        # Assert
+        with self.assertRaises(ValueError) as context:
+            runtime.maintenance_window.get_remaining_time_in_minutes()
+        self.assertIn("Invalid datetime format", str(context.exception))
+
         runtime.stop()
 
     def test_check_available_time(self):
