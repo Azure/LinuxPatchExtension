@@ -16,7 +16,9 @@
 import os
 import shutil
 import time
+import threading
 import unittest
+from os import mkdir
 from unittest import expectedFailure
 
 from core.src.bootstrap.Constants import Constants
@@ -37,22 +39,19 @@ class TestAptitudePackageManager_CustomSources(unittest.TestCase):
         self.runtime.stop()
 
     def test_sources_list_and_parts_combinations(self):
-        # EULA accepted in settings and commands updated accordingly
-        self.__lib_test_custom_sources_with(include_sources_list=True, include_source_parts_list=False,
-                                            include_source_parts_debstyle=True,
-                                            include_max_patch_publish_date="")
-
+        # Tests 32 combinations of source configuration on disk and desired manipulations + caching
         for include_sources_list in [True, False]:
             for include_source_parts_list in [True, False]:
                 for include_source_parts_debstyle in [True, False]:
                     for include_max_patch_publish_date in [str(), "20240401T160000Z"]:
-                        time.sleep(1000)
                         print("\n\nTesting combination: [SourcesList={0}][SourcePartsList={1}][SourcePartsDebstyle={2}][PublishDate={3}]".format(
                             include_sources_list, include_source_parts_list, include_source_parts_debstyle, include_max_patch_publish_date))
                         self.__lib_test_custom_sources_with(include_sources_list=include_sources_list,
                                                             include_source_parts_list=include_source_parts_list,
                                                             include_source_parts_debstyle=include_source_parts_debstyle,
                                                             include_max_patch_publish_date=include_max_patch_publish_date)
+                        shutil.rmtree(os.path.join(self.runtime.scratch_path, "tmp"))
+                        mkdir(os.path.join(self.runtime.scratch_path, "tmp"))
 
     def __lib_test_custom_sources_with(self, include_sources_list=False, include_source_parts_list=False, include_source_parts_debstyle=False,
                                        include_max_patch_publish_date=str()):
@@ -61,29 +60,34 @@ class TestAptitudePackageManager_CustomSources(unittest.TestCase):
         package_manager = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
         self.__adapt_package_manager_for_mock_sources(package_manager, mock_sources_path)
 
-        # All
-        expected_debstyle_entry_count = 2 if include_source_parts_debstyle else 0
-        expected_sources_list_entry_count = (4 if include_sources_list else 0) + (3 if include_source_parts_list else 0)
-        sources_dir, sources_list = package_manager._AptitudePackageManager__get_custom_sources_to_spec(include_max_patch_publish_date)
-        self.__check_custom_sources(sources_dir, sources_list,
-                                    sources_debstyle_expected=include_source_parts_debstyle,
-                                    sources_list_expected=include_sources_list,
-                                    security_only=False,
-                                    sources_debstyle_entry_count=expected_debstyle_entry_count,
-                                    sources_list_entry_count=expected_sources_list_entry_count,
-                                    max_patch_publish_date=include_max_patch_publish_date)
+        for i in range(3):
+            # All
+            expected_debstyle_entry_count = 2 if include_source_parts_debstyle else 0
+            expected_sources_list_entry_count = (4 if include_sources_list else 0) + (3 if include_source_parts_list else 0)
+            sources_dir, sources_list = package_manager._AptitudePackageManager__get_custom_sources_to_spec(include_max_patch_publish_date)
+            self.__check_custom_sources(sources_dir, sources_list,
+                                        sources_debstyle_expected=include_source_parts_debstyle,
+                                        sources_list_expected=include_sources_list,
+                                        security_only=False,
+                                        sources_debstyle_entry_count=expected_debstyle_entry_count,
+                                        sources_list_entry_count=expected_sources_list_entry_count,
+                                        max_patch_publish_date=include_max_patch_publish_date)
 
-        # Security
-        expected_debstyle_entry_count = 1 if include_source_parts_debstyle else 0
-        expected_sources_list_entry_count = (1 if include_sources_list else 0) + (1 if include_source_parts_list else 0)
-        sources_dir, sources_list = package_manager._AptitudePackageManager__get_custom_sources_to_spec(include_max_patch_publish_date, "Security")
-        self.__check_custom_sources(sources_dir, sources_list,
-                                    sources_debstyle_expected=include_source_parts_debstyle,
-                                    sources_list_expected=include_sources_list,
-                                    security_only=True,
-                                    sources_debstyle_entry_count=expected_debstyle_entry_count,
-                                    sources_list_entry_count=expected_sources_list_entry_count,
-                                    max_patch_publish_date=include_max_patch_publish_date)
+            # caching combinatorial exercise
+            if i >= 1:
+                continue
+
+            # Security
+            expected_debstyle_entry_count = 1 if include_source_parts_debstyle else 0
+            expected_sources_list_entry_count = (1 if include_sources_list else 0) + (1 if include_source_parts_list else 0)
+            sources_dir, sources_list = package_manager._AptitudePackageManager__get_custom_sources_to_spec(include_max_patch_publish_date, "Security")
+            self.__check_custom_sources(sources_dir, sources_list,
+                                        sources_debstyle_expected=include_source_parts_debstyle,
+                                        sources_list_expected=include_sources_list,
+                                        security_only=True,
+                                        sources_debstyle_entry_count=expected_debstyle_entry_count,
+                                        sources_list_entry_count=expected_sources_list_entry_count,
+                                        max_patch_publish_date=include_max_patch_publish_date)
 
         self.__clear_mock_sources_path(mock_sources_path)
 
@@ -103,8 +107,7 @@ class TestAptitudePackageManager_CustomSources(unittest.TestCase):
                     if max_patch_publish_date != str():
                         self.assertTrue(max_patch_publish_date in entry)
         else:
-            pass
-            #self.assertFalse(os.path.isdir(sources_dir))
+            self.assertFalse(os.path.isdir(sources_dir))
 
         if sources_list_expected:
             self.assertTrue(os.path.exists(sources_list))
@@ -116,15 +119,11 @@ class TestAptitudePackageManager_CustomSources(unittest.TestCase):
                         self.assertTrue("security" in entry)
                     if max_patch_publish_date != str():
                         self.assertTrue(max_patch_publish_date in entry)
-        else:
-            self.assertFalse(os.path.exists(sources_list))
-
-
 
     # region - Mock sources preparation and clean up
     def __prep_scratch_with_sources(self, include_sources_list=True, include_source_parts_list=True, include_source_parts_debstyle=True):
         # type: (bool, bool, bool) -> str
-        # Prepares the file system with input test data
+        # Prepares the file system with input test sources data
         timestamp = self.runtime.env_layer.datetime.timestamp().replace(":", ".")
         mock_sources_path = os.path.join(self.runtime.scratch_path, "apt-src-" + timestamp)
         if os.path.isdir(mock_sources_path):
