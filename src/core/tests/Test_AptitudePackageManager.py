@@ -611,6 +611,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         execution_config = self.runtime.container.get('execution_config')
         self.assertEqual(execution_config.max_patch_publish_date, "20250101T010203Z")
         self.assertEqual(len(execution_config.included_package_name_mask_list), 1)  # inclusion list is sanitized
+        self.assertEqual(execution_config.included_package_name_mask_list[0], "*kernel*")
         self.runtime.stop()
 
         # missing required disclaimer entry
@@ -620,6 +621,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         execution_config = self.runtime.container.get('execution_config')
         self.assertEqual(execution_config.max_patch_publish_date, "")   # because no mitigation mode
         self.assertEqual(len(execution_config.included_package_name_mask_list), 2)  # addition is ignored for removal
+        self.assertEqual(execution_config.included_package_name_mask_list[1], "*firefox=1.1")
         self.runtime.stop()
 
         # badly formatted date
@@ -629,6 +631,8 @@ class TestAptitudePackageManager(unittest.TestCase):
         execution_config = self.runtime.container.get('execution_config')
         self.assertEqual(execution_config.max_patch_publish_date, "")
         self.assertEqual(len(execution_config.included_package_name_mask_list), 4)
+        self.assertEqual(execution_config.included_package_name_mask_list[0], "*firefox*")
+        self.assertEqual(execution_config.included_package_name_mask_list[3], "*kernel*") # because nothing is removed
         self.runtime.stop()
 
         # no patches to include set (assessment)
