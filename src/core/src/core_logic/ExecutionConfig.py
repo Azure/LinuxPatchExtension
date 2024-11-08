@@ -19,6 +19,8 @@ import datetime
 import json
 import os
 import uuid
+from types import NoneType
+
 from core.src.bootstrap.Constants import Constants
 
 
@@ -117,6 +119,9 @@ class ExecutionConfig(object):
     def __get_max_patch_publish_date_from_inclusions(self, included_package_name_mask_list):
         # type (str) -> str
         # This is for AzGPS mitigation mode execution for Strict safe-deployment of patches.
+        if included_package_name_mask_list is None:
+            return str()
+
         mitigation_mode_flag = False
         mitigation_mode_flag_pos = -1
         candidate = str()
