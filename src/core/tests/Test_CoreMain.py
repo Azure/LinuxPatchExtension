@@ -1215,21 +1215,37 @@ class TestCoreMain(unittest.TestCase):
         os.remove = self.backup_os_remove
         runtime.stop()
 
-    def test_retry_check_sudo_status_attempts_failed(self):
-        # test retry logic in check sudo status all attempts failed
-        # Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC = 1
+    def test_check_sudo_status_always_true_throw_exception(self):
+        # Test retry logic in check sudo status all attempts failed
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT, set_mock_sudo_status=False)
-        CoreMain(argument_composer.get_composed_arguments())
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
+            set_mock_sudo_status='Always_False')
 
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        # Run check_sudo_status and expect an exception after all retries
+        with self.assertRaises(Exception) as context:
+            runtime.bootstrapper.check_sudo_status(raise_if_not_sudo=True)
 
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
-        self.assertTrue(Constants.PatchOperationErrorCodes.OPERATION_FAILED in substatus_file_data[0]["formattedMessage"]["message"])
-        self.assertTrue('Unexpected sudo check result' in substatus_file_data[0]["formattedMessage"]["message"])
+        # Verify exception msg contains the expected failure text
+        self.assertTrue("Unable to invoke sudo successfully" in str(context.exception))
+
+        runtime.stop()
+
+    def test_check_sudo_status_succeeds_on_third_attempt(self):
+        # Test retry logic in check sudo status after 2 failed attempts followed by success (true)
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
+            set_mock_sudo_status='Retry_True')
+
+        # Attempt to check sudo status, succeed (true) on the 3rd attempt
+        result = runtime.bootstrapper.check_sudo_status(raise_if_not_sudo=True)
+
+        # Verify the result is success (True)
+        self.assertTrue(result, "Expected check_sudo_status to succeed on the 3rd attempts")
+
+        # Verify 3 attempts were made
+        self.assertEqual(runtime.sudo_check_status_attempts, 3, "Expected exactly 3 attempts in check_sudo_status")
 
         runtime.stop()
 

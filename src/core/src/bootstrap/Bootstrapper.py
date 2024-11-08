@@ -153,8 +153,7 @@ class Bootstrapper(object):
         for attempts in range(1, Constants.MAX_CHECK_SUDO_RETRY_COUNT + 1):
             try:
                 self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
-                return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
-                print('what is return_code', return_code, 'whats output', output)
+                return_code, output = self.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
                 # output should look like either this (bad):
                 #   [sudo] password for username:
                 #   False
@@ -189,3 +188,7 @@ class Bootstrapper(object):
 
                 self.composite_logger.log_error("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][Attempts={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                 time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
+
+    def run_command_output(self, command, no_output=False, chk_err=True):
+        """ Runs a command and returns the output """
+        return self.env_layer.run_command_output(command, no_output, chk_err)
