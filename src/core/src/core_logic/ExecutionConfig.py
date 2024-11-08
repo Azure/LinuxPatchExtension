@@ -19,7 +19,6 @@ import datetime
 import json
 import os
 import uuid
-from types import NoneType
 
 from core.src.bootstrap.Constants import Constants
 
