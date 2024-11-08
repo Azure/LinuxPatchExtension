@@ -631,6 +631,15 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertEqual(len(execution_config.included_package_name_mask_list), 4)
         self.runtime.stop()
 
+        # no patches to include set (assessment)
+        argument_composer = ArgumentComposer()
+        argument_composer.patches_to_include = None
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        execution_config = self.runtime.container.get('execution_config')
+        self.assertEqual(execution_config.max_patch_publish_date, "")
+        self.assertEqual(execution_config.included_package_name_mask_list, None)
+        self.runtime.stop()
+
     def test_eula_acceptance_file_read_success(self):
         self.runtime.stop()
 
