@@ -119,7 +119,7 @@ class ExecutionConfig(object):
     def __get_max_patch_publish_date_from_inclusions(self, included_package_name_mask_list):
         # type (str) -> str
         # This is for AzGPS mitigation mode execution for Strict safe-deployment of patches.
-        if included_package_name_mask_list is None or included_package_name_mask_list is str():
+        if included_package_name_mask_list is None or included_package_name_mask_list == str():
             return str()
 
         mitigation_mode_flag = False
