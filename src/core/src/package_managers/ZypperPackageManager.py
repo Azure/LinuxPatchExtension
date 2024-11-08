@@ -701,7 +701,7 @@ class ZypperPackageManager(PackageManager):
             # verify if existing backup is valid if not, write to backup
             is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
             if is_backup_valid:
-                self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]"
+                self.composite_logger.log_verbose("Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]"
                                                 .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
             else:
                 self.composite_logger.log_debug("Since the backup is invalid, will add a new backup with the current auto OS update settings")
@@ -794,19 +794,19 @@ class ZypperPackageManager(PackageManager):
         for line in lines:
             if not process_list_flag:  # keep going until the process list starts
                 if not all(word in line for word in ["PID", "PPID", "UID", "User", "Command", "Service"]):
-                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                     continue
                 else:
-                    self.composite_logger.log_debug(" - Process list started: " + str(line))
+                    self.composite_logger.log_verbose(" - Process list started: " + str(line))
                     process_list_flag = True
                     continue
 
             process_details = line.split(' |')
             if len(process_details) < 6:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                 continue
             else:
-                self.composite_logger.log_debug(" - Applicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Applicable line: " + str(line))
                 process_count += 1
                 process_list_verbose += process_details[4].strip() + " (" + process_details[0].strip() + "), "  # process name and id
 
