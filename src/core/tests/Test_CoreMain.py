@@ -1215,6 +1215,39 @@ class TestCoreMain(unittest.TestCase):
         os.remove = self.backup_os_remove
         runtime.stop()
 
+    def test_check_sudo_status_always_true_throw_exception(self):
+        # Test retry logic in check sudo status all attempts failed
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
+            set_mock_sudo_status='Always_False')
+
+        # Run check_sudo_status and expect an exception after all retries
+        with self.assertRaises(Exception) as context:
+            runtime.bootstrapper.check_sudo_status(raise_if_not_sudo=True)
+
+        # Verify exception msg contains the expected failure text
+        self.assertTrue("Unable to invoke sudo successfully" in str(context.exception))
+
+        runtime.stop()
+
+    def test_check_sudo_status_succeeds_on_third_attempt(self):
+        # Test retry logic in check sudo status after 2 failed attempts followed by success (true)
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
+            set_mock_sudo_status='Retry_True')
+
+        # Attempt to check sudo status, succeed (true) on the 3rd attempt
+        result = runtime.bootstrapper.check_sudo_status(raise_if_not_sudo=True)
+
+        # Verify the result is success (True)
+        self.assertTrue(result, "Expected check_sudo_status to succeed on the 3rd attempts")
+
+        # Verify 3 attempts were made
+        self.assertEqual(runtime.sudo_check_status_attempts, 3, "Expected exactly 3 attempts in check_sudo_status")
+        runtime.stop()
+
     def __check_telemetry_events(self, runtime):
         all_events = os.listdir(runtime.telemetry_writer.events_folder_path)
         self.assertTrue(len(all_events) > 0)
