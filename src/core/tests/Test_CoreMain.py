@@ -1217,7 +1217,6 @@ class TestCoreMain(unittest.TestCase):
 
     def test_check_sudo_status_all_attempts_failed(self):
         # Set raise_if_not_sudo=False to test the `return False` all attempts failed
-        Constants.MAX_CHECK_SUDO_RETRY_COUNT = 3
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
@@ -1244,7 +1243,6 @@ class TestCoreMain(unittest.TestCase):
 
     def test_check_sudo_status_insufficient_output_lines(self):
         # Set raise_if_not_sudo=True to throw exception
-        Constants.MAX_CHECK_SUDO_RETRY_COUNT = 1
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
@@ -1303,3 +1301,4 @@ class TestCoreMain(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
