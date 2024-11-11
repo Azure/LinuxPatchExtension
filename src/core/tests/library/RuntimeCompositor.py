@@ -183,7 +183,7 @@ class RuntimeCompositor(object):
         elif self.set_mock_sudo_status == 'Always_False':
             self.bootstrapper.run_command_output = self.mock_false_run_command_output
         elif self.set_mock_sudo_status == "insufficient_output_lines":
-            self.bootstrapper.run_command_output = self.mock_unexpected_output_run_command_output
+            self.bootstrapper.run_command_output = self.mock_insufficient_run_command_output
         elif self.set_mock_sudo_status == "unexpected_output":
             self.bootstrapper.run_command_output = self.mock_unexpected_output_run_command_output
         elif self.set_mock_sudo_status == 'Retry_True':
