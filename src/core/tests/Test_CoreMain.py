@@ -1215,8 +1215,19 @@ class TestCoreMain(unittest.TestCase):
         os.remove = self.backup_os_remove
         runtime.stop()
 
-    def test_check_sudo_status_always_true_throw_exception(self):
-        # Test retry logic in check sudo status all attempts failed
+    def test_check_sudo_status_all_attempts_failed(self):
+        # Set raise_if_not_sudo=False to test the `return False` all attempts failed
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
+            set_mock_sudo_status='Always_False')
+
+        result = runtime.bootstrapper.check_sudo_status(raise_if_not_sudo=False)
+        self.assertFalse(result, "Expected check_sudo_status to return False after all attempts failed")
+        runtime.stop()
+
+    def test_check_sudo_status_throw_exception(self):
+        # Set raise_if_not_sudo=True to throw exception
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
@@ -1228,7 +1239,36 @@ class TestCoreMain(unittest.TestCase):
 
         # Verify exception msg contains the expected failure text
         self.assertTrue("Unable to invoke sudo successfully" in str(context.exception))
+        runtime.stop()
 
+    def test_check_sudo_status_insufficient_output_lines(self):
+        # Set raise_if_not_sudo=True to throw exception
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
+            set_mock_sudo_status='insufficient_output_lines')
+
+        # Run check_sudo_status and expect an exception after all retries
+        with self.assertRaises(Exception) as context:
+            runtime.bootstrapper.check_sudo_status()
+
+        # Verify exception msg contains the expected failure text
+        self.assertTrue("Unexpected sudo check result" in str(context.exception))
+        runtime.stop()
+
+    def test_check_sudo_status_unexpected_output_lines(self):
+        # Set raise_if_not_sudo=True to throw exception
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
+            set_mock_sudo_status='unexpected_output')
+
+        # Run check_sudo_status and expect an exception after all retries
+        with self.assertRaises(Exception) as context:
+            runtime.bootstrapper.check_sudo_status()
+
+        # Verify exception msg contains the expected failure text
+        self.assertTrue("Unexpected sudo check result" in str(context.exception))
         runtime.stop()
 
     def test_check_sudo_status_succeeds_on_third_attempt(self):

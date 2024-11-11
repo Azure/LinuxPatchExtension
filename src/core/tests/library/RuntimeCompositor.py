@@ -181,17 +181,31 @@ class RuntimeCompositor(object):
         if self.set_mock_sudo_status == "Always_True":
             Bootstrapper.check_sudo_status = self.check_sudo_status
         elif self.set_mock_sudo_status == 'Always_False':
-            self.bootstrapper.run_command_output = self.mock_failed_run_command_output
+            self.bootstrapper.run_command_output = self.mock_false_run_command_output
+        elif self.set_mock_sudo_status == "insufficient_output_lines":
+            self.bootstrapper.run_command_output = self.mock_unexpected_output_run_command_output
+        elif self.set_mock_sudo_status == "unexpected_output":
+            self.bootstrapper.run_command_output = self.mock_unexpected_output_run_command_output
         elif self.set_mock_sudo_status == 'Retry_True':
             self.bootstrapper.run_command_output = self.mock_retry_run_command_output
 
     def check_sudo_status(self, raise_if_not_sudo=True):
         return True
 
-    def mock_failed_run_command_output(self, command, no_output=False, chk_err=True):
+    def mock_false_run_command_output(self, command, no_output=False, chk_err=True):
         """Mock a failed sudo check status command output to test retry logic."""
         # Mock failure to trigger retry logic in check_sudo_status
         return (1, "[sudo] password for user:\nFalse")
+
+    def mock_insufficient_run_command_output(self, command, no_output=False, chk_err=True):
+        """Mock a insufficient output line in sudo check status command output."""
+        # Mock failure to trigger retry logic in check_sudo_status
+        return (1, "[sudo] password for user:")
+
+    def mock_unexpected_output_run_command_output(self, command, no_output=False, chk_err=True):
+        """Mock a insufficient output line in sudo check status command output."""
+        # Mock failure to trigger retry logic in check_sudo_status
+        return (1, "[sudo] password for user:\nUnexpectedOutput")
 
     def mock_retry_run_command_output(self, command, no_output=False, chk_err=True):
         """Mock 2 failed sudo check status attempts followed by a success on the 3rd attempt."""
