@@ -1226,6 +1226,21 @@ class TestCoreMain(unittest.TestCase):
         self.assertFalse(result, "Expected check_sudo_status to return False after all attempts failed")
         runtime.stop()
 
+    def test_check_sudo_status_one_attempts_failed(self):
+        # Set raise_if_not_sudo=False to test the `return False` one attempts failed
+        Constants.MAX_CHECK_SUDO_RETRY_COUNT = 1
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.ASSESSMENT
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
+            set_mock_sudo_status='Always_False')
+
+        result = runtime.bootstrapper.check_sudo_status(raise_if_not_sudo=False)
+        self.assertFalse(result, "Expected check_sudo_status to return False after all attempts failed")
+
+        # Reset
+        Constants.MAX_CHECK_SUDO_RETRY_COUNT = 6
+        runtime.stop()
+
     def test_check_sudo_status_throw_exception(self):
         # Set raise_if_not_sudo=True to throw exception
         argument_composer = ArgumentComposer()
@@ -1242,7 +1257,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.stop()
 
     def test_check_sudo_status_insufficient_output_lines(self):
-        # Set raise_if_not_sudo=True to throw exception
+        # Test insufficient output lines to raise exception
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
@@ -1257,7 +1272,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.stop()
 
     def test_check_sudo_status_unexpected_output_lines(self):
-        # Set raise_if_not_sudo=True to throw exception
+        # Test unexpected output neither false or true to raise exception
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), legacy_mode=True, package_manager_name=Constants.APT,
