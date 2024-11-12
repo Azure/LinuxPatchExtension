@@ -174,7 +174,7 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
         # type: (object, str) -> None
         # Modifies the package manager internals to the mock input data sources
         package_manager.APT_SOURCES_LIST_PATH = os.path.join(mock_sources_path, "sources.list")
-        package_manager.APT_SOURCES_LIST_DIR_PATH = os.path.join(mock_sources_path, "sources.list.d")
+        package_manager.APT_SOURCES_DIR_PATH = os.path.join(mock_sources_path, "sources.list.d")
 
     @staticmethod
     def __get_sources_data_one_line_style_def():

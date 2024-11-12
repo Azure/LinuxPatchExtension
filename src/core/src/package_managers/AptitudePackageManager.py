@@ -35,9 +35,9 @@ class AptitudePackageManager(PackageManager):
 
         # Apt constants config
         self.APT_SOURCES_LIST_PATH = '/etc/apt/sources.list'
-        self.APT_SOURCES_LIST_DIR_PATH = '/etc/apt/sources.list.d/'
-        self.APT_SOURCES_LIST_DIR_LIST_EXT = 'list'
-        self.APT_SOURCES_LIST_DIR_SRC_EXT = 'sources'
+        self.APT_SOURCES_DIR_PATH = '/etc/apt/sources.list.d/'
+        self.APT_SOURCES_DIR_LIST_EXT = 'list'
+        self.APT_SOURCES_DIR_SRC_EXT = 'sources'
 
         # Support to get packages and their dependencies
         custom_source_timestamp = self.env_layer.datetime.timestamp().replace(":",".")
@@ -153,16 +153,16 @@ class AptitudePackageManager(PackageManager):
         source_parts_list_content = str()
         source_parts_deb882_style_content = str()
 
-        if os.path.isdir(self.APT_SOURCES_LIST_DIR_PATH):
+        if os.path.isdir(self.APT_SOURCES_DIR_PATH):
             # process files in directory
-            dir_path = self.APT_SOURCES_LIST_DIR_PATH
+            dir_path = self.APT_SOURCES_DIR_PATH
             for file_name in [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]:
                 try:
                     file_path = os.path.join(dir_path, file_name)
 
-                    if file_name.endswith(self.APT_SOURCES_LIST_DIR_LIST_EXT):  # .list type
+                    if file_name.endswith(self.APT_SOURCES_DIR_LIST_EXT):  # .list type
                         source_parts_list_content += "\n" + self.__read_one_line_style_list_format(file_path, max_patch_published_date, base_classification)
-                    elif file_name.endswith(self.APT_SOURCES_LIST_DIR_SRC_EXT):   # .sources type
+                    elif file_name.endswith(self.APT_SOURCES_DIR_SRC_EXT):   # .sources type
                         source_parts_deb882_style_content += "\n" + self.__read_deb882_style_format(file_path, max_patch_published_date, base_classification)
 
                 except Exception as error:      # does not throw to allow patching to happen with functioning sources
