@@ -209,7 +209,7 @@ class YumPackageManager(PackageManager):
 
     def extract_packages_and_versions_including_duplicates(self, output):
         """Returns packages and versions from given output"""
-        self.composite_logger.log_debug("\nExtracting package and version data...")
+        self.composite_logger.log_verbose("\nExtracting package and version data...")
         packages = []
         versions = []
         package_extensions = ['.x86_64', '.noarch', '.i686']
@@ -246,7 +246,7 @@ class YumPackageManager(PackageManager):
                 versions.append(line[1])
                 line_index += 1
             else:
-                self.composite_logger.log_debug(" - Inapplicable line (" + str(line_index) + "): " + lines[line_index])
+                self.composite_logger.log_verbose(" - Inapplicable line (" + str(line_index) + "): " + lines[line_index])
 
         return packages, versions
     # endregion
@@ -291,21 +291,21 @@ class YumPackageManager(PackageManager):
         # Loaded plugins: product-id, search-disabled-repos, subscription-manager
         # Installed Packages
         # kernel.x86_64                                                                                   3.10.0-514.el7                                                                                    @anaconda/7.3
-        self.composite_logger.log_debug("\nCHECKING PACKAGE INSTALL STATUS FOR: " + str(package_name) + " (" + str(package_version) + ")")
+        self.composite_logger.log_verbose("\nCHECKING PACKAGE INSTALL STATUS FOR: " + str(package_name) + " (" + str(package_version) + ")")
         cmd = self.single_package_check_installed.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_package_manager(cmd)
         packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
 
         for index, package in enumerate(packages):
             if package == package_name and (package_versions[index] == package_version):
-                self.composite_logger.log_debug(" - Installed version match found.")
+                self.composite_logger.log_debug(" - Installed version match found for: " + str(package_name) + "(" + str(package_version) + ")")
                 return True
             else:
-                self.composite_logger.log_debug(" - Did not match: " + package + " (" + package_versions[index] + ")")
+                self.composite_logger.log_verbose(" - Did not match: " + package + " (" + package_versions[index] + ")")
 
         # sometimes packages are removed entirely from the system during installation of other packages
         # so let's check that the package is still needed before
-
+        self.composite_logger.log_debug(" - Installed version match NOT found for: " + str(package_name) + "(" + str(package_version) + ")")
         return False
 
     def extract_dependencies(self, output, packages):
@@ -330,17 +330,17 @@ class YumPackageManager(PackageManager):
 
         for line in lines:
             if line.find(" will be updated") < 0 and line.find(" will be an update") < 0 and line.find(" will be installed") < 0:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                 continue
 
             updates_line = re.split(r'\s+', line.strip())
             if len(updates_line) != 7:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                 continue
 
             dependent_package_name = self.get_product_name(updates_line[2])
             if len(dependent_package_name) != 0 and dependent_package_name not in packages:
-                self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
+                self.composite_logger.log_verbose(" - Dependency detected: " + dependent_package_name)
                 dependencies.append(dependent_package_name)
 
         return dependencies
@@ -854,42 +854,36 @@ class YumPackageManager(PackageManager):
         if "Error" in out or "Errno" in out:
             issue_mitigated = self.check_known_issues_and_attempt_fix(out)
             if issue_mitigated:
-                self.composite_logger.log_debug('\nPost mitigation, invoking package manager again using: ' + command)
+                self.composite_logger.log_debug('Post mitigation, invoking package manager again using: ' + command)
                 code_after_fix_attempt, out_after_fix_attempt = self.env_layer.run_command_output(command, False, False)
                 return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt)
         return code, out
 
     def check_known_issues_and_attempt_fix(self, output):
         """ Checks if issue falls into known issues and attempts to mitigate """
-        self.composite_logger.log_debug("Output from package manager containing error: \n|\t" + "\n|\t".join(output.splitlines()))
-        self.composite_logger.log_debug("\nChecking if this is a known error...")
+        self.composite_logger.log_debug("Checking against known errors: [Out={0}]".format(output))
         for error in self.known_errors_and_fixes:
             if error in output:
-                self.composite_logger.log_debug("\nFound a match within known errors list, attempting a fix...")
+                self.composite_logger.log_debug("Found a match within known errors list, attempting a fix...")
                 self.known_errors_and_fixes[error]()
                 return True
 
-        self.composite_logger.log_debug("\nThis is not a known error for the extension and will require manual intervention")
+        self.composite_logger.log_error("Customer Environment Error: Not a known error. Please investigate and address. [Out={0}]".format(output))
         return False
 
     def fix_ssl_certificate_issue(self):
         command = self.yum_update_client_package
-        self.composite_logger.log_debug("\nUpdating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
+        self.composite_logger.log_debug("[Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
         if code != self.yum_exitcode_no_applicable_packages:
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+            error_msg = 'Customer environment error (expired SSL certs):  [Command={0}][Code={1}][Out={2}]'.format(command,str(code),out)
+            self.composite_logger.log_error(error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:
-            self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_debug("==========================================================================\n\n")
-            self.composite_logger.log_debug("\nClient package update complete.")
+            self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
+            self.composite_logger.log_debug("Client package update complete. [Code={0}][Out={1}]".format(str(code), out))
+            self.composite_logger.log_verbose("==========================================================================\n\n")
     # endregion
 
     # region Reboot Management
@@ -908,17 +902,16 @@ class YumPackageManager(PackageManager):
         """Signals whether processes require a restart due to updates"""
         self.composite_logger.log_debug("Checking if process requires reboot")
         # Checking using yum-utils
-        self.composite_logger.log_debug("Ensuring yum-utils is present.")
         code, out = self.env_layer.run_command_output(self.yum_utils_prerequisite, False, False)  # idempotent, doesn't install if already present
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_debug("Idempotent yum-utils existence check. [Code={0}][Out={1}]".format(str(code), out))
 
         # Checking for restart for distros with -r flag such as RHEL 7+
         code, out = self.env_layer.run_command_output(self.needs_restarting_with_flag, False, False)
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_verbose(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
         if out.find("Reboot is required") < 0:
-            self.composite_logger.log_debug(" - Reboot not detected to be required (L1).")
+            self.composite_logger.log_verbose(" - Reboot not detected to be required (L1).")
         else:
-            self.composite_logger.log_debug(" - Reboot is detected to be required (L1).")
+            self.composite_logger.log_verbose(" - Reboot is detected to be required (L1).")
             return True
 
         # Checking for restart for distro without -r flag such as RHEL 6 and CentOS 6
@@ -926,15 +919,17 @@ class YumPackageManager(PackageManager):
             code, out = self.env_layer.run_command_output(self.needs_restarting, False, False)
             self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
             if len(out.strip()) == 0 and code == 0:
-                self.composite_logger.log_debug(" - Reboot not detected to be required (L2).")
+                self.composite_logger.log_verbose(" - Reboot not detected to be required (L2).")
             else:
-                self.composite_logger.log_debug(" - Reboot is detected to be required (L2).")
+                self.composite_logger.log_verbose(" - Reboot is detected to be required (L2).")
                 return True
 
         # Double-checking using yum ps (where available)
-        self.composite_logger.log_debug("Ensuring yum-plugin-ps is present.")
         code, out = self.env_layer.run_command_output(self.yum_ps_prerequisite, False, False)  # idempotent, doesn't install if already present
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+        if out.find("Unable to find a match: yum-plugin-security") < 0:
+            self.composite_logger.log_debug("[Info] yum-plugin-ps is not present. This is okay on RHEL8+. [Code={0}][Out={1}]".format(str(code), out))
+        else:
+            self.composite_logger.log_debug("Idempotent yum-plugin-ps existence check. [Code={0}][Out={1}]".format(str(code), out))
 
         output = self.invoke_package_manager(self.yum_ps)
         lines = output.strip().split('\n')
@@ -946,16 +941,16 @@ class YumPackageManager(PackageManager):
         for line in lines:
             if not process_list_flag:  # keep going until the process list starts
                 if line.find("pid") < 0 and line.find("proc") < 0 and line.find("uptime") < 0:
-                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                     continue
                 else:
-                    self.composite_logger.log_debug(" - Process list started: " + str(line))
+                    self.composite_logger.log_verbose(" - Process list started: " + str(line))
                     process_list_flag = True
                     continue
 
             process_details = re.split(r'\s+', line.strip())
             if len(process_details) < 7:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                 continue
             else:
                 # The first string should be process ID and hence it should be integer.
@@ -963,10 +958,10 @@ class YumPackageManager(PackageManager):
                 try:
                     int(process_details[0])
                 except Exception:
-                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                     continue
 
-                self.composite_logger.log_debug(" - Applicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Applicable line: " + str(line))
                 process_count += 1
                 process_list_verbose += process_details[1] + " (" + process_details[0] + "), "  # process name and id
 

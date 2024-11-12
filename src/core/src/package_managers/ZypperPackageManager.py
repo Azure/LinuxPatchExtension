@@ -201,24 +201,21 @@ class ZypperPackageManager(PackageManager):
 
     def log_errors_on_invoke(self, command, out, code):
         """Logs verbose error messages if there is an error on invoke_package_manager"""
-        self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-        self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-        self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_error("Package manager result: [Command={0}][Code={1}][Output={2}]".format(command, code, out))
         self.log_process_tree_if_exists(out)
         self.telemetry_writer.write_execution_error(command, code, out)
 
     def log_success_on_invoke(self, code, out):
         """Logs verbose success messages on invoke_package_manager"""
         self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-        self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-        self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_debug("Package manager result: [Code={0}][Output={1}]".format(code, out))
         self.composite_logger.log_verbose("==========================================================================\n\n")
 
     def log_process_tree_if_exists(self, out):
         """Logs the process tree based on locking PID in output, if there is a process tree to be found"""
         process_tree = self.get_process_tree_from_pid_in_output(out)
         if process_tree is not None:
-            self.composite_logger.log_warning(" - Process tree for the pid in output: \n{}".format(str(process_tree)))
+            self.composite_logger.log_warning(" - Process tree for the pid in output: \n{0}".format(str(process_tree)))
 
     def set_lock_timeout_and_backup_original(self):
         """Saves the env var ZYPP_LOCK_TIMEOUT and sets it to 5"""
@@ -342,7 +339,7 @@ class ZypperPackageManager(PackageManager):
             if package not in packages_from_patch_data:
                 other_packages.append(package)
                 other_package_versions.append(all_package_versions[index])
-                self.composite_logger.log_debug(" - " + str(package) + " [" + str(all_package_versions[index]) + "]")
+                self.composite_logger.log_verbose(" - " + str(package) + " [" + str(all_package_versions[index]) + "]")
 
         self.composite_logger.log_debug("Discovered " + str(len(other_packages)) + " 'other' package entries.\n")
         return other_packages, other_package_versions
@@ -363,7 +360,7 @@ class ZypperPackageManager(PackageManager):
         # v | SLES12-SP2-Updates | kernel-default     | 4.4.38-93.1     | 4.4.49-92.11.1    | x86_64
         # v | SLES12-SP2-Updates | libgoa-1_0-0       | 3.20.4-7.2      | 3.20.5-9.6        | x86_64
 
-        self.composite_logger.log_debug("\nExtracting package and version data...")
+        self.composite_logger.log_verbose("\nExtracting package and version data...")
         packages = []
         versions = []
 
@@ -375,9 +372,9 @@ class ZypperPackageManager(PackageManager):
                 packages.append(package)
                 version = line_split[4].strip()
                 versions.append(version)
-                self.composite_logger.log_debug(" - Applicable line: " + line + ". Package: " + package + ". Version: " + version + ".")
+                self.composite_logger.log_verbose(" - Applicable line: " + line + ". Package: " + package + ". Version: " + version + ".")
             else:
-                self.composite_logger.log_debug(" - Inapplicable line: " + line)
+                self.composite_logger.log_verbose(" - Inapplicable line: " + line)
 
         return packages, versions
 
@@ -392,22 +389,22 @@ class ZypperPackageManager(PackageManager):
             if not parser_seeing_packages_flag:
                 if 'package is going to be installed' in line or 'package is going to be upgraded' in line or \
                         'packages are going to be installed:' in line or 'packages are going to be upgraded:' in line:
-                    self.composite_logger.log_debug(" - Start marker line: " + line)
+                    self.composite_logger.log_verbose(" - Start marker line: " + line)
                     parser_seeing_packages_flag = True  # Start -- Next line contains information we need
                 else:
-                    self.composite_logger.log_debug(" - Inapplicable line: " + line)
+                    self.composite_logger.log_verbose(" - Inapplicable line: " + line)
                 continue
 
             if not line or line.isspace():
-                self.composite_logger.log_debug(" - End marker line: " + line)
+                self.composite_logger.log_verbose(" - End marker line: " + line)
                 parser_seeing_packages_flag = False
                 continue  # End -- We're past a package information block
 
             line_parts = line.strip().split(' ')
-            self.composite_logger.log_debug(" - Package list line: " + line)
+            self.composite_logger.log_verbose(" - Package list line: " + line)
             for line_part in line_parts:
                 packages.append(line_part)
-                self.composite_logger.log_debug("    - Package: " + line_part)
+                self.composite_logger.log_verbose("    - Package: " + line_part)
 
         self.composite_logger.log_debug("\nExtracted " + str(len(packages)) + " prospective package entries from security patch data.\n")
         return packages
@@ -432,15 +429,16 @@ class ZypperPackageManager(PackageManager):
 
     def is_package_version_installed(self, package_name, package_version):
         """ Returns true if the specific package version is installed """
-        self.composite_logger.log_debug("\nCHECKING PACKAGE INSTALL STATUS FOR: " + str(package_name) + "(" + str(package_version) + ")")
+        self.composite_logger.log_verbose("\nCHECKING PACKAGE INSTALL STATUS FOR: " + str(package_name) + "(" + str(package_version) + ")")
         installed_package_versions = self.get_all_available_versions_of_package_ex(package_name, include_installed=True, include_available=False)
         for version in installed_package_versions:
             if version == package_version:
-                self.composite_logger.log_debug(" - Installed version match found.")
+                self.composite_logger.log_debug(" - Installed version match found for: " + str(package_name) + "(" + str(package_version) + ")")
                 return True
             else:
-                self.composite_logger.log_debug(" - Did not match: " + str(version))
+                self.composite_logger.log_verbose(" - Did not match: " + str(version))
 
+        self.composite_logger.log_debug(" - Installed version match NOT found for: " + str(package_name) + "(" + str(package_version) + ")")
         return False
 
     def get_all_available_versions_of_package_ex(self, package_name, include_installed=False, include_available=True):
@@ -452,7 +450,7 @@ class ZypperPackageManager(PackageManager):
 
         package_versions = []
 
-        self.composite_logger.log_debug("\nGetting all available versions of package '" + package_name + "' [Installed=" + str(include_installed) + ", Available=" + str(include_available) + "]...")
+        self.composite_logger.log_verbose("\nGetting all available versions of package '" + package_name + "' [Installed=" + str(include_installed) + ", Available=" + str(include_available) + "]...")
         cmd = self.single_package_check_versions.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_package_manager(cmd)
         lines = output.strip().split('\n')
@@ -461,35 +459,35 @@ class ZypperPackageManager(PackageManager):
         for line in lines:
             if not packages_list_flag:  # keep going until the packages list starts
                 if not all(word in line for word in ["S", "Name", "Type", "Version", "Arch", "Repository"]):
-                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                     continue
                 else:
-                    self.composite_logger.log_debug(" - Package list started: " + str(line))
+                    self.composite_logger.log_verbose(" - Package list started: " + str(line))
                     packages_list_flag = True
                     continue
 
             package_details = line.split(' |')
             if len(package_details) != 6:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                 continue
             else:
-                self.composite_logger.log_debug(" - Applicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Applicable line: " + str(line))
                 details_status = str(package_details[0].strip())
                 details_name = str(package_details[1].strip())
                 details_type = str(package_details[2].strip())
                 details_version = str(package_details[3].strip())
 
                 if details_name != package_name:
-                    self.composite_logger.log_debug("    - Excluding as package name doesn't match exactly: " + details_name)
+                    self.composite_logger.log_verbose("    - Excluding as package name doesn't match exactly: " + details_name)
                     continue
                 if details_type == "srcpackage":
-                    self.composite_logger.log_debug("    - Excluding as package is of type 'srcpackage'.")
+                    self.composite_logger.log_verbose("    - Excluding as package is of type 'srcpackage'.")
                     continue
                 if (details_status == "i" or details_status == "i+") and not include_installed:  # exclude installed as (include_installed not selected)
-                    self.composite_logger.log_debug("    - Excluding as package version is installed: " + details_version)
+                    self.composite_logger.log_verbose("    - Excluding as package version is installed: " + details_version)
                     continue
                 if (details_status != "i" and details_status != "i+") and not include_available:  # exclude available as (include_available not selected)
-                    self.composite_logger.log_debug("    - Excluding as package version is available: " + details_version)
+                    self.composite_logger.log_verbose("    - Excluding as package version is available: " + details_version)
                     continue
 
                 package_versions.append(details_version)
@@ -523,14 +521,14 @@ class ZypperPackageManager(PackageManager):
 
         for line in lines:
             if line.find(" going to be ") < 0:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose(" - Inapplicable line: " + str(line))
                 continue
 
             updates_line = lines[lines.index(line) + 1]
             dependent_package_names = re.split(r'\s+', updates_line)
             for dependent_package_name in dependent_package_names:
                 if len(dependent_package_name) != 0 and dependent_package_name not in packages:
-                    self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
+                    self.composite_logger.log_verbose(" - Dependency detected: " + dependent_package_name)
                     dependencies.append(dependent_package_name)
 
         return dependencies
