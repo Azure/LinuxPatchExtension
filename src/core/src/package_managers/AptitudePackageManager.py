@@ -156,13 +156,11 @@ class AptitudePackageManager(PackageManager):
         if os.path.isdir(self.APT_SOURCES_LIST_DIR_PATH):
             # process files in directory
             dir_path = self.APT_SOURCES_LIST_DIR_PATH
-            for file_name in os.listdir(dir_path):
+            for file_name in [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]:
                 try:
                     file_path = os.path.join(dir_path, file_name)
-                    if os.path.isdir(file_path):
-                        continue
 
-                    if file_name.endswith(self.APT_SOURCES_LIST_DIR_LIST_EXT):    # .list type
+                    if file_name.endswith(self.APT_SOURCES_LIST_DIR_LIST_EXT):  # .list type
                         source_parts_list_content += "\n" + self.__read_one_line_style_list_format(file_path, max_patch_published_date, base_classification)
                     elif file_name.endswith(self.APT_SOURCES_LIST_DIR_SRC_EXT):   # .sources type
                         source_parts_deb882_style_content += "\n" + self.__read_deb882_style_format(file_path, max_patch_published_date, base_classification)

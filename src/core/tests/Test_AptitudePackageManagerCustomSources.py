@@ -39,6 +39,14 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
         self.assertEqual(sources_list, str())
         self.assertEqual(sources_dir, str())
 
+    def test_force_defensive_exception_handling_coverage(self):
+        package_manager = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
+        package_manager._AptitudePackageManager__read_one_line_style_list_format = None
+        package_manager._AptitudePackageManager__get_consolidated_source_parts_content("some-date", "security")
+
+        package_manager = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
+        package_manager._AptitudePackageManager__read_deb882_style_format("fake-path", "some-date", "security")
+
     def test_sources_list_and_parts_combinations(self):
         # Tests 32 combinations of source configuration on disk and desired manipulations + caching
         for include_sources_list in [True, False]:
