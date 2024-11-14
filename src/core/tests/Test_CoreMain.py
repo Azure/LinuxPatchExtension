@@ -1285,7 +1285,7 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(result, "Expected check_sudo_status to succeed on the 3rd attempts")
 
         # Verify 3 attempts were made
-        self.assertEqual(runtime.sudo_check_status_attempts, 3, "Expected exactly 3 attempts in check_sudo_status")
+        self.assertEqual(runtime.sudo_check_status_attempts, 3, "Expected exactly 4 attempts in check_sudo_status")
         runtime.stop()
 
     def __check_telemetry_events(self, runtime):
