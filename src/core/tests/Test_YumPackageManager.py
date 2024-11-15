@@ -684,7 +684,6 @@ class TestYumPackageManager(unittest.TestCase):
 
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
-        #self.assertEqual(package_manager.yum_version, 4)
         dependent_list = package_manager.get_dependent_list(["iptables.x86_64"])
         self.assertEqual(len(dependent_list), 2)
         self.assertEqual(dependent_list[0], "iptables-ebtables.x86_64")

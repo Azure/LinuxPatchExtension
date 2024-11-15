@@ -212,7 +212,7 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log_debug("\nExtracting package and version data...")
         packages = []
         versions = []
-        package_extensions = ['.x86_64', '.noarch', '.i686']
+        package_extensions = Constants.SUPPORTED_PACKAGE_ARCH
 
         def is_package(chunk):
             # Using a list comprehension to determine if chunk is a package
@@ -309,111 +309,12 @@ class YumPackageManager(PackageManager):
         return False
 
     def extract_dependencies(self, output, packages):
-        # In Yum 3: Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
-        #
-        # Loaded plugins: langpacks, product-id, search-disabled-repos
-        # Resolving Dependencies
-        # --> Running transaction check
-        # ---> Package selinux-policy.noarch 0:3.13.1-102.el7_3.15 will be updated
-        # --> Processing Dependency: selinux-policy = 3.13.1-102.el7_3.15 for \
-        # package: selinux-policy-targeted-3.13.1-102.el7_3.15.noarch
-        # --> Processing Dependency: selinux-policy = 3.13.1-102.el7_3.15 for \
-        # package: selinux-policy-targeted-3.13.1-102.el7_3.15.noarch
-        # ---> Package selinux-policy.noarch 0:3.13.1-102.el7_3.16 will be an update
-        # --> Running transaction check
-        # ---> Package selinux-policy-targeted.noarch 0:3.13.1-102.el7_3.15 will be updated
-        # ---> Package selinux-policy-targeted.noarch 0:3.13.1-102.el7_3.16 will be an update
-        # --> Finished Dependency Resolution
-
-        # In Yum 4: Sample 1 (Upgrades are available, no installation required):
-        # Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
-        #
-        # Last metadata expiration check: 0:08:56 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
-        # Package selinux-policy-3.14.3-95.el8_6.6.noarch is already installed.
-        # Dependencies resolved.
-        # ==================================================================================================
-        # Package                   Arch    Version           Repository                               Size
-        # ==================================================================================================
-        # Upgrading:
-        # selinux-policy            noarch  3.14.3-95.el8_6.8 rhel-8-for-x86_64-baseos-eus-rhui-rpms  651 k
-        # selinux-policy-targeted   noarch  3.14.3-95.el8_6.8 rhel-8-for-x86_64-baseos-eus-rhui-rpms   15 M
-        #
-        # Transaction Summary
-        # ==================================================================================================
-        # Upgrade  2 Packages
-        #
-        # Total download size: 16 M
-        # Operation aborted..
-
-        # In Yum 4: Sample 2 (No upgrades available, installations required):
-        # Sample output for the cmd 'sudo yum update --assumeno kernel-modules.x86_64' is :
-        #
-        # Last metadata expiration check: 0:09:14 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
-        # Package kernel-modules-4.18.0-372.9.1.el8.x86_64 is already installed.
-        # Package kernel-modules-4.18.0-372.52.1.el8_6.x86_64 is already installed.
-        # Dependencies resolved.
-        # =============================================================================================
-        # Package          Arch    Version               Repository                               Size
-        # =============================================================================================
-        # Installing dependencies:
-        # kernel-core      x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   40 M
-        # kernel-modules   x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   32 M
-        #
-        # Transaction Summary
-        # =============================================================================================
-        # Install  2 Packages
-        #
-        # Total download size: 72 M
-        # Installed size: 93 M
-        # Operation aborted.
-
-        # In Yum 4: Sample 3 (Both upgrades and installations required):
-        # Sample output for the cmd 'sudo yum update --assumeno kernel-modules.x86_64' is :
-        #
-        # Last metadata expiration check: 0:01:56 ago on Tue 25 Jul 2023 12:01:47 PM UTC.
-        # Dependencies resolved.
-        # ================================================================================================
-        # Package             Arch    Version               Repository                               Size
-        # ================================================================================================
-        # Upgrading:
-        # kernel-tools        x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.4 M
-        # kernel-tools-libs   x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.2 M
-        # openssl             x86_64  1:1.1.1k-9.el8_6      rhel-8-for-x86_64-baseos-eus-rhui-rpms  710 k
-        # openssl-libs        x86_64  1:1.1.1k-9.el8_6      rhel-8-for-x86_64-baseos-eus-rhui-rpms  1.5 M
-        # Installing dependencies:
-        # kernel-core         x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   40 M
-        # kernel-modules      x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   32 M
-        #
-        # Transaction Summary
-        # ================================================================================================
-        # Install  2 Packages
-        # Upgrade  4 Packages
-
-        # In Yum 4: Sample 4 (dependent patch detail split over 2 lines):
-        # Sample output for the cmd 'sudo yum update --assumeno polkit.x86_64' is :
-        #
-        # Last metadata expiration check: 0:08:47 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
-        # Package polkit-0.115-13.el8_5.2.x86_64 is already installed.
-        # Dependencies resolved.
-        # ================================================================================
-        # Package   Arch   Version          Repository                              Size
-        # ================================================================================
-        # Upgrading:
-        # polkit    x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms 154 k
-        # polkit-libs
-        #           x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms  77 k
-        #
-        # Transaction Summary
-        # ================================================================================
-        # Upgrade  2 Packages
-        #
-        # Total download size: 231 k
-        # Operation aborted.
+        # Extracts dependent packages from output. Refer yum_update_output_expected_formats.txt for examples of supported output formats.
 
         dependencies = []
-        package_arch_to_look_for = ["x86_64", "noarch", "i686"]
+        package_arch_to_look_for = ["x86_64", "noarch", "i686", "aarch64"]  # if this is changed, review Constants
 
-        lines = output.strip().split('\n')
+        lines = output.strip().splitlines()
 
         for line_index in range(0, len(lines)):
             line = re.split(r'\s+', (lines[line_index].replace("--->", "")).strip())
@@ -438,6 +339,10 @@ class YumPackageManager(PackageManager):
         return dependencies
 
     def is_valid_update(self, package_details_in_output, package_arch_to_look_for):
+        # Verifies whether the line under consideration (i.e. package_details_in_output) contains relevant package details.
+        # package_details_in_output will be of the following format if it is valid
+        #   In Yum 3: Package selinux-policy.noarch 0:3.13.1-102.el7_3.15 will be updated
+        #   In Yum 4: kernel-tools        x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.4 M
         return len(package_details_in_output) == 6 and self.is_arch_in_package_details(package_details_in_output[1], package_arch_to_look_for)
 
     @staticmethod
@@ -464,7 +369,7 @@ class YumPackageManager(PackageManager):
 
     def get_product_name_and_arch(self, package_name):
         """Splits out product name and architecture - if this is changed, modify in PackageFilter also"""
-        architectures = ['.x86_64', '.noarch', '.i686']
+        architectures = Constants.SUPPORTED_PACKAGE_ARCH
         for arch in architectures:
             if package_name.endswith(arch):
                 return package_name[:-len(arch)], arch
