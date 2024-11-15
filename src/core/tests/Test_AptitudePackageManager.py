@@ -588,6 +588,62 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_upgrade_cmd)
 
+    def test_maxpatchpublishdate_mitigation_mode(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        self.runtime.stop()
+
+        # classic happy path mode
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PackageClassification.CRITICAL]
+        argument_composer.patches_to_include = ["AzGPS_Mitigation_Mode_No_SLA", "MaxPatchPublishDate=20250101T010203Z", "*kernel*"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        execution_config = self.runtime.container.get('execution_config')
+        self.assertEqual(execution_config.max_patch_publish_date, "20250101T010203Z")
+        self.assertEqual(len(execution_config.included_package_name_mask_list), 1) # inclusion list is sanitized
+        self.runtime.stop()
+
+        # retains valid inclusions while honoring mitigation mode entries
+        argument_composer = ArgumentComposer()
+        argument_composer.patches_to_include = ["*kernel*", "MaxPatchPublishDate=20250101T010203Z", "AzGPS_Mitigation_Mode_No_SLA"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        execution_config = self.runtime.container.get('execution_config')
+        self.assertEqual(execution_config.max_patch_publish_date, "20250101T010203Z")
+        self.assertEqual(len(execution_config.included_package_name_mask_list), 1)  # inclusion list is sanitized
+        self.assertEqual(execution_config.included_package_name_mask_list[0], "*kernel*")
+        self.runtime.stop()
+
+        # missing required disclaimer entry
+        argument_composer = ArgumentComposer()
+        argument_composer.patches_to_include = ["MaxPatchPublishDate=20250101T010203Z", "*firefox=1.1"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        execution_config = self.runtime.container.get('execution_config')
+        self.assertEqual(execution_config.max_patch_publish_date, "")   # because no mitigation mode
+        self.assertEqual(len(execution_config.included_package_name_mask_list), 2)  # addition is ignored for removal
+        self.assertEqual(execution_config.included_package_name_mask_list[1], "*firefox=1.1")
+        self.runtime.stop()
+
+        # badly formatted date
+        argument_composer = ArgumentComposer()
+        argument_composer.patches_to_include = ["*firefox*", "MaxPatchPublishDate=20250101010203Z", "AzGPS_Mitigation_Mode_No_SLA", "*kernel*"]
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        execution_config = self.runtime.container.get('execution_config')
+        self.assertEqual(execution_config.max_patch_publish_date, "")
+        self.assertEqual(len(execution_config.included_package_name_mask_list), 4)
+        self.assertEqual(execution_config.included_package_name_mask_list[0], "*firefox*")
+        self.assertEqual(execution_config.included_package_name_mask_list[3], "*kernel*") # because nothing is removed
+        self.runtime.stop()
+
+        # no patches to include set (assessment)
+        argument_composer = ArgumentComposer()
+        argument_composer.patches_to_include = None
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        execution_config = self.runtime.container.get('execution_config')
+        self.assertEqual(execution_config.max_patch_publish_date, "")
+        self.assertEqual(execution_config.included_package_name_mask_list, None)
+        self.runtime.stop()
+
     def test_eula_acceptance_file_read_success(self):
         self.runtime.stop()
 
