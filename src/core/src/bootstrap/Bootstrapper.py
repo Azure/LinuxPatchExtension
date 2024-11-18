@@ -158,6 +158,7 @@ class Bootstrapper(object):
                 # or this (good):
                 #   uid=0(root) gid=0(root) groups=0(root)
                 #   True
+
                 output_lines = output.splitlines()
                 if len(output_lines) < 2:
                     self.composite_logger.log_debug("Sudo Check Failed [Attempts={0}][MaxAttempts={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
