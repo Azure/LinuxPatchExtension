@@ -22,8 +22,6 @@ import tempfile
 import time
 import uuid
 
-from adodbapi import connect
-
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
