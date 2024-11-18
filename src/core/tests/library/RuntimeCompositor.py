@@ -22,6 +22,8 @@ import tempfile
 import time
 import uuid
 
+from adodbapi import connect
+
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
@@ -41,11 +43,9 @@ except ImportError:
 
 
 class RuntimeCompositor(object):
-    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE, set_mock_sudo_status='Always_True'):
+    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE):
         # Init data
         self.original_rm_start_reboot = None
-        self.set_mock_sudo_status = set_mock_sudo_status
-        self.sudo_check_status_attempts = 0
         self.current_env = Constants.DEV
         os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
@@ -83,8 +83,9 @@ class RuntimeCompositor(object):
             self.legacy_env_layer_extensions = LegacyEnvLayerExtensions(package_manager_name)
             self.reconfigure_env_layer_to_legacy_mode()
 
-        # Overriding check_sudo_status and run_command_output based on mock configuration
-        self.apply_mock_check_sudo_status()
+        # Overriding check_sudo_status to always true
+        if Constants.SET_CHECK_SUDO_STATUS_TRUE:
+            Bootstrapper.check_sudo_status = self.check_sudo_status
 
         # Core components
         self.container = self.bootstrapper.build_out_container()
@@ -128,14 +129,10 @@ class RuntimeCompositor(object):
         self.backup_remove_timer = self.configure_patching_processor.auto_assess_timer_manager.remove_timer
         self.configure_patching_processor.auto_assess_timer_manager.remove_timer = self.mock_remove_timer
 
-        # Reset attempts to ensure accurate tracking, as run_command_output is being called by multiple objects beyond Bootstrapper
-        self.sudo_check_status_attempts = 0
-
     def stop(self):
         self.file_logger.close(message_at_close="<Runtime stopped>")
         self.container.reset()
         Bootstrapper.check_sudo_status = self.original_check_sudo_status
-        self.sudo_check_status_attempts = 0
 
     @staticmethod
     def write_ext_state_file(path, sequence_number, achieve_enable_by, operation):
@@ -180,48 +177,8 @@ class RuntimeCompositor(object):
     def mock_sleep(self, seconds):
         pass
 
-    def apply_mock_check_sudo_status(self):
-        # Apply the mock based on the set_mock_sudo_status flag
-        if self.set_mock_sudo_status == "Always_True":
-            Bootstrapper.check_sudo_status = self.check_sudo_status
-        elif self.set_mock_sudo_status == 'Always_False':
-            self.env_layer.run_command_output = self.mock_false_run_command_output
-        elif self.set_mock_sudo_status == "insufficient_output_lines":
-            self.env_layer.run_command_output = self.mock_insufficient_run_command_output
-        elif self.set_mock_sudo_status == "unexpected_output":
-            self.env_layer.run_command_output = self.mock_unexpected_output_run_command_output
-        elif self.set_mock_sudo_status == 'Retry_True':
-            self.env_layer.run_command_output = self.mock_retry_run_command_output
-
     def check_sudo_status(self, raise_if_not_sudo=True):
         return True
-
-    def mock_false_run_command_output(self, command, no_output=False, chk_err=True):
-        """Mock a failed sudo check status command output to test retry logic."""
-        # Mock failure to trigger retry logic in check_sudo_status
-        return (1, "[sudo] password for user:\nFalse")
-
-    def mock_insufficient_run_command_output(self, command, no_output=False, chk_err=True):
-        """Mock a insufficient output line in sudo check status command output."""
-        # Mock failure to trigger retry logic in check_sudo_status
-        return (1, "[sudo] password for user:")
-
-    def mock_unexpected_output_run_command_output(self, command, no_output=False, chk_err=True):
-        """Mock a insufficient output line in sudo check status command output."""
-        # Mock failure to trigger retry logic in check_sudo_status
-        return (1, "[sudo] password for user:\nUnexpectedOutput")
-
-    def mock_retry_run_command_output(self, command, no_output=False, chk_err=True):
-        """Mock 3 failed sudo check status attempts followed by a success on the 4th attempt."""
-        self.sudo_check_status_attempts += 1
-
-        # Mock failure on the first two attempts
-        if self.sudo_check_status_attempts <= 2:
-            return (1, "[sudo] password for user:\nFalse")
-
-        # Mock success (True) on the 3rd attempt
-        elif self.sudo_check_status_attempts == 3:
-            return (0, "uid=0(root) gid=0(root) groups=0(root)\nTrue")
 
     def get_current_auto_os_patch_state(self):
         return Constants.AutomaticOSPatchStates.DISABLED
