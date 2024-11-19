@@ -173,6 +173,7 @@ class AptitudePackageManager(PackageManager):
     def __read_one_line_style_list_format(self, file_path, max_patch_published_date, base_classification):
         # type: (str, str, str) -> str
         # Reads a *.list file and returns only lines that are functionally required
+        # Reference: tools/references/apt/sources.list
         self.composite_logger.log_verbose("[APM] Reading source list for consolidation. [FilePath={0}]".format(file_path))
 
         std_source_list_content = str()
@@ -191,6 +192,7 @@ class AptitudePackageManager(PackageManager):
 
     def __read_deb882_style_format(self, file_path, max_patch_published_date, base_classification):
         # type: (str, str, str) -> str
+        # Reference: tools/references/apt/sources.list.d/ubuntu.sources
         std_source_parts_content = str()
         stanza = str()
 
