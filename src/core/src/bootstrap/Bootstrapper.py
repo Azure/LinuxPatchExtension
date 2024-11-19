@@ -153,18 +153,19 @@ class Bootstrapper(object):
             try:
                 sudo_status = self.check_sudo_status(raise_if_not_sudo=raise_if_not_sudo)
                 if sudo_status and attempts > 1:
-                    self.composite_logger.log_debug("Sudo Check Successfully [Attempts={0}][MaxAttempts={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
+                    self.composite_logger.log_debug("Sudo Check Successfully [RetryCount={0}][MaxRetryCount={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
                 return sudo_status
             except Exception as exception:
                 if attempts >= Constants.MAX_CHECK_SUDO_RETRY_COUNT:
-                    self.composite_logger.log_error("Sudo Check Failed, reached [MaxAttempts={0}][Exception={1}]".format(str(attempts), str(exception)))
+                    self.composite_logger.log_error("Customer environment error (sudo failure). [Exception={0}][RetryCount={1}]".format(str(exception), str(attempts)))
                     if raise_if_not_sudo:
                         raise
 
-                self.composite_logger.log_debug("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][Attempts={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                self.composite_logger.log_debug("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                 time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
 
     def check_sudo_status(self, raise_if_not_sudo=True):
+        # type:(bool) -> bool
         """ Checks if we can invoke sudo successfully. """
         try:
             self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
@@ -193,3 +194,4 @@ class Bootstrapper(object):
                                             "Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise
+
