@@ -315,8 +315,8 @@ class Constants(object):
     TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = 41943040
     TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS = 25  # buffer for the chars dropped text added at the end of the truncated telemetry message
     TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS = 15  # buffer for telemetry event counter text added at the end of every message sent to telemetry
-    TELEMETRY_MAX_EVENT_COUNT_THROTTLE = 60
-    TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 60
+    TELEMETRY_MAX_EVENT_COUNT_THROTTLE = 360
+    TELEMETRY_MAX_TIME_IN_SECONDS_FOR_EVENT_COUNT_THROTTLE = 300
 
     # Telemetry Event Level
     class TelemetryEventLevel(EnumBackport):
@@ -345,6 +345,9 @@ class Constants(object):
         PRIVILEGED_OP_MARKER = "Privileged_Op_e6df678d-d09b-436a-a08a-65f2f70a6798"
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
+
+    # Supported Package Architectures - if this is changed, review YumPackageManage
+    SUPPORTED_PACKAGE_ARCH = ['.x86_64', '.noarch', '.i686', '.aarch64']
 
     # Package / Patch State Ordering Constants
     # This ordering ensures that the most important information is preserved in the case of patch object truncation

@@ -41,14 +41,16 @@ except ImportError:
 
 
 class RuntimeCompositor(object):
-    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE):
+    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE, test_type="HappyPath"):
         # Init data
+        self.original_rm_start_reboot = None
         self.current_env = Constants.DEV
         os.environ[Constants.LPE_ENV_VARIABLE] = self.current_env
         self.argv = argv if argv != Constants.DEFAULT_UNSPECIFIED_VALUE else ArgumentComposer().get_composed_arguments()
         self.vm_cloud_type = vm_cloud_type
         Constants.SystemPaths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
         self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
+        self.scratch_path = os.path.join(os.path.curdir, "scratch")
 
         # speed up test execution
         Constants.MAX_FILE_OPERATION_RETRY_COUNT = 1
@@ -77,7 +79,7 @@ class RuntimeCompositor(object):
         # Reconfigure env layer for legacy mode tests
         self.env_layer = bootstrapper.env_layer
         if legacy_mode:
-            self.legacy_env_layer_extensions = LegacyEnvLayerExtensions(package_manager_name)
+            self.legacy_env_layer_extensions = LegacyEnvLayerExtensions(package_manager_name, test_type)
             self.reconfigure_env_layer_to_legacy_mode()
 
         # Core components
@@ -150,10 +152,17 @@ class RuntimeCompositor(object):
             self.env_layer.etc_environment_file_path = os.getcwd()
 
     def reconfigure_reboot_manager(self):
+        # Preserve the original reboot manager start_reboot method
+        self.original_rm_start_reboot = self.reboot_manager.start_reboot
+
+        # Reassign start_reboot to a new mock method
         self.reboot_manager.start_reboot = self.start_reboot
 
     def start_reboot(self, message="Test initiated reboot mock"):
         self.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
+
+    def use_original_rm_start_reboot(self):
+        self.reboot_manager.start_reboot = self.original_rm_start_reboot
 
     def reconfigure_package_manager(self):
         self.backup_get_current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state

@@ -1,0 +1,3 @@
+ignore:
+  - "**/distro.py"
+  - "src/external_dependencies"
