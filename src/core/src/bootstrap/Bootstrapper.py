@@ -150,7 +150,7 @@ class Bootstrapper(object):
         """ retry to invoke sudo check """
         for attempts in range(1, Constants.MAX_CHECK_SUDO_RETRY_COUNT + 1):
             try:
-                self.composite_logger.log_debug("Attempt sudo status check [Attempts={0}][MaxAttempts={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
+                self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds. [Attempts={0}][MaxAttempts={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
                 if self.check_sudo_status(raise_if_not_sudo=raise_if_not_sudo):
                     self.composite_logger.log_debug("Sudo Check Successfully [Attempts={0}][MaxAttempts={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
                     return True
@@ -166,7 +166,6 @@ class Bootstrapper(object):
     def check_sudo_status(self, raise_if_not_sudo=True):
         """ Checks if we can invoke sudo successfully. """
         try:
-            self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
             return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
             # output should look like either this (bad):
             #   [sudo] password for username:
@@ -188,7 +187,9 @@ class Bootstrapper(object):
             else:
                 raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
         except Exception as exception:
-            self.composite_logger.log_error("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
+            self.composite_logger.log_debug("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
                                             "Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise
+
+
