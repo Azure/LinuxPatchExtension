@@ -66,14 +66,14 @@ class TestBootstrapper(unittest.TestCase):
     def test_check_sudo_status_all_attempts_failed(self):
         # Set raise_if_not_sudo=False to test the `return False` all attempts failed
         self.runtime.env_layer.run_command_output = self.mock_false_run_command_output
-        result = self.runtime.bootstrapper.check_sudo_status_retry(raise_if_not_sudo=False)
+        result = self.runtime.bootstrapper.check_sudo_status_with_retry(raise_if_not_sudo=False)
         self.assertFalse(result, "Expected check_sudo_status to return False after all attempts failed")
 
     def test_check_sudo_status_throw_exception(self):
         # Set raise_if_not_sudo=True to throw exception) after all retries
         self.runtime.env_layer.run_command_output = self.mock_false_run_command_output
         with self.assertRaises(Exception) as context:
-            self.runtime.bootstrapper.check_sudo_status_retry(raise_if_not_sudo=True)
+            self.runtime.bootstrapper.check_sudo_status_with_retry(raise_if_not_sudo=True)
 
         # Verify exception msg contains the expected failure text
         self.assertTrue("Unable to invoke sudo successfully" in str(context.exception))
@@ -83,7 +83,7 @@ class TestBootstrapper(unittest.TestCase):
         self.runtime.env_layer.run_command_output = self.mock_insufficient_run_command_output
 
         with self.assertRaises(Exception) as context:
-            self.runtime.bootstrapper.check_sudo_status_retry()
+            self.runtime.bootstrapper.check_sudo_status_with_retry()
 
         # Verify exception msg contains the expected failure text
         self.assertTrue("Unexpected sudo check result" in str(context.exception))
@@ -93,7 +93,7 @@ class TestBootstrapper(unittest.TestCase):
         self.runtime.env_layer.run_command_output = self.mock_unexpected_output_run_command_output
 
         with self.assertRaises(Exception) as context:
-            self.runtime.bootstrapper.check_sudo_status_retry()
+            self.runtime.bootstrapper.check_sudo_status_with_retry()
 
         # Verify exception msg contains the expected failure text
         self.assertTrue("Unexpected sudo check result" in str(context.exception))
@@ -103,7 +103,7 @@ class TestBootstrapper(unittest.TestCase):
         self.runtime.env_layer.run_command_output = self.mock_retry_run_command_output
 
         # Attempt to check sudo status, succeed (true) on the 3rd attempt
-        result = self.runtime.bootstrapper.check_sudo_status_retry(raise_if_not_sudo=True)
+        result = self.runtime.bootstrapper.check_sudo_status_with_retry(raise_if_not_sudo=True)
 
         # Verify the result is success (True)
         self.assertTrue(result, "Expected check_sudo_status to succeed on the 3rd attempts")
