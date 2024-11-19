@@ -212,7 +212,7 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log_debug("\nExtracting package and version data...")
         packages = []
         versions = []
-        package_extensions = ['.x86_64', '.noarch', '.i686']
+        package_extensions = Constants.SUPPORTED_PACKAGE_ARCH
 
         def is_package(chunk):
             # Using a list comprehension to determine if chunk is a package
@@ -309,41 +309,46 @@ class YumPackageManager(PackageManager):
         return False
 
     def extract_dependencies(self, output, packages):
-        # Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
-        #
-        # Loaded plugins: langpacks, product-id, search-disabled-repos
-        # Resolving Dependencies
-        # --> Running transaction check
-        # ---> Package selinux-policy.noarch 0:3.13.1-102.el7_3.15 will be updated
-        # --> Processing Dependency: selinux-policy = 3.13.1-102.el7_3.15 for \
-        # package: selinux-policy-targeted-3.13.1-102.el7_3.15.noarch
-        # --> Processing Dependency: selinux-policy = 3.13.1-102.el7_3.15 for \
-        # package: selinux-policy-targeted-3.13.1-102.el7_3.15.noarch
-        # ---> Package selinux-policy.noarch 0:3.13.1-102.el7_3.16 will be an update
-        # --> Running transaction check
-        # ---> Package selinux-policy-targeted.noarch 0:3.13.1-102.el7_3.15 will be updated
-        # ---> Package selinux-policy-targeted.noarch 0:3.13.1-102.el7_3.16 will be an update
-        # --> Finished Dependency Resolution
+        # Extracts dependent packages from output. Refer yum_update_output_expected_formats.txt for examples of supported output formats.
 
         dependencies = []
-        lines = output.strip().split('\n')
+        package_arch_to_look_for = ["x86_64", "noarch", "i686", "aarch64"]  # if this is changed, review Constants
 
-        for line in lines:
-            if line.find(" will be updated") < 0 and line.find(" will be an update") < 0 and line.find(" will be installed") < 0:
+        lines = output.strip().splitlines()
+
+        for line_index in range(0, len(lines)):
+            line = re.split(r'\s+', (lines[line_index].replace("--->", "")).strip())
+            next_line = []
+            dependent_package_name = ""
+
+            if line_index < len(lines) - 1:
+                next_line = re.split(r'\s+', (lines[line_index + 1].replace("--->", "")).strip())
+
+            if self.is_valid_update(line, package_arch_to_look_for):
+                dependent_package_name = self.get_product_name_with_arch(line, package_arch_to_look_for)
+            elif self.is_valid_update(line+next_line, package_arch_to_look_for):
+                dependent_package_name = self.get_product_name_with_arch(line+next_line, package_arch_to_look_for)
+            else:
                 self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
                 continue
 
-            updates_line = re.split(r'\s+', line.strip())
-            if len(updates_line) != 7:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
-                continue
-
-            dependent_package_name = self.get_product_name(updates_line[2])
-            if len(dependent_package_name) != 0 and dependent_package_name not in packages:
+            if len(dependent_package_name) != 0 and dependent_package_name not in packages and dependent_package_name not in dependencies:
                 self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
                 dependencies.append(dependent_package_name)
 
         return dependencies
+
+    def is_valid_update(self, package_details_in_output, package_arch_to_look_for):
+        # Verifies whether the line under consideration (i.e. package_details_in_output) contains relevant package details.
+        # package_details_in_output will be of the following format if it is valid
+        #   In Yum 3: Package selinux-policy.noarch 0:3.13.1-102.el7_3.15 will be updated
+        #   In Yum 4: kernel-tools        x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.4 M
+        return len(package_details_in_output) == 6 and self.is_arch_in_package_details(package_details_in_output[1], package_arch_to_look_for)
+
+    @staticmethod
+    def is_arch_in_package_details(package_detail, package_arch_to_look_for):
+        # Using a list comprehension to determine if chunk is a package
+        return len([p for p in package_arch_to_look_for if p in package_detail]) == 1
 
     def get_dependent_list(self, packages):
         package_names = ""
@@ -364,7 +369,7 @@ class YumPackageManager(PackageManager):
 
     def get_product_name_and_arch(self, package_name):
         """Splits out product name and architecture - if this is changed, modify in PackageFilter also"""
-        architectures = ['.x86_64', '.noarch', '.i686']
+        architectures = Constants.SUPPORTED_PACKAGE_ARCH
         for arch in architectures:
             if package_name.endswith(arch):
                 return package_name[:-len(arch)], arch
@@ -379,6 +384,10 @@ class YumPackageManager(PackageManager):
         """Retrieve product architecture only"""
         product_name, arch = self.get_product_name_and_arch(package_name)
         return arch
+
+    def get_product_name_with_arch(self, package_detail, package_arch_to_look_for):
+        """Retrieve product name with arch separated by '.'. Note: This format is default in yum3. Refer samples noted within func extract_dependencies() for more clarity"""
+        return package_detail[0] + "." + package_detail[1] if package_detail[1] in package_arch_to_look_for else package_detail[1]
 
     def get_package_version_without_epoch(self, package_version):
         """Returns the package version stripped of any epoch"""
