@@ -196,6 +196,7 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
         self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
+        print('what is new_version_config_folder', new_version_config_folder)
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
