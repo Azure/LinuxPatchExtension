@@ -41,7 +41,7 @@ except ImportError:
 
 
 class RuntimeCompositor(object):
-    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE):
+    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE, test_type="HappyPath"):
         # Init data
         self.original_rm_start_reboot = None
         self.current_env = Constants.DEV
@@ -50,6 +50,7 @@ class RuntimeCompositor(object):
         self.vm_cloud_type = vm_cloud_type
         Constants.SystemPaths.SYSTEMD_ROOT = os.getcwd() # mocking to pass a basic systemd check in Windows
         self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
+        self.scratch_path = os.path.join(os.path.curdir, "scratch")
 
         # speed up test execution
         Constants.MAX_FILE_OPERATION_RETRY_COUNT = 1
@@ -78,7 +79,7 @@ class RuntimeCompositor(object):
         # Reconfigure env layer for legacy mode tests
         self.env_layer = self.bootstrapper.env_layer
         if legacy_mode:
-            self.legacy_env_layer_extensions = LegacyEnvLayerExtensions(package_manager_name)
+            self.legacy_env_layer_extensions = LegacyEnvLayerExtensions(package_manager_name, test_type)
             self.reconfigure_env_layer_to_legacy_mode()
 
         # Overriding check_sudo_status to always true

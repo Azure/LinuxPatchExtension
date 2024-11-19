@@ -349,6 +349,9 @@ class Constants(object):
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
 
+    # Supported Package Architectures - if this is changed, review YumPackageManage
+    SUPPORTED_PACKAGE_ARCH = ['.x86_64', '.noarch', '.i686', '.aarch64']
+
     # Package / Patch State Ordering Constants
     # This ordering ensures that the most important information is preserved in the case of patch object truncation
     PackageClassificationOrderInStatusReporting = {

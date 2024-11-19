@@ -56,7 +56,7 @@ class TestPatchAssessor(unittest.TestCase):
         self.assertRaises(Exception, self.runtime.patch_assessor.start_assessment)
         with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             file_contents = json.loads(file_handle.read())
-            self.assertTrue('Unexpected return code (100) from package manager on command: LANG=en_US.UTF8 sudo apt-get -s dist-upgrade' in str(file_contents))
+            self.assertTrue('Customer environment error: Investigate and resolve unexpected return code (100) from package manager on command: ' in str(file_contents))
 
     def test_assessment_telemetry_fail(self):
         backup_telemetry_writer = self.runtime.telemetry_writer
