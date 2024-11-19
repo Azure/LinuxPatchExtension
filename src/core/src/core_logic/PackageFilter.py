@@ -117,8 +117,8 @@ class PackageFilter(object):
 
     @staticmethod
     def get_product_name_without_arch(package_name):
-        """Splits out product name without architecture - if this is changed, review YumPackageManager"""
-        architectures = ['.x86_64', '.noarch', '.i686']
+        """Splits out product name without architecture"""
+        architectures = Constants.SUPPORTED_PACKAGE_ARCH
         for arch in architectures:
             if package_name.endswith(arch):
                 return package_name.replace(arch, '')

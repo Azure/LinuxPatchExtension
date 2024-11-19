@@ -1,0 +1,100 @@
+Example of different output formats for 'sudo yum update ____ ' depending yum version and details within the output
+
+In Yum 3: Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
+    Loaded plugins: langpacks, product-id, search-disabled-repos
+    Resolving Dependencies
+    --> Running transaction check
+    ---> Package selinux-policy.noarch 0:3.13.1-102.el7_3.15 will be updated
+    --> Processing Dependency: selinux-policy = 3.13.1-102.el7_3.15 for \
+    package: selinux-policy-targeted-3.13.1-102.el7_3.15.noarch
+    --> Processing Dependency: selinux-policy = 3.13.1-102.el7_3.15 for \
+    package: selinux-policy-targeted-3.13.1-102.el7_3.15.noarch
+    ---> Package selinux-policy.noarch 0:3.13.1-102.el7_3.16 will be an update
+    --> Running transaction check
+    ---> Package selinux-policy-targeted.noarch 0:3.13.1-102.el7_3.15 will be updated
+    ---> Package selinux-policy-targeted.noarch 0:3.13.1-102.el7_3.16 will be an update
+    --> Finished Dependency Resolution
+
+In Yum 4: Sample 1 (Upgrades are available, no installation required):
+Sample output for the cmd 'sudo yum update --assumeno selinux-policy.noarch' is :
+    Last metadata expiration check: 0:08:56 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
+    Package selinux-policy-3.14.3-95.el8_6.6.noarch is already installed.
+    Dependencies resolved.
+    ==================================================================================================
+    Package                   Arch    Version           Repository                               Size
+    ==================================================================================================
+    Upgrading:
+    selinux-policy            noarch  3.14.3-95.el8_6.8 rhel-8-for-x86_64-baseos-eus-rhui-rpms  651 k
+    selinux-policy-targeted   noarch  3.14.3-95.el8_6.8 rhel-8-for-x86_64-baseos-eus-rhui-rpms   15 M
+
+    Transaction Summary
+    ==================================================================================================
+    Upgrade  2 Packages
+
+    Total download size: 16 M
+    Operation aborted..
+
+In Yum 4: Sample 2 (No upgrades available, installations required):
+Sample output for the cmd 'sudo yum update --assumeno kernel-modules.x86_64' is :
+
+    Last metadata expiration check: 0:09:14 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
+    Package kernel-modules-4.18.0-372.9.1.el8.x86_64 is already installed.
+    Package kernel-modules-4.18.0-372.52.1.el8_6.x86_64 is already installed.
+    Dependencies resolved.
+    =============================================================================================
+    Package          Arch    Version               Repository                               Size
+    =============================================================================================
+    Installing dependencies:
+    kernel-core      x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   40 M
+    kernel-modules   x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   32 M
+
+    Transaction Summary
+    =============================================================================================
+    Install  2 Packages
+
+    Total download size: 72 M
+    Installed size: 93 M
+    Operation aborted.
+
+In Yum 4: Sample 3 (Both upgrades and installations required):
+Sample output for the cmd 'sudo yum update --assumeno kernel-modules.x86_64' is :
+
+    Last metadata expiration check: 0:01:56 ago on Tue 25 Jul 2023 12:01:47 PM UTC.
+    Dependencies resolved.
+    ================================================================================================
+    Package             Arch    Version               Repository                               Size
+    ================================================================================================
+    Upgrading:
+    kernel-tools        x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.4 M
+    kernel-tools-libs   x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms  8.2 M
+    openssl             x86_64  1:1.1.1k-9.el8_6      rhel-8-for-x86_64-baseos-eus-rhui-rpms  710 k
+    openssl-libs        x86_64  1:1.1.1k-9.el8_6      rhel-8-for-x86_64-baseos-eus-rhui-rpms  1.5 M
+    Installing dependencies:
+    kernel-core         x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   40 M
+    kernel-modules      x86_64  4.18.0-372.64.1.el8_6 rhel-8-for-x86_64-baseos-eus-rhui-rpms   32 M
+
+    Transaction Summary
+    ================================================================================================
+    Install  2 Packages
+    Upgrade  4 Packages
+
+In Yum 4: Sample 4 (dependent patch detail split over 2 lines):
+Sample output for the cmd 'sudo yum update --assumeno polkit.x86_64' is :
+
+    Last metadata expiration check: 0:08:47 ago on Tue 25 Jul 2023 02:14:28 PM UTC.
+    Package polkit-0.115-13.el8_5.2.x86_64 is already installed.
+    Dependencies resolved.
+    ================================================================================
+    Package   Arch   Version          Repository                              Size
+    ================================================================================
+    Upgrading:
+    polkit    x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms 154 k
+    polkit-libs
+              x86_64 0.115-14.el8_6.1 rhel-8-for-x86_64-baseos-eus-rhui-rpms  77 k
+
+    Transaction Summary
+    ================================================================================
+    Upgrade  2 Packages
+
+    Total download size: 231 k
+    Operation aborted.

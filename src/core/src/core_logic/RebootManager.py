@@ -15,8 +15,6 @@
 # Requires Python 2.7+
 
 """Reboot management"""
-import datetime
-import subprocess
 import time
 from core.src.bootstrap.Constants import Constants
 
