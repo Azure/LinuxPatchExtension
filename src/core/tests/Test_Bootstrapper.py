@@ -66,7 +66,10 @@ class TestBootstrapper(unittest.TestCase):
     def test_check_sudo_status_all_attempts_failed(self):
         # Set raise_if_not_sudo=False to test the `return False` all attempts failed
         self.runtime.env_layer.run_command_output = self.mock_false_run_command_output
+
         result = self.runtime.bootstrapper.check_sudo_status_with_retry(raise_if_not_sudo=False)
+
+        # Verify check_sudo_status_with_retry is False
         self.assertEqual(result, False, "Expected check_sudo_status retry to return False after all attempts failed")
 
     def test_check_sudo_status_throw_exception(self):

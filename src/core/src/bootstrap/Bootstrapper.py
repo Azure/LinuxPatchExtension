@@ -164,8 +164,7 @@ class Bootstrapper(object):
                         continue
 
                     elif attempts >= Constants.MAX_CHECK_SUDO_RETRY_COUNT:
-                        self.composite_logger.log_error("Customer environment error (sudo failure).[MaxRetryCount={0}]".format( str(attempts)))
-                        return False
+                        raise
 
             except Exception as exception:
                 if attempts >= Constants.MAX_CHECK_SUDO_RETRY_COUNT:
