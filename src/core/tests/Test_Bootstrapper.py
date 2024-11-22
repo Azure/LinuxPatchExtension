@@ -41,12 +41,12 @@ class TestBootstrapper(unittest.TestCase):
         return (1, "[sudo] password for user:\nFalse")
 
     def mock_insufficient_run_command_output(self, command, no_output=False, chk_err=True):
-        """Mock a insufficient output line in sudo check status command output."""
+        """Mock an insufficient output line in sudo check status command output."""
         # Mock failure to trigger retry logic in check_sudo_status
         return (1, "[sudo] password for user:")
 
     def mock_unexpected_output_run_command_output(self, command, no_output=False, chk_err=True):
-        """Mock a insufficient output line in sudo check status command output."""
+        """Mock an unexpected output line in sudo check status command output."""
         # Mock failure to trigger retry logic in check_sudo_status
         return (1, "[sudo] password for user:\nUnexpectedOutput")
 
@@ -67,7 +67,7 @@ class TestBootstrapper(unittest.TestCase):
         # Set raise_if_not_sudo=False to test the `return False` all attempts failed
         self.runtime.env_layer.run_command_output = self.mock_false_run_command_output
         result = self.runtime.bootstrapper.check_sudo_status_with_retry(raise_if_not_sudo=False)
-        self.assertFalse(result, "Expected check_sudo_status to return False after all attempts failed")
+        self.assertEqual(result, False, "Expected check_sudo_status retry to return False after all attempts failed")
 
     def test_check_sudo_status_throw_exception(self):
         # Set raise_if_not_sudo=True to throw exception) after all retries
