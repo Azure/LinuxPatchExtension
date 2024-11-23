@@ -147,7 +147,7 @@ class Bootstrapper(object):
         self.composite_logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
 
     def check_sudo_status_with_retry(self, raise_if_not_sudo=True):
-        # type:(bool) -> bool
+        # type:(bool) -> any
         """ retry to invoke sudo check """
         for attempts in range(1, Constants.MAX_CHECK_SUDO_RETRY_COUNT + 1):
             try:
@@ -171,7 +171,6 @@ class Bootstrapper(object):
                     self.composite_logger.log_error("Customer environment error (sudo failure). [Exception={0}][MaxRetryCount={1}]".format(str(exception), str(attempts)))
                     if raise_if_not_sudo:
                         raise
-                    return False
                 self.composite_logger.log_debug("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                 time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
 
