@@ -110,8 +110,8 @@ class Utility(object):
         """
         Sort paths based on version numbers extracted from folder names.
         """
-        return sorted(
-            paths,
-            key=lambda path: Utility.extract_version(path),
-            reverse=True
-        )
+        def version_key(path):
+            version_str = Utility.extract_version(path)
+            return tuple(map(int, version_str.split('.'))) if version_str else (0,0,0)
+
+        return sorted(paths, key=version_key,reverse=True)

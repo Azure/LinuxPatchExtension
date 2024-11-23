@@ -196,7 +196,6 @@ class TestActionHandler(unittest.TestCase):
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
         self.action_handler.ext_env_handler.events_folder = test_dir
         self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
-        print('what is new_version_config_folder', new_version_config_folder)
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
         self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
@@ -235,6 +234,29 @@ class TestActionHandler(unittest.TestCase):
         latest_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-2.0.00'
         new_version_config_folder = self.create_latest_extension_dir(latest_extension_version, test_dir)
         previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.0.0'
+        previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
+        self.action_handler.ext_env_handler.config_folder = new_version_config_folder
+        self.action_handler.ext_env_handler.events_folder = test_dir
+        self.assertTrue(self.action_handler.update() == Constants.ExitCode.Okay)
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.CORE_STATE_FILE)))
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, Constants.EXT_STATE_FILE)))
+        self.assertTrue(os.path.exists(os.path.join(new_version_config_folder, 'backup.bak')))
+        self.assertFalse(os.path.exists(os.path.join(new_version_config_folder, 'test.txt')))
+        self.validate_status_file_on_success(self.action_handler.seq_no)
+        self.action_handler.ext_env_handler.events_folder = events_folder_path_backup
+        self.runtime.telemetry_writer.events_folder_path = None
+        # Remove the directory after the test
+        shutil.rmtree(test_dir)
+
+    def test_failed_update_function(self):
+        events_folder_path_backup = self.action_handler.ext_env_handler.events_folder
+        # testing with versions 1.6.99 and 1.6.100
+        # Create a temporary directory
+        test_dir = tempfile.mkdtemp()
+        # create extension dir for the latest and other extension versions, to be used in the test
+        latest_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100'
+        new_version_config_folder = self.create_latest_extension_dir(latest_extension_version, test_dir)
+        previous_extension_version = 'Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99'
         previous_version_config_folder = self.create_previous_extension_version(previous_extension_version, test_dir)
         self.action_handler.ext_env_handler.config_folder = new_version_config_folder
         self.action_handler.ext_env_handler.events_folder = test_dir

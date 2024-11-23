@@ -73,3 +73,8 @@ class TestUtility(unittest.TestCase):
 
         # Remove the directory after the test
         shutil.rmtree(test_dir)
+
+    def test_extract_version(self):
+        self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"), "1.6.100")
+        self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99"), "1.6.99")
+
