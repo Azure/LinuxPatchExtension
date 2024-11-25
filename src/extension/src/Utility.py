@@ -73,18 +73,27 @@ class Utility(object):
     def extract_version(path):
         """
         Extract the version part from a given path.
-        Example: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5/config -> 1.2.5
+        Input: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5/config
+        Return: 1.2.5
         """
-        match = re.search(r'-([\d]+\.[\d]+\.[\d]+)', path)
+        match = re.search(r'([\d]+\.[\d]+\.[\d])', path)
         return match.group(1) if match else ""
 
     @staticmethod
     def sort_versions(paths):
         """
-        Sort paths based on version numbers extracted from folder names.
+        Sort paths based on version numbers extracted from paths.
+        Input:
+            ["Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100"]
+        Return:
+            ["Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"]
         """
         def version_key(path):
-            version_str = Utility.extract_version(path)
-            return tuple(map(int, version_str.split('.'))) if version_str else (0,0,0)
+            version_numbers = Utility.extract_version(path)
+            return tuple(map(int, version_numbers.split('.'))) if version_numbers else (0,0,0)
 
         return sorted(paths, key=version_key,reverse=True)
