@@ -74,7 +74,38 @@ class TestUtility(unittest.TestCase):
         # Remove the directory after the test
         shutil.rmtree(test_dir)
 
-    def test_extract_version(self):
+    def test_extract_sorted_versions(self):
+        # Test extract version logic
+        self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25"), "1.2.25")
+        self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc"), "1.2.25")
+        self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25+abc.123"), "1.2.25")
+        self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123"),"1.2.25")
+        self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001"), "1.21.1001")
         self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"), "1.6.100")
         self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99"), "1.6.99")
+        self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-1.6."), "")
+        self.assertEqual(self.utility.extract_version("Microsoft.CPlat.Core.LinuxPatchExtension-a.b.c"), "")
+
+        # Test sort versions logic
+        unsorted_path_versions = [
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc",
+        ]
+
+        expected_sorted_path_versions = [
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123",
+            "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc"
+        ]
+
+        # valid versions
+        self.assertEqual(self.utility.sort_versions(unsorted_path_versions), expected_sorted_path_versions)
+
 

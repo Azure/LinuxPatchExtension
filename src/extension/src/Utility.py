@@ -70,39 +70,12 @@ class Utility(object):
         return date.strftime(Constants.UTC_DATETIME_FORMAT)
 
     @staticmethod
-    def compare_versions(version_a, version_b):
-        """Compare two versions:
-        returns:
-        -1 if version_a < version_b
-        0 if version_a == version_b
-        1 if version-a > version_b
-        """
-
-        def normalize(v):
-            return [int(x) if x.isdigit() else x for x in v.split(".")]
-
-        a_parts = normalize(version_a)
-        b_parts = normalize(version_b)
-
-        for a,b in zip(a_parts, b_parts):
-            if a < b:
-                return -1
-            elif a > b:
-                return 1
-
-        # If all matched so far, the longer version is greater
-        return (len(a_parts) > len(b_parts)) - (len(a_parts) < len(b_parts))
-
-    @staticmethod
     def extract_version(path):
         """
         Extract the version part from a given path.
         Example: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5/config -> 1.2.5
         """
-        match = re.search(r'-([\d]+\.[\d]+\.[\d]+)$', path)
-        if not match:
-            # Retry for cases where the path has a trailing folder or slash
-            match = re.search(r'-([\d]+\.[\d]+\.[\d]+)(?:/|$)', path)
+        match = re.search(r'-([\d]+\.[\d]+\.[\d]+)', path)
         return match.group(1) if match else ""
 
     @staticmethod
