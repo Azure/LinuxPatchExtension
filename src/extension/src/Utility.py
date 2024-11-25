@@ -76,7 +76,7 @@ class Utility(object):
         Input: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5/config
         Return: 1.2.5
         """
-        match = re.search(r'([\d]+\.[\d]+\.[\d])', path)
+        match = re.search(r'([\d]+\.[\d]+\.[\d]+)', path)
         return match.group(1) if match else ""
 
     @staticmethod
