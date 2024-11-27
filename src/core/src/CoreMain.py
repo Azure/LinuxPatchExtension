@@ -40,7 +40,7 @@ class CoreMain(object):
             container = lifecycle_manager = status_handler = execution_config = None    # for explicit clarity only
             bootstrapper.bootstrap_splash_text()
             if bootstrapper.auto_assessment_log_file_truncated:
-                composite_logger.log_debug("[CM] Auto-assessment log file was truncated.")
+                composite_logger.log_debug("[CM] Auto-assessment log file was truncated in bootstrap.")
         except Exception as error:
             print("Critical: L1 Bootstrap failure. No logs were written. [Error={0}]".format(repr(error)))
             return ExitJanitor.final_exit(Constants.ExitCode.CriticalError_NoLog, self.stdout_file_mirror, self.file_logger, self.lifecycle_manager, self.telemetry_writer, current_env)   # return is only for IDE hinting

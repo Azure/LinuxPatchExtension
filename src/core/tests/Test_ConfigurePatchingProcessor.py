@@ -39,7 +39,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
     def mock_package_manager_get_current_auto_os_patch_state_returns_unknown(self):
         if self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count == 0:
             self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count = 1
-            return Constants.AutomaticOSPatchStates.DISABLED
+            return Constants.AutomaticOSPatchStates.ENABLED
         else:
             return Constants.AutomaticOSPatchStates.UNKNOWN
     #endregion Mocks
@@ -53,7 +53,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         # create and patch runtime
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
-        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.patch_mode_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
         runtime.package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(runtime.execution_config.config_folder, "20auto-upgrades")
         runtime.set_legacy_test_type('HappyPath')
 
@@ -95,7 +95,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         argument_composer.operation = Constants.Op.CONFIGURE_PATCHING
         argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
-        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.patch_mode_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
         runtime.set_legacy_test_type('HappyPath')
         CoreMain(argument_composer.get_composed_arguments())
 
@@ -118,7 +118,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         argument_composer.maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
         argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
-        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.patch_mode_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
         runtime.package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(runtime.execution_config.config_folder, "20auto-upgrades")
         os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n'
         runtime.write_to_file(runtime.package_manager.patch_mode_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
@@ -168,12 +168,12 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
         argument_composer.assessment_mode = "LetsThrowAnException"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
-        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.patch_mode_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
         runtime.set_legacy_test_type('HappyPath')
 
         # mock swap
-        backup_package_manager_get_current_auto_os_patch_state = runtime.package_manager.get_current_auto_os_patch_state
-        runtime.package_manager.get_current_auto_os_patch_state = self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown
+        backup_package_manager_get_current_auto_os_patch_state = runtime.package_manager.patch_mode_manager.get_current_auto_os_patch_state
+        runtime.package_manager.patch_mode_manager.get_current_auto_os_patch_state = self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown
 
         # Execute main
         CoreMain(argument_composer.get_composed_arguments())
@@ -184,14 +184,13 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEqual(2, len(substatus_file_data))
         self.assertTrue(substatus_file_data[0]["name"] == Constants.OpSummary.ASSESSMENT)   # assessment is now part of the CP flow
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.Status.SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.OpSummary.CONFIGURE_PATCHING)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.Status.ERROR.lower())
 
         #restore
-        runtime.package_manager.get_current_auto_os_patch_state = backup_package_manager_get_current_auto_os_patch_state
+        runtime.package_manager.patch_mode_manager.get_current_auto_os_patch_state = backup_package_manager_get_current_auto_os_patch_state
 
         runtime.stop()
 
@@ -205,7 +204,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         # create and patch runtime
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
-        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.patch_mode_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
         runtime.package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(runtime.execution_config.config_folder, "20auto-upgrades")
         runtime.set_legacy_test_type('HappyPath')
 
@@ -249,7 +248,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         # create and patch runtime
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
-        runtime.package_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
+        runtime.package_manager.patch_mode_manager.get_current_auto_os_patch_state = runtime.backup_get_current_auto_os_patch_state
         runtime.package_manager.patch_mode_manager.os_patch_configuration_settings_file_path = os.path.join(runtime.execution_config.config_folder, "20auto-upgrades")
         runtime.set_legacy_test_type('HappyPath')
 

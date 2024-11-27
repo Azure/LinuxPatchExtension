@@ -453,7 +453,8 @@ class TestAptPackageManager(unittest.TestCase):
         backup_package_manager_ubuntu_pro_client_install_or_update_pro = UbuntuProClient.UbuntuProClient.install_or_update_pro
         UbuntuProClient.UbuntuProClient.install_or_update_pro = self.mock_install_or_update_pro_raise_exception
 
-        obj = AptPackageManager.AptPackageManager(package_manager.env_layer, execution_config, package_manager.composite_logger, package_manager.telemetry_writer, package_manager.status_handler)
+        obj = AptPackageManager.AptPackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler,
+                                                                       self.runtime.patch_mode_manager, self.runtime.sources_manager, self.runtime.health_manager, Constants.APT)
 
         self.assertIsNotNone(obj)
         self.assertIsNotNone(obj.ubuntu_pro_client)
@@ -499,7 +500,7 @@ class TestAptPackageManager(unittest.TestCase):
         backup_AptPackageManager__pro_client_prereq_met = runtime.package_manager._AptPackageManager__pro_client_prereq_met
         runtime.package_manager._AptPackageManager__pro_client_prereq_met = True
 
-        runtime.patch_assessor.start_assessment()
+        runtime.patch_assessor.start_operation_with_retries()
         status = ""
         error_set = False
         with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
@@ -575,7 +576,8 @@ class TestAptPackageManager(unittest.TestCase):
     def test_eula_accepted_for_patches(self):
         # EULA accepted in settings and commands updated accordingly
         self.runtime.execution_config.accept_package_eula = True
-        package_manager_for_test = AptPackageManager.AptPackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
+        package_manager_for_test = AptPackageManager.AptPackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler,
+                                                                       self.runtime.patch_mode_manager, self.runtime.sources_manager, self.runtime.health_manager, Constants.APT)
         self.assertTrue("ACCEPT_EULA=Y" in package_manager_for_test.single_package_upgrade_simulation_cmd)
         self.assertTrue("ACCEPT_EULA=Y" in package_manager_for_test.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" in package_manager_for_test.single_package_upgrade_cmd)
@@ -583,7 +585,8 @@ class TestAptPackageManager(unittest.TestCase):
     def test_eula_not_accepted_for_patches(self):
         # EULA accepted in settings and commands updated accordingly
         self.runtime.execution_config.accept_package_eula = False
-        package_manager_for_test = AptPackageManager.AptPackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
+        package_manager_for_test = AptPackageManager.AptPackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler,
+                                                                       self.runtime.patch_mode_manager, self.runtime.sources_manager, self.runtime.health_manager, Constants.APT)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_upgrade_simulation_cmd)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_dependency_resolution_template)
         self.assertTrue("ACCEPT_EULA=Y" not in package_manager_for_test.single_package_upgrade_cmd)
