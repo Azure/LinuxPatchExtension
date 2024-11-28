@@ -89,7 +89,7 @@ class ExtConfigSettingsHandler(object):
         for subdir, dirs, files in os.walk(self.config_folder):
             for file in files:
                 try:
-                    if re.match('^\d+' + self.file_ext + '$', file):
+                    if re.match(r'^\d+' + self.file_ext + '$', file):
                         cur_seq_no = int(os.path.basename(file).split('.')[0])
                         file_modified_time = os.path.getmtime(os.path.join(self.config_folder, file))
                         self.logger.log("Sequence number being considered and the corresponding file modified time. [Sequence No={0}] [Modified={1}]".format(str(cur_seq_no), str(file_modified_time)))
