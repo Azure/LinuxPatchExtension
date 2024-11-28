@@ -285,21 +285,21 @@ class YumPackageManager(PackageManager):
         # Loaded plugins: product-id, search-disabled-repos, subscription-manager
         # Installed Packages
         # kernel.x86_64                                                                                   3.10.0-514.el7                                                                                    @anaconda/7.3
-        self.composite_logger.log_verbose("[YPM] Checking package install status. [PackageName={0}][PackageVersion={1}]".format(package_name, package_version))
+        self.composite_logger.log_verbose("[YPM] Checking package install status. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
         cmd = self.single_package_check_installed.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_package_manager(cmd)
         packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
 
         for index, package in enumerate(packages):
             if package == package_name and (package_versions[index] == package_version):
-                self.composite_logger.log_debug("[YPM] > Installed version match found. [PackageName={0}][PackageVersion={1}]".format(package_name, package_version))
+                self.composite_logger.log_debug("[YPM] > Installed version match found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
                 return True
             else:
                 self.composite_logger.log_verbose("[YPM] > Did not match: " + package + " (" + package_versions[index] + ")")
 
         # sometimes packages are removed entirely from the system during installation of other packages
         # so let's check that the package is still needed before
-        self.composite_logger.log_debug(" - Installed version match NOT found for: " + str(package_name) + "(" + str(package_version) + ")")
+        self.composite_logger.log_debug("[YPM] > Installed version match NOT found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
         return False
 
     def extract_dependencies(self, output, packages):
@@ -875,8 +875,8 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log_debug("[Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
         if code != self.yum_exitcode_no_applicable_packages:
-            error_msg = 'Customer environment error (expired SSL certs):  [Command={0}][Code={1}][Out={2}]'.format(command,str(code),out)
-            self.composite_logger.log_error(error_msg)
+            error_msg = 'Customer environment error (expired SSL certs):  [Command={0}][Code={1}]'.format(command,str(code))
+            self.composite_logger.log_error("{0}[Out={1}]".format(error_msg, out))
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:
