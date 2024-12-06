@@ -16,6 +16,11 @@
 
 import datetime
 import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
 import unittest
 # Conditional import for StringIO
 try:

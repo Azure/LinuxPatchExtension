@@ -230,7 +230,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer.maximum_duration = "PT235M"
         argument_composer.health_store_id = "pub_offer_sku_2024.04.01"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
-        runtime.package_manager.custom_sources_list = os.path.join(argument_composer.temp_folder, "temp2.list")
+        runtime.package_manager.current_source_list = os.path.join(argument_composer.temp_folder, "temp2.list")
         # Path change
         runtime.set_legacy_test_type('HappyPath')
         self.assertTrue(runtime.patch_installer.start_installation())
