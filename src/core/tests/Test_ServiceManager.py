@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import os.path
 import unittest
 
 from core.tests.library.ArgumentComposer import ArgumentComposer
