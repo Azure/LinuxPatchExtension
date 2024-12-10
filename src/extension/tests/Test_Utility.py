@@ -73,4 +73,3 @@ class TestUtility(unittest.TestCase):
 
         # Remove the directory after the test
         shutil.rmtree(test_dir)
-
