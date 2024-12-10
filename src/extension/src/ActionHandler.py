@@ -19,11 +19,12 @@ import glob
 import os
 import shutil
 import time
-from distutils.version import LooseVersion
 
 from extension.src.Constants import Constants
 from extension.src.EnableCommandHandler import EnableCommandHandler
 from extension.src.InstallCommandHandler import InstallCommandHandler
+from extension.src.Utility import Utility
+from extension.src.VersionComparatorHandler import VersionComparatorHandler
 from extension.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 
@@ -48,6 +49,7 @@ class ActionHandler(object):
         self.file_logger = None
         self.operation_id_substitute_for_all_actions_in_telemetry = str((datetime.datetime.utcnow()).strftime(Constants.UTC_DATETIME_FORMAT))
         self.seq_no = self.ext_config_settings_handler.get_seq_no_from_env_var()
+        self.version_comparator_handler = VersionComparatorHandler()
 
     def determine_operation(self, command):
         switcher = {
@@ -224,8 +226,13 @@ class ActionHandler(object):
 
             # identify the version preceding current
             self.logger.log("Fetching the extension version preceding current from all available versions...")
-            paths_to_all_versions.sort(reverse=True, key=LooseVersion)
-            preceding_version_path = paths_to_all_versions[1]
+
+            # use custom sort logic to sort path based on version numbers
+            sorted_versions = self.version_comparator_handler.sort_versions_desc_order(paths_to_all_versions)
+            self.logger.log_debug("List of extension versions in descending order: [SortedVersion={0}]".format(sorted_versions))
+
+            preceding_version_path = sorted_versions[1]
+
             if preceding_version_path is None or preceding_version_path == "" or not os.path.exists(preceding_version_path):
                 error_msg = "Could not find path where preceding extension version artifacts are stored. Hence, cannot copy the required artifacts to the latest version. "\
                             "[Preceding extension version path={0}]".format(str(preceding_version_path))

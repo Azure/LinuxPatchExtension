@@ -30,8 +30,7 @@ import subprocess
 # imports in VERY_FIRST_IMPORTS, order should be kept
 VERY_FIRST_IMPORTS = [
     'from __future__ import print_function\n',
-    'from abc import ABCMeta, abstractmethod\n',
-    'from distutils.version import LooseVersion\n']
+    'from abc import ABCMeta, abstractmethod\n']
 GLOBAL_IMPORTS = set()
 
 
