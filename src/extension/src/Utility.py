@@ -16,7 +16,6 @@
 
 import datetime
 import os
-import re
 import time
 from extension.src.Constants import Constants
 from extension.src.local_loggers.FileLogger import FileLogger
