@@ -106,6 +106,6 @@ class TestUtility(unittest.TestCase):
         ]
 
         # valid versions
-        self.assertEqual(self.utility.sort_versions(unsorted_path_versions), expected_sorted_path_versions)
+        self.assertEqual(self.utility.sort_versions_desc_order(unsorted_path_versions), expected_sorted_path_versions)
 
 
