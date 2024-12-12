@@ -66,7 +66,7 @@ class PackageManager(object):
         try:
             self.refresh_repo()
         except Exception as error:
-            self.composite_logger.log_debug("Error in refreshing cache from machine sources. [Error={0}]".format(repr(error)))
+            self.composite_logger.log_debug("[PM] Error in refreshing cache from machine sources. [Error={0}]".format(repr(error)))
 
     # region Get Available Updates
     @abstractmethod
@@ -126,18 +126,18 @@ class PackageManager(object):
 
     def get_updates_for_inclusions(self, package_filter):
         """Get missing updates for inclusions"""
-        self.composite_logger.log_debug("Checking for inclusions...")
+        self.composite_logger.log_verbose("[PM] Checking for inclusions...")
 
         # Trivial empty list cases
         if not package_filter.is_inclusion_list_present():
-            self.composite_logger.log_debug(" - No inclusion list was present.")
+            self.composite_logger.log_verbose("[PM]  > No inclusion list was present.")
             return [], []
         if package_filter.is_msft_all_classification_included():  # remember that this function is inclusion-list aware if you suspect there's a bug here
-            self.composite_logger.log_debug(" - Inclusion list was present, but all classifications were selected - inclusions are irrelevant and will be ignored.")
+            self.composite_logger.log_verbose("[PM]  > Inclusion list was present, but all classifications were selected - inclusions are irrelevant and will be ignored.")
             return [], []
 
         # Get all available updates
-        self.composite_logger.log_debug("Getting all available updates for filtering...")
+        self.composite_logger.log_verbose("[PM] Getting all available updates for filtering...")
         packages, package_versions = self.get_all_updates(True)  # if a cached version is available, that is fine here
         included_packages = []
         included_package_versions = []
@@ -146,7 +146,7 @@ class PackageManager(object):
         # Check for inclusions
         for index, package in enumerate(packages):
             if package_filter.check_for_inclusion(package, package_versions[index]):    # check for the latest version
-                self.composite_logger.log_debug(" - Package satisfied inclusion list: " + str(package) + " (version=" + package_versions[index] + ")")
+                self.composite_logger.log_debug("[PM] > Package satisfied inclusion list: " + str(package) + " (version=" + package_versions[index] + ")")
                 included_packages.append(package)
                 included_package_versions.append(package_versions[index])
 
@@ -156,18 +156,18 @@ class PackageManager(object):
                 for available_version in available_versions:
                     if not package_filter.check_for_inclusion(package, available_version):
                         continue
-                    self.composite_logger.log_debug(" - Package satisfied inclusion list: " + str(package) + " (version=" + available_version + ", latest version=" + package_versions[index] + ")")
+                    self.composite_logger.log_debug("[PM] > Package satisfied inclusion list: " + str(package) + " (version=" + available_version + ", latest version=" + package_versions[index] + ")")
                     included_packages.append(package)
                     included_package_versions.append(available_version)
                     matched = True
                     break
 
                 if not matched:
-                    self.composite_logger.log_warning(" - Package [" + package + "] is available, but not the specific version requested. Available versions found: " + str(available_versions))
+                    self.composite_logger.log_warning("[PM] > Package [" + package + "] is available, but not the specific version requested. Available versions found: " + str(available_versions))
                     not_included_packages.append(package)
 
             else:                                                                       # no match
-                self.composite_logger.log_debug(" - Package didn't satisfy inclusion list: " + str(package))
+                self.composite_logger.log_verbose("[PM] > Package didn't satisfy inclusion list: " + str(package))
                 not_included_packages.append(package)
 
         return included_packages, included_package_versions
@@ -263,15 +263,15 @@ class PackageManager(object):
 
         # special case of package no longer being required (or maybe even present on the system)
         if code == 1 and self.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY) == Constants.YUM:
-            self.composite_logger.log_debug(" - Detecting if package is no longer required (as return code is 1):")
+            self.composite_logger.log_debug("[PM] > Detecting if package is no longer required (as return code is 1):")
             if self.STR_NOTHING_TO_DO in out:
                 code_path += " > Nothing to do. (succeeded)"
-                self.composite_logger.log_debug("    - Evidence of package no longer required detected.")
+                self.composite_logger.log_debug("[PM]    > Evidence of package no longer required detected.")
                 package_no_longer_required = True
                 code = 0
             else:
                 code_path += " > Nothing to do. (possible failure, tbd)"
-                self.composite_logger.log_debug("    - Evidence of package no longer required NOT detected.")
+                self.composite_logger.log_debug("[PM]    > Evidence of package no longer required NOT detected.")
 
         if not package_no_longer_required:
             if not self.is_package_version_installed(package, version):
@@ -287,12 +287,12 @@ class PackageManager(object):
                     # Package can be obsoleted by another package installed in the run (via dependencies)
                     code_path += " > Package obsoleted. (succeeded)"
                     install_result = Constants.INSTALLED    # close approximation to obsoleted
-                    self.composite_logger.log_debug(" - Package was discovered to be obsoleted.")
+                    self.composite_logger.log_debug("[PM] > Package was discovered to be obsoleted.")
 
                 elif code == 0 and len(out.split(self.STR_REPLACED)) > 1 and package in out.split(self.STR_REPLACED)[1]:
                     code_path += " > Package replaced. (succeeded)"
                     install_result = Constants.INSTALLED    # close approximation to replaced
-                    self.composite_logger.log_debug(" - Package was discovered to be replaced by another during its installation.")
+                    self.composite_logger.log_debug("[PM] > Package was discovered to be replaced by another during its installation.")
 
                 else:  # actual failure
                     install_result = Constants.FAILED

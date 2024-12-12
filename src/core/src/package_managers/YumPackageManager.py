@@ -97,7 +97,7 @@ class YumPackageManager(PackageManager):
         
         self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
         
-        self.package_install_expected_avg_time_in_seconds = 90 # As per telemetry data, the average time to install package is around 90 seconds for yum.
+        self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 90 seconds for yum.
 
     def refresh_repo(self):
         pass  # Refresh the repo is no ops in YUM
@@ -105,44 +105,39 @@ class YumPackageManager(PackageManager):
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
-        self.composite_logger.log_debug('\nInvoking package manager using: ' + command)
+        self.composite_logger.log_verbose("[YPM] Invoking package manager. [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
 
         code, out = self.try_mitigate_issues_if_any(command, code, out)
 
         if code not in [self.yum_exitcode_ok, self.yum_exitcode_no_applicable_packages, self.yum_exitcode_updates_available]:
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+            self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
+            error_msg = "Customer environment error: Investigate and resolve unexpected return code ({0}) from package manager on command: {1}".format(str(code), command)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             if raise_on_exception:
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             # more return codes should be added as appropriate
         else:  # verbose diagnostic log
-            self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_verbose("==========================================================================\n\n")
+            self.composite_logger.log_debug('[YPM] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         return out, code
 
     # region Classification-based (incl. All) update check
     def get_all_updates(self, cached=False):
         """Get all missing updates"""
-        self.composite_logger.log_debug("\nDiscovering all packages...")
+        self.composite_logger.log_verbose("[YPM] Discovering all packages...")
         if cached and not len(self.all_updates_cached) == 0:
-            self.composite_logger.log_debug(" - Returning cached package data.")
+            self.composite_logger.log_debug("[YPM] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
         out = self.invoke_package_manager(self.yum_check)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
-        self.composite_logger.log_debug("Discovered " + str(len(self.all_updates_cached)) + " package entries.")
+
+        self.composite_logger.log_debug("[YPM] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
         return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
         """Get missing security updates"""
-        self.composite_logger.log("\nDiscovering 'security' packages...")
+        self.composite_logger.log_verbose("[YPM] Discovering 'security' packages...")
 
         if not self.__is_image_rhel8_or_higher():
             self.install_yum_security_prerequisite()
@@ -153,12 +148,12 @@ class YumPackageManager(PackageManager):
         if len(security_packages) == 0 and 'CentOS' in str(self.env_layer.platform.linux_distribution()):   # deliberately non-terminal
             self.composite_logger.log_warning("Classification-based patching is only supported on YUM if the machine is independently configured to receive classification information.")
 
-        self.composite_logger.log("Discovered " + str(len(security_packages)) + " 'security' package entries.")
+        self.composite_logger.log_debug("[YPM] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
         return security_packages, security_package_versions
 
     def get_other_updates(self):
         """Get missing other updates"""
-        self.composite_logger.log("\nDiscovering 'other' packages...")
+        self.composite_logger.log_verbose("[YPM] Discovering 'other' packages...")
         other_packages = []
         other_package_versions = []
 
@@ -176,7 +171,7 @@ class YumPackageManager(PackageManager):
                 other_packages.append(package)
                 other_package_versions.append(all_package_versions[index])
 
-        self.composite_logger.log("Discovered " + str(len(other_packages)) + " 'other' package entries.")
+        self.composite_logger.log_debug("[YPM] Discovered 'other' packages. [Count={0}]".format(len(other_packages)))
         return other_packages, other_package_versions
 
     def __is_image_rhel8_or_higher(self):
@@ -185,7 +180,7 @@ class YumPackageManager(PackageManager):
             os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
 
             if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
-                self.composite_logger.log_debug("Verify RHEL image version: " + str(os_version))
+                self.composite_logger.log_debug("[YPM] RHEL version >= 8 detected. [DetectedVersion={0}]".format(str(os_version)))
                 return True
 
         return False
@@ -195,9 +190,8 @@ class YumPackageManager(PackageManager):
 
     def install_yum_security_prerequisite(self):
         """Not installed by default in versions prior to RHEL 7. This step is idempotent and fast, so we're not writing more complex code."""
-        self.composite_logger.log_debug('Ensuring RHEL yum-plugin-security is present.')
         code, out = self.env_layer.run_command_output(self.yum_check_security_prerequisite, False, False)
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output : \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_verbose("[YPM] Ensuring RHEL yum-plugin-security is present. [Code={0}][Out={1}]".format(str(code), out))
     # endregion
 
     # region Output Parser(s)
@@ -209,7 +203,7 @@ class YumPackageManager(PackageManager):
 
     def extract_packages_and_versions_including_duplicates(self, output):
         """Returns packages and versions from given output"""
-        self.composite_logger.log_debug("\nExtracting package and version data...")
+        self.composite_logger.log_verbose("[YPM] Extracting package and version data...")
         packages = []
         versions = []
         package_extensions = Constants.SUPPORTED_PACKAGE_ARCH
@@ -246,7 +240,7 @@ class YumPackageManager(PackageManager):
                 versions.append(line[1])
                 line_index += 1
             else:
-                self.composite_logger.log_debug(" - Inapplicable line (" + str(line_index) + "): " + lines[line_index])
+                self.composite_logger.log_verbose("[YPM] > Inapplicable line (" + str(line_index) + "): " + lines[line_index])
 
         return packages, versions
     # endregion
@@ -266,7 +260,7 @@ class YumPackageManager(PackageManager):
             excluded_string += excluded_package + ' '
         cmd = self.all_but_excluded_upgrade_cmd + excluded_string
 
-        self.composite_logger.log_debug("[FAIL SAFE MODE] UPDATING PACKAGES USING COMMAND: " + cmd)
+        self.composite_logger.log_debug("[YPM][FAIL SAFE MODE] UPDATING PACKAGES USING COMMAND: " + cmd)
         self.invoke_package_manager(cmd)
 
     def install_security_updates_azgps_coordinated(self):
@@ -291,21 +285,21 @@ class YumPackageManager(PackageManager):
         # Loaded plugins: product-id, search-disabled-repos, subscription-manager
         # Installed Packages
         # kernel.x86_64                                                                                   3.10.0-514.el7                                                                                    @anaconda/7.3
-        self.composite_logger.log_debug("\nCHECKING PACKAGE INSTALL STATUS FOR: " + str(package_name) + " (" + str(package_version) + ")")
+        self.composite_logger.log_verbose("[YPM] Checking package install status. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
         cmd = self.single_package_check_installed.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_package_manager(cmd)
         packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
 
         for index, package in enumerate(packages):
             if package == package_name and (package_versions[index] == package_version):
-                self.composite_logger.log_debug(" - Installed version match found.")
+                self.composite_logger.log_debug("[YPM] > Installed version match found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
                 return True
             else:
-                self.composite_logger.log_debug(" - Did not match: " + package + " (" + package_versions[index] + ")")
+                self.composite_logger.log_verbose("[YPM] > Did not match: " + package + " (" + package_versions[index] + ")")
 
         # sometimes packages are removed entirely from the system during installation of other packages
         # so let's check that the package is still needed before
-
+        self.composite_logger.log_debug("[YPM] > Installed version match NOT found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
         return False
 
     def extract_dependencies(self, output, packages):
@@ -329,11 +323,11 @@ class YumPackageManager(PackageManager):
             elif self.is_valid_update(line+next_line, package_arch_to_look_for):
                 dependent_package_name = self.get_product_name_with_arch(line+next_line, package_arch_to_look_for)
             else:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose("[YPM] > Inapplicable line: " + str(line))
                 continue
 
             if len(dependent_package_name) != 0 and dependent_package_name not in packages and dependent_package_name not in dependencies:
-                self.composite_logger.log_debug(" - Dependency detected: " + dependent_package_name)
+                self.composite_logger.log_verbose("[YPM] > Dependency detected: " + dependent_package_name)
                 dependencies.append(dependent_package_name)
 
         return dependencies
@@ -357,10 +351,10 @@ class YumPackageManager(PackageManager):
                 package_names += ' '
             package_names += package
 
-        self.composite_logger.log_debug("\nRESOLVING DEPENDENCIES USING COMMAND: " + str(self.single_package_upgrade_simulation_cmd + package_names))
+        self.composite_logger.log_verbose("[YPM] Resolving dependencies. [Command={0}]".format(str(self.single_package_upgrade_simulation_cmd + package_names)))
         output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_names)
         dependencies = self.extract_dependencies(output, packages)
-        self.composite_logger.log_debug(str(len(dependencies)) + " dependent packages were found for packages '" + str(packages) + "'.")
+        self.composite_logger.log_verbose("[YPM] Resolved dependencies. [Packages={0}][DependencyCount={1}]".format(str(packages), len(dependencies)))
         return dependencies
 
     def get_product_name(self, package_name):
@@ -394,11 +388,11 @@ class YumPackageManager(PackageManager):
         package_version_split = str(package_version).split(':', 1)
 
         if len(package_version_split) == 2:
-            self.composite_logger.log_debug("   - Removed epoch from version (" + package_version + "): " + package_version_split[1])
+            self.composite_logger.log_verbose("[YPM]   > Removed epoch from version (" + package_version + "): " + package_version_split[1])
             return package_version_split[1]
 
         if len(package_version_split) != 1:
-            self.composite_logger.log_error("Unexpected error during version epoch removal from: " + package_version)
+            self.composite_logger.log_error("[YPM] Unexpected error during version epoch removal from package version. [PackageVersion={0}]".format(package_version))
 
         return package_version
 
@@ -569,79 +563,78 @@ class YumPackageManager(PackageManager):
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enable_on_reboot and logs the default settings the machine comes with """
         try:
-            self.composite_logger.log("Disabling auto OS updates in all identified services...")
+            self.composite_logger.log_verbose("[YPM] Disabling auto OS updates in all identified services...")
             self.disable_auto_os_update_for_yum_cron()
             self.disable_auto_os_update_for_dnf_automatic()
             self.disable_auto_os_update_for_packagekit()
-            self.composite_logger.log_debug("Successfully disabled auto OS updates")
+            self.composite_logger.log_debug("[YPM] Successfully disabled auto OS updates")
 
         except Exception as error:
-            self.composite_logger.log_error("Could not disable auto OS updates. [Error={0}]".format(repr(error)))
+            self.composite_logger.log_error("[YPM] Could not disable auto OS updates. [Error={0}]".format(repr(error)))
             raise
 
     def disable_auto_os_update_for_yum_cron(self):
         """ Disables auto OS updates, using yum cron service, and logs the default settings the machine comes with """
-        self.composite_logger.log("Disabling auto OS updates using yum-cron")
+        self.composite_logger.log_verbose("[YPM] Disabling auto OS updates using yum-cron")
         self.__init_auto_update_for_yum_cron()
 
         self.backup_image_default_patch_configuration_if_not_exists()
         if not self.is_auto_update_service_installed(self.yum_cron_install_check_cmd):
-            self.composite_logger.log_debug("Cannot disable as yum-cron is not installed on the machine")
+            self.composite_logger.log_debug("[YPM] Cannot disable as yum-cron is not installed on the machine")
             return
 
-        self.composite_logger.log_debug("Preemptively disabling auto OS updates using yum-cron")
+        self.composite_logger.log_verbose("[YPM] Preemptively disabling auto OS updates using yum-cron")
         self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "no", self.yum_cron_config_pattern_match_text)
         self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "no", self.yum_cron_config_pattern_match_text)
         self.disable_auto_update_on_reboot(self.yum_cron_disable_on_reboot_cmd)
 
-        self.composite_logger.log("Successfully disabled auto OS updates using yum-cron")
+        self.composite_logger.log_debug("[YPM] Successfully disabled auto OS updates using yum-cron")
 
     def disable_auto_os_update_for_dnf_automatic(self):
         """ Disables auto OS updates, using dnf-automatic service, and logs the default settings the machine comes with """
-        self.composite_logger.log("Disabling auto OS updates using dnf-automatic")
+        self.composite_logger.log_verbose("[YPM] Disabling auto OS updates using dnf-automatic")
         self.__init_auto_update_for_dnf_automatic()
 
         self.backup_image_default_patch_configuration_if_not_exists()
 
         if not self.is_auto_update_service_installed(self.dnf_automatic_install_check_cmd):
-            self.composite_logger.log_debug("Cannot disable as dnf-automatic is not installed on the machine")
+            self.composite_logger.log_debug("[YPM] Cannot disable as dnf-automatic is not installed on the machine")
             return
 
-        self.composite_logger.log_debug("Preemptively disabling auto OS updates using dnf-automatic")
+        self.composite_logger.log_verbose("[YPM] Preemptively disabling auto OS updates using dnf-automatic")
         self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "no", self.dnf_automatic_config_pattern_match_text)
         self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "no", self.dnf_automatic_config_pattern_match_text)
         self.disable_auto_update_on_reboot(self.dnf_automatic_disable_on_reboot_cmd)
 
-        self.composite_logger.log("Successfully disabled auto OS updates using dnf-automatic")
+        self.composite_logger.log_debug("[YPM] Successfully disabled auto OS updates using dnf-automatic")
 
     def disable_auto_os_update_for_packagekit(self):
         """ Disables auto OS updates, using packagekit service, and logs the default settings the machine comes with """
-        self.composite_logger.log("Disabling auto OS updates using packagekit")
+        self.composite_logger.log_verbose("[YPM] Disabling auto OS updates using packagekit")
         self.__init_auto_update_for_packagekit()
 
         self.backup_image_default_patch_configuration_if_not_exists()
 
         if not self.is_auto_update_service_installed(self.packagekit_install_check_cmd):
-            self.composite_logger.log_debug("Cannot disable as packagekit is not installed on the machine")
+            self.composite_logger.log_debug("[YPM] Cannot disable as packagekit is not installed on the machine")
             return
 
-        self.composite_logger.log_debug("Preemptively disabling auto OS updates using packagekit")
+        self.composite_logger.log_verbose("[YPM] Preemptively disabling auto OS updates using packagekit")
         #todo: uncomment after finding the correct value
         # self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "false", self.packagekit_config_pattern_match_text)
         self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "false", self.packagekit_config_pattern_match_text)
         self.disable_auto_update_on_reboot(self.packagekit_disable_on_reboot_cmd)
 
-        self.composite_logger.log("Successfully disabled auto OS updates using packagekit")
+        self.composite_logger.log_debug("[YPM] Successfully disabled auto OS updates using packagekit")
 
     def is_service_set_to_enable_on_reboot(self, command):
         """ Checking if auto update is enable_on_reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot """
-        self.composite_logger.log_debug("Checking if auto update service is set to enable on reboot...")
         code, out = self.env_layer.run_command_output(command, False, False)
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_debug("[YPM] Checked if auto update service is set to enable on reboot. [Code={0}][Out={1}]".format(str(code), out))
         if len(out.strip()) > 0 and code == 0 and 'enabled' in out:
-            self.composite_logger.log_debug("Auto OS update service will enable on reboot")
+            self.composite_logger.log_debug("[YPM] > Auto OS update service will enable on reboot")
             return True
-        self.composite_logger.log_debug("Auto OS update service will NOT enable on reboot")
+        self.composite_logger.log_debug("[YPM] > Auto OS update service will NOT enable on reboot")
         return False
 
     def backup_image_default_patch_configuration_if_not_exists(self):
@@ -669,7 +662,7 @@ class YumPackageManager(PackageManager):
                         }
                     } """
         try:
-            self.composite_logger.log_debug("Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
+            self.composite_logger.log_debug("[YPM] Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
             image_default_patch_configuration_backup = {}
 
             # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
@@ -682,11 +675,11 @@ class YumPackageManager(PackageManager):
             # verify if existing backup is valid if not, write to backup
             is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
             if is_backup_valid:
-                self.composite_logger.log_debug("Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]"
+                self.composite_logger.log_debug("[YPM] Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]"
                                                 .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
             else:
-                self.composite_logger.log_debug("Since the backup is invalid, will add a new backup with the current auto OS update settings")
-                self.composite_logger.log_debug("Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
+                self.composite_logger.log_debug("[YPM] Since the backup is invalid, will add a new backup with the current auto OS update settings")
+                self.composite_logger.log_debug("[YPM] Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
                 is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
 
                 backup_image_default_patch_configuration_json_to_add = {
@@ -700,11 +693,11 @@ class YumPackageManager(PackageManager):
 
                 image_default_patch_configuration_backup.update(backup_image_default_patch_configuration_json_to_add)
 
-                self.composite_logger.log_debug("Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
+                self.composite_logger.log_debug("[YPM] Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
                                                 .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
                 self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
         except Exception as error:
-            error_message = "Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
+            error_message = "[YPM] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
             self.composite_logger.log_error(error_message)
             self.status_handler.add_error_to_status(error_message, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
@@ -727,10 +720,10 @@ class YumPackageManager(PackageManager):
                 and self.yum_cron_apply_updates_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON] \
                 and self.yum_cron_enable_on_reboot_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON] \
                 and self.yum_cron_installation_state_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.YUM_CRON]:
-            self.composite_logger.log_debug("Extension has a valid backup for default yum-cron configuration settings")
+            self.composite_logger.log_debug("[YPM] Extension has a valid backup for default yum-cron configuration settings")
             return True
         else:
-            self.composite_logger.log_debug("Extension does not have a valid backup for default yum-cron configuration settings")
+            self.composite_logger.log_debug("[YPM] Extension does not have a valid backup for default yum-cron configuration settings")
             return False
 
     def is_backup_valid_for_dnf_automatic(self, image_default_patch_configuration_backup):
@@ -739,10 +732,10 @@ class YumPackageManager(PackageManager):
                 and self.dnf_automatic_apply_updates_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC] \
                 and self.dnf_automatic_enable_on_reboot_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC] \
                 and self.dnf_automatic_installation_state_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC]:
-            self.composite_logger.log_debug("Extension has a valid backup for default dnf-automatic configuration settings")
+            self.composite_logger.log_debug("[YPM] Extension has a valid backup for default dnf-automatic configuration settings")
             return True
         else:
-            self.composite_logger.log_debug("Extension does not have a valid backup for default dnf-automatic configuration settings")
+            self.composite_logger.log_debug("[YPM] Extension does not have a valid backup for default dnf-automatic configuration settings")
             return False
 
     def is_backup_valid_for_packagekit(self, image_default_patch_configuration_backup):
@@ -751,10 +744,10 @@ class YumPackageManager(PackageManager):
                 and self.packagekit_apply_updates_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT] \
                 and self.packagekit_enable_on_reboot_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT] \
                 and self.packagekit_installation_state_identifier_text in image_default_patch_configuration_backup[Constants.YumAutoOSUpdateServices.PACKAGEKIT]:
-            self.composite_logger.log_debug("Extension has a valid backup for default packagekit configuration settings")
+            self.composite_logger.log_debug("[YPM] Extension has a valid backup for default packagekit configuration settings")
             return True
         else:
-            self.composite_logger.log_debug("Extension does not have a valid backup for default packagekit configuration settings")
+            self.composite_logger.log_debug("[YPM] Extension does not have a valid backup for default packagekit configuration settings")
             return False
 
     def __get_current_auto_os_updates_setting_on_machine(self):
@@ -772,7 +765,7 @@ class YumPackageManager(PackageManager):
             is_service_installed = True
             enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
 
-            self.composite_logger.log_debug("Checking if auto updates are currently enabled...")
+            self.composite_logger.log_debug("[YPM] Checking if auto updates are currently enabled...")
             image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path, raise_if_not_found=False)
             if image_default_patch_configuration is not None:
                 settings = image_default_patch_configuration.strip().split('\n')
@@ -786,25 +779,25 @@ class YumPackageManager(PackageManager):
                         apply_updates_value = match.group(1)
 
             if download_updates_value == "":
-                self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.download_updates_identifier_text)))
+                self.composite_logger.log_debug("[YPM] Machine did not have any value set for [Setting={0}]".format(str(self.download_updates_identifier_text)))
             else:
-                self.composite_logger.log_verbose("Current value set for [{0}={1}]".format(str(self.download_updates_identifier_text), str(download_updates_value)))
+                self.composite_logger.log_verbose("[YPM] Current value set for [{0}={1}]".format(str(self.download_updates_identifier_text), str(download_updates_value)))
 
             if apply_updates_value == "":
-                self.composite_logger.log_debug("Machine did not have any value set for [Setting={0}]".format(str(self.apply_updates_identifier_text)))
+                self.composite_logger.log_debug("[YPM] Machine did not have any value set for [Setting={0}]".format(str(self.apply_updates_identifier_text)))
             else:
-                self.composite_logger.log_verbose("Current value set for [{0}={1}]".format(str(self.apply_updates_identifier_text), str(apply_updates_value)))
+                self.composite_logger.log_verbose("[YPM] Current value set for [{0}={1}]".format(str(self.apply_updates_identifier_text), str(apply_updates_value)))
 
             return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
 
         except Exception as error:
-            raise Exception("Error occurred in fetching current auto OS update settings from the machine. [Exception={0}]".format(repr(error)))
+            raise Exception("[YPM] Error occurred in fetching current auto OS update settings from the machine. [Exception={0}]".format(repr(error)))
 
     def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="no", config_pattern_match_text=""):
         """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
         try:
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
-            self.composite_logger.log_debug("Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
+            self.composite_logger.log_debug("[YPM] Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
             os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
             patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + ' = ' + value
             patch_configuration_sub_setting_found_in_file = False
@@ -825,35 +818,32 @@ class YumPackageManager(PackageManager):
 
             self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path, '{0}'.format(updated_patch_configuration_sub_setting.lstrip()), mode='w+')
         except Exception as error:
-            error_msg = "Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error))
+            error_msg = "[YPM] Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error))
             self.composite_logger.log_error(error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
     def disable_auto_update_on_reboot(self, command):
-        self.composite_logger.log_debug("Disabling auto update on reboot using command: " + str(command))
+        self.composite_logger.log_verbose("[YPM] Disabling auto update on reboot. [Command={0}] ".format(command))
         code, out = self.env_layer.run_command_output(command, False, False)
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
 
         if code != 0:
-            self.composite_logger.log('[ERROR] Command invoked: ' + command)
-            self.telemetry_writer.write_execution_error(command, code, out)
+            self.composite_logger.log_error("[YPM][ERROR] Error disabling auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
             error_msg = 'Unexpected return code (' + str(code) + ') on command: ' + command
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-
-        self.composite_logger.log_debug("Auto update on reboot disabled")
+        else:
+            self.composite_logger.log_debug("[YPM] Disabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
 
     def is_auto_update_service_installed(self, install_check_cmd):
         """ Checks if the auto update service is enable_on_reboot on the VM """
-        self.composite_logger.log_debug("Checking if auto update service is installed...")
         code, out = self.env_layer.run_command_output(install_check_cmd, False, False)
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_debug("[YPM] Checked if auto update service is installed. [Command={0}][Code={1}][Output={2}]".format(install_check_cmd, str(code), out))
         if len(out.strip()) > 0 and code == 0:
-            self.composite_logger.log_debug("Auto OS update service is installed on the machine")
+            self.composite_logger.log_debug("[YPM] > Auto OS update service is installed on the machine")
             return True
         else:
-            self.composite_logger.log_debug("Auto OS update service is NOT installed on the machine")
+            self.composite_logger.log_debug("[YPM] > Auto OS update service is NOT installed on the machine")
             return False
     # endregion
 
@@ -863,42 +853,36 @@ class YumPackageManager(PackageManager):
         if "Error" in out or "Errno" in out:
             issue_mitigated = self.check_known_issues_and_attempt_fix(out)
             if issue_mitigated:
-                self.composite_logger.log_debug('\nPost mitigation, invoking package manager again using: ' + command)
+                self.composite_logger.log_debug('Post mitigation, invoking package manager again using: ' + command)
                 code_after_fix_attempt, out_after_fix_attempt = self.env_layer.run_command_output(command, False, False)
                 return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt)
         return code, out
 
     def check_known_issues_and_attempt_fix(self, output):
         """ Checks if issue falls into known issues and attempts to mitigate """
-        self.composite_logger.log_debug("Output from package manager containing error: \n|\t" + "\n|\t".join(output.splitlines()))
-        self.composite_logger.log_debug("\nChecking if this is a known error...")
+        self.composite_logger.log_debug("[YPM] Checking against known errors: [Out={0}]".format(output))
         for error in self.known_errors_and_fixes:
             if error in output:
-                self.composite_logger.log_debug("\nFound a match within known errors list, attempting a fix...")
+                self.composite_logger.log_debug("[YPM] Found a match within known errors list, attempting a fix...")
                 self.known_errors_and_fixes[error]()
                 return True
 
-        self.composite_logger.log_debug("\nThis is not a known error for the extension and will require manual intervention")
+        self.composite_logger.log_error("[YPM] Customer Environment Error: Not a known error. Please investigate and address. [Out={0}]".format(output))
         return False
 
     def fix_ssl_certificate_issue(self):
         command = self.yum_update_client_package
-        self.composite_logger.log_debug("\nUpdating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
+        self.composite_logger.log_debug("[Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
         if code != self.yum_exitcode_no_applicable_packages:
-            self.composite_logger.log('[ERROR] Package manager was invoked using: ' + command)
-            self.composite_logger.log_warning(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_warning(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.telemetry_writer.write_execution_error(command, code, out)
-            error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
+            error_msg = 'Customer environment error (expired SSL certs):  [Command={0}][Code={1}]'.format(command,str(code))
+            self.composite_logger.log_error("{0}[Out={1}]".format(error_msg, out))
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:
-            self.composite_logger.log_debug("\n\n==[SUCCESS]===============================================================")
-            self.composite_logger.log_debug(" - Return code from package manager: " + str(code))
-            self.composite_logger.log_debug(" - Output from package manager: \n|\t" + "\n|\t".join(out.splitlines()))
-            self.composite_logger.log_debug("==========================================================================\n\n")
-            self.composite_logger.log_debug("\nClient package update complete.")
+            self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
+            self.composite_logger.log_debug("Client package update complete. [Code={0}][Out={1}]".format(str(code), out))
+            self.composite_logger.log_verbose("==========================================================================\n\n")
     # endregion
 
     # region Reboot Management
@@ -907,43 +891,44 @@ class YumPackageManager(PackageManager):
         try:
             pending_file_exists = os.path.isfile(self.REBOOT_PENDING_FILE_PATH)  # not intended for yum, but supporting as back-compat
             pending_processes_exist = self.do_processes_require_restart()
-            self.composite_logger.log_debug(" - Reboot required debug flags (yum): " + str(pending_file_exists) + ", " + str(pending_processes_exist) + ".")
+            self.composite_logger.log_debug("[YPM] > Reboot required debug flags (yum): " + str(pending_file_exists) + ", " + str(pending_processes_exist) + ".")
             return pending_file_exists or pending_processes_exist
         except Exception as error:
-            self.composite_logger.log_error('Error while checking for reboot pending (yum): ' + repr(error))
+            self.composite_logger.log_error('[YPM] Error while checking for reboot pending (yum): ' + repr(error))
             return True  # defaults for safety
 
     def do_processes_require_restart(self):
         """Signals whether processes require a restart due to updates"""
-        self.composite_logger.log_debug("Checking if process requires reboot")
+        self.composite_logger.log_verbose("[YPM] Checking if process requires reboot")
         # Checking using yum-utils
-        self.composite_logger.log_debug("Ensuring yum-utils is present.")
         code, out = self.env_layer.run_command_output(self.yum_utils_prerequisite, False, False)  # idempotent, doesn't install if already present
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_verbose("[YPM] Idempotent yum-utils existence check. [Code={0}][Out={1}]".format(str(code), out))
 
         # Checking for restart for distros with -r flag such as RHEL 7+
         code, out = self.env_layer.run_command_output(self.needs_restarting_with_flag, False, False)
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+        self.composite_logger.log_verbose("[YPM] > Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
         if out.find("Reboot is required") < 0:
-            self.composite_logger.log_debug(" - Reboot not detected to be required (L1).")
+            self.composite_logger.log_debug("[YPM] > Reboot not detected to be required (L1).")
         else:
-            self.composite_logger.log_debug(" - Reboot is detected to be required (L1).")
+            self.composite_logger.log_debug("[YPM] > Reboot is detected to be required (L1).")
             return True
 
         # Checking for restart for distro without -r flag such as RHEL 6 and CentOS 6
         if str(self.env_layer.platform.linux_distribution()[1]).split('.')[0] == '6':
             code, out = self.env_layer.run_command_output(self.needs_restarting, False, False)
-            self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+            self.composite_logger.log_verbose("[YPM] > Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
             if len(out.strip()) == 0 and code == 0:
-                self.composite_logger.log_debug(" - Reboot not detected to be required (L2).")
+                self.composite_logger.log_debug("[YPM] > Reboot not detected to be required (L2).")
             else:
-                self.composite_logger.log_debug(" - Reboot is detected to be required (L2).")
+                self.composite_logger.log_debug("[YPM] > Reboot is detected to be required (L2).")
                 return True
 
         # Double-checking using yum ps (where available)
-        self.composite_logger.log_debug("Ensuring yum-plugin-ps is present.")
         code, out = self.env_layer.run_command_output(self.yum_ps_prerequisite, False, False)  # idempotent, doesn't install if already present
-        self.composite_logger.log_debug(" - Code: " + str(code) + ", Output: \n|\t" + "\n|\t".join(out.splitlines()))
+        if out.find("Unable to find a match: yum-plugin-security") < 0:
+            self.composite_logger.log_debug("[YPM][Info] yum-plugin-ps is not present. This is okay on RHEL8+. [Code={0}][Out={1}]".format(str(code), out))
+        else:
+            self.composite_logger.log_debug("[YPM] Idempotent yum-plugin-ps existence check. [Code={0}][Out={1}]".format(str(code), out))
 
         output = self.invoke_package_manager(self.yum_ps)
         lines = output.strip().split('\n')
@@ -955,16 +940,16 @@ class YumPackageManager(PackageManager):
         for line in lines:
             if not process_list_flag:  # keep going until the process list starts
                 if line.find("pid") < 0 and line.find("proc") < 0 and line.find("uptime") < 0:
-                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    self.composite_logger.log_verbose("[YPM] > Inapplicable line: " + str(line))
                     continue
                 else:
-                    self.composite_logger.log_debug(" - Process list started: " + str(line))
+                    self.composite_logger.log_verbose("[YPM] > Process list started: " + str(line))
                     process_list_flag = True
                     continue
 
             process_details = re.split(r'\s+', line.strip())
             if len(process_details) < 7:
-                self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose("[YPM] > Inapplicable line: " + str(line))
                 continue
             else:
                 # The first string should be process ID and hence it should be integer.
@@ -972,14 +957,14 @@ class YumPackageManager(PackageManager):
                 try:
                     int(process_details[0])
                 except Exception:
-                    self.composite_logger.log_debug(" - Inapplicable line: " + str(line))
+                    self.composite_logger.log_verbose("[YPM] > Inapplicable line: " + str(line))
                     continue
 
-                self.composite_logger.log_debug(" - Applicable line: " + str(line))
+                self.composite_logger.log_verbose("[YPM] > Applicable line: " + str(line))
                 process_count += 1
                 process_list_verbose += process_details[1] + " (" + process_details[0] + "), "  # process name and id
 
-        self.composite_logger.log(" - Processes requiring restart (" + str(process_count) + "): [" + process_list_verbose + "<eol>]")
+        self.composite_logger.log_debug("[YPM] Processes requiring restart (" + str(process_count) + "): [" + process_list_verbose + "<eol>]")
         return process_count != 0  # True if there were any
     # endregion Reboot Management
 
