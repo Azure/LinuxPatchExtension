@@ -33,7 +33,7 @@ class VersionComparator(object):
                     return 1  # greater
 
         # If equal 27.13.4 vs 27.13.4, return 0
-        return (len(parse_version_a) > len(parse_version_b)) - (len(parse_version_a) - len(parse_version_b))
+        return (len(parse_version_a) > len(parse_version_b)) - (len(parse_version_a) < len(parse_version_b))
 
     def extract_version(self, path):
         # type (str) -> str
