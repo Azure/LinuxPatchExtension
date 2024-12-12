@@ -19,7 +19,7 @@ import re
 
 class VersionComparatorHandler(object):
 
-    def extract_version(self, path):
+    def extract_version_nums(self, path):
         # type (str) -> (str)
         """
         Extract the version part from a given path.
@@ -50,5 +50,5 @@ class VersionComparatorHandler(object):
         Input: "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"
         Return: (1.6.100)
         """
-        version_numbers = self.extract_version(path)
+        version_numbers = self.extract_version_nums(path)
         return tuple(map(int, version_numbers.split('.'))) if version_numbers else (0, 0, 0)

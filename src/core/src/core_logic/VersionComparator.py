@@ -18,7 +18,7 @@ import re
 
 class VersionComparator(object):
 
-    def compare_version(self, version_a, version_b):
+    def compare_version_nums(self, version_a, version_b):
         # type (str, str) -> int
         """ Compare two versions with handling numeric and string parts, return -1 (less), +1 (greater), 0 (equal) """
 
@@ -35,7 +35,7 @@ class VersionComparator(object):
         # If equal 27.13.4 vs 27.13.4, return 0
         return (len(parse_version_a) > len(parse_version_b)) - (len(parse_version_a) < len(parse_version_b))
 
-    def extract_version(self, path):
+    def extract_version_nums(self, path):
         # type (str) -> str
         """
         Extract the version part from a given path.
@@ -66,7 +66,7 @@ class VersionComparator(object):
         Input: "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"
         Return: (1.6.100)
         """
-        version_numbers = self.extract_version(path)
+        version_numbers = self.extract_version_nums(path)
         return tuple(map(int, version_numbers.split('.'))) if version_numbers else (0, 0, 0)
 
     def __split_version_components(self, version):
