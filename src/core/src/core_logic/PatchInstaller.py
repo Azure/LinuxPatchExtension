@@ -16,7 +16,9 @@
 
 """ The patch install orchestrator """
 import datetime
+from datetime import timedelta
 import math
+import os
 import sys
 import time
 from core.src.bootstrap.Constants import Constants
@@ -49,6 +51,8 @@ class PatchInstaller(object):
         self.skipped_esm_packages = []
         self.skipped_esm_package_versions = []
         self.esm_packages_found_without_attach = False  # Flag used to record if esm packages excluded as ubuntu vm not attached.
+        
+        self.install_patches_in_single_batch = False
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
@@ -280,7 +284,7 @@ class PatchInstaller(object):
         attempted_parent_package_install_count_in_batch_patching = self.attempted_parent_package_install_count
         successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
 
-        if len(packages) == 0:
+        if len(packages) == 0 or self.is_install_patches_in_single_batch_enabled():
             self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
@@ -306,7 +310,7 @@ class PatchInstaller(object):
 
             # maintenance window check
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
-            if maintenance_window.is_package_install_time_available(package_manager, remaining_time, number_of_packages_in_batch=1) is False:
+            if maintenance_window.is_package_install_time_available(package_manager, remaining_time, number_of_packages_in_batch=1) is False and self.is_install_patches_in_single_batch_enabled() == False:
                 error_msg = "Stopped patch installation as it is past the maintenance window cutoff time."
                 self.composite_logger.log_error("\n" + error_msg)
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
@@ -484,7 +488,8 @@ class PatchInstaller(object):
                                          self.failed_parent_package_install_count, "RemainingPackagesToInstall", str(len(packages)), Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_installation_successful),
                                          "IsMaintenanceWindowBatchCutoffReached", str(maintenance_window_batch_cutoff_reached))
 
-            stopwatch_for_phase.write_telemetry_for_stopwatch(str(batch_phase_processing_perf_log))
+            if self.is_install_patches_in_single_batch_enabled() == False:
+                stopwatch_for_phase.write_telemetry_for_stopwatch(str(batch_phase_processing_perf_log))
 
             max_batch_size_for_packages = int(max_batch_size_for_packages / Constants.PackageBatchConfig.BATCH_SIZE_DECAY_FACTOR)
 
@@ -531,7 +536,7 @@ class PatchInstaller(object):
         not_attempted_and_failed_package_versions (List of strings): Versions of packages in the list not_attempted_and_failed_packages.
         
         """
-        number_of_batches = int(math.ceil(len(packages) / float(max_batch_size_for_packages)))
+        number_of_batches = int(math.ceil(len(packages) / float(max_batch_size_for_packages))) if self.is_install_patches_in_single_batch_enabled() == False else 1
         self.composite_logger.log("\nDividing package install in batches. \nNumber of packages to be installed: " + str(len(packages)) + "\nBatch Size: " + str(max_batch_size_for_packages) + "\nNumber of batches: " + str(number_of_batches))
         installed_update_count = 0
         patch_installation_successful = True
@@ -555,8 +560,13 @@ class PatchInstaller(object):
             if self.lifecycle_manager is not None:
                 self.lifecycle_manager.lifecycle_status_check()
 
-            begin_index = batch_index * max_batch_size_for_packages
-            end_index = begin_index + max_batch_size_for_packages - 1
+            if self.is_install_patches_in_single_batch_enabled() == False: 
+               begin_index = batch_index * max_batch_size_for_packages
+               end_index = begin_index + max_batch_size_for_packages - 1
+            else:
+               begin_index = batch_index * len(packages)
+               end_index = begin_index + len(packages) - 1
+            
             end_index = min(end_index, len(packages) - 1)
 
             packages_in_batch = []
@@ -581,7 +591,7 @@ class PatchInstaller(object):
 
             remaining_time = maintenance_window.get_remaining_time_in_minutes()
 
-            if maintenance_window.is_package_install_time_available(package_manager, remaining_time, len(packages_in_batch)) is False:
+            if maintenance_window.is_package_install_time_available(package_manager, remaining_time, len(packages_in_batch)) is False and self.is_install_patches_in_single_batch_enabled() == False:
                 self.composite_logger.log("Stopped installing packages in batches as it is past the maintenance window cutoff time for installing in batches." +
                                            " Batch Index: {0}, remaining time: {1}, number of packages in batch: {2}".format(batch_index, remaining_time, str(len(packages_in_batch))))
                 maintenance_window_batch_cutoff_reached = True
@@ -800,4 +810,20 @@ class PatchInstaller(object):
         self.composite_logger.log_debug("Calculated max batch size is: {0}".format(max_batch_size_for_packages))
 
         return max_batch_size_for_packages
-
+    
+    def is_install_patches_in_single_batch_enabled(self):
+        """"""
+        if self.install_patches_in_single_batch == True:
+            return self.install_patches_in_single_batch
+        
+        dur = datetime.datetime.strptime(self.execution_config.duration, "%H:%M:%S")
+        dura = timedelta(hours=dur.hour, minutes=dur.minute, seconds=dur.second)
+        total_time_in_minutes = self.env_layer.datetime.total_minutes_from_time_delta(dura)
+        max_maintenance_window_criteria = total_time_in_minutes >= Constants.MAX_PATCH_OPERATION_DURATION_IN_MINUTES
+        no_inclusion_exclusion_criteria = not (self.package_filter.is_exclusion_list_present() or self.package_filter.is_inclusion_list_present())
+        classification_criteria = self.package_filter.is_msft_critsec_classification_only()       
+        suse_criteria = self.env_layer.get_package_manager() == Constants.ZYPPER
+        user_flag_criteria = os.path.exists(Constants.INSTALL_PATCHES_IN_SINGLE_BATCH)
+        self.install_patches_in_single_batch =  max_maintenance_window_criteria and no_inclusion_exclusion_criteria and classification_criteria and suse_criteria and user_flag_criteria
+        self.composite_logger.log_debug("Single Back Criteria: max maintenace window:{0}, no inclusion/exclusion {1}, classification {2}, Package Manager {3}, User Flag {4}".format(max_maintenance_window_criteria, no_inclusion_exclusion_criteria, classification_criteria, suse_criteria, user_flag_criteria))
+        return self.install_patches_in_single_batch
