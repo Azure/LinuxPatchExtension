@@ -16,6 +16,8 @@
 
 """This is the Ubuntu Pro Client implementation"""
 import json
+
+from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.bootstrap.Constants import Constants
 
 
@@ -27,6 +29,7 @@ class UbuntuProClient:
         self.ubuntu_pro_client_security_status_cmd = 'pro security-status --format=json'
         self.security_esm_criteria_strings = ["esm-infra", "esm-apps"]
         self.is_ubuntu_pro_client_attached = False
+        self.version_comparator = VersionComparator()
 
     def install_or_update_pro(self):
         """install/update pro(ubuntu-advantage-tools) to the latest version"""
@@ -50,10 +53,17 @@ class UbuntuProClient:
         is_minimum_ubuntu_pro_version_installed = False
         try:
             from uaclient.api.u.pro.version.v1 import version
-            from distutils.version import LooseVersion  # Importing this module here as there is conflict between "distutils.version" and "uaclient.api.u.pro.version.v1.version when 'LooseVersion' is called."
             version_result = version()
             ubuntu_pro_client_version = version_result.installed_version
-            is_minimum_ubuntu_pro_version_installed = LooseVersion(ubuntu_pro_client_version) >= LooseVersion(Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION)
+
+            # extract version from pro_client_verison 27.13.4~18.04.1 -> 27.13.4
+            extracted_ubuntu_pro_client_version = self.version_comparator.extract_version_nums(ubuntu_pro_client_version)
+
+            self.composite_logger.log_debug("Ubuntu Pro Client current version: [ClientVersion={0}]".format(str(extracted_ubuntu_pro_client_version)))
+
+            # use custom comparator output 0 (equal), -1 (less), +1 (greater)
+            is_minimum_ubuntu_pro_version_installed = self.version_comparator.compare_version_nums(extracted_ubuntu_pro_client_version, Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION) >= 0
+
             if ubuntu_pro_client_version is not None and is_minimum_ubuntu_pro_version_installed:
                 is_ubuntu_pro_client_working = True
                 self.is_ubuntu_pro_client_attached = self.log_ubuntu_pro_client_attached()
