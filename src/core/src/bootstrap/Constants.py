@@ -196,11 +196,13 @@ class Constants(object):
     RED_HAT = 'Red Hat'
     SUSE = 'SUSE'
     CENTOS = 'CentOS'
+    MARINER = 'Mariner'
 
     # Package Managers
     APT = 'apt'
     YUM = 'yum'
     ZYPPER = 'zypper'
+    TDNF = 'tdnf'
 
     # Package Statuses
     INSTALLED = 'Installed'

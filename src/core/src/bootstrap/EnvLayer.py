@@ -65,7 +65,7 @@ class EnvLayer(object):
         ret = None
 
         # choose default - almost surely one will match.
-        for b in ('apt-get', 'yum', 'zypper'):
+        for b in ('apt-get', 'yum', 'zypper', 'tdnf'):
             code, out = self.run_command_output('which ' + b, False, False)
             if code == 0:
                 ret = b
@@ -77,6 +77,9 @@ class EnvLayer(object):
                     break
                 if ret == 'zypper':
                     ret = Constants.ZYPPER
+                    break
+                if ret == 'tdnf':
+                    ret = Constants.TDNF
                     break
 
         if ret is None and platform.system() == 'Windows':
