@@ -38,8 +38,9 @@ class FileLogger(object):
 
     def write(self, message, fail_silently=True):
         try:
+            truncated_message = self.truncate_message(message)
             if self.log_file_handle is not None:
-                self.log_file_handle.write(message)
+                self.log_file_handle.write(truncated_message)
         except Exception as error:
             # DO NOT write any errors here to stdout
             failure_message = "Fatal exception trying to write to log file: " + repr(error) + ". Attempted message: " + str(message)
@@ -50,9 +51,10 @@ class FileLogger(object):
     def write_irrecoverable_exception(self, message):
         """ A best-effort attempt to write out errors where writing to the primary log file was interrupted"""
         try:
+            truncated_message = self.truncate_message(message)
             with self.env_layer.file_system.open(self.log_failure_log_file, 'a+') as fail_log:
                 timestamp = self.env_layer.datetime.timestamp()
-                fail_log.write("\n" + timestamp + "> " + message)
+                fail_log.write("\n" + timestamp + "> " + truncated_message)
         except Exception:
             pass
 
@@ -67,3 +69,16 @@ class FileLogger(object):
                 self.write(str(message_at_close))
             self.log_file_handle.close()
             self.log_file_handle = None     # Not having this can cause 'I/O exception on closed file' exceptions
+
+    def truncate_message(self, message, max_size = 4 * 1024 * 1024):
+        """ Truncate message to a max size in bytes (4MB) at a safe point (end of line) to avoid excessively disk logging """
+        if len(message) > max_size:
+            truncated_message = message[:max_size]
+            last_newline_index = truncated_message.rfind("\n")
+            
+            if last_newline_index != -1:
+                return truncated_message[:last_newline_index + 1]
+            else:
+                return truncated_message
+
+        return message
