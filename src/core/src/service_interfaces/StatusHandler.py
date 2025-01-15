@@ -1139,7 +1139,7 @@ class StatusHandler(object):
             Patch Name: 20 additional updates of classification <classification_name> reported.
             Classification: [Critical, Security, Other]
         """
-        tombstone_name = str(patches_count_by_classification) + ' additional updates of classification ' + classification_name + ' reported',
+        tombstone_name = str(patches_count_by_classification) + ' additional updates of classification ' + classification_name + ' reported'
         return {
             'patchId': 'Truncated_patch_list_id',
             'name': tombstone_name,

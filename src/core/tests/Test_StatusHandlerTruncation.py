@@ -855,7 +855,7 @@ class TestStatusHandlerTruncation(unittest.TestCase):
         truncated_substatus_msg = self.__get_message_json_from_substatus(truncated_substatus_file_data)
         self.assertEqual(truncated_substatus_msg['patches'][-1]['patchId'], "Truncated_patch_list_id")
         self.assertEqual(truncated_substatus_msg['patches'][-1]['classifications'], ['Other'])
-        self.assertTrue("additional updates of classification" in truncated_substatus_msg['patches'][-1]['name'][0])
+        self.assertTrue("additional updates of classification" in truncated_substatus_msg['patches'][-1]['name'])
 
         if tombstone_count >= 2:
             self.assertEqual(truncated_substatus_msg['patches'][-2]['patchId'], "Truncated_patch_list_id")
