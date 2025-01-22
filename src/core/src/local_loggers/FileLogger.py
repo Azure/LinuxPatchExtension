@@ -68,14 +68,14 @@ class FileLogger(object):
             if message_at_close is not None:
                 self.write(str(message_at_close))
             self.log_file_handle.close()
-            self.log_file_handle = None     # Not having this can cause 'I/O exception on closed file' exceptions
+            self.log_file_handle = None  # Reset to prevent 'I/O exception on closed file' exceptions
 
-    def truncate_message(self, message, max_size = 4 * 1024 * 1024):
-        """ Truncate message to a max size in bytes (4MB) at a safe point (end of line) to avoid excessively disk logging """
+    def truncate_message(self, message, max_size=32 * 1024 * 1024):
+        """ Truncate message to a max size in bytes (32MB) at a safe point (end of line) to avoid excessively disk logging """
         if len(message) > max_size:
             truncated_message = message[:max_size]
             last_newline_index = truncated_message.rfind("\n")
-            
+
             if last_newline_index != -1:
                 return truncated_message[:last_newline_index + 1]
             else:
