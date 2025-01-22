@@ -94,9 +94,9 @@ class YumPackageManager(PackageManager):
         self.known_errors_and_fixes = {"SSL peer rejected your certificate as expired": self.fix_ssl_certificate_issue,
                                        "Error: Cannot retrieve repository metadata (repomd.xml) for repository": self.fix_ssl_certificate_issue,
                                        "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
-        
+
         self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
-        
+
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 90 seconds for yum.
 
     def refresh_repo(self):
@@ -848,14 +848,35 @@ class YumPackageManager(PackageManager):
     # endregion
 
     # region Handling known errors
-    def try_mitigate_issues_if_any(self, command, code, out):
-        """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found """
+    def try_mitigate_issues_if_any(self, command, code, out, seen_errors=None, retry_count=0, max_retries=20):
+        """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found
+        Args:
+            seen_errors (Any): Hash set used to maintain a list of errors strings seen in the call stack.
+            retry_count (int): Count of number of retries made to resolve errors.
+            max_retries (int): Maximum number of retries allowed before exiting the retry loop.
+        """
+        if seen_errors is None:
+            seen_errors = set()
+
+        # Keep an upper bound on the size of the call stack to prevent an unbounded loop if error mitigation fails.
+        if retry_count >= max_retries:
+            self.log_error_mitigation_failure(out)
+            return code, out
+
         if "Error" in out or "Errno" in out:
+
+            # Preemptively exit the retry loop if the same error string is repeating in the call stack.
+            # This implies that self.check_known_issues_and_attempt_fix may have failed to mitigate the error.
+            if out in seen_errors:
+                self.log_error_mitigation_failure(out)
+                return code, out
+
+            seen_errors.add(out)
             issue_mitigated = self.check_known_issues_and_attempt_fix(out)
             if issue_mitigated:
                 self.composite_logger.log_debug('Post mitigation, invoking package manager again using: ' + command)
                 code_after_fix_attempt, out_after_fix_attempt = self.env_layer.run_command_output(command, False, False)
-                return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt)
+                return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt, seen_errors, retry_count + 1, max_retries)
         return code, out
 
     def check_known_issues_and_attempt_fix(self, output):
@@ -883,6 +904,10 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug("Client package update complete. [Code={0}][Out={1}]".format(str(code), out))
             self.composite_logger.log_verbose("==========================================================================\n\n")
+
+    def log_error_mitigation_failure(self, output):
+        self.composite_logger.log_error("[YPM] Customer Environment Error: Unable to auto-mitigate the error. Please investigate and address. [Out={0}]".format(output))
+        # TODO: Do we need to raise an Exception here and /or add_error_to_status?
     # endregion
 
     # region Reboot Management
