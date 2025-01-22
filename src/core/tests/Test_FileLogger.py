@@ -40,10 +40,25 @@ class MockFileHandle:
     def close(self):
         self.closed = True
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
 
 class MockFileSystem:
+    def __init__(self):
+        self.files = {}
+
     def open(self, file_path, mode):
-        return MockFileHandle()
+        if "error" in file_path:
+            raise Exception("Mock file open error")
+
+        if file_path not in self.files:
+            self.files[file_path] = MockFileHandle()
+
+        return self.files[file_path]
 
 
 class MockEnvLayer:
@@ -51,7 +66,7 @@ class MockEnvLayer:
         self.file_system = MockFileSystem()
         self.datetime = self
     
-    def timestampe(self):
+    def timestamp(self):
         return "2025-01-01T00:00:00Z"
 
 
@@ -60,24 +75,37 @@ class TestFileLogger(unittest.TestCase):
         self.mock_env_layer = MockEnvLayer()
         self.log_file = "test.log"
         self.file_logger = FileLogger(self.mock_env_layer, self.log_file)
+
+    def test_init_failure(self):
+        """ Test when initiation object file open throws exception """
+        self.mock_env_layer.file_system.open = lambda *args, **kwargs: (_ for _ in ()).throw(Exception("Mock file open error"))
+        with self.assertRaises(Exception) as context:
+            FileLogger(self.mock_env_layer, "error_log.log")
+
+        self.assertIn("Mock file open error", str(context.exception))
     
     def test_write(self):
+        """ Test FileLogger write()  """
         message = "Test message"
         self.file_logger.write(message)
         self.assertEqual(self.file_logger.log_file_handle.contents, message)
 
-    def test_no_truncation(self):
+    def test_write_message_no_truncation(self):
+        """ Test FileLogger truncate_message() no truncation"""
         message = "No truncation"
         result = self.file_logger.truncate_message(message)
         self.assertEqual(result, message)
 
-    def test_write_truncated_exact_size(self):
-        message = "A" * (32 * 1024 * 1024)
-        result = self.file_logger.truncate_message(message)
-        self.assertEqual(len(message), len(result))
+    def test_write_message_apply_truncation(self):
+        """ Test FileLogger truncate_message() truncation apply  """
+        msg_max_size = len("A" * (32 * 1024 * 1024))  # 32 MB
+        message = "A" * (32 * 1024 * 1024 + 1)  # 33MB
+        truncate_message = self.file_logger.truncate_message(message)
+        self.assertEqual(len(truncate_message), msg_max_size)
     
-    def test_write_truncated_message(self):
-        message = "A" * (32 * 1024 * 1024 - 10) + "\nExtra line.\n"  # 32MB - 10 bytes to include newlines
+    def test_write_message_with_newline(self):
+        """ Test FileLogger truncate_message() truncation apply with newline """
+        message = "A" * (32 * 1024 * 1024 - 10) + "\nExtra line.\n"  # 32MB with newlines
         truncate_message = self.file_logger.truncate_message(message)
         self.file_logger.write(message)
         self.assertTrue(truncate_message.endswith("\n"))
@@ -86,6 +114,7 @@ class TestFileLogger(unittest.TestCase):
         self.assertNotIn(message, self.file_logger.log_file_handle.contents)
 
     def test_write_false_silent_failure(self):
+        """ Test FileLogger write(), throws exception raise_on_write is true """
         self.file_logger.log_file_handle = MockFileHandle(raise_on_write=True)
 
         with self.assertRaises(Exception) as context:
@@ -93,12 +122,33 @@ class TestFileLogger(unittest.TestCase):
 
         self.assertIn("Fatal exception trying to write to log file", str(context.exception))
 
+    def test_write_irrecoverable_exception(self):
+        """ Test FileLogger write_irrecoverable_exception write failure log """
+        message = "test message"
+        self.file_logger.write_irrecoverable_exception(message)
+
+        self.assertIn(self.file_logger.log_failure_log_file, self.mock_env_layer.file_system.files)
+
+        failure_log = self.mock_env_layer.file_system.files[self.file_logger.log_failure_log_file]
+        expected_output = "\n2025-01-01T00:00:00Z> test message"
+
+        self.assertIn(expected_output, failure_log.contents)
+
+    def test_write_irrecoverable_exception_failure(self):
+        """ Test FileLogger write_irrecoverable_exception exception raised """
+        self.file_logger.log_failure_log_file = "error_failure_log.log"
+        message = "test message"
+
+        self.file_logger.write_irrecoverable_exception(message)
+
+        self.assertNotIn("error_failure_log.log", self.mock_env_layer.file_system.files)
+
     def test_flush_success(self):
+        """ Test FileLogger flush() and fileno() are called"""
         self.file_logger.flush()
 
-        self.assertTrue(self.file_logger.log_file_handle.flushed)  # verify flush() called
-        self.assertTrue(self.file_logger.log_file_handle.fileno_called)  # verify fileno() called
-
+        self.assertTrue(self.file_logger.log_file_handle.flushed)
+        self.assertTrue(self.file_logger.log_file_handle.fileno_called)
 
 
 if __name__ == '__main__':
