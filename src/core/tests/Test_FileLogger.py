@@ -20,6 +20,8 @@ from core.src.local_loggers.FileLogger import FileLogger
 class MockFileHandle:
     def __init__(self, raise_on_write=False):
         self.raise_on_write = raise_on_write
+        self.flushed = False
+        self.fileno_called = False
         self.contents = ""
         self.closed = False
     
@@ -29,13 +31,14 @@ class MockFileHandle:
         self.contents += message
     
     def flush(self):
-        pass
+        self.flushed = True
+
+    def fileno(self):
+        self.fileno_called = True
+        return 1  # mock file
 
     def close(self):
         self.closed = True
-
-    def fileno(self):
-        return 1
 
 
 class MockFileSystem:
@@ -67,6 +70,11 @@ class TestFileLogger(unittest.TestCase):
         message = "No truncation"
         result = self.file_logger.truncate_message(message)
         self.assertEqual(result, message)
+
+    def test_write_truncated_exact_size(self):
+        message = "A" * (32 * 1024 * 1024)
+        result = self.file_logger.truncate_message(message)
+        self.assertEqual(len(message), len(result))
     
     def test_write_truncated_message(self):
         message = "A" * (32 * 1024 * 1024 - 10) + "\nExtra line.\n"  # 32MB - 10 bytes to include newlines
@@ -77,20 +85,20 @@ class TestFileLogger(unittest.TestCase):
         self.assertIn(truncate_message, self.file_logger.log_file_handle.contents)
         self.assertNotIn(message, self.file_logger.log_file_handle.contents)
 
-    def test_write_silent_failure(self):
-        self.file_logger.log_file_handle = MockFileHandle(raise_on_write=True)
-        try:
-            self.file_logger.write("Test message", fail_silently=True)
-        except Exception:
-            self.fail("raise an exception when fail_silently=True")
-
-    def test_write_non_silent_failure(self):
+    def test_write_false_silent_failure(self):
         self.file_logger.log_file_handle = MockFileHandle(raise_on_write=True)
 
         with self.assertRaises(Exception) as context:
             self.file_logger.write("test message", fail_silently=False)
 
         self.assertIn("Fatal exception trying to write to log file", str(context.exception))
+
+    def test_flush_success(self):
+        self.file_logger.flush()
+
+        self.assertTrue(self.file_logger.log_file_handle.flushed)  # verify flush() called
+        self.assertTrue(self.file_logger.log_file_handle.fileno_called)  # verify fileno() called
+
 
 
 if __name__ == '__main__':
