@@ -85,32 +85,25 @@ class TestFileLogger(unittest.TestCase):
         self.assertIn("Mock file open error", str(context.exception))
     
     def test_write(self):
-        """ Test FileLogger write()  """
+        """ Test FileLogger write() with no truncation """
         message = "Test message"
         self.file_logger.write(message)
         self.assertEqual(self.file_logger.log_file_handle.contents, message)
 
-    def test_write_message_no_truncation(self):
-        """ Test FileLogger truncate_message() no truncation"""
-        message = "No truncation"
-        result = self.file_logger.truncate_message(message)
-        self.assertEqual(result, message)
+    def test_write_truncation(self):
+        """ Test FileLogger write() with truncation """
+        max_msg_size = 32 * 1024 * 1024
+        message = "A" * (32 * 1024 * 1024 + 10)
+        self.file_logger.write(message)
+        self.assertEqual(len(self.file_logger.log_file_handle.contents), max_msg_size)
 
-    def test_write_message_apply_truncation(self):
-        """ Test FileLogger truncate_message() truncation apply  """
-        msg_max_size = len("A" * (32 * 1024 * 1024))  # 32 MB
-        message = "A" * (32 * 1024 * 1024 + 1)  # 33MB
-        truncate_message = self.file_logger.truncate_message(message)
-        self.assertEqual(len(truncate_message), msg_max_size)
-    
     def test_write_message_with_newline(self):
         """ Test FileLogger truncate_message() truncation apply with newline """
+        max_msg_size = 32 * 1024 * 1024
         message = "A" * (32 * 1024 * 1024 - 10) + "\nExtra line.\n"  # 32MB with newlines
-        truncate_message = self.file_logger.truncate_message(message)
         self.file_logger.write(message)
-        self.assertTrue(truncate_message.endswith("\n"))
-        self.assertTrue(len(truncate_message) < (32 * 1024 * 1024 + 1))
-        self.assertIn(truncate_message, self.file_logger.log_file_handle.contents)
+        self.assertTrue(self.file_logger.log_file_handle.contents.endswith("\n"))
+        self.assertTrue(len(self.file_logger.log_file_handle.contents), max_msg_size)
         self.assertNotIn(message, self.file_logger.log_file_handle.contents)
 
     def test_write_false_silent_failure(self):
@@ -142,6 +135,17 @@ class TestFileLogger(unittest.TestCase):
         self.file_logger.write_irrecoverable_exception(message)
 
         self.assertNotIn("error_failure_log.log", self.mock_env_layer.file_system.files)
+
+    def test_write_irrecoverable_exception_truncation(self):
+        """ Test FileLogger write_irrecoverable_exception write failure log with truncation """
+        timestamp_size = len("\n2025-01-01T00:00:00Z> ")
+        max_msg_size = 32 * 1024 * 1024
+        message = "A" * (32 * 1024 * 1024 + 10)
+        self.file_logger.write_irrecoverable_exception(message)
+
+        self.assertIn(self.file_logger.log_failure_log_file, self.mock_env_layer.file_system.files)
+        failure_log = self.mock_env_layer.file_system.files[self.file_logger.log_failure_log_file]
+        self.assertEqual(len(failure_log.contents), max_msg_size + timestamp_size)
 
     def test_flush_success(self):
         """ Test FileLogger flush() and fileno() are called"""
