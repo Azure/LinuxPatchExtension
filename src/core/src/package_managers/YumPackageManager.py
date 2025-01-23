@@ -848,7 +848,7 @@ class YumPackageManager(PackageManager):
     # endregion
 
     # region Handling known errors
-    def try_mitigate_issues_if_any(self, command, code, out, seen_errors=None, retry_count=0, max_retries=20):
+    def try_mitigate_issues_if_any(self, command, code, out, seen_errors=None, retry_count=0, max_retries=Constants.MAX_RETRY_ATTEMPTS_FOR_ERROR_MITIGATION):
         """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found
         Args:
             seen_errors (Any): Hash set used to maintain a list of errors strings seen in the call stack.
