@@ -25,6 +25,7 @@ class FileLogger(object):
         self.log_file = log_file
         self.log_failure_log_file = log_file + ".failure"
         self.log_file_handle = None
+        self.max_msg_size = 32 * 1024 * 1024
         try:
             self.log_file_handle = self.env_layer.file_system.open(self.log_file, "a+")
         except Exception as error:
@@ -38,6 +39,8 @@ class FileLogger(object):
 
     def write(self, message, fail_silently=True):
         try:
+            if len(message) > self.max_msg_size:
+                message = message[:self.max_msg_size]
             if self.log_file_handle is not None:
                 self.log_file_handle.write(message)
         except Exception as error:
@@ -50,6 +53,8 @@ class FileLogger(object):
     def write_irrecoverable_exception(self, message):
         """ A best-effort attempt to write out errors where writing to the primary log file was interrupted"""
         try:
+            if len(message) > self.max_msg_size:
+                message = message[:self.max_msg_size]
             with self.env_layer.file_system.open(self.log_failure_log_file, 'a+') as fail_log:
                 timestamp = self.env_layer.datetime.timestamp()
                 fail_log.write("\n" + timestamp + "> " + message)
@@ -67,3 +72,4 @@ class FileLogger(object):
                 self.write(str(message_at_close))
             self.log_file_handle.close()
             self.log_file_handle = None     # Not having this can cause 'I/O exception on closed file' exceptions
+
