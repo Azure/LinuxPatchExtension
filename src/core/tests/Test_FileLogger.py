@@ -97,15 +97,6 @@ class TestFileLogger(unittest.TestCase):
         self.file_logger.write(message)
         self.assertEqual(len(self.file_logger.log_file_handle.contents), max_msg_size)
 
-    def test_write_message_with_newline(self):
-        """ Test FileLogger truncate_message() truncation apply with newline """
-        max_msg_size = 32 * 1024 * 1024
-        message = "A" * (32 * 1024 * 1024 - 10) + "\nExtra line.\n"  # 32MB with newlines
-        self.file_logger.write(message)
-        self.assertTrue(self.file_logger.log_file_handle.contents.endswith("\n"))
-        self.assertTrue(len(self.file_logger.log_file_handle.contents), max_msg_size)
-        self.assertNotIn(message, self.file_logger.log_file_handle.contents)
-
     def test_write_false_silent_failure(self):
         """ Test FileLogger write(), throws exception raise_on_write is true """
         self.file_logger.log_file_handle = MockFileHandle(raise_on_write=True)

@@ -40,7 +40,7 @@ class FileLogger(object):
     def write(self, message, fail_silently=True):
         try:
             if len(message) > self.max_msg_size:
-                message = self.__truncate_message(message=message, max_size=self.max_msg_size)
+                message = message[:self.max_msg_size]
             if self.log_file_handle is not None:
                 self.log_file_handle.write(message)
         except Exception as error:
@@ -54,7 +54,7 @@ class FileLogger(object):
         """ A best-effort attempt to write out errors where writing to the primary log file was interrupted"""
         try:
             if len(message) > self.max_msg_size:
-                message = self.__truncate_message(message=message, max_size=self.max_msg_size)
+                message = message[:self.max_msg_size]
             with self.env_layer.file_system.open(self.log_failure_log_file, 'a+') as fail_log:
                 timestamp = self.env_layer.datetime.timestamp()
                 fail_log.write("\n" + timestamp + "> " + message)
@@ -72,15 +72,4 @@ class FileLogger(object):
                 self.write(str(message_at_close))
             self.log_file_handle.close()
             self.log_file_handle = None     # Not having this can cause 'I/O exception on closed file' exceptions
-
-    def __truncate_message(self, message, max_size):
-        # type(str, int) -> str
-        """ Truncate message to a max size in bytes (32MB) at a safe point (end of the line avoid json serialization error) """
-        truncated_message = message[:max_size]
-        last_newline_index = truncated_message.rfind("\n")
-
-        if last_newline_index != -1:
-            return truncated_message[:last_newline_index + 1]
-
-        return truncated_message
 
