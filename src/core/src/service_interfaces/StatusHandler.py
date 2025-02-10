@@ -195,11 +195,9 @@ class StatusHandler(object):
                     self.__installation_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
                 self.__installation_packages_map.setdefault(patch_id, {})['patchInstallationState'] = status
 
-                # count pkg that had failed state then later succeeded, add PACKAGE_RETRY_SUCCEEDED msg to installation errors
+                # count pkg that had failed state then later succeeded
                 if status == Constants.INSTALLED and prev_pkg_state == Constants.FAILED:
                     self.__count_failed_pkg_retry_succeeded += 1
-                    pkg_warning_msg = "{0} failed packages succeeded on retry".format(package_name)
-                    self.add_error_to_status(pkg_warning_msg, Constants.PatchOperationErrorCodes.PACKAGE_RETRY_SUCCEEDED)
 
                 patch_already_saved = True
 
@@ -1168,11 +1166,15 @@ class StatusHandler(object):
         }
     # endregion
 
-    # region - Packages retry succeeded
-    def has_failed_pkg_retry_succeeded(self):
-        # type:(any) -> bool
+    # region - Failed packages retry succeeded
+    def has_remaining_failed_packages(self):
+        """ Return whether any installation packages has failed state """
+        return any(package['patchInstallationState'] == Constants.FAILED for package in self.__installation_packages)
+
+    def count_failed_pkg_retry_succeeded(self):
+        # type:(any) -> int
         """" Return whether any failed packages installed successfuly on retry """
-        return self.__count_failed_pkg_retry_succeeded > 0
+        return self.__count_failed_pkg_retry_succeeded
 
     def reset_count_failed_pkg_retry_succeeded(self):
         """ Reset class level variable counter to 0 """
