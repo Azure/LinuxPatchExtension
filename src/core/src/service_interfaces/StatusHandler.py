@@ -190,13 +190,14 @@ class StatusHandler(object):
             # Match patch_id in map and update existing patch's classification i.e from None -> security and update pending status
             if len(self.__installation_packages_map) > 0 and patch_id in self.__installation_packages_map:
                 prev_pkg_state = self.__installation_packages_map.get(patch_id,{}).get('patchInstallationState', '')
+                pkg_classification = self.__installation_packages_map.get(patch_id,{}).get('classifications', '')
 
                 if classification is not None:
                     self.__installation_packages_map.setdefault(patch_id, {})['classifications'] = [classification]
                 self.__installation_packages_map.setdefault(patch_id, {})['patchInstallationState'] = status
 
                 # count pkg that had failed state then later succeeded
-                if status == Constants.INSTALLED and prev_pkg_state == Constants.FAILED:
+                if (pkg_classification == 'Security' or pkg_classification == 'Critical') and status == Constants.INSTALLED and prev_pkg_state == Constants.FAILED:
                     self.__count_failed_pkg_retry_succeeded += 1
 
                 patch_already_saved = True
@@ -1169,7 +1170,7 @@ class StatusHandler(object):
     # region - Failed packages retry succeeded
     def has_remaining_failed_packages(self):
         """ Return whether any installation packages has failed state """
-        return any(package['patchInstallationState'] == Constants.FAILED for package in self.__installation_packages)
+        return any((package['classifications'] == 'Security' or package['classifications'] == 'Critical') and package['patchInstallationState'] == Constants.FAILED for package in self.__installation_packages)
 
     def count_failed_pkg_retry_succeeded(self):
         # type:(any) -> int
