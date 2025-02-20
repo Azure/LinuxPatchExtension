@@ -107,9 +107,9 @@ class CoreMain(object):
                         pkg_warning_msg = "{0} failed packages succeeded on retry".format(status_handler.count_failed_pkg_retry_succeeded)
                         status_handler.add_error_to_status(pkg_warning_msg, Constants.PatchOperationErrorCodes.PACKAGE_RETRY_SUCCEEDED)
                         status_handler.set_installation_substatus_json(Constants.STATUS_WARNING)
-
-                    # there are other operational errors
-                    self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger)
+                    else:
+                        # there are other operational errors
+                        self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger)
         except Exception as error:
             # Privileged operation handling for non-production use
             if Constants.EnvLayer.PRIVILEGED_OP_MARKER in repr(error):
