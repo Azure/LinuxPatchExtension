@@ -274,13 +274,15 @@ class PatchInstaller(object):
 
         packages, package_versions, install_update_count_in_batch_patching, patch_installation_successful = self.batch_patching(all_packages, all_package_versions,
                                                                                                                 packages, package_versions, maintenance_window,
-                                                                                                                package_manager)
+                                                                                                               package_manager)
 
         installed_update_count = install_update_count_in_batch_patching
         attempted_parent_package_install_count_in_batch_patching = self.attempted_parent_package_install_count
         successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
 
         if len(packages) == 0:
+            # add logic to check for maintenance_window_exceeded is false and patch_installation_successful is false and org_package length == new package length
+            #
             self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
@@ -405,9 +407,7 @@ class PatchInstaller(object):
         maintenance_window_exceeded (bool): Whether maintenance window exceeded.
         installed_update_count (int): Number of updates installed.
         """
-        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
-                                                        "Completed processing packages!")
-        self.composite_logger.log(progress_status)
+        self.__log_progress_status(maintenance_window, installed_update_count)
 
         if not patch_installation_successful or maintenance_window_exceeded:
             message = "\n\nOperation status was marked as failed because: "
@@ -801,3 +801,7 @@ class PatchInstaller(object):
 
         return max_batch_size_for_packages
 
+    def __log_progress_status(self, maintenance_window, installed_update_count):
+        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
+                                                        "Completed processing packages!")
+        self.composite_logger.log(progress_status)
