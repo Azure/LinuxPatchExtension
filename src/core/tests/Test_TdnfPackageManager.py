@@ -36,6 +36,45 @@ class TestTdnfPackageManager(unittest.TestCase):
         raise Exception
     # endregion
 
+    def test_invalid_health_store_id_posix_time(self):
+        # health_store_id is None
+        self.runtime.stop()
+        argument_composer = ArgumentComposer()
+        argument_composer.health_store_id = None
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
+        self.container = self.runtime.container
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager.health_store_id_in_posix_time is str())
+
+        # health_store_id is empty string
+        self.runtime.stop()
+        argument_composer = ArgumentComposer()
+        argument_composer.health_store_id = ""
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
+        self.container = self.runtime.container
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager.health_store_id_in_posix_time is str())
+
+        # health_store_id is random string
+        self.runtime.stop()
+        argument_composer = ArgumentComposer()
+        argument_composer.health_store_id = "pub_offer_sku_20.312.543"
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
+        self.container = self.runtime.container
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager.health_store_id_in_posix_time is str())
+
+    def test_valid_health_store_id_posix_time(self):
+        # valid health_store_id
+        self.runtime.stop()
+        argument_composer = ArgumentComposer()
+        argument_composer.health_store_id = "pub_offer_sku_2024.04.01"
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
+        self.container = self.runtime.container
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager.health_store_id_in_posix_time is not None)
+        self.assertEqual("1711954800", package_manager.health_store_id_in_posix_time)
+
     def test_do_processes_require_restart(self):
         """Unit test for tdnf package manager"""
         # Restart required

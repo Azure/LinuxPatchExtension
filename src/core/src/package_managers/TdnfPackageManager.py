@@ -15,9 +15,12 @@
 # Requires Python 2.7+
 
 """TdnfPackageManager for Mariner/Azure Linux"""
+import datetime
 import json
 import os
 import re
+import time
+
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
@@ -28,26 +31,28 @@ class TdnfPackageManager(PackageManager):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         super(TdnfPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
-        # There is no command as this is a no op.
-        # TODO: add -snapshottime to all commands
+        self.cmd_repo_refresh_template = "sudo tdnf clean expire-cache ; sudo tdnf -q list updates"
+
+        # fetch snapshottime from health_store_id
+        self.health_store_id_in_posix_time = self.__get_posix_time_from_health_store_id(execution_config.health_store_id)
 
         # Support to get updates and their dependencies
-        self.tdnf_check = 'sudo tdnf -q list updates'
+        self.tdnf_check = 'sudo tdnf -q list updates <SNAPSHOTTIME>'
         # self.tdnf_check_security_prerequisite = 'sudo tdnf -y install yum-plugin-security'
-        self.tdnf_check_security = 'sudo tdnf -q --security list updates'
-        # self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME> --showduplicates'
-        # self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME>'
-        # self.single_package_upgrade_simulation_cmd = 'LANG=en_US.UTF8 sudo tdnf install --assumeno --skip-broken '
-        #
-        # # Install update
+        self.tdnf_check_security = 'sudo tdnf -q --security list updates <SNAPSHOTTIME>'
+        self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME> <SNAPSHOTTIME>'
+        self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME> <SNAPSHOTTIME>'
+        self.single_package_upgrade_simulation_cmd = 'LANG=en_US.UTF8 sudo tdnf install --assumeno --skip-broken <SNAPSHOTTIME>'
+
+        # Install update
         # self.single_package_upgrade_cmd = 'sudo tdnf -y install --skip-broken '
-        # self.all_but_excluded_upgrade_cmd = 'sudo tdnf -y update --exclude='
-        #
+        self.all_but_excluded_upgrade_cmd = 'sudo tdnf -y update --exclude='
+
         # Package manager exit code(s)
         self.tdnf_exitcode_no_applicable_packages = 0
         self.tdnf_exitcode_ok = 1
         self.tdnf_exitcode_updates_available = 100
-        #
+
         # Support to check for processes requiring restart
         self.dnf_utils_prerequisite = 'sudo tdnf -y install dnf-utils'
         self.needs_restarting_with_flag = 'sudo LANG=en_US.UTF8 needs-restarting -r'
@@ -58,12 +63,46 @@ class TdnfPackageManager(PackageManager):
 
         # Miscellaneous
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.TDNF)
-        # self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
-        #
-        # self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 90 seconds for yum.
+        self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
+
+        self.package_install_expected_avg_time_in_seconds = 90  # Setting a default value of 90 seconds as the avg time to install a package using tdnf, might be changed later if needed.
 
     def refresh_repo(self):
-        pass  # Refresh the repo is no ops in TDNF
+        self.composite_logger.log("[TDNF] Refreshing local repo...")
+        self.invoke_package_manager(self.cmd_repo_refresh_template)
+
+    # region Fetch SnapshotTime
+    def __get_posix_time_from_health_store_id(self, health_store_id):
+        """Converts date str received (in format: yyyy.mm.dd) to POSIX time string"""
+        # eg: Input: 2024.12.20 (str) -> Output: 1734681600 (str)
+        posix_time = str()
+        if health_store_id is not None and health_store_id != "":
+            health_store_id_split = health_store_id.split("_")
+            if len(health_store_id_split) == 4 and len(health_store_id_split[3]) == 10 and len(health_store_id_split[3].split('.')) == 3:
+                try:
+                    posix_time = str(int(self.__string_to_posix_time(health_store_id_split[3], "%Y.%m.%d")))
+                except Exception as error:
+                    self.composite_logger.log_debug("[EC] Could not fetch POSIX time from health store id. [HealthStoreId={0}][Exception={1}]".format(str(health_store_id), repr(error)))
+
+        self.composite_logger.log_debug("[EC] Getting POSIX time from health store id. [POSIXTime={0}][HealthStoreId={1}]".format(str(posix_time), str(health_store_id)))
+        return posix_time
+
+    @staticmethod
+    def __string_to_posix_time(string, format_string):
+        datetime_object = datetime.datetime.strptime(string, format_string)
+        posix_timestamp = time.mktime(datetime_object.timetuple())
+        return posix_timestamp
+
+    @staticmethod
+    def __generate_command_with_snapshottime(command_template, snapshotposixtime=str()):
+        # type: (str, str) -> str
+        """ Prepares a standard command to use snapshottime."""
+        if snapshotposixtime == str():
+            return command_template.replace('<SNAPSHOTTIME>', str())
+        else:
+            return command_template.replace('<SNAPSHOTTIME>', ('--snapshottime={0}'.format(str(snapshotposixtime))))
+
+    # endregion
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
@@ -90,7 +129,7 @@ class TdnfPackageManager(PackageManager):
             self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
-        out = self.invoke_package_manager(self.tdnf_check)
+        out = self.invoke_package_manager(self.__generate_command_with_snapshottime(self.tdnf_check, self.health_store_id_in_posix_time))
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
 
         self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
@@ -99,8 +138,8 @@ class TdnfPackageManager(PackageManager):
     def get_security_updates(self):
         """Get missing security updates"""
         self.composite_logger.log_verbose("[TDNF] Discovering 'security' packages...")
-
-        out = self.invoke_package_manager(self.tdnf_check_security)
+        # todo: note --security attr doesn't work with tdnf, check if it needs any pre-req
+        out = self.invoke_package_manager(self.__generate_command_with_snapshottime(self.tdnf_check_security, self.health_store_id_in_posix_time))
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
         self.composite_logger.log_debug("[TDNF] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
         return security_packages, security_package_versions
@@ -124,8 +163,6 @@ class TdnfPackageManager(PackageManager):
 
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         pass
-        #TODO
-
     # endregion
 
     # region Output Parser(s)
@@ -137,6 +174,7 @@ class TdnfPackageManager(PackageManager):
 
     def extract_packages_and_versions_including_duplicates(self, output):
         """Returns packages and versions from given output"""
+        # todo: verify usage
         self.composite_logger.log_verbose("[TDNF] Extracting package and version data...")
         packages = []
         versions = []
@@ -181,12 +219,178 @@ class TdnfPackageManager(PackageManager):
     # endregion
 
     # region Install Updates
+    def get_composite_package_identifier(self, package, package_version):
+        package_without_arch, arch = self.get_product_name_and_arch(package)
+        package_identifier = package_without_arch + '-' + self.get_package_version_without_epoch(package_version)
+        if arch is not None:
+            package_identifier += arch
+        return package_identifier
+
+    def install_updates_fail_safe(self, excluded_packages):
+        excluded_string = ""
+        for excluded_package in excluded_packages:
+            excluded_string += excluded_package + ' '
+        cmd = self.all_but_excluded_upgrade_cmd + excluded_string
+
+        self.composite_logger.log_debug("[TDNF][FAIL SAFE MODE] UPDATING PACKAGES USING COMMAND: " + cmd)
+        self.invoke_package_manager(cmd)
+
+    def install_security_updates_azgps_coordinated(self):
+        pass
     # endregion
 
     # region Package Information
+    def get_all_available_versions_of_package(self, package_name):
+        """ Returns a list of all the available versions of a package """
+        # Sample output format
+        # Loaded plugin: tdnfrepogpgcheck
+        # azurelinux-repos-shared.noarch                                                                 3.0-3.azl3                                   azurelinux-official-base
+        # azurelinux-repos-shared.noarch                                                                 3.0-4.azl3                                   azurelinux-official-base
+        cmd = self.__generate_command_with_snapshottime( self.single_package_check_versions.replace('<PACKAGE-NAME>', package_name), self.health_store_id_in_posix_time)
+        output = self.invoke_package_manager(cmd)
+        packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
+        return package_versions
+
+    def is_package_version_installed(self, package_name, package_version):
+        """ Returns true if the specific package version is installed """
+        # Sample output format
+        # Loaded plugin: tdnfrepogpgcheck
+        # azurelinux-repos-shared.noarch                                                                 3.0-3.azl3                                                    @System
+        self.composite_logger.log_verbose("[TDNF] Checking package install status. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
+        cmd = self.__generate_command_with_snapshottime(self.single_package_check_installed.replace('<PACKAGE-NAME>', package_name), self.health_store_id_in_posix_time)
+        output = self.invoke_package_manager(cmd)
+        packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
+
+        for index, package in enumerate(packages):
+            if package == package_name and (package_versions[index] == package_version):
+                self.composite_logger.log_debug("[TDNF] > Installed version match found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
+                return True
+            else:
+                self.composite_logger.log_verbose("[TDNF] > Did not match: " + package + " (" + package_versions[index] + ")")
+
+        # sometimes packages are removed entirely from the system during installation of other packages
+        # so let's check that the package is still needed before
+        self.composite_logger.log_debug("[TDNF] > Installed version match NOT found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
+        return False
+
+    def extract_dependencies(self, output, packages):
+        # Extracts dependent packages from output.
+        # sample output
+        # Loaded plugin: tdnfrepogpgcheck
+        #
+        # Upgrading:
+        # python3                            x86_64                    3.12.3-5.azl3                      azurelinux-official-base   44.51k                      36.89k
+        # python3-curses                     x86_64                    3.12.3-5.azl3                      azurelinux-official-base  165.62k                      71.64k
+        # python3-libs                       x86_64                    3.12.3-5.azl3                      azurelinux-official-base   36.05M                      10.52M
+        #
+        # Total installed size:  36.26M
+        # Total download size:  10.62M
+        # Error(1032) : Operation aborted.
+        dependencies = []
+        package_arch_to_look_for = ["x86_64", "noarch", "i686", "aarch64"]  # if this is changed, review Constants
+
+        lines = output.strip().splitlines()
+
+        for line_index in range(0, len(lines)):
+            line = re.split(r'\s+', lines[line_index].strip())
+            dependent_package_name = ""
+
+            if self.is_valid_update(line, package_arch_to_look_for):
+                dependent_package_name = self.get_product_name_with_arch(line, package_arch_to_look_for)
+            else:
+                self.composite_logger.log_verbose("[TDNF] > Inapplicable line: " + str(line))
+                continue
+
+            if len(dependent_package_name) != 0 and dependent_package_name not in packages and dependent_package_name not in dependencies:
+                self.composite_logger.log_verbose("[TDNF] > Dependency detected: " + dependent_package_name)
+                dependencies.append(dependent_package_name)
+
+        return dependencies
+
+    def is_valid_update(self, package_details_in_output, package_arch_to_look_for):
+        # Verifies whether the line under consideration (i.e. package_details_in_output) contains relevant package details.
+        # package_details_in_output will be of the following format if it is valid
+        #   Sample package details in TDNF:
+        #   python3-libs                       x86_64                    3.12.3-5.azl3                      azurelinux-official-base   36.05M                      10.52M
+        return len(package_details_in_output) == 6 and self.is_arch_in_package_details(package_details_in_output[1], package_arch_to_look_for)
+
+    @staticmethod
+    def is_arch_in_package_details(package_detail, package_arch_to_look_for):
+        # Using a list comprehension to determine if chunk is a package
+        return len([p for p in package_arch_to_look_for if p in package_detail]) == 1
+
+    def get_dependent_list(self, packages):
+        cmd = self.__generate_command_with_snapshottime(self.single_package_upgrade_simulation_cmd, self.health_store_id_in_posix_time)
+        package_names = ""
+        for index, package in enumerate(packages):
+            if index != 0:
+                package_names += ' '
+            package_names += package
+
+        self.composite_logger.log_verbose("[TDNF] Resolving dependencies. [Command={0}]".format(str(cmd + package_names)))
+        output = self.invoke_package_manager(cmd + package_names)
+        dependencies = self.extract_dependencies(output, packages)
+        self.composite_logger.log_verbose("[TDNF] Resolved dependencies. [Packages={0}][DependencyCount={1}]".format(str(packages), len(dependencies)))
+        return dependencies
+
     def get_product_name(self, package_name):
         """Retrieve package name """
+        # todo: verify usage
         return package_name
+
+    def get_product_name_and_arch(self, package_name):
+        """Splits out product name and architecture - if this is changed, modify in PackageFilter also"""
+        # todo: verify usage
+        architectures = Constants.SUPPORTED_PACKAGE_ARCH
+        for arch in architectures:
+            if package_name.endswith(arch):
+                return package_name[:-len(arch)], arch
+        return package_name, None
+
+    def get_product_name_without_arch(self, package_name):
+        """Retrieve product name only"""
+        # todo: verify usage
+        product_name, arch = self.get_product_name_and_arch(package_name)
+        return product_name
+
+    def get_product_arch(self, package_name):
+        """Retrieve product architecture only"""
+        # todo: verify usage
+        product_name, arch = self.get_product_name_and_arch(package_name)
+        return arch
+
+    def get_product_name_with_arch(self, package_detail, package_arch_to_look_for):
+        """Retrieve product name with arch separated by '.'. Note: This format is default in tdnf. Refer samples noted within func extract_dependencies() for more clarity"""
+        return package_detail[0] + "." + package_detail[1] if package_detail[1] in package_arch_to_look_for else package_detail[1]
+
+    def get_package_version_without_epoch(self, package_version):
+        """Returns the package version stripped of any epoch"""
+        # todo: verify usage
+        package_version_split = str(package_version).split(':', 1)
+
+        if len(package_version_split) == 2:
+            self.composite_logger.log_verbose("[TDNF]   > Removed epoch from version (" + package_version + "): " + package_version_split[1])
+            return package_version_split[1]
+
+        if len(package_version_split) != 1:
+            self.composite_logger.log_error("[TDNF] Unexpected error during version epoch removal from package version. [PackageVersion={0}]".format(package_version))
+
+        return package_version
+
+    def get_package_size(self, output):
+        """Retrieve package size from installation output string"""
+        # Sample output line:
+        # Total download size: 15 M
+        if "Nothing to do" not in output:
+            lines = output.strip().split('\n')
+            for line in lines:
+                if line.find(self.STR_TOTAL_DOWNLOAD_SIZE) >= 0:
+                    return line.replace(self.STR_TOTAL_DOWNLOAD_SIZE, "")
+
+        return Constants.UNKNOWN_PACKAGE_SIZE
+    # endregion
+
+    # region auto OS updates
     # endregion
 
     # region Reboot Management
@@ -219,34 +423,9 @@ class TdnfPackageManager(PackageManager):
 
         # TODO: check if Double-checking using yum ps equivalent should be used?
         return False
-
     # endregion
 
     # region To review and remove later
-    def get_composite_package_identifier(self, package_name, package_version):
-        pass
-
-    def install_updates_fail_safe(self, excluded_packages):
-        pass
-
-    def install_security_updates_azgps_coordinated(self):
-        pass
-
-    def get_all_available_versions_of_package(self, package_name):
-        """ Returns a list of all the available version of a package """
-        pass
-
-    def is_package_version_installed(self, package_name, package_version):
-        """ Returns true if the specific package version is installed """
-        pass
-
-    def get_dependent_list(self, package_name):
-        """Retrieve available updates. Expect an array being returned"""
-        pass
-
-    def get_package_size(self, output):
-        """Retrieve package size from installation output string"""
-        pass
 
     def get_current_auto_os_patch_state(self):
         """ Gets the current auto OS update patch state on the machine """
@@ -270,8 +449,6 @@ class TdnfPackageManager(PackageManager):
     def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
-        Only required for yum. No-op for apt and zypper.
-
         Parameters:
         package_manager (PackageManager): Package manager used.
         package (string): Input package for which same package name but different architecture need to be added in the list package_and_dependencies.
@@ -282,17 +459,31 @@ class TdnfPackageManager(PackageManager):
                                                     but different architecture in this list.
         package_and_dependency_versions (List of strings): Versions of packages in package_and_dependencies.
         """
-        pass
+        package_name_without_arch = package_manager.get_product_name_without_arch(package)
+        for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
+            if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies and possible_arch_dependency_version == version:
+                package_and_dependencies.append(possible_arch_dependency)
+                package_and_dependency_versions.append(possible_arch_dependency_version)
 
     def set_security_esm_package_status(self, operation, packages):
+        """
+        Set the security-ESM classification for the esm packages. Only needed for apt. No-op for yum and zypper.
+        """
         pass
 
     def separate_out_esm_packages(self, packages, package_versions):
-        pass
+        """
+        Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
+        Only needed for apt. No-op for yum and zypper
+        """
+        esm_packages = []
+        esm_package_versions = []
+        esm_packages_found = False
+
+        return packages, package_versions, esm_packages, esm_package_versions, esm_packages_found
 
     def get_package_install_expected_avg_time_in_seconds(self):
-        """Retrieves average time to install package in seconds."""
-        pass
+        return self.package_install_expected_avg_time_in_seconds
     # endregion
 
 
