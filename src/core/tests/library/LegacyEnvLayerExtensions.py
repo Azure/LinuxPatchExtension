@@ -538,6 +538,38 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('pro security-status --format=json') > -1:
                         code = 0
                         output = "{\"summary\":{\"ua\":{\"attached\":true}}}"
+                elif self.legacy_package_manager_name is Constants.TDNF:
+                    if cmd.find("--security list updates") > -1:
+                        code = 100
+                        output = "\n" + \
+                                 "azurelinux-release.noarch                        " + \
+                                 "3.0-16.azl3                        " + \
+                                 "azurelinux-official-base\n"
+                    elif cmd.find("list updates") > -1:
+                        code = 100
+                        output = "\n" + \
+                                 "azurelinux-release.noarch                        " + \
+                                 "3.0-16.azl3                        " + \
+                                 "azurelinux-official-base\n" + \
+                                 "azurelinux-repos-ms-oss.noarch                        " + \
+                                 "3.0-3.azl3                        " + \
+                                 "azurelinux-official-base\n" + \
+                                 "libseccomp.x86_64                        " + \
+                                 "2.5.4-1.azl3                        " + \
+                                 "azurelinux-official-base\n" + \
+                                 "libxml2.x86_64                        " + \
+                                 "2.11.5-1.azl3                        " + \
+                                 "azurelinux-official-base\n" + \
+                                 "dracut.x86_64                        " + \
+                                 "102-7.azl3                        " + \
+                                 "azurelinux-official-base\n"
+                    elif cmd.find("needs-restarting -r") > -1:
+                        code = 0
+                        output = "Core libraries or services have been updated since boot-up:\n" + \
+                                 "  * kernel\n" + \
+                                 "\n" + \
+                                 "Reboot is required to fully utilize these updates.\n" + \
+                                 "More information: https://access.redhat.com/solutions/27943\n"
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -580,6 +612,9 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security') > -1:
                         code = 103
                         output = ''
+                elif self.legacy_package_manager_name is Constants.TDNF:
+                    code = 0
+                    output = ''
                 elif cmd.find("systemctl") > -1:
                     code = 1
                     output = ''
@@ -617,6 +652,15 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('sudo zypper refresh') > -1:
                         code = 4
                         output = 'System management is locked by the application with pid 7914 (/usr/bin/zypper).'
+                elif self.legacy_package_manager_name is Constants.TDNF:
+                    code = 100
+                    output = "azurelinux-release.noarch                        3.0-16.azl3                        \n" + \
+                             "azurelinux-official-base\n" + \
+                             "azurelinux-repos-ms-oss.noarch\n" + \
+                             "3.0-3.azl3                        azurelinux-official-base\n" + \
+                             "libseccomp.x86_64     2.5.4-1.azl3     azurelinux-official-base\n" + \
+                             "libxml2.x86_64 azurelinux-official-base\n" + \
+                             "dracut.x86_64                        102-7.azl3                        azurelinux-official-base\n"
             elif self.legacy_test_type == 'NonexistentErrorCodePath':
                 if self.legacy_package_manager_name is Constants.ZYPPER:
                     if cmd.find('sudo zypper refresh') > -1:
