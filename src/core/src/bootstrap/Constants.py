@@ -51,6 +51,7 @@ class Constants(object):
     # Max values
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
     MAX_AUTO_ASSESSMENT_WAIT_FOR_MAIN_CORE_EXEC_IN_MINUTES = 3 * 60
+    MAX_PATCH_OPERATION_DURATION_IN_MINUTES = 235
 
     class SystemPaths(EnumBackport):
         SYSTEMD_ROOT = "/etc/systemd/system/"
@@ -91,6 +92,9 @@ class Constants(object):
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
+
+    #File to install packages at once
+    INSTALL_PATCHES_IN_SINGLE_BATCH = "/var/lib/azure/linuxpatchextension/fasttrack-patch-installation.settings"
 
     # Auto assessment shell script name
     CORE_AUTO_ASSESS_SH_FILE_NAME = "MsftLinuxPatchAutoAssess.sh"
