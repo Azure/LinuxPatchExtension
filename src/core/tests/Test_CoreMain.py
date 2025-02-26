@@ -1318,7 +1318,7 @@ class TestCoreMain(unittest.TestCase):
 
         # Verify at least one error detail about package retry
         error_details = json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]
-        self.assertTrue(any("packages are installed" in detail["message"] for detail in error_details))
+        self.assertTrue(any("package(s) are installed" in detail["message"] for detail in error_details))
 
 
 if __name__ == '__main__':
