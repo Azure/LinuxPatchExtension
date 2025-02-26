@@ -294,9 +294,11 @@ class PatchInstaller(object):
 
         if len(packages) == 0:
             if not patch_installation_successful and not maintenance_window_exceeded and self.__check_if_all_packages_installed:
+                print('did this get called1', patch_installation_successful)
                 self.log_final_warning_metric(maintenance_window, installed_update_count)
                 self.__enable_installation_warning_status = True
             else:
+                print('did this get called2', patch_installation_successful)
                 self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
 
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
@@ -398,9 +400,11 @@ class PatchInstaller(object):
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
 
         if not patch_installation_successful and not maintenance_window_exceeded and self.__check_if_all_packages_installed():
+            print('did this get called3', patch_installation_successful)
             self.log_final_warning_metric(maintenance_window, installed_update_count)
             self.__enable_installation_warning_status = True
         else:
+            print('did this get called4', patch_installation_successful)
             self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
 
         install_update_count_in_sequential_patching = installed_update_count - install_update_count_in_batch_patching
@@ -853,6 +857,7 @@ class PatchInstaller(object):
         """ Check if all supposed packages are installed """
         # Get the list of installed packages
         installed_packages_list = self.status_handler.get_installation_packages_list()
+        print('what is installed_packages_list', installed_packages_list)
         # Create a list to store uninstalled packages
         uninstalled_packages_list = [
             (pkg, ver) for pkg, ver in zip(self.__org_expected_install_packages_list, self.__org_expected_install_packages_version_list)
@@ -860,6 +865,7 @@ class PatchInstaller(object):
                        installed_pkg in installed_packages_list)
         ]
         # Return True if all packages are installed, otherwise return False
+        print('what is uninstalled_packages_list', uninstalled_packages_list)
         return len(uninstalled_packages_list) == 0
 
     def __sent_metadata_health_store(self):
