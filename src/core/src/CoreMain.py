@@ -158,7 +158,7 @@ class CoreMain(object):
         if patch_operation_requested == Constants.INSTALLATION.lower() and not overall_patch_installation_operation_successful:
             status_handler.set_current_operation(Constants.INSTALLATION)
             if not patch_assessment_successful:
-                status_handler.add_error_to_status(f"Installation failed due to assessment failure. Please refer the error details in assessment substatus")
+                status_handler.add_error_to_status("Installation failed due to assessment failure. Please refer the error details in assessment substatus")
             status_handler.set_installation_substatus_json(status=Constants.STATUS_ERROR)
             # NOTE: For auto patching requests, no need to report patch metadata to health store in case of failure
             composite_logger.log_debug('  -- Persisted failed installation substatus.')

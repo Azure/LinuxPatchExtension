@@ -54,13 +54,13 @@ class TestCoreMain(unittest.TestCase):
         return False
 
     def mock_batch_patching_with_packages(self, all_packages, all_package_versions, packages, package_versions, maintenance_window, package_manager):
-        """Mock batch_patching to simulate package installation failure """
+        """Mock batch_patching to simulate package installation failure, return some packages """
         # This simulates the first batch attempt failing, returning original packages unchanged
         # When the retry path kicks in, the package list should be processed and succeed there
         return packages, package_versions, 0, False
 
     def mock_batch_patching_with_no_packages(self, all_packages, all_package_versions, packages, package_versions, maintenance_window, package_manager):
-        """Mock batch_patching to simulate package installation failure, with no packages"""
+        """Mock batch_patching to simulate package installation failure, return no packages"""
         # This simulates the first batch attempt failing, returning original packages unchanged
         # When the retry path kicks in, the package list should be processed and succeed there
         return [], [], 0, False
@@ -1323,4 +1323,3 @@ class TestCoreMain(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

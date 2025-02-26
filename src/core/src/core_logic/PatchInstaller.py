@@ -439,12 +439,12 @@ class PatchInstaller(object):
 
     def log_final_warning_metric(self, maintenance_window, installed_update_count):
         """
-        logs the final metrics for warning installatoin status.
+        logs the final metrics for warning installation status.
         """
 
         self.__log_progress_status(maintenance_window, installed_update_count)
 
-        message = "\n\nAll supposed packages are installed."
+        message = "\n\nAll supposed package(s) are installed."
         self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.PACKAGES_RETRY_SUCCEEDED)
         self.composite_logger.log_error(message)
 
