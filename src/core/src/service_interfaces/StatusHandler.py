@@ -210,6 +210,7 @@ class StatusHandler(object):
 
         self.composite_logger.log_debug("Package install status summary [Status= " + status + "] : " + package_install_status_summary)
         self.__installation_packages = list(self.__installation_packages_map.values())
+        print('what is __installation_packages', self.__installation_packages)
         self.__installation_packages = self.sort_packages_by_classification_and_state(self.__installation_packages)
         self.set_installation_substatus_json()
 
