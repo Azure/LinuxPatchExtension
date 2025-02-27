@@ -96,10 +96,12 @@ class CoreMain(object):
                 patch_installation_successful = patch_installer.start_installation()
                 patch_assessment_successful = False
                 patch_assessment_successful = patch_assessor.start_assessment()
-
                 # PatchInstallationSummary to be marked as completed successfully only after the implicit (i.e. 2nd) assessment is completed, as per CRP's restrictions
                 if patch_assessment_successful and patch_installation_successful:
                     patch_installer.mark_installation_completed()
+                    overall_patch_installation_operation_successful = True
+                elif patch_installer.get_enabled_installation_warning_status():
+                    patch_installer.mark_installation_warning_completed()
                     overall_patch_installation_operation_successful = True
                 self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger)
         except Exception as error:
