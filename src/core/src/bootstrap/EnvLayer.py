@@ -64,20 +64,25 @@ class EnvLayer(object):
         """ Detects package manager type """
         ret = None
 
-        # choose default - almost surely one will match.
-        for b in ('apt-get', 'yum', 'zypper'):
-            code, out = self.run_command_output('which ' + b, False, False)
+        if self.platform.linux_distribution()[0] == Constants.AZURE_LINUX:
+            code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
-                ret = b
-                if ret == 'apt-get':
-                    ret = Constants.APT
-                    break
-                if ret == 'yum':
-                    ret = Constants.YUM
-                    break
-                if ret == 'zypper':
-                    ret = Constants.ZYPPER
-                    break
+                ret = Constants.TDNF
+        else:
+            # choose default - almost surely one will match.
+            for b in ('apt-get', 'yum', 'zypper'):
+                code, out = self.run_command_output('which ' + b, False, False)
+                if code == 0:
+                    ret = b
+                    if ret == 'apt-get':
+                        ret = Constants.APT
+                        break
+                    if ret == 'yum':
+                        ret = Constants.YUM
+                        break
+                    if ret == 'zypper':
+                        ret = Constants.ZYPPER
+                        break
 
         if ret is None and platform.system() == 'Windows':
             ret = Constants.APT
