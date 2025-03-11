@@ -39,10 +39,21 @@ class VersionComparator(object):
         # type (str) -> str
         """
         Extract the version part from a given path.
-        Input: /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5/config
-        Return: "1.2.5"
+        Path	                    Extracted Version
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5/config "1.2.5"
+        "abc-1.2.3-alpha"	        "1.2.3"
+        "xyz-34~20.04"	            "34"
+        "some-27.14-ubuntu"	        "27.14"
+        "random-5.0.1+build"	    "5.0.1"
+        "abc"	                    ""
         """
-        match = re.search(r'([\d]+\.[\d]+\.[\d]+)', path)
+        # extract lpe version
+        if "LinuxPatchExtension" in path:
+            match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', path) # extract numbers with optional dot-separated parts
+            return match.group(1).rstrip('.') if match else ""
+
+        # extract os version
+        match = re.search(r'(\d+(?:\.\d+)*)', path)  # extract numbers with optional dot-separated parts
         return match.group(1) if match else str()
 
     def sort_versions_desc_order(self, paths):
