@@ -23,23 +23,39 @@ class TestVersionComparatorHandler(unittest.TestCase):
     def setUp(self):
         self.version_comparator_handler = VersionComparatorHandler()
 
-    def test_linux_version_comparator_handler(self):
-        # Test extract version logic
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25"), "1.2.25")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc"), "1.2.25")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25+abc.123"), "1.2.25")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123"), "1.2.25")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001"), "1.21.1001")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"), "1.6.100")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99"), "1.6.99")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.6"), "1.6")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.6."), "1.6")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.6.."), "1.6")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.6.abc"), "1.6")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.6abc"), "1.6")
-        self.assertEqual(self.version_comparator_handler.extract_version_nums("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-a.b.c"), "")
+    def test_linux_extension_version_extract_comparator_handler(self):
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25"), "1.2.25")
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.250"), "1.2.250")
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.21.2501"), "1.21.2501")
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25."), "1.2.25")
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25.."), "1.2.25")
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25abc"), "1.2.25")
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25.abc"), "1.2.25")
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25+abc.123"), "1.2.25")
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123"), "1.2.25")
+        self.assertEqual(self.version_comparator_handler.extract_lpe_path_version_num("Users\Smith~123\AppData\tmp5a42j2ua\Microsoft.CPlat.Core.LinuxPatchExtension-a.b.c"), "")
 
-        # Test sort versions logic
+    def test_linux_os_version_extract_comparator_handler(self):
+        """ Test extract version logic on Ubuntuproclient version """
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34"), "34")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34~18"), "34")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34.~18.04"), "34")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34.a+18.04.1"), "34")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34abc-18.04"), "34")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("abc34~18.04"), "34")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("abc34~18.04.123"), "34")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34~25.1.2-18.04.1"), "34")
+
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34.1~18.04.1"), "34.1")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34.13.4"), "34.13.4")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34.13.4~18.04.1"), "34.13.4")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34.13.4-ab+18.04.1"), "34.13.4")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("34.13.4abc-18.04.1"), "34.13.4")
+        self.assertEqual(self.version_comparator_handler.extract_os_version_nums("abc.34.13.4!@abc"), "34.13.4")
+
+
+    def test_linux_extension_sort_comparator_handler(self):
+        """Test version comparator sorting logic on linux extension versions """
         unsorted_path_versions = [
             "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123",
             "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
@@ -58,6 +74,27 @@ class TestVersionComparatorHandler(unittest.TestCase):
             "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc"
         ]
 
-        # valid versions
+        # validate sorted lpe versions
         self.assertEqual(self.version_comparator_handler.sort_versions_desc_order(unsorted_path_versions), expected_sorted_path_versions)
+
+
+    def test_os_version_sort_comparator_handler(self):
+        """Test version comparator sorting logic on linux os versions """
+        unsorted_os_versions = [
+            "32.101.~18.01",
+            "32.101.15~18",
+            "abc34~18.04",
+            "32~18.04.01",
+            "32.1~18.04.01"
+        ]
+
+        expected_sorted_os_versions = [
+            "abc34~18.04",
+            "32.101.15~18",
+            "32.101.~18.01",
+            "32.1~18.04.01",
+            "32~18.04.01"
+        ]
+
+        self.assertEqual(self.version_comparator_handler.sort_versions_desc_order(unsorted_os_versions), expected_sorted_os_versions)
 

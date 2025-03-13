@@ -19,32 +19,53 @@ import re
 
 class VersionComparatorHandler(object):
 
-    def extract_version_nums(self, path):
-        # type (str) -> (str)
+    def extract_lpe_path_version_num(self, lpe_path):
+        # type (str) -> str
         """
-        Extract the version part from a given path.
-        Path	                    Extracted Version
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.5/config "1.2.5"
-        "abc-1.2.3-alpha"	        "1.2.3"
-        "xyz-34~20.04"	            "34"
-        "some-27.14-ubuntu"	        "27.14"
-        "random-5.0.1+build"	    "5.0.1"
-        "abc"	                    ""
+        Extract the version part from a given lpe path.
+        Input	                                   Extracted Version
+        LinuxPatchExtension-1.2.25                  "1.2.25"
+        LinuxPatchExtension-1.2.250                 "1.2.250"
+        LinuxPatchExtension-1.21.2501               "1.21.2501"
+        LinuxPatchExtension-1.2.25.                 "1.2.25"
+        LinuxPatchExtension-1.2.25..                "1.2.25"
+        LinuxPatchExtension-1.2.25abc               "1.2.25"
+        LinuxPatchExtension-1.2.25.abc              "1.2.25"
+        LinuxPatchExtension-1.2.25+abc.123          "1.2.25"
+        LinuxPatchExtension-1.2.25-abc+def.123      "1.2.25"
+        LinuxPatchExtension-a.b.c                     ""
         """
-        # extract lpe version
-        if "LinuxPatchExtension" in path:
-            match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', path) # extract numbers with optional dot-separated parts
-            return match.group(1).rstrip('.') if match else ""
+        match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', lpe_path)  # extract numbers with optional dot-separated parts
+        return match.group(1).rstrip('.') if match else ""
 
-        # extract os version
-        match = re.search(r'(\d+(?:\.\d+)*)', path)  # extract numbers with optional dot-separated parts
+    def extract_os_version_nums(self, os_version):
+        # type (str) -> str
+        """
+        Extract the version part from a given os version.
+        Input os version	                        Extracted Version
+        34                                          34
+        34~18                                       34
+        34.~18.04                                   34
+        34.a+18.04.1                                34
+        34abc-18.04                                 34
+        abc34~18.04                                 34
+        abc34~18.04.123                             34
+        34~25.1.2-18.04.1                           34
+        34.1~18.04.1                                34.1
+        34.13.4                                     34.13.4
+        34.13.4~18.04.1                             34.13.4
+        34.13.4-ab+18.04.1                          34.13.4
+        34.13.4abc-18.04.1                          34.13.4
+        abc.34.13.4!@abc                            34.13.4
+        """
+        match = re.search(r'(\d+(?:\.\d+)*)', os_version)  # extract numbers with optional dot-separated parts
         return match.group(1) if match else str()
 
     def sort_versions_desc_order(self, paths):
         # type (list[str]) -> list[str]
         """
         Sort paths based on version numbers extracted from paths.
-        Input:
+        Lpe input:
             ["Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
             "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100",
             "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100"]
@@ -52,6 +73,20 @@ class VersionComparatorHandler(object):
             ["Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
             "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
             "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"]
+
+        Os Version input:
+            ["32.101~18.01",
+            "32.101.15~18",
+            "34~18.04",
+            "32~18.04.01",
+            "32.1~18.04.01"]
+
+        return:
+            ["34~18.04",
+            "32.101.15~18",
+            "32.101~18.01",
+            "32.1~18.04.01",
+            "32~18.04.01"]
         """
         return sorted(paths, key=self.__version_key,reverse=True)
 
@@ -60,7 +95,13 @@ class VersionComparatorHandler(object):
         """ Extract version number from input and return int tuple.
         Input: "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"
         Return: (1.6.100)
+
+        os version input: "34~18.04"
+        Return: (34)
         """
-        version_numbers = self.extract_version_nums(path)
+        if "LinuxPatchExtension" in path:
+            version_numbers = self.extract_lpe_path_version_num(lpe_path=path)
+        else:
+            version_numbers = self.extract_os_version_nums(os_version=path)
 
         return tuple(map(int, version_numbers.split('.'))) if version_numbers else (0, 0, 0)
