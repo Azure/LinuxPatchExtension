@@ -401,7 +401,7 @@ class TestCoreMain(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.maintenance_run_id = str(datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         argument_composer.events_folder = None
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER,Constants.VMCloudType.ARC)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER, Constants.VMCloudType.ARC)
         runtime.set_legacy_test_type('SuccessInstallPath')
         CoreMain(argument_composer.get_composed_arguments())
 
@@ -701,7 +701,7 @@ class TestCoreMain(unittest.TestCase):
     def test_auto_assessment_success_on_arc_with_configure_patching_in_prev_operation_on_same_sequence(self):
         """Unit test for auto assessment request with configure patching completed on the sequence before. Result: should retain prev substatus and update only PatchAssessmentSummary"""
         # operation #1: ConfigurePatching
-        # Here it should skip agent compatibility check as operation is configure patching [ not assessment or installation]
+        # Here it should skip agent compatibility check as operation is ConfigurePatching [ not assessment or installation]
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.CONFIGURE_PATCHING
         argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
@@ -1060,7 +1060,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.stop()
 
     def test_assessment_superseded(self):
-        """Unit test for an assessment request that gets superseded by a newer operation..
+        """Unit test for an assessment request that gets superseded by a newer operation.
         Result: Assessment should terminate with a superseded error message."""
         # Step 1: Run assessment normally to generate 0.status and ExtState.json
         argument_composer = ArgumentComposer()
@@ -1095,14 +1095,14 @@ class TestCoreMain(unittest.TestCase):
 
         # Step 3: Update sequence number in ExtState.json to mock a new incoming request
         runtime.write_ext_state_file(runtime.lifecycle_manager.ext_state_file_path, "2",
-                                  datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                                  runtime.execution_config.operation)
+                                     datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                                     runtime.execution_config.operation)
 
         raised_exit_exception = False
         # Step 4: Run Assessment again with sequence number 1 to mock an older request that should automatically terminate and report operation superseded
         try:
             CoreMain(argument_composer.get_composed_arguments())
-        except SystemExit as error:
+        except SystemExit:
             # Should raise a SystemExit exception
             raised_exit_exception = True
 
@@ -1147,7 +1147,7 @@ class TestCoreMain(unittest.TestCase):
 
         # temp_folder is set to None in ExecutionConfig with an invalid config_folder location, throws exception
         argument_composer = ArgumentComposer()
-        shutil.rmtree(argument_composer.temp_folder)
+        shutil.rmtree(str(argument_composer.temp_folder))
         argument_composer.temp_folder = None
         argument_composer.operation = Constants.ASSESSMENT
         # mock path exists check to return False on config_folder exists check
@@ -1155,8 +1155,8 @@ class TestCoreMain(unittest.TestCase):
         os.path.exists = self.mock_os_path_exists
         self.assertRaises(Exception, lambda: RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT))
         # validate temp_folder is not created
-        self.assertFalse(os.path.exists(os.path.join(os.path.curdir, "scratch", "tmp")))
         os.path.exists = backup_os_path_exists
+        self.assertFalse(os.path.exists(os.path.join(os.path.curdir, "scratch", "tmp")))
         runtime.stop()
 
     def test_delete_temp_folder_contents_success(self):
@@ -1167,8 +1167,8 @@ class TestCoreMain(unittest.TestCase):
         # add some more content
         os.mkdir(os.path.join(argument_composer.temp_folder, "azgps-src-123.d"))
         for identifier in Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST:
-            files_matched = glob.glob(str(argument_composer.temp_folder) + "/" + str(identifier))
-            self.assertTrue(len(files_matched) == (1 if "azgps" in identifier else 0))
+            items_matched = glob.glob(os.path.join(str(argument_composer.temp_folder), str(identifier)))
+            self.assertTrue(len(items_matched) == (1 if "azgps" in identifier else 0))
 
         # delete temp content
         argument_composer.operation = Constants.ASSESSMENT
@@ -1179,8 +1179,8 @@ class TestCoreMain(unittest.TestCase):
         # validate files are deleted
         self.assertTrue(argument_composer.temp_folder is not None)
         for identifier in Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST:
-            files_matched = glob.glob(str(argument_composer.temp_folder) + "/" + str(identifier))
-            self.assertTrue(len(files_matched) == 0)
+            items_matched = glob.glob(os.path.join(str(argument_composer.temp_folder), str(identifier)))
+            self.assertTrue(len(items_matched) == 0)
         runtime.stop()
 
     def test_delete_temp_folder_contents_when_none_exists(self):

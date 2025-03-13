@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import glob
 import os
 
 from extension.src.Constants import Constants
@@ -57,7 +56,7 @@ class ExtEnvHandler(object):
         self.telemetry_supported = False
 
     def get_ext_env_config_value_safely(self, key, raise_if_not_found=True):
-        """ Allows a update deployment configuration value to be queried safely with a fall-back default (optional).
+        """ Allows an update deployment configuration value to be queried safely with a fall-back default (optional).
         An exception will be raised if default_value is not explicitly set when called (considered by-design). """
         config_type = self.env_settings_all_keys.settings_parent_key
         if self.handler_environment_json is not None and len(self.handler_environment_json) != 0:
@@ -88,7 +87,7 @@ class ExtEnvHandler(object):
         if self.env_layer is not None \
                 and self.temp_folder is not None \
                 and os.path.exists(self.temp_folder):
-            self.logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]".format("*", str(self.temp_folder)))
+            self.logger.log_debug("Deleting format-matching items from temp folder. [FormatList={0}][TempFolderLocation={1}]".format("[*]", str(self.temp_folder)))
             self.env_layer.file_system.delete_from_dir(self.temp_folder, ["*"], raise_if_delete_failed=raise_if_delete_failed)
         else:
             self.logger.log_debug("Temp folder not found")
@@ -98,7 +97,7 @@ class ExtEnvHandler(object):
         if self.env_layer is not None \
                 and self.temp_folder is not None \
                 and os.path.exists(self.temp_folder):
-            self.logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]".format("*", str(self.temp_folder)))
+            self.logger.log_debug("Deleting the temp folder. [TempFolderLocation={0}]".format(str(self.temp_folder)))
             self.env_layer.file_system.remove_dir(self.temp_folder, raise_if_delete_failed=raise_if_delete_failed)
         else:
             self.logger.log_debug("Temp folder not found")
