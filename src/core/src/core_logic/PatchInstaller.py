@@ -53,8 +53,6 @@ class PatchInstaller(object):
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
-        self.__org_expected_install_packages_list = None
-        self.__org_expected_install_packages_version_list = None
         self.__enable_installation_warning_status = False
 
     def start_installation(self, simulate=False):
@@ -127,9 +125,6 @@ class PatchInstaller(object):
         # Combining maintenance
         overall_patch_installation_successful = bool(update_run_successful and not maintenance_window_exceeded)
         # NOTE: Not updating installation substatus at this point because we need to wait for the implicit/second assessment to complete first, as per CRP's instructions
-
-        # Reset expected packages and versions list:
-        self.__reset_expected_packages_and_version_list()
 
         return overall_patch_installation_successful
 
@@ -259,10 +254,6 @@ class PatchInstaller(object):
         self.status_handler.set_package_install_status(packages, package_versions, Constants.PENDING)
         self.status_handler.set_package_install_status(self.skipped_esm_packages, self.skipped_esm_package_versions, Constants.FAILED)
         self.composite_logger.log("\nList of packages to be updated: \n" + str(packages))
-
-        # Store the original list of packages and versions that were intended to be installed
-        self.__org_expected_install_packages_list = list(packages)
-        self.__org_expected_install_packages_version_list = list(package_versions)
 
         sec_packages, sec_package_versions = self.package_manager.get_security_updates()
         self.telemetry_writer.write_event("Security packages out of the final package list: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
@@ -439,12 +430,12 @@ class PatchInstaller(object):
 
     def log_final_warning_metric(self, maintenance_window, installed_update_count):
         """
-        logs the final metrics for warning installatoin status.
+        logs the final metrics for warning installation status.
         """
 
         self.__log_progress_status(maintenance_window, installed_update_count)
 
-        message = "\n\nAll supposed packages are installed."
+        message = "\n\nAll supposed package(s) are installed."
         self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.PACKAGES_RETRY_SUCCEEDED)
         self.composite_logger.log_error(message)
 
@@ -844,23 +835,29 @@ class PatchInstaller(object):
         self.composite_logger.log(progress_status)
 
     # region - Failed packages retry succeeded
-    def __reset_expected_packages_and_version_list(self):
-        self.__org_expected_install_packages_list = None
-        self.__org_expected_install_packages_version_list = None
-
     def __check_if_all_packages_installed(self):
         #type (none) -> bool
-        """ Check if all supposed packages are installed """
+        """ Check if all supposed security and critical packages are installed """
         # Get the list of installed packages
         installed_packages_list = self.status_handler.get_installation_packages_list()
-        # Create a list to store uninstalled packages
-        uninstalled_packages_list = [
-            (pkg, ver) for pkg, ver in zip(self.__org_expected_install_packages_list, self.__org_expected_install_packages_version_list)
-            if not any(installed_pkg['name'] == pkg and installed_pkg['version'] == ver and installed_pkg['patchInstallationState'] == Constants.INSTALLED for
-                       installed_pkg in installed_packages_list)
-        ]
-        # Return True if all packages are installed, otherwise return False
-        return len(uninstalled_packages_list) == 0
+        print('what is installed_packages_list', installed_packages_list)
+        # Get security and critical packages
+        security_critical_packages = []
+        for package in installed_packages_list:
+            if 'classifications' in package and any(classification in ['Security', 'Critical'] for classification in package['classifications']):
+                security_critical_packages.append(package)
+
+        # Return false there's no security/critical packages
+        if len(security_critical_packages) == 0:
+            return False
+
+        # Check if any security/critical package are not installed
+        for package in security_critical_packages:
+            if package['patchInstallationState'] != Constants.INSTALLED:
+                return False
+
+        # All security/critical packages are installed
+        return True
 
     def __sent_metadata_health_store(self):
         self.composite_logger.log_debug("[PI] Reviewing final healthstore record write. [HealthStoreId={0}][MaintenanceRunId={1}]".format(str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))

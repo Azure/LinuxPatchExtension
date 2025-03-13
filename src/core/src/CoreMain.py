@@ -96,7 +96,6 @@ class CoreMain(object):
                 patch_installation_successful = patch_installer.start_installation()
                 patch_assessment_successful = False
                 patch_assessment_successful = patch_assessor.start_assessment()
-
                 # PatchInstallationSummary to be marked as completed successfully only after the implicit (i.e. 2nd) assessment is completed, as per CRP's restrictions
                 if patch_assessment_successful and patch_installation_successful:
                     patch_installer.mark_installation_completed()
