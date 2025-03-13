@@ -1164,6 +1164,12 @@ class TestCoreMain(unittest.TestCase):
         self.assertTrue(argument_composer.temp_folder is not None)
         self.assertEqual(argument_composer.temp_folder, os.path.abspath(os.path.join(os.path.curdir, "scratch", "tmp")))
 
+        # add some more content
+        os.mkdir(os.path.join(argument_composer.temp_folder, "azgps-src-123.d"))
+        for identifier in Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST:
+            files_matched = glob.glob(str(argument_composer.temp_folder) + "/" + str(identifier))
+            self.assertTrue(len(files_matched) == (1 if "azgps" in identifier else 0))
+
         # delete temp content
         argument_composer.operation = Constants.ASSESSMENT
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
@@ -1172,8 +1178,9 @@ class TestCoreMain(unittest.TestCase):
 
         # validate files are deleted
         self.assertTrue(argument_composer.temp_folder is not None)
-        files_matched = glob.glob(str(argument_composer.temp_folder) + "/" + str(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST))
-        self.assertTrue(len(files_matched) == 0)
+        for identifier in Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST:
+            files_matched = glob.glob(str(argument_composer.temp_folder) + "/" + str(identifier))
+            self.assertTrue(len(files_matched) == 0)
         runtime.stop()
 
     def test_delete_temp_folder_contents_when_none_exists(self):
@@ -1183,12 +1190,13 @@ class TestCoreMain(unittest.TestCase):
         shutil.rmtree(runtime.execution_config.temp_folder)
 
         # attempt to delete temp content
-        runtime.env_layer.file_system.delete_files_from_dir(runtime.execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
+        runtime.env_layer.file_system.delete_from_dir(runtime.execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
 
         # validate files are deleted
         self.assertTrue(runtime.execution_config.temp_folder is not None)
-        files_matched = glob.glob(str(runtime.execution_config.temp_folder) + "/" + str(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST))
-        self.assertTrue(len(files_matched) == 0)
+        for identifier in Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST:
+            files_matched = glob.glob(str(argument_composer.temp_folder) + "/" + str(identifier))
+            self.assertTrue(len(files_matched) == 0)
         runtime.stop()
 
     def test_delete_temp_folder_contents_failure(self):
@@ -1204,11 +1212,11 @@ class TestCoreMain(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
 
         # delete temp content attempt #1, throws exception
-        self.assertRaises(Exception, lambda: runtime.env_layer.file_system.delete_files_from_dir(runtime.execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, raise_if_delete_failed=True))
+        self.assertRaises(Exception, lambda: runtime.env_layer.file_system.delete_from_dir(runtime.execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, raise_if_delete_failed=True))
         self.assertTrue(os.path.isfile(os.path.join(runtime.execution_config.temp_folder, "temp1.list")))
 
         # delete temp content attempt #2, does not throws exception
-        runtime.env_layer.file_system.delete_files_from_dir(runtime.execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
+        runtime.env_layer.file_system.delete_from_dir(runtime.execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
         self.assertTrue(os.path.isfile(os.path.join(runtime.execution_config.temp_folder, "temp1.list")))
 
         # reset os.remove() mock

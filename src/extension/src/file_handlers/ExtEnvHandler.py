@@ -89,7 +89,7 @@ class ExtEnvHandler(object):
                 and self.temp_folder is not None \
                 and os.path.exists(self.temp_folder):
             self.logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]".format("*", str(self.temp_folder)))
-            self.env_layer.file_system.delete_files_from_dir(self.temp_folder, ["*"], raise_if_delete_failed=raise_if_delete_failed)
+            self.env_layer.file_system.delete_from_dir(self.temp_folder, ["*"], raise_if_delete_failed=raise_if_delete_failed)
         else:
             self.logger.log_debug("Temp folder not found")
 

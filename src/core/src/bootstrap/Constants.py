@@ -87,7 +87,7 @@ class Constants(object):
         LAST_MODIFIED = 'LastModified'
 
     TEMP_FOLDER_DIR_NAME = "tmp"
-    TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list"]
+    TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list", "azgps*"]
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
