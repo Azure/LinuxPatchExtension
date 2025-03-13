@@ -70,7 +70,9 @@ class TestExtEnvHandler(unittest.TestCase):
         self.assertTrue(ext_env_handler.temp_folder is not None)
         self.assertEqual(ext_env_handler.temp_folder, os.path.join(test_dir, "tmp"))
 
-        # add files to tmp folder
+        # add content to tmp folder
+        os.mkdir(os.path.join(ext_env_handler.temp_folder, "azgps-src-123.d"))
+        self.assertTrue(os.path.isdir(os.path.join(ext_env_handler.temp_folder, "azgps-src-123.d")))
         self.runtime.create_temp_file(ext_env_handler.temp_folder, "Test1.list", content='')
         self.runtime.create_temp_file(ext_env_handler.temp_folder, "Test2.list", content='')
         self.assertTrue(os.path.isfile(os.path.join(ext_env_handler.temp_folder, "Test1.list")))

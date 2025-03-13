@@ -266,7 +266,7 @@ class AptitudePackageManager(PackageManager):
 
         if code != self.apt_exitcode_ok and self.STR_DPKG_WAS_INTERRUPTED in out:
             self.composite_logger.log_error('[ERROR] YOU NEED TO TAKE ACTION TO PROCEED. The package manager on this machine is not in a healthy state, and '
-                                            'Patch Management cannot proceed successfully. Before the next Pa-oDir::Etc::SourceParts=tch Operation, please run the following '
+                                            'Patch Management cannot proceed successfully. Before the next Patch Operation, please run the following '
                                             'command and perform any configuration steps necessary on the machine to return it to a healthy state: '
                                             'sudo dpkg --configure -a')
             self.telemetry_writer.write_execution_error(command, code, out)
@@ -349,7 +349,7 @@ class AptitudePackageManager(PackageManager):
         ubuntu_pro_client_security_package_versions = []
 
         self.composite_logger.log_verbose("[APM] Discovering 'security' packages...")
-        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=str())
+        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=Constants.PackageClassification.SECURITY)
         cmd = self.__generate_command_with_custom_sources(self.cmd_dist_upgrade_simulation_template, source_parts=source_parts, source_list=source_list)
         out = self.invoke_package_manager(cmd)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
@@ -466,7 +466,7 @@ class AptitudePackageManager(PackageManager):
         return
 
     def install_security_updates_azgps_coordinated(self):
-        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=str())
+        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=Constants.PackageClassification.SECURITY)
         command = self.__generate_command_with_custom_sources(self.install_security_updates_azgps_coordinated_cmd, source_parts=source_parts, source_list=source_list)
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
