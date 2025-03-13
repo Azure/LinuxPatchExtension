@@ -224,3 +224,6 @@ class Constants(object):
         AGENT_ENABLED = "AGENT_ENABLED"
         FAILED_TO_GET_AGENT_SUPPORTED_FEATURES = "FAILED_TO_GET_AGENT_SUPPORTED_FEATURES"
         FAILED_TO_GET_TELEMETRY_KEY = "FAILED_TO_GET_TELEMETRY_KEY"
+
+    class VersionComparatorHandler(EnumBackport):
+        LINUXPATCHEXTENSION = "LinuxPatchExtension"

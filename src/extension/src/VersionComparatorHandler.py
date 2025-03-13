@@ -16,6 +16,8 @@
 import os.path
 import re
 
+from extension.src.Constants import Constants
+
 
 class VersionComparatorHandler(object):
 
@@ -101,7 +103,7 @@ class VersionComparatorHandler(object):
         os version input: "34~18.04"
         Return: (34)
         """
-        if "LinuxPatchExtension" in version_input:
+        if Constants.VersionComparatorHandler.LINUXPATCHEXTENSION in version_input:
             version_numbers = self.extract_lpe_path_version_num(lpe_path=version_input)
         else:
             version_numbers = self.extract_os_version_nums(os_version=version_input)
