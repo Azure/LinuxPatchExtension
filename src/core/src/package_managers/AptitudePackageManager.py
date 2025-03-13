@@ -321,7 +321,7 @@ class AptitudePackageManager(PackageManager):
             return all_updates, all_updates_versions
 
         # when cached is False, query both default way and using Ubuntu Pro Client.
-        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=str())
+        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=Constants.PackageClassification.SECURITY)
         cmd = self.__generate_command_with_custom_sources(command_template=self.cmd_dist_upgrade_simulation_template, source_parts=source_parts, source_list=source_list)
         out = self.invoke_package_manager(cmd)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
@@ -466,7 +466,7 @@ class AptitudePackageManager(PackageManager):
         return
 
     def install_security_updates_azgps_coordinated(self):
-        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=str())
+        source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=Constants.PackageClassification.SECURITY)
         command = self.__generate_command_with_custom_sources(self.install_security_updates_azgps_coordinated_cmd, source_parts=source_parts, source_list=source_list)
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
