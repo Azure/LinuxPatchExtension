@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-
+import os.path
 import re
 
 
@@ -23,20 +23,22 @@ class VersionComparatorHandler(object):
         # type (str) -> str
         """
         Extract the version part from a given lpe path.
-        Input	                                   Extracted Version
-        LinuxPatchExtension-1.2.25                  "1.2.25"
-        LinuxPatchExtension-1.2.250                 "1.2.250"
-        LinuxPatchExtension-1.21.2501               "1.21.2501"
-        LinuxPatchExtension-1.2.25.                 "1.2.25"
-        LinuxPatchExtension-1.2.25..                "1.2.25"
-        LinuxPatchExtension-1.2.25abc               "1.2.25"
-        LinuxPatchExtension-1.2.25.abc              "1.2.25"
-        LinuxPatchExtension-1.2.25+abc.123          "1.2.25"
-        LinuxPatchExtension-1.2.25-abc+def.123      "1.2.25"
-        LinuxPatchExtension-a.b.c                     ""
+        Input	                                                                          Extracted Version
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25                  "1.2.25"
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.250                 "1.2.250"
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.2501               "1.21.2501"
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25.                 "1.2.25"
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25..                "1.2.25"
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25abc               "1.2.25"
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25.abc              "1.2.25"
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25+abc.123          "1.2.25"
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123      "1.2.25"
+        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-a.b.c                     ""
         """
-        match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', lpe_path)  # extract numbers with optional dot-separated parts
-        return match.group(1).rstrip('.') if match else ""
+
+        lpe_filename = os.path.basename(lpe_path)  # Microsoft.CPlat.Core.LinuxPatchExtension-x.x.xx
+        lpe_version = re.search(r'(\d+(?:\.\d+)*)', lpe_filename)  # extract numbers with optional dot-separated parts
+        return lpe_version.group(1).rstrip('.') if lpe_version else ""
 
     def extract_os_version_nums(self, os_version):
         # type (str) -> str
@@ -58,21 +60,21 @@ class VersionComparatorHandler(object):
         34.13.4abc-18.04.1                          34.13.4
         abc.34.13.4!@abc                            34.13.4
         """
-        match = re.search(r'(\d+(?:\.\d+)*)', os_version)  # extract numbers with optional dot-separated parts
-        return match.group(1) if match else str()
+        version_num = re.search(r'(\d+(?:\.\d+)*)', os_version)  # extract numbers with optional dot-separated parts
+        return version_num.group(1) if version_num else str()
 
-    def sort_versions_desc_order(self, paths):
+    def sort_versions_desc_order(self, version_list):
         # type (list[str]) -> list[str]
         """
         Sort paths based on version numbers extracted from paths.
         Lpe input:
-            ["Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100"]
+            ["/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
+            "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100",
+            "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100"]
         Return:
-            ["Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"]
+            ["/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
+            "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
+            "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"]
 
         Os Version input:
             ["32.101~18.01",
@@ -88,20 +90,20 @@ class VersionComparatorHandler(object):
             "32.1~18.04.01",
             "32~18.04.01"]
         """
-        return sorted(paths, key=self.__version_key,reverse=True)
+        return sorted(version_list, key=self.__version_key,reverse=True)
 
-    def __version_key(self, path):
+    def __version_key(self, version_input):
         # type (str) -> (int)
         """ Extract version number from input and return int tuple.
-        Input: "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"
+        Input: "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"
         Return: (1.6.100)
 
         os version input: "34~18.04"
         Return: (34)
         """
-        if "LinuxPatchExtension" in path:
-            version_numbers = self.extract_lpe_path_version_num(lpe_path=path)
+        if "LinuxPatchExtension" in version_input:
+            version_numbers = self.extract_lpe_path_version_num(lpe_path=version_input)
         else:
-            version_numbers = self.extract_os_version_nums(os_version=path)
+            version_numbers = self.extract_os_version_nums(os_version=version_input)
 
         return tuple(map(int, version_numbers.split('.'))) if version_numbers else (0, 0, 0)
