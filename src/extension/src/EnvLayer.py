@@ -247,7 +247,7 @@ class EnvLayer(object):
                 file_handle.close()
 
         @staticmethod
-        def delete_from_dir(dir_name, identifier_list, raise_if_delete_failed=False, include_subdirs=True):
+        def delete_from_dir(dir_name, identifier_list, raise_if_delete_failed=False):
             """ Clears all files/dirs from given dir. NOTE: Uses identifier_list to determine the content to delete """
             for identifier in identifier_list:
                 items_to_delete = glob.glob(os.path.join(str(dir_name), str(identifier)))
@@ -255,8 +255,6 @@ class EnvLayer(object):
                 for item_to_delete in items_to_delete:
                     try:
                         if os.path.isdir(item_to_delete):
-                            if not include_subdirs:
-                                continue
                             shutil.rmtree(item_to_delete)
                         else:
                             os.remove(item_to_delete)
