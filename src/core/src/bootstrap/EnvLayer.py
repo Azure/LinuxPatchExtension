@@ -433,7 +433,7 @@ class EnvLayer(object):
         def delete_from_dir(dir_name, identifier_list, raise_if_delete_failed=False, include_subdirs=True):
             """ Clears all files/dirs from given dir. NOTE: Uses identifier_list to determine the content to delete """
             for identifier in identifier_list:
-                items_to_delete = glob.glob(str(dir_name) + "/" + str(identifier))
+                items_to_delete = glob.glob(os.path.join(str(dir_name), str(identifier)))
 
                 for item_to_delete in items_to_delete:
                     try:
@@ -441,16 +441,17 @@ class EnvLayer(object):
                             if not include_subdirs:
                                 continue
                             shutil.rmtree(item_to_delete)
-                        os.remove(item_to_delete)
+                        else:
+                            os.remove(item_to_delete)
                     except Exception as error:
-                        error_message = "Unable to delete files from directory [Dir={0}][File={1}][Error={2}][RaiseIfDeleteFailed={3}].".format(
+                        error_message = "Unable to delete item from directory [Dir={0}][Item={1}][Error={2}][RaiseIfDeleteFailed={3}].".format(
                             str(dir_name), str(item_to_delete), repr(error), str(raise_if_delete_failed))
 
                         if raise_if_delete_failed:
                             raise Exception(error_message)
                         else:
                             print(error_message)
-                            return None
+                            continue
 # endregion - File system emulation and extensions
 
 # region - DateTime emulation and extensions
