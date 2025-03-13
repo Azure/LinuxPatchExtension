@@ -1195,7 +1195,7 @@ class TestCoreMain(unittest.TestCase):
         # validate files are deleted
         self.assertTrue(runtime.execution_config.temp_folder is not None)
         for identifier in Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST:
-            files_matched = glob.glob(str(argument_composer.temp_folder) + "/" + str(identifier))
+            files_matched = glob.glob(os.path.join(str(argument_composer.temp_folder), str(identifier)))
             self.assertTrue(len(files_matched) == 0)
         runtime.stop()
 
