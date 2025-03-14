@@ -1307,6 +1307,60 @@ class LegacyEnvLayerExtensions():
                                  "\n" + \
                                  "Total download size: 231 k\n" + \
                                  "Operation aborted.\n"
+            elif self.legacy_test_type == 'PackageRetrySuccessPath':
+                # Track the current call using a tmp file to simulate first failure, then success
+                is_update_cmd = False
+                
+                if isinstance(cmd, str) and 'zypper' in cmd.lower() and ('update' in cmd.lower() or 'install' in cmd.lower()) and not ('--dry-run' in cmd.lower() or 'search' in cmd.lower() or 'list-updates' in cmd.lower()):
+                    is_update_cmd = True
+                
+                if is_update_cmd:
+                    tracking_file = os.path.join(self.temp_folder_path, 'package_retry_tracking')
+                    
+                    if not os.path.exists(tracking_file):
+                        # First attempt - simulate failure
+                        with open(tracking_file, 'w') as f:
+                            f.write('failed_once')
+                        code = 1
+                        output = "Package update failed, but can be retried"
+                        return code, output
+                    else:
+                        # Second attempt - simulate success
+                        code = 0
+                        output = "Successfully installed/updated kernel-default libgoa-1_0-0\nExecution complete."
+                        return code, output
+                
+                # For non-update commands, return appropriate responses
+                if self.legacy_package_manager_name is Constants.ZYPPER:
+                    if cmd.find("list-updates") > -1:
+                        code = 0
+                        output = " Refreshing service 'cloud_update'.\n" + \
+                                " Loading repository data...\n" + \
+                                " Reading installed packages..\n" + \
+                                "S | Repository         | Name               | Current Version | Available Version | Arch\n" + \
+                                "--+--------------------+--------------------+-----------------+-------------------+-------#\n" + \
+                                "v | SLES12-SP2-Updates | kernel-default     | 4.4.38-93.1     | 4.4.49-92.11.1    | x86_64\n" + \
+                                "v | SLES12-SP2-Updates | libgoa-1_0-0       | 3.20.4-7.2      | 3.20.5-9.6        | x86_64\n"
+                    elif cmd.find("LANG=en_US.UTF8 zypper search -s") > -1:
+                        code = 0
+                        output = "Loading repository data...\n" + \
+                                "Reading installed packages...\n" + \
+                                "\n" + \
+                                "S  | Name                   | Type       | Version             | Arch   | Repository\n" + \
+                                "---+------------------------+------------+---------------------+--------+-------------------\n" + \
+                                " i | selinux-policy         | package    | 3.13.1-102.el7_3.16 | noarch | SLES12-SP2-Updates\n" + \
+                                " i | libgoa-1_0-0           | package    | 3.20.5-9.6          | noarch | SLES12-SP2-Updates\n" + \
+                                " i | kernel-default         | package    | 4.4.49-92.11.1      | noarch | SLES12-SP2-Updates\n"
+                    elif cmd.find("--dry-run") > -1:
+                        code = 0
+                        output = " Refreshing service 'SMT-http_smt-azure_susecloud_net'.\n" + \
+                                " Refreshing service 'cloud_update'.\n" + \
+                                " Loading repository data...\n" + \
+                                " Reading installed packages...\n" + \
+                                " Resolving package dependencies...\n" + \
+                                " The following package is going to be upgraded:\n" + \
+                                "   kernel-default libgoa-1_0-0\n"
+            
             major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')

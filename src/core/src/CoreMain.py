@@ -101,6 +101,9 @@ class CoreMain(object):
                 if patch_assessment_successful and patch_installation_successful:
                     patch_installer.mark_installation_completed()
                     overall_patch_installation_operation_successful = True
+                elif patch_installer.get_enabled_installation_warning_status():
+                    patch_installer.mark_installation_warning_completed()
+                    overall_patch_installation_operation_successful = True
                 self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger)
         except Exception as error:
             # Privileged operation handling for non-production use
