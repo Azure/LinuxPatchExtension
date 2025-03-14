@@ -57,6 +57,9 @@ class MockVersionResult(MockSystemModules):
     def mock_version_raise_exception(self):
         raise
 
+    def mock_pro_version(self):
+        return MockVersionResult("34~18.004.01")
+
     def mock_import_uaclient_version_module(self, mock_name, method_name):
         if sys.version_info[0] == 3:
             sys.modules['uaclient.api.u.pro.version.v1'] = types.ModuleType('version_module')
@@ -179,6 +182,15 @@ class TestUbuntuProClient(unittest.TestCase):
     def test_is_pro_working_success(self):
         obj = MockVersionResult()
         obj.mock_import_uaclient_version_module('version', 'mock_version')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager.ubuntu_pro_client.is_pro_working())
+
+        obj.mock_unimport_uaclient_version_module()
+
+    def test_is_actual_pro_version_working_success(self):
+        obj = MockVersionResult()
+        obj.mock_import_uaclient_version_module('version', 'mock_pro_version')
 
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager.ubuntu_pro_client.is_pro_working())
