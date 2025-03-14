@@ -31,21 +31,8 @@ class ExtVersionComparator(object):
             ["/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
             "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
             "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"]
-
-        Os Version input:
-            ["32.101~18.01",
-            "32.101.15~18",
-            "34~18.04",
-            "32~18.04.01",
-            "32.1~18.04.01"]
-
-        return:
-            ["34~18.04",
-            "32.101.15~18",
-            "32.101~18.01",
-            "32.1~18.04.01",
-            "32~18.04.01"]
         """
+
         return sorted(ext_paths_with_versions, key=self.__version_key, reverse=True)
 
     @staticmethod
@@ -75,9 +62,7 @@ class ExtVersionComparator(object):
         """ Extract version number from input and return int tuple.
         Input: "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"
         Return: (1.6.100)
-
-        os version input: "34~18.04"
-        Return: (34)
         """
+
         version_numbers = self.__extract_lpe_path_version_num(lpe_path=version_input)
         return tuple(map(int, version_numbers.split('.'))) if version_numbers else (0, 0, 0)
