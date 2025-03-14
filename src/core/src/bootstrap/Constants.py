@@ -382,7 +382,3 @@ class Constants(object):
         TRUE = 0
         FALSE = 1
         FLUSH = 2
-
-    class VersionComparator(EnumBackport):
-        LINUXPATCHEXTENSION = "LinuxPatchExtension"
-
