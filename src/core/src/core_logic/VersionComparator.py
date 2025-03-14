@@ -13,15 +13,12 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import os.path
 import re
-
-from core.src.bootstrap.Constants import Constants
 
 
 class VersionComparator(object):
 
-    def compare_version_nums(self, version_a, version_b):
+    def compare_versions(self, version_a, version_b):
         # type (str, str) -> int
         """ Compare two versions with handling numeric and string parts, return -1 (less), +1 (greater), 0 (equal) """
 
@@ -38,28 +35,8 @@ class VersionComparator(object):
         # If equal 27.13.4 vs 27.13.4, return 0
         return (len(parse_version_a) > len(parse_version_b)) - (len(parse_version_a) < len(parse_version_b))
 
-    def extract_lpe_path_version_num(self, lpe_path):
-        # type (str) -> str
-        """
-        Extract the version part from a given lpe path.
-        Input	                                                                          Extracted Version
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25                  "1.2.25"
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.250                 "1.2.250"
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.2501               "1.21.2501"
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25.                 "1.2.25"
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25..                "1.2.25"
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25abc               "1.2.25"
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25.abc              "1.2.25"
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25+abc.123          "1.2.25"
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123      "1.2.25"
-        /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-a.b.c                     ""
-        """
-
-        lpe_filename = os.path.basename(lpe_path)  # Microsoft.CPlat.Core.LinuxPatchExtension-x.x.xx
-        lpe_version = re.search(r'(\d+(?:\.\d+)*)', lpe_filename)  # extract numbers with optional dot-separated parts
-        return lpe_version.group(1).rstrip('.') if lpe_version else ""
-
-    def extract_os_version_nums(self, os_version):
+    @staticmethod
+    def extract_version_from_os_version_nums(os_version):
         # type (str) -> str
         """
         Extract the version part from a given os version.
@@ -82,59 +59,22 @@ class VersionComparator(object):
         version_num = re.search(r'(\d+(?:\.\d+)*)', os_version)  # extract numbers with optional dot-separated parts
         return version_num.group(1) if version_num else str()
 
-    def sort_versions_desc_order(self, version_list):
-        # type (list[str]) -> list[str]
-        """
-        Sort paths based on version numbers extracted from paths.
-        Lpe input:
-            ["/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
-            "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100",
-            "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100"]
-        Return:
-            ["/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
-            "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
-            "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"]
-
-        Os Version input:
-            ["32.101~18.01",
-            "32.101.15~18",
-            "34~18.04",
-            "32~18.04.01",
-            "32.1~18.04.01"]
-
-        return:
-            ["34~18.04",
-            "32.101.15~18",
-            "32.101~18.01",
-            "32.1~18.04.01",
-            "32~18.04.01"]
-        """
-        return sorted(version_list, key=self.__version_key, reverse=True)
-
     def __version_key(self, version_input):
         # type (str) -> (int)
         """ Extract version number from input and return int tuple.
-        Lpe input: "/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"
-        Return: (1.6.100)
-
         os version input: "34~18.04"
         Return: (34)
         """
-        if Constants.VersionComparator.LINUXPATCHEXTENSION in version_input:
-            version_numbers = self.extract_lpe_path_version_num(lpe_path=version_input)
-        else:
-            version_numbers = self.extract_os_version_nums(os_version=version_input)
-
+        version_numbers = self.extract_version_from_os_version_nums(os_version=version_input)
         return tuple(map(int, version_numbers.split('.'))) if version_numbers else (0, 0, 0)
-
-    def __split_version_components(self, version):
-        # type (str) -> [any]
-        """ Split a version into numeric and non-numeric into components list: 27.13.4~18.04.1 -> [27][14][4]"""
-        return [int(x) if x.isdigit() else x for x in re.split(r'(\d+)', version) if x]
 
     def __parse_version(self, version_components):
         # type (str) -> [[any]]
-        """ Parse the split version list into list [27][14][4] -> [[27], [14], [4]]"""
+        """ Parse the split version list into list [27][14][4] -> [[27], [14], [4]] """
         return [self.__split_version_components(x) for x in version_components.split(".")]
 
-
+    @staticmethod
+    def __split_version_components(version):
+        # type (str) -> [any]
+        """ Splits a version into numeric and non-numeric into components list: 27.13.4~18.04.1 -> [27][14][4] """
+        return [int(x) if x.isdigit() else x for x in re.split(r'(\d+)', version) if x]
