@@ -37,8 +37,8 @@ from core.src.local_loggers.FileLogger import FileLogger
 from core.src.local_loggers.CompositeLogger import CompositeLogger
 
 from core.src.package_managers.AptitudePackageManager import AptitudePackageManager
-from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.TdnfPackageManager import TdnfPackageManager
+from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
 
 from core.src.service_interfaces.LifecycleManager import LifecycleManager

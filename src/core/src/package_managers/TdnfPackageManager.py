@@ -34,8 +34,6 @@ class TdnfPackageManager(PackageManager):
 
         # Support to get updates and their dependencies
         self.tdnf_check = 'sudo tdnf -q list updates'
-        # self.tdnf_check_security_prerequisite = 'sudo tdnf -y install yum-plugin-security'
-        # self.tdnf_check_security = 'sudo tdnf update --assumeno --security'  # TODO: Check with Sam on how tdnf check-update cmd would it return version) or possibly change implementation to this
         self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME>'
         self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME>'
         self.single_package_upgrade_simulation_cmd = 'sudo tdnf install --assumeno --skip-broken '
@@ -45,10 +43,9 @@ class TdnfPackageManager(PackageManager):
         self.all_but_excluded_upgrade_cmd = 'sudo tdnf -y update --exclude='
 
         # Package manager exit code(s)
-        self.tdnf_exitcode_no_applicable_packages = 0
-        self.tdnf_exitcode_ok = 1
-        self.tdnf_exitcode_updates_available = 100
-        self.tdnf_exitcode_update_no_action_err = 8
+        self.tdnf_exitcode_ok = 0
+        self.tdnf_exitcode_on_no_action_for_install_update = 8
+        self.commands_expecting_no_action_exitcode = [self.single_package_upgrade_simulation_cmd]
 
         # Support to check for processes requiring restart
         self.dnf_utils_prerequisite = 'sudo tdnf -y install dnf-utils'
@@ -63,13 +60,15 @@ class TdnfPackageManager(PackageManager):
         # if an Auto Patching request comes in on a Azure Linux machine with Security and/or Critical classifications selected, we need to install all patches, since classifications aren't available in Azure Linux repository
         installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
         if execution_config.maintenance_run_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
+                and Constants.AZURE_LINUX in str(env_layer.platform.linux_distribution()) \
                 and 'Critical' in installation_included_classifications and 'Security' in installation_included_classifications:
-            self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since patch classification is not available in Azure Linux repository")
+            self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on Azure Linux machines")
             execution_config.included_classifications_list = [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER]
 
         self.package_install_expected_avg_time_in_seconds = 90  # Setting a default value of 90 seconds as the avg time to install a package using tdnf, might be changed later if needed.
 
     def refresh_repo(self):
+        # todo: revisit
         self.composite_logger.log("[TDNF] Refreshing local repo...")
         self.invoke_package_manager(self.cmd_repo_refresh_template)
 
@@ -79,16 +78,17 @@ class TdnfPackageManager(PackageManager):
         self.composite_logger.log_verbose("[TDNF] Invoking package manager. [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
 
-        if code not in [self.tdnf_exitcode_ok, self.tdnf_exitcode_no_applicable_packages, self.tdnf_exitcode_updates_available]\
-                and (command.startswith(self.single_package_upgrade_simulation_cmd) and code != self.tdnf_exitcode_update_no_action_err):
+        if code is self.tdnf_exitcode_ok or \
+            (any(command_expecting_no_action_exitcode in command for command_expecting_no_action_exitcode in self.commands_expecting_no_action_exitcode) and
+             code is self.tdnf_exitcode_on_no_action_for_install_update):
+            self.composite_logger.log_debug('[TDNF] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
+        else:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
             error_msg = "Customer environment error: Investigate and resolve unexpected return code ({0}) from package manager on command: {1}".format(str(code), command)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             if raise_on_exception:
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-            # more return codes should be added as appropriate
-        else:  # verbose diagnostic log
-            self.composite_logger.log_debug('[TDNF] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
+
         return out, code
 
     # region Classification-based (incl. All) update check
@@ -143,7 +143,6 @@ class TdnfPackageManager(PackageManager):
 
     def extract_packages_and_versions_including_duplicates(self, output):
         """Returns packages and versions from given output"""
-        # todo: verify usage
         self.composite_logger.log_verbose("[TDNF] Extracting package and version data...")
         packages = []
         versions = []
@@ -157,7 +156,7 @@ class TdnfPackageManager(PackageManager):
 
         for line_index in range(0, len(lines)):
             # Do not install Obsoleting Packages. The obsoleting packages list comes towards end in the output.
-            if lines[line_index].strip().startswith("Obsoleting Packages"):
+            if lines[line_index].strip().startswith("Obsoleting"):
                 break
 
             line = re.split(r'\s+', lines[line_index].strip())
@@ -189,9 +188,8 @@ class TdnfPackageManager(PackageManager):
 
     # region Install Updates
     def get_composite_package_identifier(self, package, package_version):
-        # todo: need to change this
         package_without_arch, arch = self.get_product_name_and_arch(package)
-        package_identifier = package_without_arch + '-' + self.get_package_version_without_epoch(package_version)
+        package_identifier = package_without_arch + '-' + str(package_version)
         if arch is not None:
             package_identifier += arch
         return package_identifier
@@ -277,6 +275,25 @@ class TdnfPackageManager(PackageManager):
 
         return dependencies
 
+    def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
+        """
+        Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
+        Parameters:
+        package_manager (PackageManager): Package manager used.
+        package (string): Input package for which same package name but different architecture need to be added in the list package_and_dependencies.
+        version (string): version of the package.
+        packages (List of strings): List of all packages selected by user to install.
+        package_versions (List of strings): Versions of packages in packages list.
+        package_and_dependencies (List of strings): List of packages along with dependencies. This function adds packages with same name as input parameter package
+                                                    but different architecture in this list.
+        package_and_dependency_versions (List of strings): Versions of packages in package_and_dependencies.
+        """
+        package_name_without_arch = package_manager.get_product_name_without_arch(package)
+        for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
+            if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies and possible_arch_dependency_version == version:
+                package_and_dependencies.append(possible_arch_dependency)
+                package_and_dependency_versions.append(possible_arch_dependency_version)
+
     def is_valid_update(self, package_details_in_output, package_arch_to_look_for):
         # Verifies whether the line under consideration (i.e. package_details_in_output) contains relevant package details.
         # package_details_in_output will be of the following format if it is valid
@@ -305,12 +322,10 @@ class TdnfPackageManager(PackageManager):
 
     def get_product_name(self, package_name):
         """Retrieve package name """
-        # todo: verify usage
         return package_name
 
     def get_product_name_and_arch(self, package_name):
         """Splits out product name and architecture - if this is changed, modify in PackageFilter also"""
-        # todo: verify usage
         architectures = Constants.SUPPORTED_PACKAGE_ARCH
         for arch in architectures:
             if package_name.endswith(arch):
@@ -319,33 +334,17 @@ class TdnfPackageManager(PackageManager):
 
     def get_product_name_without_arch(self, package_name):
         """Retrieve product name only"""
-        # todo: verify usage
         product_name, arch = self.get_product_name_and_arch(package_name)
         return product_name
 
     def get_product_arch(self, package_name):
         """Retrieve product architecture only"""
-        # todo: verify usage
         product_name, arch = self.get_product_name_and_arch(package_name)
         return arch
 
     def get_product_name_with_arch(self, package_detail, package_arch_to_look_for):
         """Retrieve product name with arch separated by '.'. Note: This format is default in tdnf. Refer samples noted within func extract_dependencies() for more clarity"""
         return package_detail[0] + "." + package_detail[1] if package_detail[1] in package_arch_to_look_for else package_detail[1]
-
-    def get_package_version_without_epoch(self, package_version):
-        """Returns the package version stripped of any epoch"""
-        # todo: verify usage
-        package_version_split = str(package_version).split(':', 1)
-
-        if len(package_version_split) == 2:
-            self.composite_logger.log_verbose("[TDNF]   > Removed epoch from version (" + package_version + "): " + package_version_split[1])
-            return package_version_split[1]
-
-        if len(package_version_split) != 1:
-            self.composite_logger.log_error("[TDNF] Unexpected error during version epoch removal from package version. [PackageVersion={0}]".format(package_version))
-
-        return package_version
 
     def get_package_size(self, output):
         """Retrieve package size from installation output string"""
@@ -361,6 +360,25 @@ class TdnfPackageManager(PackageManager):
     # endregion
 
     # region auto OS updates
+    def get_current_auto_os_patch_state(self):
+        """ Gets the current auto OS update patch state on the machine """
+        pass
+
+    def disable_auto_os_update(self):
+        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        pass
+
+    def backup_image_default_patch_configuration_if_not_exists(self):
+        """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
+        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
+        pass
+
+    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
+        pass
+
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value, patch_configuration_sub_setting_pattern_to_match):
+        pass
+
     # endregion
 
     # region Reboot Management
@@ -398,44 +416,6 @@ class TdnfPackageManager(PackageManager):
 
     # region To review and remove later
 
-    def get_current_auto_os_patch_state(self):
-        """ Gets the current auto OS update patch state on the machine """
-        pass
-
-    def disable_auto_os_update(self):
-        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
-        pass
-
-    def backup_image_default_patch_configuration_if_not_exists(self):
-        """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
-        We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
-        pass
-
-    def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
-        pass
-
-    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value, patch_configuration_sub_setting_pattern_to_match):
-        pass
-
-    def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
-        """
-        Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.
-        Parameters:
-        package_manager (PackageManager): Package manager used.
-        package (string): Input package for which same package name but different architecture need to be added in the list package_and_dependencies.
-        version (string): version of the package.
-        packages (List of strings): List of all packages selected by user to install.
-        package_versions (List of strings): Versions of packages in packages list.
-        package_and_dependencies (List of strings): List of packages along with dependencies. This function adds packages with same name as input parameter package
-                                                    but different architecture in this list.
-        package_and_dependency_versions (List of strings): Versions of packages in package_and_dependencies.
-        """
-        package_name_without_arch = package_manager.get_product_name_without_arch(package)
-        for possible_arch_dependency, possible_arch_dependency_version in zip(packages, package_versions):
-            if package_manager.get_product_name_without_arch(possible_arch_dependency) == package_name_without_arch and possible_arch_dependency not in package_and_dependencies and possible_arch_dependency_version == version:
-                package_and_dependencies.append(possible_arch_dependency)
-                package_and_dependency_versions.append(possible_arch_dependency_version)
-
     def set_security_esm_package_status(self, operation, packages):
         """
         Set the security-ESM classification for the esm packages. Only needed for apt. No-op for tdnf, yum and zypper.
@@ -456,3 +436,4 @@ class TdnfPackageManager(PackageManager):
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
     # endregion
+
