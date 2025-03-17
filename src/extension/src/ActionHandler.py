@@ -23,8 +23,7 @@ import time
 from extension.src.Constants import Constants
 from extension.src.EnableCommandHandler import EnableCommandHandler
 from extension.src.InstallCommandHandler import InstallCommandHandler
-from extension.src.Utility import Utility
-from extension.src.VersionComparatorHandler import VersionComparatorHandler
+from extension.src.ExtVersionComparator import ExtVersionComparator
 from extension.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 
@@ -49,7 +48,7 @@ class ActionHandler(object):
         self.file_logger = None
         self.operation_id_substitute_for_all_actions_in_telemetry = str((datetime.datetime.utcnow()).strftime(Constants.UTC_DATETIME_FORMAT))
         self.seq_no = self.ext_config_settings_handler.get_seq_no_from_env_var()
-        self.version_comparator_handler = VersionComparatorHandler()
+        self.ext_version_comparator = ExtVersionComparator()
 
     def determine_operation(self, command):
         switcher = {
@@ -228,7 +227,7 @@ class ActionHandler(object):
             self.logger.log("Fetching the extension version preceding current from all available versions...")
 
             # use custom sort logic to sort path based on version numbers
-            sorted_versions = self.version_comparator_handler.sort_versions_desc_order(paths_to_all_versions)
+            sorted_versions = self.ext_version_comparator.sort_ext_paths_desc_order(paths_to_all_versions)
             self.logger.log_debug("List of extension versions in descending order: [SortedVersion={0}]".format(sorted_versions))
 
             preceding_version_path = sorted_versions[1]

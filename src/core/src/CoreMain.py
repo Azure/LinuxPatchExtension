@@ -65,7 +65,7 @@ class CoreMain(object):
             if os.path.exists(execution_config.temp_folder):
                 composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
                                            .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
-                bootstrapper.env_layer.file_system.delete_files_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
+                bootstrapper.env_layer.file_system.delete_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
 
             patch_assessor = container.get('patch_assessor')
             package_manager = container.get('package_manager')
@@ -139,9 +139,9 @@ class CoreMain(object):
 
             # clean up temp folder of files created by Core after execution completes
             if self.is_temp_folder_available(bootstrapper.env_layer, execution_config):
-                composite_logger.log_debug("Deleting all files of certain format from temp folder [FileFormat={0}][TempFolderLocation={1}]"
+                composite_logger.log_debug("Deleting format-matching items from temp folder [FormatList={0}][TempFolderLocation={1}]"
                                            .format(Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST, str(execution_config.temp_folder)))
-                bootstrapper.env_layer.file_system.delete_files_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
+                bootstrapper.env_layer.file_system.delete_from_dir(execution_config.temp_folder, Constants.TEMP_FOLDER_CLEANUP_ARTIFACT_LIST)
 
             if lifecycle_manager is not None:
                 lifecycle_manager.update_core_sequence(completed=True)
