@@ -30,7 +30,8 @@ class TdnfPackageManager(PackageManager):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         super(TdnfPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
-        self.cmd_repo_refresh_template = "sudo tdnf clean expire-cache ; sudo tdnf -q list updates"
+        self.cmd_clean_cache = "sudo tdnf clean expire-cache"
+        self.cmd_repo_refresh_template = "sudo tdnf -q list updates"
 
         # Support to get updates and their dependencies
         self.tdnf_check = 'sudo tdnf -q list updates'
@@ -40,7 +41,6 @@ class TdnfPackageManager(PackageManager):
 
         # Install update
         self.single_package_upgrade_cmd = 'sudo tdnf -y install --skip-broken '
-        self.all_but_excluded_upgrade_cmd = 'sudo tdnf -y update --exclude='
 
         # Package manager exit code(s)
         self.tdnf_exitcode_ok = 0
@@ -68,8 +68,8 @@ class TdnfPackageManager(PackageManager):
         self.package_install_expected_avg_time_in_seconds = 90  # Setting a default value of 90 seconds as the avg time to install a package using tdnf, might be changed later if needed.
 
     def refresh_repo(self):
-        # todo: revisit
         self.composite_logger.log("[TDNF] Refreshing local repo...")
+        self.invoke_package_manager(self.cmd_clean_cache)
         self.invoke_package_manager(self.cmd_repo_refresh_template)
 
     # region Get Available Updates
@@ -106,9 +106,8 @@ class TdnfPackageManager(PackageManager):
         return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
-        """Get missing security updates"""
+        """Get missing security updates. NOTE: Classification based categorization of patches is not available in Azure Linux as of now"""
         self.composite_logger.log_verbose("[TDNF] Discovering 'security' packages...")
-        self.composite_logger.log_warning("Classification based categorization of patches is not available in Azure Linux as of now.")
         security_packages, security_package_versions = [], []
         self.composite_logger.log_debug("[TDNF] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
         return security_packages, security_package_versions
@@ -195,13 +194,7 @@ class TdnfPackageManager(PackageManager):
         return package_identifier
 
     def install_updates_fail_safe(self, excluded_packages):
-        excluded_string = ""
-        for excluded_package in excluded_packages:
-            excluded_string += excluded_package + ' '
-        cmd = self.all_but_excluded_upgrade_cmd + excluded_string
-
-        self.composite_logger.log_debug("[TDNF][FAIL SAFE MODE] UPDATING PACKAGES USING COMMAND: " + cmd)
-        self.invoke_package_manager(cmd)
+        return
 
     def install_security_updates_azgps_coordinated(self):
         pass
@@ -414,19 +407,13 @@ class TdnfPackageManager(PackageManager):
         return False
     # endregion
 
-    # region To review and remove later
-
     def set_security_esm_package_status(self, operation, packages):
-        """
-        Set the security-ESM classification for the esm packages. Only needed for apt. No-op for tdnf, yum and zypper.
-        """
+        """ Set the security-ESM classification for the esm packages. Only needed for apt. No-op for tdnf, yum and zypper."""
         pass
 
     def separate_out_esm_packages(self, packages, package_versions):
-        """
-        Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
-        Only needed for apt. No-op for tdnf, yum and zypper
-        """
+        """Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
+        Only needed for apt. No-op for tdnf, yum and zypper"""
         esm_packages = []
         esm_package_versions = []
         esm_packages_found = False
@@ -435,5 +422,4 @@ class TdnfPackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
-    # endregion
 
