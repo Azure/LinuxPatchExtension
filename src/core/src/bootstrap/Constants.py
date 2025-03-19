@@ -31,7 +31,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.57"
+    EXT_VERSION = "1.6.58"
 
     # Runtime environments
     TEST = 'Test'
@@ -87,7 +87,7 @@ class Constants(object):
         LAST_MODIFIED = 'LastModified'
 
     TEMP_FOLDER_DIR_NAME = "tmp"
-    TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list"]
+    TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list", "azgps*"]
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
@@ -376,11 +376,10 @@ class Constants(object):
     class UbuntuProClientSettings(EnumBackport):
         FEATURE_ENABLED = True
         MINIMUM_PYTHON_VERSION_REQUIRED = (3, 5)  # using tuple as we can compare this with sys.version_info. The comparison will happen in the same order. Major version checked first. Followed by Minor version.
-        MAX_OS_MAJOR_VERSION_SUPPORTED = 18
+        MAX_OS_MAJOR_VERSION_SUPPORTED = 20
         MINIMUM_CLIENT_VERSION = "27.14.4"
 
     class BufferMessage(EnumBackport):
         TRUE = 0
         FALSE = 1
         FLUSH = 2
-

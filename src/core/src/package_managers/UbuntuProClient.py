@@ -57,12 +57,12 @@ class UbuntuProClient:
             ubuntu_pro_client_version = version_result.installed_version
 
             # extract version from pro_client_verison 27.13.4~18.04.1 -> 27.13.4
-            extracted_ubuntu_pro_client_version = self.version_comparator.extract_version_nums(ubuntu_pro_client_version)
+            extracted_ubuntu_pro_client_version = self.version_comparator.extract_version_from_os_version_nums(ubuntu_pro_client_version)
 
             self.composite_logger.log_debug("Ubuntu Pro Client current version: [ClientVersion={0}]".format(str(extracted_ubuntu_pro_client_version)))
 
             # use custom comparator output 0 (equal), -1 (less), +1 (greater)
-            is_minimum_ubuntu_pro_version_installed = self.version_comparator.compare_version_nums(extracted_ubuntu_pro_client_version, Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION) >= 0
+            is_minimum_ubuntu_pro_version_installed = self.version_comparator.compare_versions(extracted_ubuntu_pro_client_version, Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION) >= 0
 
             if ubuntu_pro_client_version is not None and is_minimum_ubuntu_pro_version_installed:
                 is_ubuntu_pro_client_working = True

@@ -33,6 +33,26 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
+    def test_custom_source_invocation_for_security(self):
+        def get_custom_sources_to_spec_for_sec(max_patch_published_date=str(), base_classification=str()):
+            assert max_patch_published_date is str()
+            assert base_classification == Constants.PackageClassification.SECURITY
+            return str(), str()
+
+        def get_custom_sources_to_spec_for_sec_date(max_patch_published_date=str(), base_classification=str()):
+            assert max_patch_published_date == "2025-03-12T00:00:00Z"
+            assert base_classification == Constants.PackageClassification.SECURITY
+            return str(), str()
+
+        package_manager = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
+        package_manager._AptitudePackageManager__get_custom_sources_to_spec = get_custom_sources_to_spec_for_sec
+        package_manager.get_security_updates()
+        package_manager.install_security_updates_azgps_coordinated()
+
+        package_manager._AptitudePackageManager__get_custom_sources_to_spec = get_custom_sources_to_spec_for_sec_date
+        package_manager.set_max_patch_publish_date("2025-03-12T00:00:00Z")
+        package_manager.install_security_updates_azgps_coordinated()
+
     def test_bad_custom_sources_to_spec_invocation(self):
         package_manager = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
         sources_dir, sources_list = package_manager._AptitudePackageManager__get_custom_sources_to_spec(base_classification="other")    # invalid call

@@ -24,54 +24,35 @@ class TestVersionComparator(unittest.TestCase):
     def setUp(self):
         self.version_comparator = VersionComparator()
 
-    def test_linux_version_comparator(self):
-        # Test extract version logic
-        self.assertEqual(self.version_comparator.extract_version_nums("Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25"), "1.2.25")
-        self.assertEqual(self.version_comparator.extract_version_nums("Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc"), "1.2.25")
-        self.assertEqual(self.version_comparator.extract_version_nums("Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25+abc.123"), "1.2.25")
-        self.assertEqual(self.version_comparator.extract_version_nums("Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123"), "1.2.25")
-        self.assertEqual(self.version_comparator.extract_version_nums("Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001"), "1.21.1001")
-        self.assertEqual(self.version_comparator.extract_version_nums("Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100"), "1.6.100")
-        self.assertEqual(self.version_comparator.extract_version_nums("Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99"), "1.6.99")
-        self.assertEqual(self.version_comparator.extract_version_nums("Microsoft.CPlat.Core.LinuxPatchExtension-1.6."), "")
-        self.assertEqual(self.version_comparator.extract_version_nums("Microsoft.CPlat.Core.LinuxPatchExtension-a.b.c"), "")
+    def test_extract_version_from_os_version_nums(self):
+        """ Test extract version logic on Ubuntuproclient version """
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34"), "34")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34~18"), "34")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34.~18.04"), "34")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34.a+18.04.1"), "34")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34abc-18.04"), "34")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("abc34~18.04"), "34")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("abc34~18.04.123"), "34")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34~25.1.2-18.04.1"), "34")
 
-        expected_extracted_version = "27.13.4"
-        test_extracted_v1 = self.version_comparator.extract_version_nums("27.13.4~18.04.1")
-        test_extracted_v2 = self.version_comparator.extract_version_nums("27.13.4+18.04.1")
-        test_extracted_v3 = self.version_comparator.extract_version_nums("27.13.4-18.04.1")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34.1~18.04.1"), "34.1")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34.13.4"), "34.13.4")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34.13.4~18.04.1"), "34.13.4")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34.13.4-ab+18.04.1"), "34.13.4")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("34.13.4abc-18.04.1"), "34.13.4")
+        self.assertEqual(self.version_comparator.extract_version_from_os_version_nums("abc.34.13.4!@abc"), "34.13.4")
 
-        self.assertEqual(test_extracted_v1, expected_extracted_version)
-        self.assertEqual(test_extracted_v2, expected_extracted_version)
-        self.assertEqual(test_extracted_v3, expected_extracted_version)
+    def test_linux_os_version_comparison(self):
+        """ Test compare versions logic Ubuntuproclient version with existing vm version """
+        test_extracted_good_version = self.version_comparator.extract_version_from_os_version_nums("34.13.4~18.04.1")  # return 34
 
-        # Test compare versions logic
-        self.assertEqual(self.version_comparator.compare_version_nums(test_extracted_v1, "27.13.4"), 0) # equal
-        self.assertEqual(self.version_comparator.compare_version_nums(test_extracted_v2, "27.13.3"), 1) # greater
-        self.assertEqual(self.version_comparator.compare_version_nums(test_extracted_v3, "27.13.5"), -1) # less
+        self.assertEqual(self.version_comparator.compare_versions(test_extracted_good_version, "34.13.4"), 0)  # equal  34.13.4 == 34.13.4
+        self.assertEqual(self.version_comparator.compare_versions(test_extracted_good_version, "34.13.3"), 1)  # greater 34.13.4 > 34.13.3
+        self.assertEqual(self.version_comparator.compare_versions(test_extracted_good_version, "34.13.5"), -1)  # less 34.13.4 < 34.13.5
 
-        # Test sort versions logic
-        unsorted_path_versions = [
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc",
-        ]
+        test_extracted_bad_version = self.version_comparator.extract_version_from_os_version_nums("abc~18.04.1")  # return ""
+        self.assertEqual(self.version_comparator.compare_versions(test_extracted_bad_version, "34.13.4"), -1)  # less "" < 34.13.4
 
-        expected_sorted_path_versions = [
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.1001",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.21.100",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.100",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.6.99",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc+def.123",
-            "Microsoft.CPlat.Core.LinuxPatchExtension-1.2.25-abc"
-        ]
-
-        # valid versions
-        self.assertEqual(self.version_comparator.sort_versions_desc_order(unsorted_path_versions), expected_sorted_path_versions)
 
 if __name__ == '__main__':
     unittest.main()
-
