@@ -331,7 +331,7 @@ class PatchInstaller(object):
             # package_and_dependencies initially contains only one package. The dependencies are added in the list by method include_dependencies
             package_and_dependencies = [package]
             package_and_dependency_versions = [version]
-
+            
             self.include_dependencies(package_manager, [package], [version], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # parent package install (+ dependencies) and parent package result management
@@ -400,7 +400,7 @@ class PatchInstaller(object):
 
         sequential_processing_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesSequentially", "InstalledPackagesCountInSequentialProcessing",
                                          install_update_count_in_sequential_patching, "AttemptedParentPackageInstallCount", attempted_parent_package_install_count_in_sequential_patching,
-                                         "SuccessfulParentPackageInstallCount", successful_parent_package_install_count_in_sequential_patching, "FailedParentPackageInstallCount",
+                                         "SuccessfulParentPackageInstallCount", successful_parent_package_install_count_in_sequential_patching, "FailedParentPackageInstallCount", 
                                          failed_parent_package_install_count_after_sequential_patching)
 
         stopwatch_for_sequential_install_process.stop_and_write_telemetry(sequential_processing_perf_log)
@@ -410,7 +410,7 @@ class PatchInstaller(object):
     def log_final_metrics(self, maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count):
         """
         logs the final metrics.
-
+        
         Parameters:
         maintenance_window (MaintenanceWindow): Maintenance window for the job.
         patch_installation_successful (bool): Whether patch installation succeeded.
@@ -441,7 +441,7 @@ class PatchInstaller(object):
     def include_dependencies(self, package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add dependent packages in the list of packages to install i.e. package_and_dependencies.
-
+        
         Parameters:
         package_manager (PackageManager): Package manager used.
         packages_in_batch (List of strings): List of packages to be installed in the current batch.
@@ -449,7 +449,7 @@ class PatchInstaller(object):
         all_package_versions (List of strings): Versions of packages in all_packages.
         packages (List of strings): List of all packages selected by user to install.
         package_versions (List of strings): Versions of packages in packages list.
-        package_and_dependencies (List of strings): List of packages selected by user along with packages they are dependent on. The input package_and_dependencies
+        package_and_dependencies (List of strings): List of packages selected by user along with packages they are dependent on. The input package_and_dependencies 
                                                     does not contain dependent packages. The dependent packages are added in the list in this function.
         package_and_dependency_versions (List of strings): Versions of packages in package_and_dependencies. Input list does not contain versions of the dependent packages.
                                                            The version of dependent packages are added in the list in this function.
@@ -531,9 +531,9 @@ class PatchInstaller(object):
     def install_packages_in_batches(self, all_packages, all_package_versions, packages, package_versions, maintenance_window, package_manager, max_batch_size_for_packages, simulate=False):
         """
         Install packages in batches.
-
+        
         Parameters:
-
+        
         all_packages (List of strings): List of all available packages to install.
         all_package_versions (List of strings): Versions of the packages in the list all_packages.
         packages (List of strings): List of all packages selected by user to install.
@@ -542,16 +542,16 @@ class PatchInstaller(object):
         package_manager (PackageManager): Package manager used.
         max_batch_size_for_packages (Integer): Maximum batch size.
         simulate (bool): Whether this function is called from a test run.
-
+        
         Returns:
         installed_update_count (int): Number of packages installed through installing packages in batches.
         patch_installation_successful (bool): Whether package installation succeeded for all attempted packages.
         maintenance_window_batch_cutoff_reached (bool): Whether process of installing packages in batches stopped due to not enough time in maintenance window
                                                         to install packages in batch.
-        not_attempted_and_failed_packages (List of strings): List of packages which are (a) Not attempted due to not enough time in maintenance window to install in batch.
+        not_attempted_and_failed_packages (List of strings): List of packages which are (a) Not attempted due to not enough time in maintenance window to install in batch. 
                                                              (b) Failed to install in batch patching.
         not_attempted_and_failed_package_versions (List of strings): Versions of packages in the list not_attempted_and_failed_packages.
-
+        
         """
         number_of_batches = int(math.ceil(len(packages) / float(max_batch_size_for_packages)))
         self.composite_logger.log("\nDividing package install in batches. \nNumber of packages to be installed: " + str(len(packages)) + "\nBatch Size: " + str(max_batch_size_for_packages) + "\nNumber of batches: " + str(number_of_batches))
@@ -563,8 +563,8 @@ class PatchInstaller(object):
         # These packages will be attempted in sequential installation if there is enough time in maintenance window to install package sequentially.
         remaining_packages = []
         remaining_package_versions = []
-
-        # failed_packages are the packages which are failed to install in batch patching. These packages will be attempted again in sequential patching if there is
+        
+        # failed_packages are the packages which are failed to install in batch patching. These packages will be attempted again in sequential patching if there is 
         # enough time remaining in maintenance window.
         failed_packages = []
         failed_package_versions = []
