@@ -19,7 +19,6 @@ import datetime
 import math
 import sys
 import time
-
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.Stopwatch import Stopwatch
 
