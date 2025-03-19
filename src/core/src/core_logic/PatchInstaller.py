@@ -135,7 +135,7 @@ class PatchInstaller(object):
         except Exception as error:
             self.composite_logger.log_debug("Error in writing patch installation performance logs. Error is: " + repr(error))
 
-        patch_installation_perf_log = "testtest[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}][{16}={17}][{18}={19}][{20}={21}]".format(
+        patch_installation_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}][{16}={17}][{18}={19}][{20}={21}]".format(
                                        Constants.PerfLogTrackerParams.TASK, Constants.INSTALLATION, Constants.PerfLogTrackerParams.TASK_STATUS, str(task_status), Constants.PerfLogTrackerParams.ERROR_MSG, error_msg,
                                        Constants.PerfLogTrackerParams.PACKAGE_MANAGER, self.package_manager_name, Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_operation_successful),
                                        Constants.PerfLogTrackerParams.INSTALLED_PATCH_COUNT, str(installed_patch_count), Constants.PerfLogTrackerParams.RETRY_COUNT, str(retry_count),
@@ -839,7 +839,6 @@ class PatchInstaller(object):
         """ Check if all supposed security and critical packages are installed """
         # Get the list of installed packages
         installed_packages_list = self.status_handler.get_installation_packages_list()
-        print('what is installed_packages_list', installed_packages_list)
         # Get security and critical packages
         security_critical_packages = []
         for package in installed_packages_list:
