@@ -496,7 +496,7 @@ class PatchInstaller(object):
 
         stopwatch_for_batch_install_process.stop()
 
-        batch_processing_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesInBatches", 
+        batch_processing_perf_log = "testtes12[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesInBatches",
                                     "InstalledPackagesCountInBatchProcessing", str(installed_update_count_in_batch_patching), "AttemptedParentPackageInstallCount", self.attempted_parent_package_install_count,
                                     "SuccessfulParentPackageInstallCount", self.successful_parent_package_install_count, "FailedParentPackageInstallCount", self.failed_parent_package_install_count,
                                     "RemainingPackagesToInstall", str(len(packages)), Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_installation_successful_in_batch_patching),
@@ -646,7 +646,7 @@ class PatchInstaller(object):
             # dependency package result management fallback (not reliable enough to be used as primary, and will be removed; remember to retain last_still_needed refresh when you do that)
             installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, condition=(self.attempted_parent_package_install_count % Constants.PACKAGE_STATUS_REFRESH_RATE_IN_SECONDS == 0))  # reconcile status after every 10 attempted installs
 
-            per_batch_install_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallBatchOfPackages",
+            per_batch_install_perf_log = "testtest[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallBatchOfPackages",
                                          "PackagesInBatch", str(packages_in_batch), "PackageAndDependencies", str(package_and_dependencies), "PackageAndDependencyVersions", str(package_and_dependency_versions),
                                          "NumberOfParentPackagesInstalled", str(parent_packages_installed_in_batch_count), "NumberOfParentPackagesFailed", str(parent_packages_failed_in_batch_count),
                                          "NumberOfDependenciesInstalled", str(number_of_dependencies_installed), "NumberOfDependenciesFailed", str(number_of_dependencies_failed))
