@@ -501,7 +501,7 @@ class PatchInstaller(object):
 
             stopwatch_for_phase.stop()
 
-            batch_phase_processing_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesInBatchInDifferentPhases",
+            batch_phase_processing_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesInBatchInDifferentPhases", 
                                          "Phase", str(phase), "InstalledPackagesCount", str(installed_update_count), "SuccessfulParentPackageInstallCount", self.successful_parent_package_install_count, "FailedParentPackageInstallCount",
                                          self.failed_parent_package_install_count, "RemainingPackagesToInstall", str(len(packages)), Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_installation_successful),
                                          "IsMaintenanceWindowBatchCutoffReached", str(maintenance_window_batch_cutoff_reached))
@@ -518,7 +518,7 @@ class PatchInstaller(object):
 
         stopwatch_for_batch_install_process.stop()
 
-        batch_processing_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesInBatches",
+        batch_processing_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}][{12}={13}][{14}={15}]".format(Constants.PerfLogTrackerParams.TASK, "InstallPackagesInBatches", 
                                     "InstalledPackagesCountInBatchProcessing", str(installed_update_count_in_batch_patching), "AttemptedParentPackageInstallCount", self.attempted_parent_package_install_count,
                                     "SuccessfulParentPackageInstallCount", self.successful_parent_package_install_count, "FailedParentPackageInstallCount", self.failed_parent_package_install_count,
                                     "RemainingPackagesToInstall", str(len(packages)), Constants.PerfLogTrackerParams.PATCH_OPERATION_SUCCESSFUL, str(patch_installation_successful_in_batch_patching),
