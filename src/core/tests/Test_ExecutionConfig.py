@@ -34,7 +34,8 @@ class TestExecutionConfig(unittest.TestCase):
             [str(), str()],
             ["pub_off_sku_20.09.29", str()],
             ["pub_off_sku_2020.9.29", str()],
-            ["pub_off_sk_u2020.09.29", str()]
+            ["pub_off_sk_u2020.09.29", str()],
+            ["x_2020.09.29", "20200929T000000Z"]    # theoretically okay
         ]
 
         argument_composer = ArgumentComposer()
