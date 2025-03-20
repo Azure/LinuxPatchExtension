@@ -27,42 +27,20 @@ class TestExecutionConfig(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_healthstoreid_acceptable_format(self):
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = str("pub_off_sku_2020.09.29")
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        self.assertTrue(runtime.execution_config.max_patch_publish_date == "20200929T000000Z")
-        runtime.stop()
+    def test_get_max_patch_publish_date(self):
+        test_input_output_table = [
+            ["pub_off_sku_2020.09.29", "20200929T000000Z"],
+            ["pu_b_off_sk_u_2020.09.29", "20200929T000000Z"],
+            [str(), str()],
+            ["pub_off_sku_20.09.29", str()],
+            ["pub_off_sku_2020.9.29", str()],
+            ["pub_off_sk_u2020.09.29", str()]
+        ]
 
         argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = str("pu_b_off_sk_u_2020.09.29")
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        self.assertTrue(runtime.execution_config.max_patch_publish_date == "20200929T000000Z")
-        runtime.stop()
-
-    def test_healthstoreid_unacceptable_format(self):
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = str()
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        self.assertTrue(runtime.execution_config.max_patch_publish_date == str())
-        runtime.stop()
-
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = str("pub_off_sku_20.09.29")
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        self.assertTrue(runtime.execution_config.max_patch_publish_date == str())
-        runtime.stop()
-
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = str("pub_off_sku_2020.9.29")
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        self.assertTrue(runtime.execution_config.max_patch_publish_date == str())
-        runtime.stop()
-
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = str("pub_off_sk_u2020.09.29")
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        self.assertTrue(runtime.execution_config.max_patch_publish_date == str())
+        for row in test_input_output_table:
+            self.assertEqual(runtime.execution_config._ExecutionConfig__get_max_patch_publish_date(row[0]), row[1])
         runtime.stop()
 
 
