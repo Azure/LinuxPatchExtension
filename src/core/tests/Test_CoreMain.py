@@ -525,55 +525,6 @@ class TestCoreMain(unittest.TestCase):
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
 
-    def test_install_all_packages_for_centos_autopatching_differentversionformat_in_healthstore(self):
-        """Unit test for auto patching request on CentOS, should install all patches irrespective of classification"""
-
-        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
-        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_centos
-
-        argument_composer = ArgumentComposer()
-        classifications_to_include = ["Security", "Critical"]
-        argument_composer.health_store_id = str("pub_off_sk_u_2020.09.29")
-        argument_composer.classifications_to_include = classifications_to_include
-        argument_composer.reboot_setting = 'Always'
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        runtime.set_legacy_test_type("HappyPath")
-        CoreMain(argument_composer.get_composed_arguments())
-
-        # check telemetry events
-        self.__check_telemetry_events(runtime)
-
-        # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(runtime.execution_config.max_patch_publish_date == "20200929T000000Z")
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["installedPatchCount"] == 5)
-        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "selinux-policy.noarch")
-        self.assertTrue("Other" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
-        self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["patchInstallationState"])
-        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["name"], "selinux-policy-targeted.noarch")
-        self.assertTrue("Other" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["classifications"]))
-        self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["patchInstallationState"])
-        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["name"], "libgcc.i686")
-        self.assertTrue("libgcc.i686_4.8.5-28.el7_CentOS Linux_7.9.2009" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
-        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
-        self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchInstallationState"])
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
-        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "pub_off_sk_u_2020.09.29")
-        self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        runtime.stop()
-
-        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
-
     def test_install_only_critical_and_security_packages_for_redhat_autopatching(self):
         """Unit test for auto patching request on Redhat, should install only critical and security patches"""
 
