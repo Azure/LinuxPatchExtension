@@ -101,7 +101,7 @@ class ServiceManager(SystemctlManager):
         service_unit_content = service_unit_content_template.format(desc, after, service_type, exec_start, wanted_by)
         service_unit_path = self.__systemd_service_unit_path.format(self.service_name)
         self.env_layer.file_system.write_with_retry(service_unit_path, service_unit_content)
-        self.env_layer.run_command_output("sudo chmod a+x " + service_unit_path)
+        self.env_layer.run_command_output("sudo chmod 644 " + service_unit_path)
     # endregion
 
 
