@@ -108,9 +108,9 @@ class ExecutionConfig(object):
         """ Obtains implicit date ceiling for published date - converts pub_off_sku_2024.04.01 to 20240401T000000Z """
         max_patch_publish_date = str()
         if health_store_id is not None and health_store_id != "":
-            split = health_store_id.split("_")
-            if len(split) == 4 and len(split[3]) == 10:
-                max_patch_publish_date = "{0}T000000Z".format(split[3].replace(".", ""))
+            split = health_store_id.rsplit("_", 1)
+            if len(split) == 2 and len(split[1]) == 10:
+                max_patch_publish_date = "{0}T000000Z".format(split[1].replace(".", ""))
 
         self.composite_logger.log_debug("[EC] Getting max patch publish date. [MaxPatchPublishDate={0}][HealthStoreId={1}]".format(str(max_patch_publish_date), str(health_store_id)))
         return max_patch_publish_date

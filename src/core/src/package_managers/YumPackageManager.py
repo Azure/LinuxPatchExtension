@@ -84,7 +84,7 @@ class YumPackageManager(PackageManager):
 
         # if an Auto Patching request comes in on a CentOS machine with Security and/or Critical classifications selected, we need to install all patches
         installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
-        if execution_config.maintenance_run_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
+        if execution_config.health_store_id is not str() and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
                 and 'CentOS' in str(env_layer.platform.linux_distribution()) \
                 and 'Critical' in installation_included_classifications and 'Security' in installation_included_classifications:
             self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on CentOS machines")
