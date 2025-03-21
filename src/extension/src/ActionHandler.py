@@ -352,7 +352,7 @@ class ActionHandler(object):
                                       "\r\n# Copyright 2021 Microsoft Corporation" + \
                                       "\r\n printf \"Auto-assessment was paused by the Azure Linux Patch Extension.\""
                 self.env_layer.file_system.write_with_retry(auto_assess_sh_path, auto_assess_sh_data)
-                self.env_layer.run_command_output("chmod 744 " + auto_assess_sh_path)
+                self.env_layer.run_command_output("chmod 744 " + auto_assess_sh_path) # 744 = Owner: RWX; Group: R; Others: R
 
                 # Clear temp folder
                 self.ext_env_handler.delete_temp_folder_contents()

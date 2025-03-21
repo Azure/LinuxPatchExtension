@@ -126,7 +126,7 @@ class ProcessHandler(object):
             if os.path.exists(auto_assess_sh_path):
                 os.remove(auto_assess_sh_path)
             self.env_layer.file_system.write_with_retry(auto_assess_sh_path, auto_assess_sh_data)
-            self.env_layer.run_command_output("chmod 744 " + auto_assess_sh_path)
+            self.env_layer.run_command_output("chmod 744 " + auto_assess_sh_path)  # 744 = Owner: RWX; Group: R; Others: R
 
             self.logger.log_debug("Completed staging auto assessment shell script with latest config.")
         except Exception as error:

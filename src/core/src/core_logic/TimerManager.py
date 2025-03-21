@@ -114,5 +114,5 @@ class TimerManager(SystemctlManager):
         timer_unit_content = timer_unit_content_template.format(desc, on_boot_sec, on_unit_active_sec)
         timer_unit_path = self.__systemd_timer_unit_path.format(self.service_name)
         self.env_layer.file_system.write_with_retry(timer_unit_path, timer_unit_content)
-        self.env_layer.run_command_output("sudo chmod 644 " + timer_unit_path)
+        self.env_layer.run_command_output("sudo chmod 644 " + timer_unit_path)  # 644 = Owner: RW; Group: R; Others: R
     # endregion
