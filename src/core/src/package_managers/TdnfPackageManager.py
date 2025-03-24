@@ -15,10 +15,8 @@
 # Requires Python 2.7+
 
 """TdnfPackageManager for Azure Linux"""
-import datetime
 import os
 import re
-import time
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
@@ -59,7 +57,7 @@ class TdnfPackageManager(PackageManager):
 
         # if an Auto Patching request comes in on a Azure Linux machine with Security and/or Critical classifications selected, we need to install all patches, since classifications aren't available in Azure Linux repository
         installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
-        if execution_config.maintenance_run_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
+        if execution_config.health_store_id is not str() and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
                 and Constants.AZURE_LINUX in str(env_layer.platform.linux_distribution()) \
                 and 'Critical' in installation_included_classifications and 'Security' in installation_included_classifications:
             self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on Azure Linux machines")
@@ -115,8 +113,7 @@ class TdnfPackageManager(PackageManager):
     def get_other_updates(self):
         """Get missing other updates"""
         self.composite_logger.log_verbose("[TDNF] Discovering 'other' packages...")
-        other_packages = []
-        other_package_versions = []
+        other_packages, other_package_versions = [], []
 
         all_packages, all_package_versions = self.get_all_updates(True)
         security_packages, security_package_versions = self.get_security_updates()
@@ -143,8 +140,7 @@ class TdnfPackageManager(PackageManager):
     def extract_packages_and_versions_including_duplicates(self, output):
         """Returns packages and versions from given output"""
         self.composite_logger.log_verbose("[TDNF] Extracting package and version data...")
-        packages = []
-        versions = []
+        packages, versions = [], []
         package_extensions = Constants.SUPPORTED_PACKAGE_ARCH
 
         def is_package(chunk):
