@@ -39,6 +39,7 @@ from core.src.local_loggers.CompositeLogger import CompositeLogger
 from core.src.package_managers.AptitudePackageManager import AptitudePackageManager
 from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
+from core.src.package_managers.TdnfPackageManager import TdnfPackageManager
 
 from core.src.service_interfaces.LifecycleManager import LifecycleManager
 from core.src.service_interfaces.LifecycleManagerAzure import LifecycleManagerAzure
@@ -71,14 +72,17 @@ class ConfigurationFactory(object):
             'apt_prod_config':    self.new_prod_configuration(Constants.APT, AptitudePackageManager),
             'yum_prod_config':    self.new_prod_configuration(Constants.YUM, YumPackageManager),
             'zypper_prod_config': self.new_prod_configuration(Constants.ZYPPER, ZypperPackageManager),
+            'tdnf_prod_config':   self.new_prod_configuration(Constants.TDNF, TdnfPackageManager),
 
             'apt_dev_config':     self.new_dev_configuration(Constants.APT, AptitudePackageManager),
             'yum_dev_config':     self.new_dev_configuration(Constants.YUM, YumPackageManager),
             'zypper_dev_config':  self.new_dev_configuration(Constants.ZYPPER, ZypperPackageManager),
+            'tdnf_dev_config':    self.new_dev_configuration(Constants.TDNF, TdnfPackageManager),
 
             'apt_test_config':    self.new_test_configuration(Constants.APT, AptitudePackageManager),
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
-            'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
+            'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager),
+            'tdnf_test_config':   self.new_test_configuration(Constants.TDNF, TdnfPackageManager),
         }
 
     # region - Configuration Getters
@@ -112,7 +116,7 @@ class ConfigurationFactory(object):
             print ("Error: Environment configuration not supported - " + str(env))
             return None
 
-        if str(package_manager_name) not in [Constants.APT, Constants.YUM, Constants.ZYPPER]:
+        if str(package_manager_name) not in [Constants.APT, Constants.YUM, Constants.ZYPPER, Constants.TDNF]:
             print ("Error: Package manager configuration not supported - " + str(package_manager_name))
             return None
 
