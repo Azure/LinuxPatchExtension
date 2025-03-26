@@ -440,9 +440,7 @@ class TestCoreMain(unittest.TestCase):
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_centos
 
         argument_composer = ArgumentComposer()
-        maintenance_run_id = "9/28/2020 02:00:00 PM +00:00"
         classifications_to_include = ["Security", "Critical"]
-        argument_composer.maintenance_run_id = str(maintenance_run_id)
         argument_composer.health_store_id = str("pub_off_sku_2020.09.29")
         argument_composer.classifications_to_include = classifications_to_include
         argument_composer.reboot_setting = 'Always'
@@ -457,6 +455,7 @@ class TestCoreMain(unittest.TestCase):
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 4)
+        self.assertTrue(runtime.execution_config.max_patch_publish_date == "20200929T000000Z")
         self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
         self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
