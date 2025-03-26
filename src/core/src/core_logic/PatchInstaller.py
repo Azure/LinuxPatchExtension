@@ -283,7 +283,7 @@ class PatchInstaller(object):
         successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
 
         if len(packages) == 0:
-            if not patch_installation_successful and not maintenance_window_exceeded and self.__check_if_all_packages_installed:
+            if not patch_installation_successful and not maintenance_window_exceeded and self.__check_all_requested_packages_install_state:
                 self.log_final_warning_metric(maintenance_window, installed_update_count)
                 self.__enable_installation_warning_status = True
             else:
@@ -387,7 +387,7 @@ class PatchInstaller(object):
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
 
-        if not patch_installation_successful and not maintenance_window_exceeded and self.__check_if_all_packages_installed():
+        if not patch_installation_successful and not maintenance_window_exceeded and self.__check_all_requested_packages_install_state():
             self.log_final_warning_metric(maintenance_window, installed_update_count)
             self.__enable_installation_warning_status = True
         else:
@@ -428,13 +428,11 @@ class PatchInstaller(object):
             self.composite_logger.log_error(message)
 
     def log_final_warning_metric(self, maintenance_window, installed_update_count):
-        """
-        logs the final metrics for warning installation status.
-        """
+        """ Log the final metrics for warning installation status. """
 
         self.__log_progress_status(maintenance_window, installed_update_count)
 
-        message = "\n\nAll supposed package(s) are installed."
+        message = "\n\nAll requested package(s) are installed. Any patch errors marked are from previous attempts."
         self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.PACKAGES_RETRY_SUCCEEDED)
         self.composite_logger.log_error(message)
 
@@ -705,17 +703,17 @@ class PatchInstaller(object):
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
 
         # Update patch metadata in status for auto patching request, to be reported to healthStore
-        self.__sent_metadata_health_store()
+        self.__send_metadata_health_store()
 
-    def mark_installation_warning_completed(self):
+    def mark_installation_completed_with_warning(self):
         """ Marks Installation operation as warning by updating the status of PatchInstallationSummary as warning and patch metadata to be sent to healthstore.
         This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as warning only after the implicit (2nd) assessment operation
-        and all supposed packages are installed as expected
-        """
+        and all supposed packages are installed as expected. """
+
         self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
 
         # Update patch metadata in status for auto patching request, to be reported to healthStore
-        self.__sent_metadata_health_store()
+        self.__send_metadata_health_store()
 
     # region Installation Progress support
     def perform_status_reconciliation_conditionally(self, package_manager, condition=True):
@@ -834,9 +832,10 @@ class PatchInstaller(object):
         self.composite_logger.log(progress_status)
 
     # region - Failed packages retry succeeded
-    def __check_if_all_packages_installed(self):
+    def __check_all_requested_packages_install_state(self):
         #type (none) -> bool
-        """ Check if all supposed security and critical packages are installed """
+        """ Check if all requested security and critical packages are installed. """
+
         # Get the list of installed packages
         installed_packages_list = self.status_handler.get_installation_packages_list()
         # Get security and critical packages
@@ -857,7 +856,7 @@ class PatchInstaller(object):
         # All security/critical packages are installed
         return True
 
-    def __sent_metadata_health_store(self):
+    def __send_metadata_health_store(self):
         self.composite_logger.log_debug("[PI] Reviewing final healthstore record write. [HealthStoreId={0}][MaintenanceRunId={1}]".format(str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))
         if self.execution_config.health_store_id is not None:
             self.status_handler.set_patch_metadata_for_healthstore_substatus_json(
