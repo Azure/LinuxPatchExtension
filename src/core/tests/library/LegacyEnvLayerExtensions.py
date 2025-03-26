@@ -600,6 +600,26 @@ class LegacyEnvLayerExtensions():
                                  "Total installed size:  78.16k\n" + \
                                  "Total download size: 135.09k\n" + \
                                  "Error(1032) : Operation aborted.\n"
+                    elif cmd.find("list installed") > -1:
+                        code = 0
+                        package = cmd.replace('sudo tdnf list installed ', '')
+                        whitelisted_versions = [
+                            '3.0-16.azl3', '3.0-3.azl3', '2.5.4-1.azl3', '2.11.5-1.azl3', '102-7.azl3', '6.6.78.1-1.azl3']  # any list of versions you want to work for *any* package
+                        output = "Loaded plugin: tdnfrepogpgcheck\n"
+                        template = "<PACKAGE>               <VERSION>                             @System\n"
+                        for version in whitelisted_versions:
+                            entry = template.replace('<PACKAGE>', package)
+                            entry = entry.replace('<VERSION>', version)
+                            output += entry
+                    elif cmd.find("systemctl list-unit-files --type=service") > -1:
+                        code = 0
+                        output = 'Auto update service installed'
+                    elif cmd.find("systemctl is-enabled ") > -1:
+                        code = 0
+                        output = 'disabled'
+                    elif cmd.find("systemctl disable ") > -1:
+                        code = 0
+                        output = 'Auto update service disabled'
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -707,6 +727,13 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security') > -1:
                         code = 102
                         output = ''
+                if self.legacy_package_manager_name is Constants.TDNF:
+                    if cmd.find("systemctl list-unit-files --type=service") > -1:
+                        code = 0
+                        output = 'Auto update service installed'
+                    elif cmd.find("systemctl is-enabled ") > -1:
+                        code = 0
+                        output = 'enabled'
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
@@ -1308,7 +1335,18 @@ class LegacyEnvLayerExtensions():
                                  "    grub2-tools.x86_64                                      " + \
                                  "1:2.02-123.el8                                      " + \
                                  "@System\n"
-
+                if self.legacy_package_manager_name is Constants.TDNF:
+                    if cmd.find("tdnf list available python3") > -1:
+                        code = 0
+                        output = "Loaded plugin: tdnfrepogpgcheck\n" + \
+                                 "python3.x86_64                3.12.3-1.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-2.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-4.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-5.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-6.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.9-1.azl3                   azurelinux-official-base\n" + \
+                                 "Obsoleting:\n" + \
+                                 "python.x86_64                 2.7.9-1.azl3                    azurelinux-official-base\n"
             elif self.legacy_test_type == 'YumVersion4Dependency':
                 if self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("--version") > -1:

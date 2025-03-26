@@ -17,9 +17,8 @@ import json
 import os
 import unittest
 from core.src.bootstrap.Constants import Constants
-from core.src.package_managers import TdnfPackageManager
-from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
+from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
@@ -33,6 +32,12 @@ class TestTdnfPackageManager(unittest.TestCase):
 
     # region Mocks
     def mock_do_processes_require_restart_raise_exception(self):
+        raise Exception
+
+    def mock_linux_distribution_to_return_azure_linux(self):
+        return ['Microsoft Azure Linux', '3.0', '']
+
+    def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
     # endregion
 
@@ -109,11 +114,17 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.assertEqual("3.0-16.azl3", package_versions[0])
         self.assertEqual("3.0-3.azl3", package_versions[1])
 
-        # test for get_package_size
+        # test for get_package_size when size is available
         cmd = package_manager.single_package_upgrade_cmd + "curl"
         code, out = self.runtime.env_layer.run_command_output(cmd, False, False)
         size = package_manager.get_package_size(out)
         self.assertEqual(size, "661.34k")
+
+        # test for get_package_size when size is not available
+        cmd = package_manager.single_package_upgrade_cmd + "systemd"
+        code, out = self.runtime.env_layer.run_command_output(cmd, False, False)
+        size = package_manager.get_package_size(out)
+        self.assertEqual(size, Constants.UNKNOWN_PACKAGE_SIZE)
 
         # test for all available versions
         package_versions = package_manager.get_all_available_versions_of_package("python3")
@@ -220,6 +231,18 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.assertEqual(package_manager.get_product_name_without_arch("test.noarch"), "test")
         self.assertEqual(package_manager.get_product_name_without_arch("noextension"), "noextension")
         self.assertEqual(package_manager.get_product_name_without_arch("noextension.ext"), "noextension.ext")
+
+    def test_get_product_arch(self):
+        """Unit test for retrieving product arch"""
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+        package_filter = self.container.get('package_filter')
+        self.assertTrue(package_filter is not None)
+        self.assertEqual(package_manager.get_product_arch("bash.x86_64"), ".x86_64")
+        self.assertEqual(package_manager.get_product_arch("firefox.x86_64"), ".x86_64")
+        self.assertEqual(package_manager.get_product_arch("test.noarch"), ".noarch")
+        self.assertEqual(package_manager.get_product_arch("noextension"), None)
+        self.assertEqual(package_manager.get_product_arch("noextension.ext"), None)
 
     def test_inclusion_type_all(self):
         """Unit test for tdnf package manager Classification = all and IncludedPackageNameMasks not specified."""
@@ -378,7 +401,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.assertEqual(package_versions[0], "6.6.78.1-1.azl3")
 
     def test_inclusion_notexist(self):
-        """Unit test for yum with Inclusion which does not exist & NotSelected Classifications"""
+        """Unit test for tdnf with Inclusion which does not exist & NotSelected Classifications"""
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager is not None)
@@ -400,6 +423,206 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.assertTrue(package_versions is not None)
         self.assertEqual(len(available_updates), 0)
         self.assertEqual(len(package_versions), 0)
+
+    def test_obsolete_packages_should_not_considered_in_available_updates(self):
+        self.runtime.set_legacy_test_type('ObsoletePackages')
+        package_manager = self.container.get('package_manager')
+        package_filter = self.container.get('package_filter')
+
+        # test for all available versions
+        package_versions = package_manager.get_all_available_versions_of_package("python3")
+        self.assertEqual(len(package_versions), 6)
+        self.assertEqual(package_versions[0], '3.12.3-1.azl3')
+        self.assertEqual(package_versions[1], '3.12.3-2.azl3')
+        self.assertEqual(package_versions[2], '3.12.3-4.azl3')
+        self.assertEqual(package_versions[3], '3.12.3-5.azl3')
+        self.assertEqual(package_versions[4], '3.12.3-6.azl3')
+        self.assertEqual(package_versions[5], '3.12.9-1.azl3')
+
+    def test_all_classification_selected_for_auto_patching_request(self):
+        """Unit test for tdnf package manager for auto patching request where all classifications are selected since Azure Linux does not have classifications"""
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_azure_linux
+
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+        self.runtime.stop()
+
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = [Constants.PackageClassification.SECURITY, Constants.PackageClassification.CRITICAL]
+        argument_composer.health_store_id = "pub_off_sku_2025.03.24"
+        argument_composer.operation = Constants.INSTALLATION
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
+        self.container = self.runtime.container
+
+        execution_config = self.container.get('execution_config')
+        self.assertTrue(execution_config.included_classifications_list is not None)
+        self.assertTrue(execution_config.included_classifications_list == [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER])
+
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
+
+    def test_refresh_repo(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+        package_manager.refresh_repo_safely()
+
+    def test_disable_auto_os_updates_with_uninstalled_services(self):
+        # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        package_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
+        self.assertTrue(image_default_patch_configuration_backup is not None)
+
+        # validating backup for dnf-automatic
+        self.assertTrue(package_manager.dnf_auto_os_update_service in image_default_patch_configuration_backup)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf_auto_os_update_service][package_manager.dnf_automatic_download_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf_auto_os_update_service][package_manager.dnf_automatic_apply_updates_identifier_text], "")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf_auto_os_update_service][package_manager.dnf_automatic_enable_on_reboot_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf_auto_os_update_service][package_manager.dnf_automatic_installation_state_identifier_text], False)
+
+    def test_disable_auto_os_updates_with_installed_services(self):
+        # all services are installed and contain valid configurations. expected o/p All services will be disabled and backup file should reflect default settings for all
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        package_manager.disable_auto_os_update()
+        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+        image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
+        self.assertTrue(image_default_patch_configuration_backup is not None)
+
+        # validating backup for dnf-automatic
+        self.assertTrue(package_manager.dnf_auto_os_update_service in image_default_patch_configuration_backup)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf_auto_os_update_service][package_manager.dnf_automatic_download_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf_auto_os_update_service][package_manager.dnf_automatic_apply_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf_auto_os_update_service][package_manager.dnf_automatic_enable_on_reboot_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf_auto_os_update_service][package_manager.dnf_automatic_installation_state_identifier_text], True)
+
+    def test_disable_auto_os_update_failure(self):
+        # disable with non existing log file
+        package_manager = self.container.get('package_manager')
+
+        self.assertRaises(Exception, package_manager.disable_auto_os_update)
+        self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
+
+    def test_update_image_default_patch_mode(self):
+        package_manager = self.container.get('package_manager')
+        package_manager.os_patch_configuration_settings_file_path = package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+
+        # disable apply_updates when enabled by default
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        package_manager.update_os_patch_configuration_sub_setting(package_manager.dnf_automatic_apply_updates_identifier_text, "no", package_manager.dnf_automatic_config_pattern_match_text)
+        dnf_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(dnf_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertTrue('apply_updates = no' in dnf_automatic_os_patch_configuration_settings_file_path_read)
+        self.assertTrue('download_updates = yes' in dnf_automatic_os_patch_configuration_settings_file_path_read)
+
+        # disable download_updates when enabled by default
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, dnf_automatic_os_patch_configuration_settings)
+        package_manager.update_os_patch_configuration_sub_setting(package_manager.dnf_automatic_download_updates_identifier_text, "no", package_manager.dnf_automatic_config_pattern_match_text)
+        dnf_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(dnf_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertTrue('apply_updates = yes' in dnf_automatic_os_patch_configuration_settings_file_path_read)
+        self.assertTrue('download_updates = no' in dnf_automatic_os_patch_configuration_settings_file_path_read)
+
+        # disable apply_updates when default patch mode settings file is empty
+        dnf_automatic_os_patch_configuration_settings = ''
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, dnf_automatic_os_patch_configuration_settings)
+        package_manager.update_os_patch_configuration_sub_setting(package_manager.dnf_automatic_apply_updates_identifier_text, "no", package_manager.dnf_automatic_config_pattern_match_text)
+        dnf_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(dnf_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertTrue('download_updates' not in dnf_automatic_os_patch_configuration_settings_file_path_read)
+        self.assertTrue('apply_updates = no' in dnf_automatic_os_patch_configuration_settings_file_path_read)
+
+    def test_update_image_default_patch_mode_raises_exception(self):
+        package_manager = self.container.get('package_manager')
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
+        self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
+
+    def test_get_current_auto_os_patch_state_with_uninstalled_services(self):
+        # no services are installed on the machine. expected o/p: function will complete successfully, backup file is not created and function returns current_auto_os_patch_state as disabled
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
+        current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
+
+        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.DISABLED)
+
+    def test_get_current_auto_os_patch_state_with_installed_services_and_state_disabled(self):
+        # dnf-automatic is installed on the machine. expected o/p: function will complete successfully, backup file is NOT created and function returns current_auto_os_patch_state as disabled
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
+
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
+
+        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.DISABLED)
+
+    def test_get_current_auto_os_patch_state_with_installed_services_and_state_enabled(self):
+        # dnf-automatic is installed on the machine. expected o/p: function will complete successfully, backup file is NOT created and function returns current_auto_os_patch_state as enabled
+
+        # with enable on reboot set to false
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
+
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
+
+        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.ENABLED)
+
+        # with enable on reboot set to true
+        self.runtime.set_legacy_test_type('AnotherSadPath')
+        package_manager = self.container.get('package_manager')
+        package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
+
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
+
+        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.ENABLED)
+
+    def test_get_current_auto_os_patch_state_with_installed_services_and_state_unknown(self):
+        # dnf-automatic is installed on the machine. expected o/p: function will complete successfully, backup file is NOT created and function returns current_auto_os_patch_state as unknown
+
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
+
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = abc\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
+
+        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
+        self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.UNKNOWN)
 
 
 if __name__ == '__main__':
