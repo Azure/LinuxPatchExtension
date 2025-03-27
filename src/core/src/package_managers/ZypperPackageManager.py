@@ -767,6 +767,9 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_error("[ZPM] " + error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
+
+    def revert_auto_os_update_to_system_default(self):
+        pass
     # endregion
 
     # region Reboot Management

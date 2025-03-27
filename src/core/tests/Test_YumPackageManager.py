@@ -16,6 +16,13 @@
 import json
 import os
 import unittest
+import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
+
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
@@ -606,6 +613,186 @@ class TestYumPackageManager(unittest.TestCase):
         self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
+
+    def test_revert_auto_os_update_to_system_default_success_with_all_services_enabled(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
+        yum_cron_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        package_manager.packagekit_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "PackageKit.conf")
+        packagekit_os_patch_configuration_settings = 'WritePreparedUpdates = false\nGetPreparedUpdates = false\n'
+        self.runtime.write_to_file(package_manager.packagekit_configuration_file_path, packagekit_os_patch_configuration_settings)
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "yum-cron": {
+                "apply_updates": "yes",
+                "download_updates": "yes",
+                "enable_on_reboot": True,
+                "installation_state": True
+            },
+            "dnf-automatic": {
+                "apply_updates": "yes",
+                "download_updates": "yes",
+                "enable_on_reboot": True,
+                "installation_state": True
+            },
+            "packagekit": {
+                "WritePreparedUpdates": "true",
+                "GetPreparedUpdates": "true",
+                "enable_on_reboot": True,
+                "installation_state": True
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+
+        reverted_yum_cron_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.yum_cron_configuration_settings_file_path)
+        self.assertTrue(reverted_yum_cron_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = yes' in reverted_yum_cron_patch_configuration_settings)
+        self.assertTrue('apply_updates = yes' in reverted_yum_cron_patch_configuration_settings)
+
+        reverted_dnf_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.dnf_automatic_configuration_file_path)
+        self.assertTrue(reverted_dnf_automatic_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = yes' in reverted_dnf_automatic_patch_configuration_settings)
+        self.assertTrue('apply_updates = yes' in reverted_dnf_automatic_patch_configuration_settings)
+
+        reverted_packagekit_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.packagekit_configuration_file_path)
+        self.assertTrue(reverted_packagekit_patch_configuration_settings is not None)
+        self.assertTrue('WritePreparedUpdates = true' in reverted_packagekit_patch_configuration_settings)
+        self.assertTrue('GetPreparedUpdates = true' in reverted_packagekit_patch_configuration_settings)
+
+    def test_revert_auto_os_update_to_system_default_success_with_only_yum_cron_installed(self):
+        self.runtime.set_legacy_test_type('RevertToImageDefault')
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
+        yum_cron_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "yum-cron": {
+                "apply_updates": "yes",
+                "download_updates": "yes",
+                "enable_on_reboot": True,
+                "installation_state": True
+            },
+            "dnf-automatic": {
+                "apply_updates": "",
+                "download_updates": "",
+                "enable_on_reboot": False,
+                "installation_state": False
+            },
+            "packagekit": {
+                "WritePreparedUpdates": "",
+                "GetPreparedUpdates": "",
+                "enable_on_reboot": False,
+                "installation_state": False
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+
+        reverted_yum_cron_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.yum_cron_configuration_settings_file_path)
+        self.assertTrue(reverted_yum_cron_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = yes' in reverted_yum_cron_patch_configuration_settings)
+        self.assertTrue('apply_updates = yes' in reverted_yum_cron_patch_configuration_settings)
+
+        self.assertFalse(os.path.exists(package_manager.dnf_automatic_configuration_file_path))
+        self.assertFalse(os.path.exists(package_manager.packagekit_configuration_file_path))
+
+    def test_revert_auto_os_update_to_system_default_backup_config_does_not_exist(self):
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+
+        self.runtime.set_legacy_test_type('RevertToImageDefault')
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
+        yum_cron_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+
+        # backup for system default auto OS update config is NOT setup
+
+        package_manager.revert_auto_os_update_to_system_default()
+        # restore sdt.out ouptput
+        sys.stdout = original_stdout
+
+        # assert
+        output = captured_output.getvalue()
+        self.assertTrue("[YPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value" in output)
+
+        reverted_yum_cron_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.yum_cron_configuration_settings_file_path)
+        self.assertTrue(reverted_yum_cron_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = no' in reverted_yum_cron_patch_configuration_settings)
+        self.assertTrue('apply_updates = no' in reverted_yum_cron_patch_configuration_settings)
+
+    def test_revert_auto_os_update_to_system_default_backup_config_invalid(self):
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+
+        self.runtime.set_legacy_test_type('RevertToImageDefault')
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
+        yum_cron_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "yum-cron": {
+                "apply_updates": "yes",
+                "download_updates": "yes",
+                "enable_on_reboot": True
+            },
+            "dnf-automatic": {
+                "apply_updates": "",
+                "download_updates": "",
+                "enable_on_reboot": False,
+                "installation_state": False
+            },
+            "packagekit": {
+                "WritePreparedUpdates": "",
+                "GetPreparedUpdates": "",
+                "enable_on_reboot": False,
+                "installation_state": False
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+        # restore sdt.out ouptput
+        sys.stdout = original_stdout
+
+        # assert
+        output = captured_output.getvalue()
+        self.assertTrue("[YPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value" in output)
+
+        reverted_yum_cron_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.yum_cron_configuration_settings_file_path)
+        self.assertTrue(reverted_yum_cron_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = no' in reverted_yum_cron_patch_configuration_settings)
+        self.assertTrue('apply_updates = no' in reverted_yum_cron_patch_configuration_settings)
 
     def test_is_reboot_pending_return_true_when_exception_raised(self):
         package_manager = self.container.get('package_manager')

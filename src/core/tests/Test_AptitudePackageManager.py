@@ -16,6 +16,13 @@
 import json
 import os
 import unittest
+import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
+
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.ExecutionConfig import ExecutionConfig
 from core.tests.Test_UbuntuProClient import MockVersionResult, MockRebootRequiredResult, MockUpdatesResult
@@ -406,6 +413,113 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.runtime.write_to_file(package_manager.image_default_patch_mode_file_path, image_default_patch_mode)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
+
+    def test_revert_auto_os_update_to_system_default_success(self):
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n'
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            package_manager.update_package_list: "1",
+            package_manager.unattended_upgrade: "1"
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+        reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(reverted_os_patch_configuration_settings is not None)
+        self.assertTrue('APT::Periodic::Update-Package-Lists "1"' in reverted_os_patch_configuration_settings)
+        self.assertTrue('APT::Periodic::Unattended-Upgrade "1"' in reverted_os_patch_configuration_settings)
+
+    def test_revert_auto_os_update_to_system_default_current_auto_os_update_config_does_not_exist(self):
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+
+        package_manager = self.container.get('package_manager')
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            package_manager.update_package_list: "1",
+            package_manager.unattended_upgrade: "1"
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+        # restore sdt.out ouptput
+        sys.stdout = original_stdout
+
+        # assert
+        output = captured_output.getvalue()
+        self.assertTrue("Automatic OS patch config file not found on the VM. We won't be able to revert auto OS patch settings to their system default values" in output)
+
+    def test_revert_auto_os_update_to_system_default_backup_config_does_not_exist(self):
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n'
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+
+        # backup for system default auto OS update config is NOT setup
+
+        package_manager.revert_auto_os_update_to_system_default()
+        # restore sdt.out ouptput
+        sys.stdout = original_stdout
+
+        # assert
+        output = captured_output.getvalue()
+        self.assertTrue("Since the backup is invalid or does not exist, we won't be able to revert auto OS patch settings to their system default value" in output)
+
+        reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(reverted_os_patch_configuration_settings is not None)
+        self.assertTrue('APT::Periodic::Update-Package-Lists "0"' in reverted_os_patch_configuration_settings)
+        self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in reverted_os_patch_configuration_settings)
+
+    def test_revert_auto_os_update_to_system_default_backup_config_invalid(self):
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "20auto-upgrades")
+        os_patch_configuration_settings = 'APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n'
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, os_patch_configuration_settings)
+
+        # setup incomplete backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            package_manager.update_package_list: "1",
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+        # restore sdt.out ouptput
+        sys.stdout = original_stdout
+
+        # assert
+        output = captured_output.getvalue()
+        self.assertTrue("Since the backup is invalid or does not exist, we won't be able to revert auto OS patch settings to their system default value" in output)
+
+        reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(reverted_os_patch_configuration_settings is not None)
+        self.assertTrue('APT::Periodic::Update-Package-Lists "0"' in reverted_os_patch_configuration_settings)
+        self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in reverted_os_patch_configuration_settings)
 
     def test_is_reboot_pending_prerequisite_not_met_should_return_false(self):
         package_manager = self.container.get('package_manager')

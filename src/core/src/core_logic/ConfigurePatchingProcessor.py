@@ -80,6 +80,8 @@ class ConfigurePatchingProcessor(object):
             # NOTE: this condition will be false for Assessment operations, since patchMode is not sent in the API request
             if self.current_auto_os_patch_state != Constants.AutomaticOSPatchStates.DISABLED and self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM:
                 self.package_manager.disable_auto_os_update()
+            elif self.execution_config.patch_mode == Constants.PatchModes.IMAGE_DEFAULT:
+                self.package_manager.revert_auto_os_update_to_system_default()
 
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
 
