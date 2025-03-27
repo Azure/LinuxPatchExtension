@@ -453,7 +453,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
 
         package_manager.revert_auto_os_update_to_system_default()
-        # restore sdt.out ouptput
+        # restore sys.stdout output
         sys.stdout = original_stdout
 
         # assert
@@ -476,7 +476,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         # backup for system default auto OS update config is NOT setup
 
         package_manager.revert_auto_os_update_to_system_default()
-        # restore sdt.out ouptput
+        # restore sys.stdout output
         sys.stdout = original_stdout
 
         # assert
@@ -509,7 +509,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
 
         package_manager.revert_auto_os_update_to_system_default()
-        # restore sdt.out ouptput
+        # restore sys.stdout output
         sys.stdout = original_stdout
 
         # assert

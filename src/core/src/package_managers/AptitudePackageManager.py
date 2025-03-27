@@ -787,6 +787,7 @@ class AptitudePackageManager(PackageManager):
         if is_backup_valid:
             self.update_os_patch_configuration_sub_setting(self.update_package_list, image_default_patch_configuration_backup[self.update_package_list])
             self.update_os_patch_configuration_sub_setting(self.unattended_upgrade, image_default_patch_configuration_backup[self.unattended_upgrade])
+            self.composite_logger.log_debug("Successfully reverted auto OS updates to system default config")
         else:
             self.composite_logger.log_debug("Since the backup is invalid or does not exist, we won't be able to revert auto OS patch settings to their system default value")
 

@@ -653,19 +653,19 @@ class YumPackageManager(PackageManager):
                             "apply_updates": "yes/no/empty string",
                             "download_updates": "yes/no/empty string",
                             "enable_on_reboot": true/false,
-                            "install_state": true/false
+                            "installation_state": true/false
                         },
                         "dnf-automatic": {
                             "apply_updates": "yes/no/empty string",
                             "download_updates": "yes/no/empty string",
                             "enable_on_reboot": true/false,
-                            "install_state": true/false
+                            "installation_state": true/false
                         },
                         "packagekit": {
                             "WritePreparedUpdates": "true/false/empty string",
                             "GetPreparedUpdates": "true/false/empty string", //NOTE: This property name is pending validation as noted in another comment where the name is initialized
                             "enable_on_reboot": true/false,
-                            "install_state": true/false
+                            "installation_state": true/false
                         }
                     } """
         try:
@@ -877,7 +877,7 @@ class YumPackageManager(PackageManager):
             return
 
         self.composite_logger.log_debug("[YPM] Logging current configuration settings for auto OS updates [Service={0}][Is_Service_Installed={1}][Machine_default_update_enable_on_reboot={2}][{3}={4}]][{5}={6}]"
-                                        .format(str(service), str(is_service_installed), str(enable_on_reboot_value), str(self.download_updates_identifier_text), str(download_updates_value), str(self.apply_updates_identifier_text), str(apply_updates_value)))
+                                        .format(str(self.current_auto_os_update_service), str(is_service_installed), str(enable_on_reboot_value), str(self.download_updates_identifier_text), str(download_updates_value), str(self.apply_updates_identifier_text), str(apply_updates_value)))
 
         image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
         self.composite_logger.log_debug("[YPM] Logging system default configuration settings for auto OS updates. [Settings={0}]".format(str(image_default_patch_configuration_backup)))
