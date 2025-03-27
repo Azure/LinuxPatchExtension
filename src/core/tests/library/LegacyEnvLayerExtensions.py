@@ -1307,6 +1307,14 @@ class LegacyEnvLayerExtensions():
                                  "\n" + \
                                  "Total download size: 231 k\n" + \
                                  "Operation aborted.\n"
+            elif self.legacy_test_type == 'RevertToImageDefault':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("systemctl list-unit-files --type=service | grep yum-cron.service") > -1:
+                        code = 0
+                        output = 'Auto update service installed'
+                    elif cmd.find("systemctl list-unit-files --type=service '") > -1:
+                        code = 1
+                        output = 'Auto update service not installed'
             major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')
