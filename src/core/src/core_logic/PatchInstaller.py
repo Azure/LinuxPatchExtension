@@ -284,11 +284,7 @@ class PatchInstaller(object):
         successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
 
         if len(packages) == 0:
-            if not patch_installation_successful and not maintenance_window_exceeded and self.__check_all_requested_packages_install_state:
-                self.log_final_warning_metric(maintenance_window, installed_update_count)
-                self.__enable_installation_warning_status = True
-            else:
-                self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
+            self.log_final_error_status_msg(patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count)
 
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
@@ -388,11 +384,7 @@ class PatchInstaller(object):
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
 
-        if not patch_installation_successful and not maintenance_window_exceeded and self.__check_all_requested_packages_install_state():
-            self.log_final_warning_metric(maintenance_window, installed_update_count)
-            self.__enable_installation_warning_status = True
-        else:
-            self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
+        self.log_final_error_status_msg(patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count)
 
         install_update_count_in_sequential_patching = installed_update_count - install_update_count_in_batch_patching
         attempted_parent_package_install_count_in_sequential_patching = self.attempted_parent_package_install_count - attempted_parent_package_install_count_in_batch_patching
@@ -833,6 +825,13 @@ class PatchInstaller(object):
         self.composite_logger.log(progress_status)
 
     # region - Failed packages retry succeeded
+    def log_final_error_status_msg(self, patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count):
+        if not patch_installation_successful and not maintenance_window_exceeded and self.__check_all_requested_packages_install_state():
+            self.log_final_warning_metric(maintenance_window, installed_update_count)
+            self.__enable_installation_warning_status = True
+        else:
+            self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
+
     def __check_all_requested_packages_install_state(self):
         #type (none) -> bool
         """ Check if all requested security and critical packages are installed. """
