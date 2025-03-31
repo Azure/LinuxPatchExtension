@@ -487,14 +487,13 @@ class TestYumPackageManager(unittest.TestCase):
 
         self.assertRaises(Exception, package_manager.invoke_package_manager, package_manager.yum_check)
 
-    def test_auto_issue_mitigation_should_exit_gracefully(self):
+    def test_auto_issue_mitigation_should_raise_exception_after_multiple_retries(self):
         self.runtime.set_legacy_test_type('IssueMitigationRetryExitAfterMultipleAttempts')
 
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager)
 
-        output = package_manager.invoke_package_manager(package_manager.yum_check)
-        self.assertTrue(len(output) > 0)
+        self.assertRaises(Exception, package_manager.invoke_package_manager, package_manager.yum_check)
 
     def test_disable_auto_os_updates_with_uninstalled_services(self):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
