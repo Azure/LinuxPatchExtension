@@ -108,7 +108,7 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log_verbose("[YPM] Invoking package manager. [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
 
-        code, out = self.try_mitigate_issues_if_any(command, code, out)
+        code, out = self.try_mitigate_issues_if_any(command, code, out, raise_on_exception)
 
         if code not in [self.yum_exitcode_ok, self.yum_exitcode_no_applicable_packages, self.yum_exitcode_updates_available]:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -848,9 +848,10 @@ class YumPackageManager(PackageManager):
     # endregion
 
     # region Handling known errors
-    def try_mitigate_issues_if_any(self, command, code, out, seen_errors=None, retry_count=0, max_retries=Constants.MAX_RETRY_ATTEMPTS_FOR_ERROR_MITIGATION):
+    def try_mitigate_issues_if_any(self, command, code, out, raise_on_exception=True, seen_errors=None, retry_count=0, max_retries=Constants.MAX_RETRY_ATTEMPTS_FOR_ERROR_MITIGATION):
         """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found
         Args:
+            raise_on_exception (bool): If true, should raise exception on issue mitigation failures.
             seen_errors (Any): Hash set used to maintain a list of errors strings seen in the call stack.
             retry_count (int): Count of number of retries made to resolve errors.
             max_retries (int): Maximum number of retries allowed before exiting the retry loop.
@@ -860,7 +861,7 @@ class YumPackageManager(PackageManager):
 
         # Keep an upper bound on the size of the call stack to prevent an unbounded loop if error mitigation fails.
         if retry_count >= max_retries:
-            self.log_error_mitigation_failure(out)
+            self.log_error_mitigation_failure(out, raise_on_exception)
             return code, out
 
         if "Error" in out or "Errno" in out:
@@ -868,7 +869,7 @@ class YumPackageManager(PackageManager):
             # Preemptively exit the retry loop if the same error string is repeating in the call stack.
             # This implies that self.check_known_issues_and_attempt_fix may have failed to mitigate the error.
             if out in seen_errors:
-                self.log_error_mitigation_failure(out)
+                self.log_error_mitigation_failure(out, raise_on_exception)
                 return code, out
 
             seen_errors.add(out)
@@ -876,7 +877,7 @@ class YumPackageManager(PackageManager):
             if issue_mitigated:
                 self.composite_logger.log_debug('Post mitigation, invoking package manager again using: ' + command)
                 code_after_fix_attempt, out_after_fix_attempt = self.env_layer.run_command_output(command, False, False)
-                return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt, seen_errors, retry_count + 1, max_retries)
+                return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt, raise_on_exception, seen_errors, retry_count + 1, max_retries)
         return code, out
 
     def check_known_issues_and_attempt_fix(self, output):
@@ -905,9 +906,12 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_debug("Client package update complete. [Code={0}][Out={1}]".format(str(code), out))
             self.composite_logger.log_verbose("==========================================================================\n\n")
 
-    def log_error_mitigation_failure(self, output):
-        self.composite_logger.log_error("[YPM] Customer Environment Error: Unable to auto-mitigate the error. Please investigate and address. [Out={0}]".format(output))
-        # TODO: Do we need to raise an Exception here and /or add_error_to_status?
+    def log_error_mitigation_failure(self, output, raise_on_exception=True):
+        self.composite_logger.log_error("[YPM] Customer Environment Error: Unable to auto-mitigate known issue. Please investigate and address. [Out={0}]".format(output))
+        if raise_on_exception:
+            error_msg = 'Customer environment error (Unable to auto-mitigate known issue):  [Out={0}]'.format(output)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
     # endregion
 
     # region Reboot Management
