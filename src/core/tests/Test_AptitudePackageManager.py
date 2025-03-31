@@ -42,7 +42,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         raise Exception
 
     def mock_linux_distribution_to_return_ubuntu_focal(self):
-        return ['Ubuntu', '20.04', 'focal']
+        return ['Ubuntu', '24.04', 'focal']
 
     def mock_is_pro_working_return_true(self):
         return True

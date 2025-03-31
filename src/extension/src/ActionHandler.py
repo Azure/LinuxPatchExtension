@@ -23,8 +23,7 @@ import time
 from extension.src.Constants import Constants
 from extension.src.EnableCommandHandler import EnableCommandHandler
 from extension.src.InstallCommandHandler import InstallCommandHandler
-from extension.src.Utility import Utility
-from extension.src.VersionComparatorHandler import VersionComparatorHandler
+from extension.src.ExtVersionComparator import ExtVersionComparator
 from extension.src.local_loggers.StdOutFileMirror import StdOutFileMirror
 
 
@@ -49,7 +48,7 @@ class ActionHandler(object):
         self.file_logger = None
         self.operation_id_substitute_for_all_actions_in_telemetry = str((datetime.datetime.utcnow()).strftime(Constants.UTC_DATETIME_FORMAT))
         self.seq_no = self.ext_config_settings_handler.get_seq_no_from_env_var()
-        self.version_comparator_handler = VersionComparatorHandler()
+        self.ext_version_comparator = ExtVersionComparator()
 
     def determine_operation(self, command):
         switcher = {
@@ -228,7 +227,7 @@ class ActionHandler(object):
             self.logger.log("Fetching the extension version preceding current from all available versions...")
 
             # use custom sort logic to sort path based on version numbers
-            sorted_versions = self.version_comparator_handler.sort_versions_desc_order(paths_to_all_versions)
+            sorted_versions = self.ext_version_comparator.sort_ext_paths_desc_order(paths_to_all_versions)
             self.logger.log_debug("List of extension versions in descending order: [SortedVersion={0}]".format(sorted_versions))
 
             preceding_version_path = sorted_versions[1]
@@ -353,7 +352,7 @@ class ActionHandler(object):
                                       "\r\n# Copyright 2021 Microsoft Corporation" + \
                                       "\r\n printf \"Auto-assessment was paused by the Azure Linux Patch Extension.\""
                 self.env_layer.file_system.write_with_retry(auto_assess_sh_path, auto_assess_sh_data)
-                self.env_layer.run_command_output("chmod a+x " + auto_assess_sh_path)
+                self.env_layer.run_command_output("chmod 744 " + auto_assess_sh_path) # 744 = Owner: RWX; Group: R; Others: R
 
                 # Clear temp folder
                 self.ext_env_handler.delete_temp_folder_contents()
