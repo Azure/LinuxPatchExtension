@@ -504,6 +504,22 @@ class TestYumPackageManager(unittest.TestCase):
         with self.assertRaises(Exception):
             package_manager.try_mitigate_issues_if_any('testcmd', 0, 'Test out', retry_count = Constants.MAX_RETRY_ATTEMPTS_FOR_ERROR_MITIGATION + 1)
 
+    def test_auto_issue_mitigation_when_error_repeats_raise_exception_disabled(self):
+        self.runtime.set_legacy_test_type('IssueMitigationRetryExitAfterMultipleAttempts')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        package_manager.try_mitigate_issues_if_any('testcmd', 0, 'Test out', raise_on_exception = False)
+
+    def test_auto_issue_mitigation_when_retries_are_exhausted_raise_exception_disabled(self):
+        self.runtime.set_legacy_test_type('IssueMitigationRetryExitAfterMultipleAttempts')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        package_manager.try_mitigate_issues_if_any('testcmd', 0, 'Test out', raise_on_exception = False)
+
     def test_disable_auto_os_updates_with_uninstalled_services(self):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
         self.runtime.set_legacy_test_type('SadPath')
