@@ -22,6 +22,7 @@ import time
 from core.src.bootstrap.Constants import Constants
 from core.src.core_logic.Stopwatch import Stopwatch
 
+
 class PatchInstaller(object):
     """" Wrapper class for a single patch installation operation """
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, lifecycle_manager, package_manager, package_filter, maintenance_window, reboot_manager):
@@ -51,6 +52,8 @@ class PatchInstaller(object):
         self.esm_packages_found_without_attach = False  # Flag used to record if esm packages excluded as ubuntu vm not attached.
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
+
+        self.__enable_installation_warning_status = False
 
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
@@ -281,7 +284,8 @@ class PatchInstaller(object):
         successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
 
         if len(packages) == 0:
-            self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
+            self.log_final_error_status_msg(patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count)
+
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
@@ -324,7 +328,7 @@ class PatchInstaller(object):
             # package_and_dependencies initially contains only one package. The dependencies are added in the list by method include_dependencies
             package_and_dependencies = [package]
             package_and_dependency_versions = [version]
-            
+
             self.include_dependencies(package_manager, [package], [version], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # parent package install (+ dependencies) and parent package result management
@@ -379,7 +383,8 @@ class PatchInstaller(object):
 
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
-        self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
+
+        self.log_final_error_status_msg(patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count)
 
         install_update_count_in_sequential_patching = installed_update_count - install_update_count_in_batch_patching
         attempted_parent_package_install_count_in_sequential_patching = self.attempted_parent_package_install_count - attempted_parent_package_install_count_in_batch_patching
@@ -398,16 +403,15 @@ class PatchInstaller(object):
     def log_final_metrics(self, maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count):
         """
         logs the final metrics.
-        
+
         Parameters:
         maintenance_window (MaintenanceWindow): Maintenance window for the job.
         patch_installation_successful (bool): Whether patch installation succeeded.
         maintenance_window_exceeded (bool): Whether maintenance window exceeded.
         installed_update_count (int): Number of updates installed.
         """
-        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
-                                                        "Completed processing packages!")
-        self.composite_logger.log(progress_status)
+
+        self.__log_progress_status(maintenance_window, installed_update_count)
 
         if not patch_installation_successful or maintenance_window_exceeded:
             message = "\n\nOperation status was marked as failed because: "
@@ -416,10 +420,19 @@ class PatchInstaller(object):
             self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             self.composite_logger.log_error(message)
 
+    def log_final_warning_metric(self, maintenance_window, installed_update_count):
+        """ Log the final metrics for warning installation status. """
+
+        self.__log_progress_status(maintenance_window, installed_update_count)
+
+        message = "\n\nAll requested package(s) are installed. Any patch errors marked are from previous attempts."
+        self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.PACKAGES_RETRY_SUCCEEDED)
+        self.composite_logger.log_error(message)
+
     def include_dependencies(self, package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add dependent packages in the list of packages to install i.e. package_and_dependencies.
-        
+
         Parameters:
         package_manager (PackageManager): Package manager used.
         packages_in_batch (List of strings): List of packages to be installed in the current batch.
@@ -509,9 +522,9 @@ class PatchInstaller(object):
     def install_packages_in_batches(self, all_packages, all_package_versions, packages, package_versions, maintenance_window, package_manager, max_batch_size_for_packages, simulate=False):
         """
         Install packages in batches.
-        
+
         Parameters:
-        
+
         all_packages (List of strings): List of all available packages to install.
         all_package_versions (List of strings): Versions of the packages in the list all_packages.
         packages (List of strings): List of all packages selected by user to install.
@@ -520,7 +533,7 @@ class PatchInstaller(object):
         package_manager (PackageManager): Package manager used.
         max_batch_size_for_packages (Integer): Maximum batch size.
         simulate (bool): Whether this function is called from a test run.
-        
+
         Returns:
         installed_update_count (int): Number of packages installed through installing packages in batches.
         patch_installation_successful (bool): Whether package installation succeeded for all attempted packages.
@@ -529,7 +542,7 @@ class PatchInstaller(object):
         not_attempted_and_failed_packages (List of strings): List of packages which are (a) Not attempted due to not enough time in maintenance window to install in batch. 
                                                              (b) Failed to install in batch patching.
         not_attempted_and_failed_package_versions (List of strings): Versions of packages in the list not_attempted_and_failed_packages.
-        
+
         """
         number_of_batches = int(math.ceil(len(packages) / float(max_batch_size_for_packages)))
         self.composite_logger.log("\nDividing package install in batches. \nNumber of packages to be installed: " + str(len(packages)) + "\nBatch Size: " + str(max_batch_size_for_packages) + "\nNumber of batches: " + str(number_of_batches))
@@ -541,7 +554,7 @@ class PatchInstaller(object):
         # These packages will be attempted in sequential installation if there is enough time in maintenance window to install package sequentially.
         remaining_packages = []
         remaining_package_versions = []
-        
+
         # failed_packages are the packages which are failed to install in batch patching. These packages will be attempted again in sequential patching if there is 
         # enough time remaining in maintenance window.
         failed_packages = []
@@ -683,12 +696,17 @@ class PatchInstaller(object):
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
 
         # Update patch metadata in status for auto patching request, to be reported to healthStore
-        self.composite_logger.log_debug("[PI] Reviewing final healthstore record write. [HealthStoreId={0}][MaintenanceRunId={1}]".format(str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))
-        if self.execution_config.health_store_id is not None:
-            self.status_handler.set_patch_metadata_for_healthstore_substatus_json(
-                patch_version=self.execution_config.health_store_id,
-                report_to_healthstore=True,
-                wait_after_update=False)
+        self.__send_metadata_health_store()
+
+    def mark_installation_completed_with_warning(self):
+        """ Marks Installation operation as warning by updating the status of PatchInstallationSummary as warning and patch metadata to be sent to healthstore.
+        This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as warning only after the implicit (2nd) assessment operation
+        and all supposed packages are installed as expected. """
+
+        self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
+
+        # Update patch metadata in status for auto patching request, to be reported to healthStore
+        self.__send_metadata_health_store()
 
     # region Installation Progress support
     def perform_status_reconciliation_conditionally(self, package_manager, condition=True):
@@ -801,3 +819,52 @@ class PatchInstaller(object):
 
         return max_batch_size_for_packages
 
+    def __log_progress_status(self, maintenance_window, installed_update_count):
+        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
+                                                        "Completed processing packages!")
+        self.composite_logger.log(progress_status)
+
+    # region - Failed packages retry succeeded
+    def log_final_error_status_msg(self, patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count):
+        if not patch_installation_successful and not maintenance_window_exceeded and self.__check_all_requested_packages_install_state():
+            self.log_final_warning_metric(maintenance_window, installed_update_count)
+            self.__enable_installation_warning_status = True
+        else:
+            self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
+
+    def __check_all_requested_packages_install_state(self):
+        #type (none) -> bool
+        """ Check if all requested security and critical packages are installed. """
+
+        # Get the list of installed packages
+        installed_packages_list = self.status_handler.get_installation_packages_list()
+        # Get security and critical packages
+        security_critical_packages = []
+        for package in installed_packages_list:
+            if 'classifications' in package and any(classification in ['Security', 'Critical'] for classification in package['classifications']):
+                security_critical_packages.append(package)
+
+        # Return false there's no security/critical packages
+        if len(security_critical_packages) == 0:
+            return False
+
+        # Check if any security/critical package are not installed
+        for package in security_critical_packages:
+            if package['patchInstallationState'] != Constants.INSTALLED:
+                return False
+
+        # All security/critical packages are installed
+        return True
+
+    def __send_metadata_health_store(self):
+        self.composite_logger.log_debug("[PI] Reviewing final healthstore record write. [HealthStoreId={0}][MaintenanceRunId={1}]".format(str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))
+        if self.execution_config.health_store_id is not None:
+            self.status_handler.set_patch_metadata_for_healthstore_substatus_json(
+                patch_version=self.execution_config.health_store_id,
+                report_to_healthstore=True,
+                wait_after_update=False)
+
+    def get_enabled_installation_warning_status(self):
+        """Access enable_installation_warning_status value"""
+        return self.__enable_installation_warning_status
+    # endregion
