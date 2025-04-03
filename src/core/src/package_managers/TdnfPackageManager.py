@@ -19,6 +19,7 @@ import json
 import os
 import re
 
+from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
@@ -71,6 +72,7 @@ class TdnfPackageManager(PackageManager):
         # Miscellaneous
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.TDNF)
         self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
+        self.version_comparator = VersionComparator()
 
         # if an Auto Patching request comes in on a Azure Linux machine with Security and/or Critical classifications selected, we need to install all patches, since classifications aren't available in Azure Linux repository
         installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
@@ -146,7 +148,7 @@ class TdnfPackageManager(PackageManager):
     def extract_packages_and_versions(self, output):
         """Returns packages and versions from given output"""
         packages, versions = self.extract_packages_and_versions_including_duplicates(output)
-        packages, versions = self.dedupe_update_packages(packages, versions)
+        packages, versions = self.dedupe_update_packages_to_get_latest_versions(packages, versions)
         return packages, versions
 
     def extract_packages_and_versions_including_duplicates(self, output):
@@ -162,10 +164,6 @@ class TdnfPackageManager(PackageManager):
                 break
 
             line = re.split(r'\s+', lines[line_index].strip())
-            next_line = []
-
-            if line_index < len(lines) - 1:
-                next_line = re.split(r'\s+', lines[line_index + 1].strip())
 
             # If we run into a length of 3, we'll accept it and continue
             if len(line) == 3 and self.__is_package(line[0]):
@@ -176,12 +174,31 @@ class TdnfPackageManager(PackageManager):
 
         return packages, versions
 
+    def dedupe_update_packages_to_get_latest_versions(self, packages, package_versions):
+        """Remove duplicate packages and returns the latest/highest version of each package """
+        deduped_packages = []
+        deduped_package_versions = []
+
+        for index, package in enumerate(packages):
+            if package in deduped_packages:
+                deduped_package_version = deduped_package_versions[deduped_packages.index(package)]
+                duplicate_package_version = package_versions[index]
+                # use custom comparator output 0 (equal), -1 (deduped package version is the lower one), +1 (deduped package version is the greater one)
+                is_deduped_package_latest = self.version_comparator.compare_versions(deduped_package_version, duplicate_package_version)
+                if is_deduped_package_latest < 0:
+                    deduped_package_versions[deduped_packages.index(package)] = duplicate_package_version
+                continue
+
+            deduped_packages.append(package)
+            deduped_package_versions.append(package_versions[index])
+
+        return deduped_packages, deduped_package_versions
+
     @staticmethod
     def __is_package(chunk):
         # Using a list comprehension to determine if chunk is a package
         package_extensions = Constants.SUPPORTED_PACKAGE_ARCH
         return len([p for p in package_extensions if p in chunk]) == 1
-
     # endregion
     # endregion
 

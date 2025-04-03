@@ -551,10 +551,14 @@ class LegacyEnvLayerExtensions():
                                  "azurelinux-release.noarch           3.0-16.azl3             azurelinux-official-base\n" + \
                                  "azurelinux-repos-ms-oss.noarch      3.0-3.azl3              azurelinux-official-base\n" + \
                                  "libseccomp.x86_64                   2.5.4-1.azl3            azurelinux-official-base\n" + \
+                                 "python3.x86_64                      3.12.3-2.azl3           azurelinux-official-base\n" + \
                                  "libxml2.x86_64                      2.11.5-1.azl3           azurelinux-official-base\n" + \
                                  "dracut.x86_64                       102-7.azl3              azurelinux-official-base\n" + \
+                                 "python3.x86_64                      3.12.3-5.azl3           azurelinux-official-base\n" + \
+                                 "python3.x86_64                      3.12.3-6.azl3           azurelinux-official-base\n" + \
                                  "hyperv-daemons-license.noarch       6.6.78.1-1.azl3         azurelinux-official-base\n" + \
                                  "hypervvssd.x86_64                   6.6.78.1-1.azl3         azurelinux-official-base\n" + \
+                                 "python3.x86_64                      3.12.3-4.azl3           azurelinux-official-base\n" + \
                                  "hypervkvpd.x86_64                   6.6.78.1-1.azl3         azurelinux-official-base\n"
                     elif cmd.find("needs-restarting -r") > -1:
                         code = 0
@@ -604,7 +608,7 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         package = cmd.replace('sudo tdnf list installed ', '')
                         whitelisted_versions = [
-                            '3.0-16.azl3', '3.0-3.azl3', '2.5.4-1.azl3', '2.11.5-1.azl3', '102-7.azl3', '6.6.78.1-1.azl3']  # any list of versions you want to work for *any* package
+                            '3.0-16.azl3', '3.0-3.azl3', '2.5.4-1.azl3', '3.12.3-6.azl3', '2.11.5-1.azl3', '102-7.azl3', '6.6.78.1-1.azl3']  # any list of versions you want to work for *any* package
                         output = "Loaded plugin: tdnfrepogpgcheck\n"
                         template = "<PACKAGE>               <VERSION>                             @System\n"
                         for version in whitelisted_versions:
