@@ -1107,6 +1107,10 @@ class LegacyEnvLayerExtensions():
                     else:
                         code = 0
                         output = "Error: Cannot retrieve repository metadata (repomd.xml) for repository: addons. Please verify its path and try again"
+            elif self.legacy_test_type == 'IssueMitigationRetryExitAfterMultipleAttempts':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    code = 0
+                    output = "Error: Failed to download metadata for repo 'rhui-rhel-8-for-x86_64-baseos-rhui-rpms': Cannot download repomd.xml: Cannot download repodata/repomd.xml: All mirrors were tried"
             elif self.legacy_test_type == 'DependencyInstallSuccessfully':
                 if self.legacy_package_manager_name is Constants.APT:
                     # Total 7 packages: git-man, git, grub-efi-amd64-signed, testPkg1, testPkg2, testPkg3 and grub-efi-amd64-bin
@@ -1188,7 +1192,7 @@ class LegacyEnvLayerExtensions():
                 if self.legacy_package_manager_name is Constants.APT:
                     # Total 7 packages: git-man, git, grub-efi-amd64-signed, testPkg1, testPkg2, testPkg3 and grub-efi-amd64-bin
                     # grub-efi-amd64-signed is dependent on grub-efi-amd64-bin
-                    # Installation of grub-efi-amd64-bin fails and as grub-efi-amd64-signed is dependent, it also failed 
+                    # Installation of grub-efi-amd64-bin fails and as grub-efi-amd64-signed is dependent, it also failed
                     # Rest all packages install successfully
                     if cmd.find("dist-upgrade") > -1:
                         code = 0

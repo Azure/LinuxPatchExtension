@@ -51,6 +51,7 @@ class Constants(object):
     # Max values
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
     MAX_AUTO_ASSESSMENT_WAIT_FOR_MAIN_CORE_EXEC_IN_MINUTES = 3 * 60
+    MAX_RETRY_ATTEMPTS_FOR_ERROR_MITIGATION = 10
 
     class SystemPaths(EnumBackport):
         SYSTEMD_ROOT = "/etc/systemd/system/"
@@ -270,7 +271,7 @@ class Constants(object):
         STARTED = "Started"
         COMPLETED = "Completed"
         FAILED = "Failed"
-    
+
     # Enum for VM Cloud Type
     class VMCloudType(EnumBackport):
         UNKNOWN = "Unknown"
