@@ -37,7 +37,7 @@ class EnvLayer(object):
     def __init__(self, real_record_path=None, recorder_enabled=False, emulator_enabled=False):
         # Recorder / emulator storage
         self.__real_record_path = real_record_path
-        self.__real_record_pointer_path = real_record_path + ".pt"
+        self.__real_record_pointer_path = real_record_path + ".pt" if real_record_path is not None else None
         self.__real_record_handle = None
         self.__real_record_pointer = 0
 
@@ -55,7 +55,7 @@ class EnvLayer(object):
         self.platform = self.Platform(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record)
         self.datetime = self.DateTime(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record)
         self.file_system = self.FileSystem(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record,
-                                           emulator_root_path=os.path.dirname(self.__real_record_path))
+                                           emulator_root_path=os.path.dirname(self.__real_record_path) if self.__real_record_path is not None else self.__real_record_path)
 
         # Constant paths
         self.etc_environment_file_path = "/etc/environment"

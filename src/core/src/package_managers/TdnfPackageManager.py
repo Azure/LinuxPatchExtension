@@ -31,7 +31,7 @@ class TdnfPackageManager(PackageManager):
         super(TdnfPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         self.cmd_clean_cache = "sudo tdnf clean expire-cache"
-        self.cmd_repo_refresh_template = "sudo tdnf -q list updates"
+        self.cmd_repo_refresh = "sudo tdnf -q list updates"
 
         # Support to get updates and their dependencies
         self.tdnf_check = 'sudo tdnf -q list updates'
@@ -87,7 +87,7 @@ class TdnfPackageManager(PackageManager):
     def refresh_repo(self):
         self.composite_logger.log("[TDNF] Refreshing local repo...")
         self.invoke_package_manager(self.cmd_clean_cache)
-        self.invoke_package_manager(self.cmd_repo_refresh_template)
+        self.invoke_package_manager(self.cmd_repo_refresh)
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
