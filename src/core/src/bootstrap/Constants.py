@@ -197,9 +197,11 @@ class Constants(object):
     RED_HAT = 'Red Hat'
     SUSE = 'SUSE'
     CENTOS = 'CentOS'
+    AZURE_LINUX = 'Microsoft Azure Linux'
 
     # Package Managers
     APT = 'apt'
+    TDNF = 'tdnf'
     YUM = 'yum'
     ZYPPER = 'zypper'
 
@@ -350,7 +352,7 @@ class Constants(object):
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
 
-    # Supported Package Architectures - if this is changed, review YumPackageManage
+    # Supported Package Architectures - if this is changed, review TdnfPackageManager and YumPackageManager
     SUPPORTED_PACKAGE_ARCH = ['.x86_64', '.noarch', '.i686', '.aarch64']
 
     # Package / Patch State Ordering Constants
