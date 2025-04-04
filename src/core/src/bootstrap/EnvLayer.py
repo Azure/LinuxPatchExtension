@@ -68,6 +68,8 @@ class EnvLayer(object):
             code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
                 ret = Constants.TDNF
+            else:
+                print("Error: Expected package manager tdnf not found on this Azure Linux VM")
         else:
             # choose default - almost surely one will match.
             for b in ('apt-get', 'yum', 'zypper'):
