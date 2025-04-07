@@ -822,12 +822,15 @@ class PatchInstaller(object):
 
     # region - Failed packages retry succeeded
     def log_final_installation_metric(self, patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count):
+        """ log final installation operation status. """
         if self.__enable_installation_status_to_warning_flag:
             self.log_final_warning_metric(maintenance_window, installed_update_count)
         else:
             self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
 
     def __check_installation_status_can_set_to_warning(self, patch_installation_successful, maintenance_window_exceeded):
+        """ Verify patch installation status can be set to warning from failed. """
+        # type (bool, bool) -> bool
         return not patch_installation_successful and not maintenance_window_exceeded and self.__check_all_requested_packages_install_state()
 
     def __check_all_requested_packages_install_state(self):
@@ -836,22 +839,13 @@ class PatchInstaller(object):
 
         # Get the list of installed packages
         installed_packages_list = self.status_handler.get_installation_packages_list()
-        # Get security and critical packages
-        security_critical_packages = []
+
+        # Check if any package(s) are not installed
         for package in installed_packages_list:
-            if 'classifications' in package and any(classification in ['Security', 'Critical'] for classification in package['classifications']):
-                security_critical_packages.append(package)
-
-        # Return false there's no security/critical packages
-        if len(security_critical_packages) == 0:
-            return False
-
-        # Check if any security/critical package are not installed
-        for package in security_critical_packages:
             if package['patchInstallationState'] != Constants.INSTALLED:
                 return False
 
-        # All security/critical packages are installed
+        # All package(s) are installed
         return True
 
     def __send_metadata_to_health_store(self):
