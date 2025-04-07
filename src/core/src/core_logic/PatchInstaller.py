@@ -405,7 +405,6 @@ class PatchInstaller(object):
     def log_final_metrics(self, maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count):
         """
         logs the final metrics.
-
         Parameters:
         maintenance_window (MaintenanceWindow): Maintenance window for the job.
         patch_installation_successful (bool): Whether patch installation succeeded.
@@ -433,7 +432,6 @@ class PatchInstaller(object):
     def include_dependencies(self, package_manager, packages_in_batch, package_versions_in_batch, all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add dependent packages in the list of packages to install i.e. package_and_dependencies.
-
         Parameters:
         package_manager (PackageManager): Package manager used.
         packages_in_batch (List of strings): List of packages to be installed in the current batch.
@@ -835,13 +833,10 @@ class PatchInstaller(object):
 
     def __check_all_requested_packages_install_state(self):
         # type (none) -> bool
-        """ Check if all requested security and critical packages are installed. """
-
-        # Get the list of installed packages
-        installed_packages_list = self.status_handler.get_installation_packages_list()
+        """ Check if any package(s) are all installed. """
 
         # Check if any package(s) are not installed
-        for package in installed_packages_list:
+        for package in self.status_handler.get_installation_packages_list():
             if package['patchInstallationState'] != Constants.INSTALLED:
                 return False
 
