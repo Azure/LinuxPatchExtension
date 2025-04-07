@@ -538,6 +538,92 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('pro security-status --format=json') > -1:
                         code = 0
                         output = "{\"summary\":{\"ua\":{\"attached\":true}}}"
+                elif self.legacy_package_manager_name is Constants.TDNF:
+                    if cmd.find("--security list updates") > -1:
+                        code = 0
+                        output = "\n" + \
+                                 "azurelinux-release.noarch                        " + \
+                                 "3.0-16.azl3                        " + \
+                                 "azurelinux-official-base\n"
+                    elif cmd.find("list updates") > -1:
+                        code = 0
+                        output = "\n" + \
+                                 "azurelinux-release.noarch           3.0-16.azl3             azurelinux-official-base\n" + \
+                                 "azurelinux-repos-ms-oss.noarch      3.0-3.azl3              azurelinux-official-base\n" + \
+                                 "libseccomp.x86_64                   2.5.4-1.azl3            azurelinux-official-base\n" + \
+                                 "python3.x86_64                      3.12.3-2.azl3           azurelinux-official-base\n" + \
+                                 "libxml2.x86_64                      2.11.5-1.azl3           azurelinux-official-base\n" + \
+                                 "dracut.x86_64                       102-7.azl3              azurelinux-official-base\n" + \
+                                 "python3.x86_64                      3.12.3-5.azl3           azurelinux-official-base\n" + \
+                                 "python3.x86_64                      3.12.3-6.azl3           azurelinux-official-base\n" + \
+                                 "hyperv-daemons-license.noarch       6.6.78.1-1.azl3         azurelinux-official-base\n" + \
+                                 "hypervvssd.x86_64                   6.6.78.1-1.azl3         azurelinux-official-base\n" + \
+                                 "python3.x86_64                      3.12.3-4.azl3           azurelinux-official-base\n" + \
+                                 "hypervkvpd.x86_64                   6.6.78.1-1.azl3         azurelinux-official-base\n"
+                    elif cmd.find("needs-restarting -r") > -1:
+                        code = 0
+                        output = "Core libraries or services have been updated since boot-up:\n" + \
+                                 "  * kernel\n" + \
+                                 "\n" + \
+                                 "Reboot is required to fully utilize these updates.\n" + \
+                                 "More information: https://access.redhat.com/solutions/27943\n"
+                    elif cmd.find("tdnf -y install --skip-broken curl") > -1:
+                        code = 0
+                        output = "Loaded plugin: tdnfrepogpgcheck\n\n" + \
+                                 "Upgrading:\n" + \
+                                 "curl-libs          x86_64             8.11.1-3.azl3             azurelinux-official-base  847.91k               403.29k\n" + \
+                                 "curl               x86_               8.11.1-3.azl3             azurelinux-official-base  382.51k               258.06k\n\n" + \
+                                 "Total installed size:   1.20M\n" + \
+                                 "Total download size: 661.34k\n" + \
+                                 "curl-libs                     412964 100%\n" + \
+                                 "curl                          264253 100%\n" + \
+                                 "Testing transaction\n" + \
+                                 "Running transaction\n" + \
+                                 "Installing/Updating: curl-libs-8.11.1-3.azl3.x86_64\n" + \
+                                 "Installing/Updating: curl-8.11.1-3.azl3.x86_64\n" + \
+                                 "Removing: curl-8.8.0-4.azl3.x86_64\n" + \
+                                 "Removing: curl-libs-8.8.0-4.azl3.x86_64\n"
+                    elif cmd.find("tdnf list available python3") > -1:
+                        code = 0
+                        output = "Loaded plugin: tdnfrepogpgcheck\n" + \
+                                 "python3.x86_64                3.12.3-1.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-2.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-4.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-5.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-6.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.9-1.azl3                   azurelinux-official-base\n"
+                    elif cmd.find("tdnf install --assumeno --skip-broken hyperv-daemons.x86_64") > -1:
+                        code = 8
+                        output = "Loaded plugin: tdnfrepogpgcheck\n\n" + \
+                                 "Upgrading:\n" + \
+                                 "hyperv-daemons-license    noarch    6.6.78.1-1.azl3   azurelinux-official-base  496.00b   20.92k\n" + \
+                                 "hypervvssd                x86_64    6.6.78.1-1.azl3   azurelinux-official-base  19.70k    28.39k\n" + \
+                                 "hypervkvpd                x86_64    6.6.78.1-1.azl3   azurelinux-official-base  42.29k    38.72k\n" + \
+                                 "hypervfcopyd              x86_64    6.6.78.1-1.azl3   azurelinux-official-base  15.69k    26.97k\n" + \
+                                 "hyperv-daemons            x86_64    6.6.78.1-1.azl3   azurelinux-official-base  0.00b     20.08k\n\n" + \
+                                 "Total installed size:  78.16k\n" + \
+                                 "Total download size: 135.09k\n" + \
+                                 "Error(1032) : Operation aborted.\n"
+                    elif cmd.find("list installed") > -1:
+                        code = 0
+                        package = cmd.replace('sudo tdnf list installed ', '')
+                        whitelisted_versions = [
+                            '3.0-16.azl3', '3.0-3.azl3', '2.5.4-1.azl3', '3.12.3-6.azl3', '2.11.5-1.azl3', '102-7.azl3', '6.6.78.1-1.azl3']  # any list of versions you want to work for *any* package
+                        output = "Loaded plugin: tdnfrepogpgcheck\n"
+                        template = "<PACKAGE>               <VERSION>                             @System\n"
+                        for version in whitelisted_versions:
+                            entry = template.replace('<PACKAGE>', package)
+                            entry = entry.replace('<VERSION>', version)
+                            output += entry
+                    elif cmd.find("systemctl list-unit-files --type=service") > -1:
+                        code = 0
+                        output = 'Auto update service installed'
+                    elif cmd.find("systemctl is-enabled ") > -1:
+                        code = 0
+                        output = 'disabled'
+                    elif cmd.find("systemctl disable ") > -1:
+                        code = 0
+                        output = 'Auto update service disabled'
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -580,6 +666,9 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security') > -1:
                         code = 103
                         output = ''
+                elif self.legacy_package_manager_name is Constants.TDNF:
+                    code = 0
+                    output = ''
                 elif cmd.find("systemctl") > -1:
                     code = 1
                     output = ''
@@ -617,6 +706,15 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('sudo zypper refresh') > -1:
                         code = 4
                         output = 'System management is locked by the application with pid 7914 (/usr/bin/zypper).'
+                elif self.legacy_package_manager_name is Constants.TDNF:
+                    code = 100
+                    output = "azurelinux-release.noarch                        3.0-16.azl3                        \n" + \
+                             "azurelinux-official-base\n" + \
+                             "azurelinux-repos-ms-oss.noarch\n" + \
+                             "3.0-3.azl3                        azurelinux-official-base\n" + \
+                             "libseccomp.x86_64     2.5.4-1.azl3     azurelinux-official-base\n" + \
+                             "libxml2.x86_64 azurelinux-official-base\n" + \
+                             "dracut.x86_64                        102-7.azl3                        azurelinux-official-base\n"
             elif self.legacy_test_type == 'NonexistentErrorCodePath':
                 if self.legacy_package_manager_name is Constants.ZYPPER:
                     if cmd.find('sudo zypper refresh') > -1:
@@ -633,6 +731,13 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('sudo LANG=en_US.UTF8 zypper --non-interactive patch --category security') > -1:
                         code = 102
                         output = ''
+                if self.legacy_package_manager_name is Constants.TDNF:
+                    if cmd.find("systemctl list-unit-files --type=service") > -1:
+                        code = 0
+                        output = 'Auto update service installed'
+                    elif cmd.find("systemctl is-enabled ") > -1:
+                        code = 0
+                        output = 'enabled'
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
@@ -769,6 +874,23 @@ class LegacyEnvLayerExtensions():
                         "sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run") > -1:
                         code = 0
                         output = "Package sucessfully installed!"
+                elif self.legacy_package_manager_name is Constants.TDNF:
+                    if cmd.find("simulate-install") > -1 or cmd.find("sudo tdnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
+                        code = 8
+                        output = "Loaded plugin: tdnfrepogpgcheck\n\n" + \
+                                 "Upgrading:\n" + \
+                                 "hyperv-daemons-license    noarch    6.6.78.1-1.azl3   azurelinux-official-base  496.00b   20.92k\n" + \
+                                 "hypervvssd                x86_64    6.6.78.1-1.azl3   azurelinux-official-base  19.70k    28.39k\n" + \
+                                 "hypervkvpd                x86_64    6.6.78.1-1.azl3   azurelinux-official-base  42.29k    38.72k\n" + \
+                                 "hypervfcopyd              x86_64    6.6.78.1-1.azl3   azurelinux-official-base  15.69k    26.97k\n" + \
+                                 "hyperv-daemons            x86_64    6.6.78.1-1.azl3   azurelinux-official-base  0.00b     20.08k\n\n" + \
+                                 "Total installed size:  78.16k\n" + \
+                                 "Total download size: 135.09k\n" + \
+                                 "Error(1032) : Operation aborted.\n"
+                    elif cmd.find("sudo tdnf list installed hyperv-daemons-license.noarch") > -1:
+                        code = 0
+                        output = "Loaded plugin: tdnfrepogpgcheck\n" + \
+                                 "hyperv-daemons-license.noarch                     6.6.78.1-1.azl3                     @System\n"
             elif self.legacy_test_type == 'FailInstallPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -921,6 +1043,10 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("force-dpkg-failure") > -1:
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
+                elif self.legacy_package_manager_name is Constants.TDNF:
+                    if cmd.find("simulate-install") > -1 or cmd.find("sudo tdnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
+                        code = 100
+                        output = "Failed to install package"
             elif self.legacy_test_type == 'SSLCertificateIssueType1HappyPathAfterFix':
                 if self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("yum update -y --disablerepo='*' --enablerepo='*microsoft*'") > -1:
@@ -1217,7 +1343,18 @@ class LegacyEnvLayerExtensions():
                                  "    grub2-tools.x86_64                                      " + \
                                  "1:2.02-123.el8                                      " + \
                                  "@System\n"
-
+                if self.legacy_package_manager_name is Constants.TDNF:
+                    if cmd.find("tdnf list available python3") > -1:
+                        code = 0
+                        output = "Loaded plugin: tdnfrepogpgcheck\n" + \
+                                 "python3.x86_64                3.12.3-1.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-2.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-4.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-5.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.3-6.azl3                   azurelinux-official-base\n" + \
+                                 "python3.x86_64                3.12.9-1.azl3                   azurelinux-official-base\n" + \
+                                 "Obsoleting:\n" + \
+                                 "python.x86_64                 2.7.9-1.azl3                    azurelinux-official-base\n"
             elif self.legacy_test_type == 'YumVersion4Dependency':
                 if self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("--version") > -1:
