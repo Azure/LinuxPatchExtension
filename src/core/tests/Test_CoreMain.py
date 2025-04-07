@@ -1326,7 +1326,7 @@ class TestCoreMain(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # If true, set installation status to warning
-        self.assertTrue(runtime.patch_installer.get_enabled_installation_warning_status())
+        self.assertTrue(runtime.patch_installer.set_patch_installation_status_to_warning_from_failed())
 
         # Check status file
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:

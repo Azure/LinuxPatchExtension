@@ -264,7 +264,7 @@ class StatusHandler(object):
             return "unknownDist_unknownVer"
 
     def get_installation_packages_list(self):
-        #type (none) -> list
+        # type (none) -> list
         """Access installation packages data"""
         return self.__installation_packages
     # endregion
