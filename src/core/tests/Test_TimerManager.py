@@ -35,10 +35,10 @@ class TestTimerManager(unittest.TestCase):
             return 0, "permissions set"
         else:
             raise Exception
-        
+
     def mock_write_with_retry_valid(self, file_path_or_handle, data, mode='a+'):
         return
-    
+
     def test_create_timer_unit_file(self):
         service_manager = TimerManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, ServiceInfo("AutoAssessment","Auto assessment service","path"))
         service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission
