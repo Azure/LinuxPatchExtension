@@ -84,7 +84,7 @@ class YumPackageManager(PackageManager):
 
         # if an Auto Patching request comes in on a CentOS machine with Security and/or Critical classifications selected, we need to install all patches
         installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
-        if execution_config.maintenance_run_id is not None and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
+        if execution_config.health_store_id is not str() and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
                 and 'CentOS' in str(env_layer.platform.linux_distribution()) \
                 and 'Critical' in installation_included_classifications and 'Security' in installation_included_classifications:
             self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on CentOS machines")
@@ -94,9 +94,9 @@ class YumPackageManager(PackageManager):
         self.known_errors_and_fixes = {"SSL peer rejected your certificate as expired": self.fix_ssl_certificate_issue,
                                        "Error: Cannot retrieve repository metadata (repomd.xml) for repository": self.fix_ssl_certificate_issue,
                                        "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
-        
+
         self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
-        
+
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 90 seconds for yum.
 
     def refresh_repo(self):
@@ -108,7 +108,7 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log_verbose("[YPM] Invoking package manager. [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
 
-        code, out = self.try_mitigate_issues_if_any(command, code, out)
+        code, out = self.try_mitigate_issues_if_any(command, code, out, raise_on_exception)
 
         if code not in [self.yum_exitcode_ok, self.yum_exitcode_no_applicable_packages, self.yum_exitcode_updates_available]:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -848,14 +848,36 @@ class YumPackageManager(PackageManager):
     # endregion
 
     # region Handling known errors
-    def try_mitigate_issues_if_any(self, command, code, out):
-        """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found """
+    def try_mitigate_issues_if_any(self, command, code, out, raise_on_exception=True, seen_errors=None, retry_count=0, max_retries=Constants.MAX_RETRY_ATTEMPTS_FOR_ERROR_MITIGATION):
+        """ Attempt to fix the errors occurred while executing a command. Repeat check until no issues found
+        Args:
+            raise_on_exception (bool): If true, should raise exception on issue mitigation failures.
+            seen_errors (Any): Hash set used to maintain a list of errors strings seen in the call stack.
+            retry_count (int): Count of number of retries made to resolve errors.
+            max_retries (int): Maximum number of retries allowed before exiting the retry loop.
+        """
+        if seen_errors is None:
+            seen_errors = set()
+
+        # Keep an upper bound on the size of the call stack to prevent an unbounded loop if error mitigation fails.
+        if retry_count >= max_retries:
+            self.log_error_mitigation_failure(out, raise_on_exception)
+            return code, out
+
         if "Error" in out or "Errno" in out:
+
+            # Preemptively exit the retry loop if the same error string is repeating in the call stack.
+            # This implies that self.check_known_issues_and_attempt_fix may have failed to mitigate the error.
+            if out in seen_errors:
+                self.log_error_mitigation_failure(out, raise_on_exception)
+                return code, out
+
+            seen_errors.add(out)
             issue_mitigated = self.check_known_issues_and_attempt_fix(out)
             if issue_mitigated:
                 self.composite_logger.log_debug('Post mitigation, invoking package manager again using: ' + command)
                 code_after_fix_attempt, out_after_fix_attempt = self.env_layer.run_command_output(command, False, False)
-                return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt)
+                return self.try_mitigate_issues_if_any(command, code_after_fix_attempt, out_after_fix_attempt, raise_on_exception, seen_errors, retry_count + 1, max_retries)
         return code, out
 
     def check_known_issues_and_attempt_fix(self, output):
@@ -883,6 +905,13 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug("Client package update complete. [Code={0}][Out={1}]".format(str(code), out))
             self.composite_logger.log_verbose("==========================================================================\n\n")
+
+    def log_error_mitigation_failure(self, output, raise_on_exception=True):
+        self.composite_logger.log_error("[YPM] Customer Environment Error: Unable to auto-mitigate known issue. Please investigate and address. [Out={0}]".format(output))
+        if raise_on_exception:
+            error_msg = 'Customer environment error (Unable to auto-mitigate known issue):  [Out={0}]'.format(output)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
     # endregion
 
     # region Reboot Management
@@ -989,14 +1018,14 @@ class YumPackageManager(PackageManager):
 
     def set_security_esm_package_status(self, operation, packages):
         """
-        Set the security-ESM classification for the esm packages. Only needed for apt. No-op for yum and zypper.
+        Set the security-ESM classification for the esm packages. Only needed for apt. No-op for tdnf, yum and zypper.
         """
         pass
 
     def separate_out_esm_packages(self, packages, package_versions):
         """
         Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
-        Only needed for apt. No-op for yum and zypper
+        Only needed for apt. No-op for tdnf, yum and zypper
         """
         esm_packages = []
         esm_package_versions = []
