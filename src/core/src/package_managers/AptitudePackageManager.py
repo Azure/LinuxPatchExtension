@@ -358,6 +358,7 @@ class AptitudePackageManager(PackageManager):
 
         # Query pro client if prerequisites are met
         if self.__pro_client_prereq_met:
+            self.refresh_repo()
             self.composite_logger.log_verbose("[APM-Pro][Sec] Discovering 'security' packages (pro client)...")
             ubuntu_pro_client_security_updates_query_success, ubuntu_pro_client_security_packages, ubuntu_pro_client_security_package_versions = self.ubuntu_pro_client.get_security_updates()
 
