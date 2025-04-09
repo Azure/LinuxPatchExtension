@@ -73,7 +73,7 @@ class EnvLayer(object):
         return ret
 
     def set_env_var(self, var_name, var_value=None, raise_if_not_success=False):
-        """ Sets an environment variable with var_name and var_value in /etc/environment. If it already exists, it is over-writen. """
+        """ Sets an environment variable with var_name and var_value in /etc/environment. If it already exists, it is overwritten. """
         try:
             environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
             if environment_vars is None:
