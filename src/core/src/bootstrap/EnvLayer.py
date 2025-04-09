@@ -360,7 +360,7 @@ class EnvLayer(object):
 # region - DateTime emulation and extensions
     class DateTime(object):
         @staticmethod
-        def time(self):
+        def time():
             return time.time()
 
         @staticmethod
