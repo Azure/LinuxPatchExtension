@@ -25,7 +25,6 @@ import subprocess
 import sys
 import tempfile
 import time
-from xmlrpc.client import DateTime
 
 from core.src.bootstrap.Constants import Constants
 from core.src.external_dependencies import distro

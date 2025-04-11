@@ -61,7 +61,7 @@ class TestExecutionConfig(unittest.TestCase):
     # endregion
 
     def test_get_package_manager(self):
-        self.backup_platform_system = platform.system()
+        self.backup_platform_system = platform.system
         platform.system = self.mock_platform_system
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.envlayer.platform.linux_distribution = self.mock_linux_distribution
@@ -94,7 +94,7 @@ class TestExecutionConfig(unittest.TestCase):
     def test_filesystem(self):
         # only validates if these invocable without exceptions
         backup_retry_count = Constants.MAX_FILE_OPERATION_RETRY_COUNT
-        Constants.MAX_FILE_OPERATION_RETRY_COUNT = 1
+        Constants.MAX_FILE_OPERATION_RETRY_COUNT = 2
         self.envlayer.file_system.read_with_retry("fake.path", raise_if_not_found=False)
         Constants.MAX_FILE_OPERATION_RETRY_COUNT = backup_retry_count
 
