@@ -110,7 +110,7 @@ class TestTimerManager(unittest.TestCase):
         result = self.service_manager.enable_timer()
         
         # Assert
-        self.assertTrue(result, "Timer should be enable")
+        self.assertTrue(result, "Timer should be enabled")
         self.assertTrue(self.service_manager.invoke_systemctl_called)
     
     def test_disable_timer(self):
@@ -122,7 +122,7 @@ class TestTimerManager(unittest.TestCase):
         result = self.service_manager.disable_timer()
         
         # Assert
-        self.assertTrue(result, "Timer should be disable")
+        self.assertTrue(result, "Timer should be disabled")
         self.assertTrue(self.service_manager.invoke_systemctl_called)
     
     def test_get_timer_status(self):
