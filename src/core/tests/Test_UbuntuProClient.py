@@ -16,8 +16,6 @@
 import sys
 import types
 import unittest
-if sys.version_info[0] < 3:
-    import imp
 
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -66,11 +64,9 @@ class MockVersionResult(MockSystemModules):
             sys.modules['uaclient.api.u.pro.version.v1'] = types.ModuleType('version_module')
             mock_method = getattr(self, method_name)
             setattr(sys.modules['uaclient.api.u.pro.version.v1'], mock_name, mock_method)
-        else:
-            if sys.version_info[0] < 3:
-                version_module = imp.new_module('version_module')
-            else:
-                version_module = types.ModuleType('version_module')
+        else:   # Python 2 only
+            import imp
+            version_module = imp.new_module('version_module')
             mock_method = getattr(self, method_name)
             setattr(version_module, mock_name, mock_method)
             self.assign_sys_modules_with_mock_module('uaclient.api.u.pro.version.v1', version_module)
