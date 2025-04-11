@@ -404,6 +404,5 @@ class TestUbuntuProClient(unittest.TestCase):
         package_manager.ubuntu_pro_client.get_ubuntu_pro_client_updates = backup_get_ubuntu_pro_client_updates
         obj.mock_unimport_uaclient_update_module()
 
-
 if __name__ == '__main__':
     unittest.main()
