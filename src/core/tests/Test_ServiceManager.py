@@ -36,16 +36,14 @@ class TestServiceManager(unittest.TestCase):
         parts = cmd.split()
         if parts[1] == "chmod" and parts[2] == "644":
             return 0, "permissions set"
-        else:
-            raise Exception
 
     def mock_write_with_retry_valid(self, file_path_or_handle, data, mode='a+'):
         return
 
     def mock_invoke_systemctl(self, command, description):
         self.service_manager.invoke_systemctl_called = True
-        
-        if "start" in command:
+
+        if "start" in command and "restart" not in command:
             return 0, "Service started"
         elif "stop" in command:
             return 0, "Service stopped"
@@ -59,7 +57,6 @@ class TestServiceManager(unittest.TestCase):
             return 0, "Disabling the service"
         elif "is-active" in command:
             return 0, "Checking if service is active"
-        return 1, "Unknown command"
 
     def test_create_service_unit_file(self):
         self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission

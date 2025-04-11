@@ -35,19 +35,17 @@ class TestTimerManager(unittest.TestCase):
         parts = cmd.split()
         if parts[1] == "chmod" and parts[2] == "644":
             return 0, "permissions set"
-        else:
-            raise Exception
 
     def mock_write_with_retry_valid(self, file_path_or_handle, data, mode='a+'):
         return
 
     def mock_invoke_systemctl(self, command, description):
         self.service_manager.invoke_systemctl_called = True
-        if "start" in command:
+        if "start" in command and "restart" not in command:
             return 0, "Timer started"
         elif "stop" in command:
             return 0, "Timer stopped"
-        elif "reloading" in command:
+        elif "reload-or-restart" in command:
             return 0, "Reloading the timer"
         elif "status" in command:
             return 0, "Getting the timer status"
@@ -57,8 +55,6 @@ class TestTimerManager(unittest.TestCase):
             return 0, "Disable the timer"
         elif "is-active" in command:
             return 0, "Checking if timer is active"
-        else:
-            return 1, "Unknown command"
 
     def test_create_timer_unit_file(self):
         self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission
