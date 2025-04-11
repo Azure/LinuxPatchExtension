@@ -16,6 +16,8 @@
 import sys
 import types
 import unittest
+if sys.version_info < (3, 12):
+    import imp
 
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -64,8 +66,7 @@ class MockVersionResult(MockSystemModules):
             sys.modules['uaclient.api.u.pro.version.v1'] = types.ModuleType('version_module')
             mock_method = getattr(self, method_name)
             setattr(sys.modules['uaclient.api.u.pro.version.v1'], mock_name, mock_method)
-        else:   # Python 2 only
-            import imp
+        else:
             version_module = imp.new_module('version_module')
             mock_method = getattr(self, method_name)
             setattr(version_module, mock_name, mock_method)
@@ -93,8 +94,7 @@ class MockRebootRequiredResult(MockSystemModules):
             sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'] = types.ModuleType('reboot_module')
             mock_method = getattr(self, method_name)
             setattr(sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'], mock_name, mock_method)
-        else:  # Python 2 only
-            import imp
+        else:
             reboot_module = imp.new_module('reboot_module')
             mock_method = getattr(self, method_name)
             setattr(reboot_module, mock_name, mock_method)
@@ -139,7 +139,6 @@ class MockUpdatesResult(MockSystemModules):
             mock_method = getattr(self, method_name)
             setattr(sys.modules['uaclient.api.u.pro.packages.updates.v1'], mock_name, mock_method)
         else:
-            import imp
             update_module = imp.new_module('update_module')
             mock_method = getattr(self, method_name)
             setattr(update_module, mock_name, mock_method)
