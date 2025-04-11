@@ -350,14 +350,16 @@ class EnvLayer(object):
 # region - DateTime extensions
     class DateTime(object):
         @staticmethod
-        def datetime_utcnow():
-            if sys.version_info < (3, 12):
-                return datetime.datetime.utcnow()
-            else:
-                return datetime.datetime.now(datetime.timezone.utc)
+        def time():
+            return time.time()
 
-        def timestamp(self):
-            return self.datetime_utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        @staticmethod
+        def datetime_utcnow():
+            return datetime.datetime.utcnow()
+
+        @staticmethod
+        def timestamp():
+            return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
         @staticmethod
         def total_minutes_from_time_delta(time_delta):
