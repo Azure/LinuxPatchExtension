@@ -255,8 +255,6 @@ class StatusHandler(object):
 
     def get_os_name_and_version(self):
         try:
-            if self.env_layer.platform.os_type() != "Linux":
-                raise Exception("Unsupported OS type: {0}.".format(self.env_layer.platform.os_type()))
             platform_info = self.env_layer.platform.linux_distribution()
             return "{0}_{1}".format(platform_info[0], platform_info[1])
         except Exception as error:

@@ -58,13 +58,9 @@ class PatchInstaller(object):
         self.raise_if_telemetry_unsupported()
         self.raise_if_min_python_version_not_met()
 
-        self.composite_logger.log('\nStarting patch installation...')
+        self.composite_logger.log("\nStarting patch installation... [MachineId: " + self.env_layer.platform.vm_name() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time + "][MaintenanceWindowDuration: " + self.execution_config.duration + "]")
 
         self.stopwatch.start()
-
-        self.composite_logger.log("\nMachine Id: " + self.env_layer.platform.vm_name())
-        self.composite_logger.log("Activity Id: " + self.execution_config.activity_id)
-        self.composite_logger.log("Operation request time: " + self.execution_config.start_time + ",               Maintenance Window Duration: " + self.execution_config.duration)
 
         maintenance_window = self.maintenance_window
         package_manager = self.package_manager

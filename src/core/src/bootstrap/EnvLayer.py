@@ -25,6 +25,8 @@ import subprocess
 import sys
 import tempfile
 import time
+from xmlrpc.client import DateTime
+
 from core.src.bootstrap.Constants import Constants
 from core.src.external_dependencies import distro
 
@@ -44,6 +46,9 @@ class EnvLayer(object):
     def get_package_manager(self):
         # type: () -> str
         """ Detects package manager type """
+        if platform.system() == 'Windows':
+            return Constants.APT
+
         if self.platform.linux_distribution()[0] == Constants.AZURE_LINUX:
             code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
@@ -61,7 +66,7 @@ class EnvLayer(object):
             if code == 0:
                 return entry[1]
 
-        return str() if platform.system() != 'Windows' else Constants.APT
+        return str()
 
     def set_env_var(self, var_name, var_value=str(), raise_if_not_success=False):
         # type: (str, str, bool) -> None
@@ -346,16 +351,14 @@ class EnvLayer(object):
 # region - DateTime extensions
     class DateTime(object):
         @staticmethod
-        def time():
-            return time.time()
-
-        @staticmethod
         def datetime_utcnow():
-            return datetime.datetime.utcnow()
+            if sys.version_info < (3, 12):
+                return datetime.datetime.utcnow()
+            else:
+                return datetime.datetime.now(datetime.timezone.utc)
 
-        @staticmethod
-        def timestamp():
-            return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        def timestamp(self):
+            return self.datetime_utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
         @staticmethod
         def total_minutes_from_time_delta(time_delta):
