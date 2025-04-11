@@ -106,7 +106,7 @@ class EnvLayer(object):
                 raise
 
     def get_env_var(self, var_name, raise_if_not_success=False):
-        # type: (str, bool) -> None
+        # type: (str, bool) -> any
         """ Returns the value of an environment variable with var_name in /etc/environment. Returns None if it does not exist. """
         try:
             environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
