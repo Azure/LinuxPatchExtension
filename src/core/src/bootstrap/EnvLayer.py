@@ -32,7 +32,7 @@ from core.src.external_dependencies import distro
 class EnvLayer(object):
     """ Environment related functions """
 
-    def __init__(self, real_record_path=None, recorder_enabled=False, emulator_enabled=False):
+    def __init__(self):
         # Discrete components
         self.platform = self.Platform()
         self.datetime = self.DateTime()
@@ -42,47 +42,39 @@ class EnvLayer(object):
         self.etc_environment_file_path = "/etc/environment"
 
     def get_package_manager(self):
+        # type: () -> str
         """ Detects package manager type """
-        ret = None
-
         if self.platform.linux_distribution()[0] == Constants.AZURE_LINUX:
             code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
-                ret = Constants.TDNF
+                return Constants.TDNF
             else:
-                print("Error: Expected package manager tdnf not found on this Azure Linux VM")
-        else:
-            # choose default - almost surely one will match.
-            for b in ('apt-get', 'yum', 'zypper'):
-                code, out = self.run_command_output('which ' + b, False, False)
-                if code == 0:
-                    ret = b
-                    if ret == 'apt-get':
-                        ret = Constants.APT
-                        break
-                    if ret == 'yum':
-                        ret = Constants.YUM
-                        break
-                    if ret == 'zypper':
-                        ret = Constants.ZYPPER
-                        break
+                print("Error: Expected package manager tdnf not found on this Azure Linux VM.")
+                return str()
 
-        if ret is None and platform.system() == 'Windows':
-            ret = Constants.APT
+        # choose default package manager
+        package_manager_map = (('apt-get', Constants.APT),
+                               ('yum', Constants.YUM),
+                               ('zypper', Constants.ZYPPER))
+        for entry in package_manager_map:
+            code, out = self.run_command_output('which ' + entry[0], False, False)
+            if code == 0:
+                return entry[1]
 
-        return ret
+        return str() if platform.system() != 'Windows' else Constants.APT
 
-    def set_env_var(self, var_name, var_value=None, raise_if_not_success=False):
+    def set_env_var(self, var_name, var_value=str(), raise_if_not_success=False):
+        # type: (str, str, bool) -> None
         """ Sets an environment variable with var_name and var_value in /etc/environment. If it already exists, it is overwritten. """
         try:
             environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
             if environment_vars is None:
-                print("Error occurred while setting environment variable: File not found. [Variable={0}] [Value={1}] [Path={2}]".format(str(var_name), str(var_value), self.etc_environment_file_path))
+                print("Error occurred while setting environment variable: File not found. [Variable={0}][Value={1}][Path={2}]".format(str(var_name), str(var_value), self.etc_environment_file_path))
                 return
 
             environment_vars_lines = environment_vars.strip().split("\n")
 
-            if var_value is None:
+            if var_value is str():
                 # remove environment variable
                 regex = re.compile('{0}=.+'.format(var_name))
                 search = regex.search(environment_vars)
@@ -114,6 +106,7 @@ class EnvLayer(object):
                 raise
 
     def get_env_var(self, var_name, raise_if_not_success=False):
+        # type: (str, bool) -> None
         """ Returns the value of an environment variable with var_name in /etc/environment. Returns None if it does not exist. """
         try:
             environment_vars = self.file_system.read_with_retry(self.etc_environment_file_path)
@@ -136,16 +129,11 @@ class EnvLayer(object):
                 raise
 
     def run_command_output(self, cmd, no_output, chk_err=True):
-        """
-            Wrapper for subprocess.check_output. Execute 'cmd'.
-            Returns return code and STDOUT, trapping expected exceptions.
-            Reports exceptions to Error if chk_err parameter is True
-        """
+        # type: (str, bool, bool) -> (int, any)
+        """ Wrapper for subprocess.check_output. Execute 'cmd'. Returns return code and STDOUT, trapping expected exceptions. Reports exceptions to Error if chk_err parameter is True """
 
         def check_output(*popenargs, **kwargs):
-            """
-            Backport from subprocess module from python 2.7
-            """
+            """ Backport from subprocess module from python 2.7 """
             if 'stdout' in kwargs:
                 raise ValueError('stdout argument not allowed, it will be overridden.')
 
@@ -189,17 +177,13 @@ class EnvLayer(object):
             output = subprocess.check_output(no_output, cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
             if chk_err:
-                print("Error: CalledProcessError.  Error Code is: " + str(e.returncode), file=sys.stdout)
-                print("Error: CalledProcessError.  Command string was: " + e.cmd, file=sys.stdout)
-                print("Error: CalledProcessError.  Command result was: " + self.__convert_process_output_to_ascii(e.output[:-1]), file=sys.stdout)
+                print("Error: CalledProcessError. [Code={0}][Command={1}][Result={2}]".format(str(e.returncode), e.cmd, self.__convert_process_output_to_ascii(e.output[:-1])), file=sys.stdout)
             if no_output:
                 return e.return_code, None
             else:
                 return e.return_code, self.__convert_process_output_to_ascii(e.output)
         except Exception as error:
-            message = "Exception during cmd execution. [Exception={0}][Cmd={1}]".format(repr(error),str(cmd))
-            print(message)
-            raise message
+            raise "Exception during cmd execution. [Exception={0}][Cmd={1}]".format(repr(error), str(cmd))
 
         if no_output:
             return 0, None
@@ -226,37 +210,39 @@ class EnvLayer(object):
 
     @staticmethod
     def get_python_major_version():
+        # type: () -> int
         if hasattr(sys.version_info, 'major'):
             return sys.version_info.major
         else:
             return sys.version_info[0]  # python 2.6 doesn't have attributes like 'major' within sys.version_info
 
-# region - Platform emulation and extensions
+# region - Platform extensions
     class Platform(object):
         @staticmethod
         def linux_distribution():
             return platform.linux_distribution() if (EnvLayer.get_python_major_version() == 2) else distro.linux_distribution()
 
         @staticmethod
-        def system():   # OS Type
+        def os_type():   # OS Type
             return platform.system()
 
         @staticmethod
-        def machine():  # architecture
+        def cpu_arch():  # architecture
             return platform.machine()
 
         @staticmethod
-        def node():     # machine name
+        def vm_name():     # machine name
             return platform.node()
-# endregion - Platform emulation and extensions
+# endregion - Platform extensions
 
-# region - File system emulation and extensions
+# region - File system extensions
     class FileSystem(object):
         def __init__(self):
             # file-names of files that other processes may change the contents of
             self.__non_exclusive_files = [Constants.EXT_STATE_FILE]
 
-        def open(self, file_path, mode, raise_if_not_found=True):
+        @staticmethod
+        def open(file_path, mode, raise_if_not_found=True):
             """ Provides a file handle to the file_path requested using implicit redirection where required """
             for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
                 try:
@@ -302,7 +288,7 @@ class EnvLayer(object):
                             return None
 
         def write_with_retry(self, file_path_or_handle, data, mode='a+'):
-            """ Writes to a given real/emulated file path in a single operation """
+            """ Writes to a file path in a single operation """
             file_handle, was_path = self.__obtain_file_handle(file_path_or_handle, mode)
 
             for i in range(0, Constants.MAX_FILE_OPERATION_RETRY_COUNT):
@@ -355,9 +341,9 @@ class EnvLayer(object):
                         else:
                             print(error_message)
                             continue
-# endregion - File system emulation and extensions
+# endregion - File system extensions
 
-# region - DateTime emulation and extensions
+# region - DateTime extensions
     class DateTime(object):
         @staticmethod
         def time():

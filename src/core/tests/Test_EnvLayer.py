@@ -67,7 +67,7 @@ class TestExecutionConfig(unittest.TestCase):
         test_input_output_table = [
             [self.mock_run_command_for_apt, self.mock_linux_distribution, Constants.APT],
             [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux, Constants.TDNF],
-            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux, None],  # check for Azure Linux machine which does not have tdnf
+            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux, str()],  # check for Azure Linux machine which does not have tdnf
             [self.mock_run_command_for_yum, self.mock_linux_distribution, Constants.YUM],
             [self.mock_run_command_for_zypper, self.mock_linux_distribution, Constants.ZYPPER],
         ]

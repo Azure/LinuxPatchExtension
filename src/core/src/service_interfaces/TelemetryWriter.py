@@ -83,7 +83,7 @@ class TelemetryWriter(object):
         # Machine info - sent only once at the start of the run
         self.machine_info = "[PlatformName={0}][PlatformVersion={1}][MachineCpu={2}][MachineArch={3}][DiskType={4}]".format(
                              str(self.env_layer.platform.linux_distribution()[0]), str(self.env_layer.platform.linux_distribution()[1]),
-                             self.get_machine_processor(), str(self.env_layer.platform.machine()), self.get_disk_type())
+                             self.get_machine_processor(), str(self.env_layer.platform.cpu_arch()), self.get_disk_type())
         self.write_event("Machine info is: {0}".format(self.machine_info), Constants.TelemetryEventLevel.Informational)
 
     def write_execution_error(self, cmd, code, output):
