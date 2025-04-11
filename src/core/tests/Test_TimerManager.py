@@ -57,6 +57,8 @@ class TestTimerManager(unittest.TestCase):
             return 0, "Disable the timer"
         elif "is-active" in command:
             return 0, "Checking if timer is active"
+        else:
+            return 1, "Unknown command"
 
     def test_create_timer_unit_file(self):
         self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission

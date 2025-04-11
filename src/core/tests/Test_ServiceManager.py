@@ -44,8 +44,11 @@ class TestServiceManager(unittest.TestCase):
 
     def mock_invoke_systemctl(self, command, description):
         self.service_manager.invoke_systemctl_called = True
+        
         if "start" in command:
             return 0, "Service started"
+        elif "stop" in command:
+            return 0, "Service stopped"
         elif "reload-or-restart" in command:
             return 0, "Reloading the service"
         elif "status" in command:
@@ -56,7 +59,7 @@ class TestServiceManager(unittest.TestCase):
             return 0, "Disabling the service"
         elif "is-active" in command:
             return 0, "Checking if service is active"
-        return 1, "Service not started"
+        return 1, "Unknown command"
 
     def test_create_service_unit_file(self):
         self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission
@@ -99,7 +102,7 @@ class TestServiceManager(unittest.TestCase):
         result = self.service_manager.stop_service()
 
         # Assert
-        self.assertFalse(result, "Service should not be started")
+        self.assertTrue(result, "Service should not be started")
         self.assertTrue(self.service_manager.invoke_systemctl_called)
 
     def test_get_service_status(self):
