@@ -76,7 +76,7 @@ class TestServiceManager(unittest.TestCase):
         self.assertTrue(result, "Service should be started")
         self.assertTrue(self.service_manager.invoke_systemctl_called)
 
-    def test_stop_service(self):
+    def test_reload_service(self):
         # Set method calls
         self.service_manager.invoke_systemctl_called = False
 
@@ -89,7 +89,7 @@ class TestServiceManager(unittest.TestCase):
         self.assertTrue(result, "Reloading the service.")
         self.assertTrue(self.service_manager.invoke_systemctl_called)
 
-    def test_reload_service(self):
+    def test_stop_service(self):
         # Set method calls
         self.service_manager.invoke_systemctl_called = False
 
