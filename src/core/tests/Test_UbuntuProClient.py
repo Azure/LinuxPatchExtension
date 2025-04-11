@@ -93,7 +93,7 @@ class MockRebootRequiredResult(MockSystemModules):
             sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'] = types.ModuleType('reboot_module')
             mock_method = getattr(self, method_name)
             setattr(sys.modules['uaclient.api.u.pro.security.status.reboot_required.v1'], mock_name, mock_method)
-        else:
+        else:  # Python 2 only
             import imp
             reboot_module = imp.new_module('reboot_module')
             mock_method = getattr(self, method_name)
@@ -138,7 +138,8 @@ class MockUpdatesResult(MockSystemModules):
             sys.modules['uaclient.api.u.pro.packages.updates.v1'] = types.ModuleType('update_module')
             mock_method = getattr(self, method_name)
             setattr(sys.modules['uaclient.api.u.pro.packages.updates.v1'], mock_name, mock_method)
-        else:
+        else:  # Python 2 only
+            import imp
             update_module = imp.new_module('update_module')
             mock_method = getattr(self, method_name)
             setattr(update_module, mock_name, mock_method)
