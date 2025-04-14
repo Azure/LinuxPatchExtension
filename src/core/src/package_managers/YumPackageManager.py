@@ -835,7 +835,8 @@ class YumPackageManager(PackageManager):
         else:
             self.composite_logger.log_debug("[YPM] Disabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
 
-    def enable_auto_update_on_reboot(self, command):
+    def enable_auto_update_on_reboot(self):
+        command = self.enable_on_reboot_cmd
         self.composite_logger.log_verbose("[YPM] Enabling auto update on reboot. [Command={0}] ".format(command))
         code, out = self.env_layer.run_command_output(command, False, False)
 
@@ -891,7 +892,7 @@ class YumPackageManager(PackageManager):
             self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, download_updates_value_from_backup, self.auto_update_config_pattern_match_text)
             self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, apply_updates_value_from_backup, self.auto_update_config_pattern_match_text)
             if str(enable_on_reboot_value_from_backup).lower() == 'true':
-                self.enable_auto_update_on_reboot(self.enable_on_reboot_cmd)
+                self.enable_auto_update_on_reboot()
         else:
             self.composite_logger.log_debug("[YPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]".format(str(service)))
 

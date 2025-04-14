@@ -16,6 +16,13 @@
 import json
 import os
 import unittest
+import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
+
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -646,6 +653,144 @@ class TestTdnfPackageManager(unittest.TestCase):
 
         self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
         self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.UNKNOWN)
+
+    def test_revert_auto_os_update_to_system_default_success_with_dnf_automatic(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "dnf-automatic": {
+                "apply_updates": "yes",
+                "download_updates": "yes",
+                "enable_on_reboot": True,
+                "installation_state": True
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+        reverted_dnf_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.dnf_automatic_configuration_file_path)
+        self.assertTrue(reverted_dnf_automatic_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = yes' in reverted_dnf_automatic_patch_configuration_settings)
+        self.assertTrue('apply_updates = yes' in reverted_dnf_automatic_patch_configuration_settings)
+
+    def test_revert_auto_os_update_to_system_default_success_with_dnf_automatic_not_installed(self):
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "dnf-automatic": {
+                "apply_updates": "",
+                "download_updates": "",
+                "enable_on_reboot": False,
+                "installation_state": False
+            },
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+        self.assertFalse(os.path.exists(package_manager.dnf_automatic_configuration_file_path))
+
+    def test_revert_auto_os_update_to_system_default_success_with_dnf_automatic_installed_but_no_config_value(self):
+        self.runtime.set_legacy_test_type('RevertToImageDefault')
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'test_value = yes\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "dnf-automatic": {
+                "apply_updates": "",
+                "download_updates": "",
+                "enable_on_reboot": False,
+                "installation_state": True
+            },
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+        reverted_dnf_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.dnf_automatic_configuration_file_path)
+        self.assertTrue(reverted_dnf_automatic_patch_configuration_settings is not None)
+        self.assertTrue('download_updates =\n' in reverted_dnf_automatic_patch_configuration_settings)
+        self.assertTrue('apply_updates = \n' in reverted_dnf_automatic_patch_configuration_settings)
+
+    def test_revert_auto_os_update_to_system_default_backup_config_does_not_exist(self):
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+
+        self.runtime.set_legacy_test_type('RevertToImageDefault')
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        # backup for system default auto OS update config is NOT setup
+
+        package_manager.revert_auto_os_update_to_system_default()
+        # restore sys.stdout output
+        sys.stdout = original_stdout
+
+        # assert
+        output = captured_output.getvalue()
+        self.assertTrue("[TDNF] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=dnf-automatic]" in output)
+        reverted_dnf_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.dnf_automatic_configuration_file_path)
+        self.assertTrue(reverted_dnf_automatic_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = no' in reverted_dnf_automatic_patch_configuration_settings)
+        self.assertTrue('apply_updates = no' in reverted_dnf_automatic_patch_configuration_settings)
+
+    def test_revert_auto_os_update_to_system_default_backup_config_invalid(self):
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+
+        self.runtime.set_legacy_test_type('RevertToImageDefault')
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "dnf-automatic": {
+                "apply_updates": "yes",
+                "download_updates": "yes",
+                "enable_on_reboot": True
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+        # restore sys.stdout output
+        sys.stdout = original_stdout
+
+        # assert
+        output = captured_output.getvalue()
+        self.assertTrue("[TDNF] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=dnf-automatic]" in output)
+        reverted_dnf_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.dnf_automatic_configuration_file_path)
+        self.assertTrue(reverted_dnf_automatic_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = no' in reverted_dnf_automatic_patch_configuration_settings)
+        self.assertTrue('apply_updates = no' in reverted_dnf_automatic_patch_configuration_settings)
 
 
 if __name__ == '__main__':
