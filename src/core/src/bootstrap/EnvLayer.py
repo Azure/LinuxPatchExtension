@@ -37,7 +37,7 @@ class EnvLayer(object):
     def __init__(self, real_record_path=None, recorder_enabled=False, emulator_enabled=False):
         # Recorder / emulator storage
         self.__real_record_path = real_record_path
-        self.__real_record_pointer_path = real_record_path + ".pt"
+        self.__real_record_pointer_path = real_record_path + ".pt" if real_record_path is not None else None
         self.__real_record_handle = None
         self.__real_record_pointer = 0
 
@@ -55,7 +55,7 @@ class EnvLayer(object):
         self.platform = self.Platform(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record)
         self.datetime = self.DateTime(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record)
         self.file_system = self.FileSystem(recorder_enabled, emulator_enabled, self.__write_record, self.__read_record,
-                                           emulator_root_path=os.path.dirname(self.__real_record_path))
+                                           emulator_root_path=os.path.dirname(self.__real_record_path) if self.__real_record_path is not None else self.__real_record_path)
 
         # Constant paths
         self.etc_environment_file_path = "/etc/environment"
@@ -64,20 +64,27 @@ class EnvLayer(object):
         """ Detects package manager type """
         ret = None
 
-        # choose default - almost surely one will match.
-        for b in ('apt-get', 'yum', 'zypper'):
-            code, out = self.run_command_output('which ' + b, False, False)
+        if self.platform.linux_distribution()[0] == Constants.AZURE_LINUX:
+            code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
-                ret = b
-                if ret == 'apt-get':
-                    ret = Constants.APT
-                    break
-                if ret == 'yum':
-                    ret = Constants.YUM
-                    break
-                if ret == 'zypper':
-                    ret = Constants.ZYPPER
-                    break
+                ret = Constants.TDNF
+            else:
+                print("Error: Expected package manager tdnf not found on this Azure Linux VM")
+        else:
+            # choose default - almost surely one will match.
+            for b in ('apt-get', 'yum', 'zypper'):
+                code, out = self.run_command_output('which ' + b, False, False)
+                if code == 0:
+                    ret = b
+                    if ret == 'apt-get':
+                        ret = Constants.APT
+                        break
+                    if ret == 'yum':
+                        ret = Constants.YUM
+                        break
+                    if ret == 'zypper':
+                        ret = Constants.ZYPPER
+                        break
 
         if ret is None and platform.system() == 'Windows':
             ret = Constants.APT

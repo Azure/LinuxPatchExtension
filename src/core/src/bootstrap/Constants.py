@@ -51,6 +51,7 @@ class Constants(object):
     # Max values
     MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES = 5*1024*1024
     MAX_AUTO_ASSESSMENT_WAIT_FOR_MAIN_CORE_EXEC_IN_MINUTES = 3 * 60
+    MAX_RETRY_ATTEMPTS_FOR_ERROR_MITIGATION = 10
 
     class SystemPaths(EnumBackport):
         SYSTEMD_ROOT = "/etc/systemd/system/"
@@ -196,9 +197,11 @@ class Constants(object):
     RED_HAT = 'Red Hat'
     SUSE = 'SUSE'
     CENTOS = 'CentOS'
+    AZURE_LINUX = 'Microsoft Azure Linux'
 
     # Package Managers
     APT = 'apt'
+    TDNF = 'tdnf'
     YUM = 'yum'
     ZYPPER = 'zypper'
 
@@ -268,7 +271,7 @@ class Constants(object):
         STARTED = "Started"
         COMPLETED = "Completed"
         FAILED = "Failed"
-    
+
     # Enum for VM Cloud Type
     class VMCloudType(EnumBackport):
         UNKNOWN = "Unknown"
@@ -349,7 +352,7 @@ class Constants(object):
         PRIVILEGED_OP_REBOOT = PRIVILEGED_OP_MARKER + "Reboot_Exception"
         PRIVILEGED_OP_EXIT = PRIVILEGED_OP_MARKER + "Exit_"
 
-    # Supported Package Architectures - if this is changed, review YumPackageManage
+    # Supported Package Architectures - if this is changed, review TdnfPackageManager and YumPackageManager
     SUPPORTED_PACKAGE_ARCH = ['.x86_64', '.noarch', '.i686', '.aarch64']
 
     # Package / Patch State Ordering Constants
