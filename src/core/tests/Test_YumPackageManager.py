@@ -487,6 +487,47 @@ class TestYumPackageManager(unittest.TestCase):
 
         self.assertRaises(Exception, package_manager.invoke_package_manager, package_manager.yum_check)
 
+    def test_auto_issue_mitigation_should_raise_exception_if_error_repeats(self):
+        self.runtime.set_legacy_test_type('IssueMitigationRetryExitAfterMultipleAttempts')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        self.assertRaises(Exception, package_manager.invoke_package_manager, package_manager.yum_check)
+
+    def test_auto_issue_mitigation_should_raise_exception_if_retries_are_exhausted(self):
+        self.runtime.set_legacy_test_type('IssueMitigationRetryExitAfterMultipleAttempts')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        with self.assertRaises(Exception):
+            package_manager.try_mitigate_issues_if_any('testcmd', 0, 'Test out', retry_count = Constants.MAX_RETRY_ATTEMPTS_FOR_ERROR_MITIGATION + 1)
+
+    def test_auto_issue_mitigation_when_error_repeats_raise_exception_disabled(self):
+        expected_out = "Error: Failed to download metadata for repo 'rhui-rhel-8-for-x86_64-baseos-rhui-rpms': Cannot download repomd.xml: Cannot download repodata/repomd.xml: All mirrors were tried"
+        self.runtime.set_legacy_test_type('IssueMitigationRetryExitAfterMultipleAttempts')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        code, out = package_manager.try_mitigate_issues_if_any('testcmd', 0, expected_out, raise_on_exception = False)
+
+        self.assertEqual(out, expected_out)
+        self.assertTrue(code >= 0)
+
+    def test_auto_issue_mitigation_when_retries_are_exhausted_raise_exception_disabled(self):
+        expected_out = "Error: Failed to download metadata for repo 'rhui-rhel-8-for-x86_64-baseos-rhui-rpms': Cannot download repomd.xml: Cannot download repodata/repomd.xml: All mirrors were tried"
+        self.runtime.set_legacy_test_type('IssueMitigationRetryExitAfterMultipleAttempts')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        code, out = package_manager.try_mitigate_issues_if_any('testcmd', 0, expected_out, retry_count = Constants.MAX_RETRY_ATTEMPTS_FOR_ERROR_MITIGATION + 1, raise_on_exception = False)
+
+        self.assertEqual(out, expected_out)
+        self.assertTrue(code >= 0)
+
     def test_disable_auto_os_updates_with_uninstalled_services(self):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
         self.runtime.set_legacy_test_type('SadPath')
