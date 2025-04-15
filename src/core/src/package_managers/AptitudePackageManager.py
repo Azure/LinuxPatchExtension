@@ -373,8 +373,8 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log_verbose("[APM-Pro][Sec] Pro Client to default package count comparison. [DefaultSecurityPackagesCount={0}][UbuntuProClientSecurityPackagesCount={1}]".format(len(security_packages), len(ubuntu_pro_client_security_packages)))
         if len(pro_client_missed_updates) > 0:       # not good, needs investigation - incl. several pro client differences that are now known
             self.composite_logger.log_debug("[APM-Pro][Sec][!] Pro Client missed updates found. [Count={0}][Updates={1}]".format(len(pro_client_missed_updates), pro_client_missed_updates))
-        if len(sec_updates_missed_updates) > 0:     # interesting, for review
-            self.composite_logger.log_debug("[APM-Pro][Sec][*] Pro Client only updates found. [Count={0}][Updates={1}]".format(len(sec_updates_missed_updates), sec_updates_missed_updates))
+        if len(sec_updates_missed_updates) > 0:      # interesting, for review
+            self.composite_logger.log_debug("[APM-Pro][Sec][*] Pro Client-only updates found. [Count={0}][Updates={1}]".format(len(sec_updates_missed_updates), sec_updates_missed_updates))
 
         # Use default security update list & versions as base, and adding pro client specific items on top
         complete_list = security_packages
