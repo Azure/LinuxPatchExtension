@@ -233,7 +233,7 @@ class TestExtEnvHandler(unittest.TestCase):
         temp_folder_path = ext_env_handler.get_temp_folder()
 
         # validate path
-        self.assertEquals(temp_folder_path, ext_env_handler.temp_folder)
+        self.assertEqual(temp_folder_path, ext_env_handler.temp_folder)
 
         shutil.rmtree(test_dir)
 

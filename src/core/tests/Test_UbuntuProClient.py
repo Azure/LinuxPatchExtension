@@ -13,10 +13,11 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import imp
 import sys
 import types
 import unittest
+if sys.version_info < (3, 12):
+    import imp
 
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -113,7 +114,7 @@ class UpdateInfo:
 
 class MockUpdatesResult(MockSystemModules):
 
-    def __init__(self, updates = []):
+    def __init__(self, updates=[]):
         self.updates = updates
 
     def mock_update_list_with_all_update_types(self):
