@@ -284,9 +284,7 @@ class PatchInstaller(object):
         successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
 
         if len(packages) == 0:
-            self.__enable_installation_status_to_warning_flag = self.__check_installation_status_can_set_to_warning(patch_installation_successful, maintenance_window_exceeded)
             self.log_final_installation_metric(patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count)
-
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
@@ -384,8 +382,7 @@ class PatchInstaller(object):
 
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
-
-        self.__enable_installation_status_to_warning_flag = self.__check_installation_status_can_set_to_warning(patch_installation_successful, maintenance_window_exceeded)
+        
         self.log_final_installation_metric(patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count)
 
         install_update_count_in_sequential_patching = installed_update_count - install_update_count_in_batch_patching
@@ -821,7 +818,8 @@ class PatchInstaller(object):
     # region - Failed packages retry succeeded
     def log_final_installation_metric(self, patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count):
         """ log final installation operation status. """
-        if self.__enable_installation_status_to_warning_flag:
+        warning_status = self.__check_installation_status_can_set_to_warning(patch_installation_successful, maintenance_window_exceeded)
+        if warning_status:
             self.log_final_warning_metric(maintenance_window, installed_update_count)
         else:
             self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
@@ -829,19 +827,8 @@ class PatchInstaller(object):
     def __check_installation_status_can_set_to_warning(self, patch_installation_successful, maintenance_window_exceeded):
         """ Verify patch installation status can be set to warning from failed. """
         # type (bool, bool) -> bool
-        return not patch_installation_successful and not maintenance_window_exceeded and self.__check_all_requested_packages_install_state()
-
-    def __check_all_requested_packages_install_state(self):
-        # type (none) -> bool
-        """ Check if any package(s) are all installed. """
-
-        # Check if any package(s) are not installed
-        for package in self.status_handler.get_installation_packages_list():
-            if package['patchInstallationState'] != Constants.INSTALLED:
-                return False
-
-        # All package(s) are installed
-        return True
+        self.__enable_installation_status_to_warning_flag = not patch_installation_successful and not maintenance_window_exceeded and self.status_handler.check_all_requested_packages_install_state()
+        return self.__enable_installation_status_to_warning_flag
 
     def __send_metadata_to_health_store(self):
         self.composite_logger.log_debug("[PI] Reviewing final healthstore record write. [HealthStoreId={0}][MaintenanceRunId={1}]".format(str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))

@@ -263,10 +263,16 @@ class StatusHandler(object):
             self.composite_logger.log_error("Unable to determine platform information: {0}".format(repr(error)))
             return "unknownDist_unknownVer"
 
-    def get_installation_packages_list(self):
-        # type (none) -> list
-        """Access installation packages data"""
-        return self.__installation_packages
+    def check_all_requested_packages_install_state(self):
+        # type (none) -> bool
+        """ Check if all requested package(s) are installed. """
+        
+        for package in self.__installation_packages:
+            if package['patchInstallationState'] != Constants.INSTALLED:
+                return False
+            
+        # All requested package(s) are installed
+        return True
     # endregion
 
     # region - Installation Reboot Status
