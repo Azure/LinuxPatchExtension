@@ -25,7 +25,7 @@ jobs:
         run: |
           cd ./src/extension/tests
           echo '===============START EXTENSION TESTS...===============' >> ../../../err.txt
-          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
+          coverage run --append -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH EXTENSION TESTS...===============' >> ../../../err.txt
       - name: Run core tests
         continue-on-error: true
@@ -33,7 +33,7 @@ jobs:
         run: |
           cd ./src/core/tests
           echo '===============START CORE TESTS...===============' >> ../../../err.txt
-          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err.txt
+          coverage run --append -m unittest discover -s . -t ../../ 2>> ../../../err.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err.txt
       - name: Collect coverage
         run: |
@@ -62,7 +62,7 @@ jobs:
     runs-on: windows-latest
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-    needs: codecov-python-39
+    needs: codecov-python-312
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -95,7 +95,7 @@ jobs:
         run: |
           cd ./src/extension/tests
           echo '===============START EXTENSION TESTS...===============' >> ../../../err2.txt
-          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
+          coverage run --append -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
           echo '===============FINISH EXTENSION TESTS...===============' >> ../../../err2.txt
       - name: Run core tests
         continue-on-error: true
@@ -103,7 +103,7 @@ jobs:
         run: |
           cd ./src/core/tests
           echo '===============START CORE TESTS...===============' >> ../../../err2.txt
-          coverage run -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
+          coverage run --append -m unittest discover -s . -t ../../ 2>> ../../../err2.txt
           echo '===============FINISH CORE TESTS...===============' >> ../../../err2.txt
       - name: Collect coverage
         run: |
