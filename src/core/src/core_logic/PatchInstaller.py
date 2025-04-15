@@ -546,6 +546,7 @@ class PatchInstaller(object):
         # These packages will be attempted in sequential installation if there is enough time in maintenance window to install package sequentially.
         remaining_packages = []
         remaining_package_versions = []
+        
         # failed_packages are the packages which are failed to install in batch patching. These packages will be attempted again in sequential patching if there is 
         # enough time remaining in maintenance window.
         failed_packages = []
