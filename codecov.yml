@@ -1,5 +1,6 @@
 ignore:
   - "**/distro.py"
   - "src/external_dependencies"
-  - "*/tests/*"
-  - "*/test_*.py"
+  - "**/tests/**"
+  - "**/test_*.py"
+  - "**/*Test*.py"
