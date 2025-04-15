@@ -165,7 +165,7 @@ class TestServiceManager(unittest.TestCase):
 
         # Assert
         self.assertTrue(result, "Checking if service is enabled")
-        self.assertTrue(self.service_manager.invoke_systemctl_called)
+        self.assertFalse(self.service_manager.invoke_systemctl_called)
 
 
 if __name__ == '__main__':
