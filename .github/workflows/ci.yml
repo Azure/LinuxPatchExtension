@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [master]
 jobs:
-  codecov-python-39:
+  codecov-python-312:
     runs-on: windows-latest
     env:
       PYTHONTRACEMALLOC: 1
@@ -13,10 +13,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up Python 3.9
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: 3.12
       - name: Install dependencies
         run: pip install coverage
       - name: Run extension tests
@@ -44,8 +44,8 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.5
         with:
-          flags: python39
-          name: python-39
+          flags: python312
+          name: python-312
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
