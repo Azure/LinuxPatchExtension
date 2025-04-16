@@ -130,14 +130,14 @@ class TestRebootManager(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = reboot_setting_in_api
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES = -20
+        Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES_MIN = -20
 
         with self.assertRaises(Exception) as context:
             runtime.use_original_rm_start_reboot()
-            runtime.reboot_manager.start_reboot()
+            runtime.reboot_manager._RebootManager__start_reboot()
 
         # assert
-        self.assertIn("Reboot failed to proceed on the machine in a timely manner.", repr(context.exception))
+        self.assertIn("Customer environment issue: Reboot failed to proceed on the machine in a timely manner. Please retry the operation.", repr(context.exception))
         self.assertEqual(context.exception.args[1], "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         runtime.stop()
 
