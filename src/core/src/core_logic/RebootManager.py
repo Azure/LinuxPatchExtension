@@ -162,10 +162,14 @@ class RebootManager(object):
     def __calc_max_allowable_time_to_reboot_in_minutes(maintenance_window_available_time_in_minutes):
         # type: (int) -> int
         """ Calculates the maximum amount of time to wait before considering the reboot attempt a failure. """
-        if maintenance_window_available_time_in_minutes >= Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES_MAX:
+
+        # remove the reboot to machine ready time from the available time
+        available_time = maintenance_window_available_time_in_minutes - Constants.REBOOT_TO_MACHINE_READY_TIME_IN_MINUTES
+
+        if available_time >= Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES_MAX:
             # If the maintenance window is greater than the max, we can use the max.
             return Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES_MAX
         else:
             # Otherwise, we use the greater of the time available or the minimum wait timeout allowable.
-            return max(maintenance_window_available_time_in_minutes, Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES_MIN)
+            return max(available_time, Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES_MIN)
     # endregion
