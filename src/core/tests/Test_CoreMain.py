@@ -1004,8 +1004,8 @@ class TestCoreMain(unittest.TestCase):
         CoreMain(argument_composer.get_composed_arguments())
 
         # check values of health_store_id and maintenance_run_id
-        self.assertEquals(runtime.execution_config.health_store_id, None)
-        self.assertEquals(runtime.execution_config.maintenance_run_id, None)
+        self.assertEqual(runtime.execution_config.health_store_id, None)
+        self.assertEqual(runtime.execution_config.maintenance_run_id, None)
 
         # check telemetry events
         self.__check_telemetry_events(runtime)
