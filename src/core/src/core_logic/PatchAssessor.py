@@ -51,7 +51,7 @@ class PatchAssessor(object):
             self.lifecycle_manager.lifecycle_status_check()
             return True
 
-        self.composite_logger.log("\nStarting patch assessment... [MachineId: " + self.env_layer.platform.node() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time + "]")
+        self.composite_logger.log("\nStarting patch assessment... [MachineId: " + self.env_layer.platform.vm_name() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time + "]")
         self.write_assessment_state()   # success / failure does not matter, only that an attempt started
 
         self.stopwatch.start()

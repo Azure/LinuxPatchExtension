@@ -58,14 +58,14 @@ class ConfigurationFactory(object):
     """ Class for generating module definitions. Configuration is list of key value pairs. Please DON'T change key name.
     DI container relies on the key name to find and resolve dependencies. If you do need change it, please make sure to
     update the key name in all places that reference it. """
-    def __init__(self, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder, telemetry_supported):
+    def __init__(self, log_file_path, events_folder, telemetry_supported):
         self.vm_cloud_type = self.get_vm_cloud_type()
         self.lifecycle_manager_component = self.get_lifecycle_manager_component(self.vm_cloud_type)
 
         self.bootstrap_configurations = {
-            'prod_config':  self.new_bootstrap_configuration(Constants.PROD, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder, telemetry_supported),
-            'dev_config':   self.new_bootstrap_configuration(Constants.DEV, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder, telemetry_supported),
-            'test_config':  self.new_bootstrap_configuration(Constants.TEST, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder, telemetry_supported)
+            'prod_config':  self.new_bootstrap_configuration(Constants.PROD, log_file_path, events_folder, telemetry_supported),
+            'dev_config':   self.new_bootstrap_configuration(Constants.DEV, log_file_path, events_folder, telemetry_supported),
+            'test_config':  self.new_bootstrap_configuration(Constants.TEST, log_file_path, events_folder, telemetry_supported)
         }
 
         self.configurations = {
@@ -127,18 +127,14 @@ class ConfigurationFactory(object):
 
     # region - Configuration Builders
     @staticmethod
-    def new_bootstrap_configuration(config_env, log_file_path, real_record_path, recorder_enabled, emulator_enabled, events_folder, telemetry_supported):
+    def new_bootstrap_configuration(config_env, log_file_path, events_folder, telemetry_supported):
         """ Core configuration definition. """
         configuration = {
             'config_env': config_env,
             'env_layer': {
                 'component': EnvLayer,
                 'component_args': [],
-                'component_kwargs': {
-                    'real_record_path': real_record_path,
-                    'recorder_enabled': recorder_enabled,
-                    'emulator_enabled': emulator_enabled
-                }
+                'component_kwargs': {}
             },
             'file_logger': {
                 'component': FileLogger,
