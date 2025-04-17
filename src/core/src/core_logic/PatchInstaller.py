@@ -815,6 +815,14 @@ class PatchInstaller(object):
         progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
                                                         "Completed processing packages!")
         self.composite_logger.log(progress_status)
+        
+    def __send_metadata_to_health_store(self):
+        self.composite_logger.log_debug("[PI] Reviewing final healthstore record write. [HealthStoreId={0}][MaintenanceRunId={1}]".format(str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))
+        if self.execution_config.health_store_id is not None:
+            self.status_handler.set_patch_metadata_for_healthstore_substatus_json(
+                patch_version=self.execution_config.health_store_id,
+                report_to_healthstore=True,
+                wait_after_update=False)
 
     # region - Failed packages retry succeeded
     def log_final_installation_metric(self, patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count):
@@ -830,14 +838,6 @@ class PatchInstaller(object):
         # type (bool, bool) -> bool
         self.__enable_installation_status_to_warning_flag = not patch_installation_successful and not maintenance_window_exceeded and self.status_handler.check_all_requested_packages_install_state()
         return self.__enable_installation_status_to_warning_flag
-
-    def __send_metadata_to_health_store(self):
-        self.composite_logger.log_debug("[PI] Reviewing final healthstore record write. [HealthStoreId={0}][MaintenanceRunId={1}]".format(str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))
-        if self.execution_config.health_store_id is not None:
-            self.status_handler.set_patch_metadata_for_healthstore_substatus_json(
-                patch_version=self.execution_config.health_store_id,
-                report_to_healthstore=True,
-                wait_after_update=False)
 
     def set_patch_installation_status_to_warning_from_failed(self):
         """Access enable_installation_warning_status value"""
