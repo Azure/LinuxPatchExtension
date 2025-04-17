@@ -835,6 +835,64 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertTrue('download_updates = no' in reverted_yum_cron_patch_configuration_settings)
         self.assertTrue('apply_updates = no' in reverted_yum_cron_patch_configuration_settings)
 
+    def test_revert_auto_os_update_to_system_default_backup_config_contains_empty_values(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.yum_cron_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "yum-cron.conf")
+        yum_cron_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.yum_cron_configuration_settings_file_path, yum_cron_os_patch_configuration_settings)
+
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf_automatic_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = no\n'
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
+
+        package_manager.packagekit_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "PackageKit.conf")
+        packagekit_os_patch_configuration_settings = 'WritePreparedUpdates = false\n'
+        self.runtime.write_to_file(package_manager.packagekit_configuration_file_path, packagekit_os_patch_configuration_settings)
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "yum-cron": {
+                "apply_updates": "no",
+                "download_updates": "yes",
+                "enable_on_reboot": True,
+                "installation_state": True
+            },
+            "dnf-automatic": {
+                "apply_updates": "yes",
+                "download_updates": "",
+                "enable_on_reboot": True,
+                "installation_state": True
+            },
+            "packagekit": {
+                "WritePreparedUpdates": "",
+                "GetPreparedUpdates": "",
+                "enable_on_reboot": True,
+                "installation_state": True
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+
+        reverted_yum_cron_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.yum_cron_configuration_settings_file_path)
+        self.assertTrue(reverted_yum_cron_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = yes' in reverted_yum_cron_patch_configuration_settings)
+        self.assertTrue('apply_updates = no' in reverted_yum_cron_patch_configuration_settings)
+
+        reverted_dnf_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.dnf_automatic_configuration_file_path)
+        self.assertTrue(reverted_dnf_automatic_patch_configuration_settings is not None)
+        self.assertTrue('download_updates = no' in reverted_dnf_automatic_patch_configuration_settings)
+        self.assertTrue('apply_updates = yes' in reverted_dnf_automatic_patch_configuration_settings)
+
+        reverted_packagekit_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.packagekit_configuration_file_path)
+        self.assertTrue(reverted_packagekit_patch_configuration_settings is not None)
+        self.assertTrue('WritePreparedUpdates = false' in reverted_packagekit_patch_configuration_settings)
+        self.assertTrue('GetPreparedUpdates = ' not in reverted_packagekit_patch_configuration_settings)
+
     def test_is_reboot_pending_return_true_when_exception_raised(self):
         package_manager = self.container.get('package_manager')
         backup_do_process_require_restart = package_manager.do_processes_require_restart
@@ -943,6 +1001,7 @@ class TestYumPackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         dependent_list = package_manager.get_dependent_list(["polkit.x86_64"])
         self.assertEqual(len(dependent_list), 0)
+
 
 if __name__ == '__main__':
     unittest.main()

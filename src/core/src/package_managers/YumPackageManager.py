@@ -798,6 +798,12 @@ class YumPackageManager(PackageManager):
         try:
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
             self.composite_logger.log_debug("[YPM] Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
+
+            if value == '':
+                self.composite_logger.log_debug("[YPM] We won't update the system configuration settings since new configuration value to update does not match any of it's acceptable values. [Patch Configuration Sub Setting={0}] [Value To Update={1}][Acceptable Values={2}]"
+                                                .format(str(patch_configuration_sub_setting), value, config_pattern_match_text))
+                return
+
             os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
             patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + ' = ' + value
             patch_configuration_sub_setting_found_in_file = False

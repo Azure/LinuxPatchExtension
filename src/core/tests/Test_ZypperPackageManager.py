@@ -547,6 +547,29 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertTrue(reverted_os_patch_configuration_settings is not None)
         self.assertTrue('AOU_ENABLE_CRONJOB="false"' in reverted_os_patch_configuration_settings)
 
+    def test_revert_auto_os_update_to_system_default_backup_config_contains_empty_values(self):
+        package_manager = self.container.get('package_manager')
+
+        # setup current auto OS update config
+        package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
+        yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="false"'
+        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
+
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "yast2-online-update-configuration": {
+                "AOU_ENABLE_CRONJOB": "",
+                "installation_state": True
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+        package_manager.revert_auto_os_update_to_system_default()
+        reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(reverted_os_patch_configuration_settings is not None)
+        self.assertTrue('AOU_ENABLE_CRONJOB="false"' in reverted_os_patch_configuration_settings)
+
     def is_string_in_status_file(self, str_to_find):
         with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             file_contents = json.loads(file_handle.read())

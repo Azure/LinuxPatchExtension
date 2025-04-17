@@ -667,7 +667,7 @@ class ZypperPackageManager(PackageManager):
         self.composite_logger.log_debug("[ZPM] Preemptively disabling auto OS updates using yum-cron")
         self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "false", self.auto_update_config_pattern_match_text)
 
-        self.composite_logger.log_debug("[ZPM] [ZPM] Successfully disabled auto OS updates using yast2-online-update-configuration")
+        self.composite_logger.log_debug("[ZPM] Successfully disabled auto OS updates using yast2-online-update-configuration")
 
     def backup_image_default_patch_configuration_if_not_exists(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
@@ -730,6 +730,12 @@ class ZypperPackageManager(PackageManager):
         """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
         try:
             self.composite_logger.log_debug("[ZPM] Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
+
+            if value == '':
+                self.composite_logger.log_debug("[ZPM] We won't update the system configuration settings since new configuration value to update does not match any of it's acceptable values. [Patch Configuration Sub Setting={0}] [Value To Update={1}][Acceptable Values={2}]"
+                                                .format(str(patch_configuration_sub_setting), value, config_pattern_match_text))
+                return
+
             os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
             patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + '="' + value + '"'
             patch_configuration_sub_setting_found_in_file = False
