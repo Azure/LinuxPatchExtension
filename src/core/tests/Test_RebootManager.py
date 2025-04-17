@@ -189,6 +189,15 @@ class TestRebootManager(unittest.TestCase):
 
         runtime.stop()
 
+    def test_reboot_manager_wait_pulse(self):
+        argument_composer = ArgumentComposer()
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        backup_pulse_interval_value = Constants.REBOOT_WAIT_PULSE_INTERVAL_IN_SECONDS
+        Constants.REBOOT_WAIT_PULSE_INTERVAL_IN_SECONDS = 0
+        runtime.reboot_manager._RebootManager__reboot_wait_pulse(1, 10, 15)
+        Constants.REBOOT_WAIT_PULSE_INTERVAL_IN_SECONDS = backup_pulse_interval_value
+        runtime.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

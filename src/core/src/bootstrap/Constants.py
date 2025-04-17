@@ -266,6 +266,7 @@ class Constants(object):
     REBOOT_WAIT_TIMEOUT_IN_MINUTES_MIN = 7       # minimum time to wait for a reboot to have started in the current execution context
     REBOOT_WAIT_TIMEOUT_IN_MINUTES_MAX = 40      # maximum possible** time to wait for a reboot to have started in the current execution context (**IF MW time remaining allows it)
     REBOOT_TO_MACHINE_READY_TIME_IN_MINUTES = 5  # time to wait for the machine to be ready after a reboot actually happens
+    REBOOT_WAIT_PULSE_INTERVAL_IN_SECONDS = 60   # time to wait between checks for reboot completion
 
     # Installation Reboot Statuses
     class RebootStatus(EnumBackport):
