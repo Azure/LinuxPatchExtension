@@ -53,8 +53,6 @@ class PatchInstaller(object):
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
-        self.__enable_installation_status_to_warning_flag = False
-
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
         self.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -126,7 +124,7 @@ class PatchInstaller(object):
         overall_patch_installation_successful = bool(update_run_successful and not maintenance_window_exceeded)
         # NOTE: Not updating installation substatus at this point because we need to wait for the implicit/second assessment to complete first, as per CRP's instructions
 
-        return overall_patch_installation_successful
+        return overall_patch_installation_successful, maintenance_window_exceeded
 
     def write_installer_perf_logs(self, patch_operation_successful, installed_patch_count, retry_count, maintenance_window, maintenance_window_exceeded, task_status, error_msg):
         perc_maintenance_window_used = -1
@@ -284,7 +282,7 @@ class PatchInstaller(object):
         successful_parent_package_install_count_in_batch_patching = self.successful_parent_package_install_count
 
         if len(packages) == 0:
-            self.log_final_installation_metric(patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count)
+            self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
             return installed_update_count, patch_installation_successful, maintenance_window_exceeded
         else:
             progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
@@ -383,7 +381,7 @@ class PatchInstaller(object):
         self.composite_logger.log_debug("\nPerforming final system state reconciliation...")
         installed_update_count += self.perform_status_reconciliation_conditionally(package_manager, True)
         
-        self.log_final_installation_metric(patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count)
+        self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
 
         install_update_count_in_sequential_patching = installed_update_count - install_update_count_in_batch_patching
         attempted_parent_package_install_count_in_sequential_patching = self.attempted_parent_package_install_count - attempted_parent_package_install_count_in_batch_patching
@@ -420,7 +418,6 @@ class PatchInstaller(object):
 
     def log_final_warning_metric(self, maintenance_window, installed_update_count):
         """ Log the final metrics for warning installation status. """
-
         self.__log_progress_status(maintenance_window, installed_update_count)
         message = "All requested package(s) are installed. Any patch errors marked are from previous attempts."
         self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.PACKAGES_RETRY_SUCCEEDED)
@@ -692,9 +689,12 @@ class PatchInstaller(object):
 
     def mark_installation_completed_with_warning(self):
         """ Marks Installation operation as warning by updating the status of PatchInstallationSummary as warning and patch metadata to be sent to healthstore.
-        This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as warning only after the implicit (2nd) assessment operation
-        and all supposed packages are installed as expected. """
+        This is set outside of start_installation function due to a restriction in CRP, where installation substatus should be marked as warning only after the implicit (2nd) assessment operation
+        and all customer requested packages are installed. """
 
+        message = "All requested package(s) are installed. Any patch errors marked are from previous attempts."
+        self.composite_logger.log_error(message)
+        self.status_handler.add_error_to_status(message, Constants.PatchOperationErrorCodes.PACKAGES_RETRY_SUCCEEDED)
         self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
 
         # Update patch metadata in status for auto patching request, to be reported to healthStore
@@ -812,7 +812,11 @@ class PatchInstaller(object):
         return max_batch_size_for_packages
 
     def __log_progress_status(self, maintenance_window, installed_update_count):
-        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())), str(self.attempted_parent_package_install_count), str(self.successful_parent_package_install_count), str(self.failed_parent_package_install_count), str(installed_update_count - self.successful_parent_package_install_count),
+        progress_status = self.progress_template.format(str(datetime.timedelta(minutes=maintenance_window.get_remaining_time_in_minutes())),
+                                                        str(self.attempted_parent_package_install_count),
+                                                        str(self.successful_parent_package_install_count),
+                                                        str(self.failed_parent_package_install_count),
+                                                        str(installed_update_count - self.successful_parent_package_install_count),
                                                         "Completed processing packages!")
         self.composite_logger.log(progress_status)
         
@@ -824,22 +828,5 @@ class PatchInstaller(object):
                 report_to_healthstore=True,
                 wait_after_update=False)
 
-    # region - Failed packages retry succeeded
-    def log_final_installation_metric(self, patch_installation_successful, maintenance_window_exceeded, maintenance_window, installed_update_count):
-        """ log final installation operation status. """
-        warning_status = self.__check_installation_status_can_set_to_warning(patch_installation_successful, maintenance_window_exceeded)
-        if warning_status:
-            self.log_final_warning_metric(maintenance_window, installed_update_count)
-        else:
-            self.log_final_metrics(maintenance_window, patch_installation_successful, maintenance_window_exceeded, installed_update_count)
-
-    def __check_installation_status_can_set_to_warning(self, patch_installation_successful, maintenance_window_exceeded):
-        """ Verify patch installation status can be set to warning from failed. """
-        # type (bool, bool) -> bool
-        self.__enable_installation_status_to_warning_flag = not patch_installation_successful and not maintenance_window_exceeded and self.status_handler.check_all_requested_packages_install_state()
-        return self.__enable_installation_status_to_warning_flag
-
-    def set_patch_installation_status_to_warning_from_failed(self):
-        """Access enable_installation_warning_status value"""
-        return self.__enable_installation_status_to_warning_flag
-    # endregion
+    def should_patch_installation_status_be_set_to_warning(self, patch_installation_successful, maintenance_window_exceeded):
+        return not patch_installation_successful and not maintenance_window_exceeded and self.status_handler.are_all_requested_packgaes_installed()

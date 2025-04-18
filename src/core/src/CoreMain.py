@@ -93,7 +93,7 @@ class CoreMain(object):
                 # setting current operation here, to include patch_installer init within installation actions, ensuring any exceptions during patch_installer init are added in installation summary errors object
                 status_handler.set_current_operation(Constants.INSTALLATION)
                 patch_installer = container.get('patch_installer')
-                patch_installation_successful = patch_installer.start_installation()
+                patch_installation_successful, maintenance_window_exceeded = patch_installer.start_installation()
                 patch_assessment_successful = False
                 patch_assessment_successful = patch_assessor.start_assessment()
 
@@ -101,7 +101,7 @@ class CoreMain(object):
                 if patch_assessment_successful and patch_installation_successful:
                     patch_installer.mark_installation_completed()
                     overall_patch_installation_operation_successful = True
-                elif patch_installer.set_patch_installation_status_to_warning_from_failed():
+                elif patch_installer.should_patch_installation_status_be_set_to_warning(patch_installation_successful, maintenance_window_exceeded):
                     patch_installer.mark_installation_completed_with_warning()
                     overall_patch_installation_operation_successful = True
                 self.update_patch_substatus_if_pending(patch_operation_requested, overall_patch_installation_operation_successful, patch_assessment_successful, configure_patching_successful, status_handler, composite_logger)
