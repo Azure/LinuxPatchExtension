@@ -197,8 +197,7 @@ class Constants(object):
     RED_HAT = 'Red Hat'
     SUSE = 'SUSE'
     CENTOS = 'CentOS'
-    AZURE_LINUX = 'Microsoft Azure Linux'
-    COMMON_BASE_LINUX_MARINER = 'Common Base Linux Mariner'
+    AZURE_LINUX = ['Microsoft Azure Linux', 'Common Base Linux Mariner']
 
     # Package Managers
     APT = 'apt'
