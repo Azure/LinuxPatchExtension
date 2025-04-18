@@ -638,12 +638,14 @@ class TdnfPackageManager(PackageManager):
 
     def revert_auto_os_update_to_system_default(self):
         """ Reverts the auto OS update patch state on the machine to it's system default value, if one exists in our backup file """
+        # type () -> None
         self.composite_logger.log("[TDNF] Reverting the current automatic OS patch state on the machine to it's system default value before patchmode was set to 'AutomaticByPlatform'")
         self.revert_auto_os_update_to_system_default_for_dnf_automatic()
         self.composite_logger.log_debug("[TDNF] Successfully reverted auto OS updates to system default config")
 
     def revert_auto_os_update_to_system_default_for_dnf_automatic(self):
         """ Reverts the auto OS update patch state on the machine to it's system default value for given service, if applicable """
+        # type () -> None
         self.__init_auto_update_for_dnf_automatic()
         self.composite_logger.log("[TDNF] Reverting the current automatic OS patch state on the machine to it's system default value for [Service={0}]".format(str(self.current_auto_os_update_service)))
         is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()

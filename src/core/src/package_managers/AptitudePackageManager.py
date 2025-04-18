@@ -743,10 +743,10 @@ class AptitudePackageManager(PackageManager):
         """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
         try:
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
-            self.composite_logger.log("Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
+            self.composite_logger.log("[APM] Updating system configuration settings for auto OS updates. [PatchConfigurationSubSetting={0}][Value={1}]".format(str(patch_configuration_sub_setting), value))
 
             if value == '':
-                self.composite_logger.log_debug("We won't update the system configuration settings since new configuration value to update does not an acceptable value. [Patch Configuration Sub Setting={0}] [Value To Update={1}]"
+                self.composite_logger.log_debug("[APM] We won't update the system configuration settings since new configuration value to update does not an acceptable value. [PatchConfigurationSubSetting={0}][ValueToUpdate={1}]"
                                                 .format(str(patch_configuration_sub_setting), value))
                 return
 
@@ -776,6 +776,7 @@ class AptitudePackageManager(PackageManager):
 
     def revert_auto_os_update_to_system_default(self):
         """ Reverts the auto OS update patch state on the machine to it's system default value, if one exists in our backup file """
+        # type () -> None
         self.composite_logger.log("Reverting the current automatic OS patch state on the machine to it's system default value before patchmode was set to 'AutomaticByPlatform'")
 
         if not os.path.exists(self.os_patch_configuration_settings_file_path):
