@@ -14,18 +14,12 @@
 #
 # Requires Python 2.7+
 
-""" Merges individual python modules from src to the AzGPSLinuxPatchExt files in the out directory.
-Relative source and destination paths for the extension are auto-detected if the optional src parameter is not present.
-How to use: python Package-All.py <optional: full path to extension 'src' folder>
-Note: Package-All.py internally invokes Package-Core.py to generate AzGPSLinuxPatchCore.py """
+""" Publishes a new extension version by incrementing the version number in the manifest.xml file."""
 
 from __future__ import print_function
 import sys
 import os
 import errno
-import datetime
-from shutil import copyfile
-from shutil import make_archive
 import subprocess
 import xml.etree.ElementTree as et
 
@@ -34,7 +28,6 @@ def replace_text_in_file(file_path, old_text, new_text):
     with open(file_path, 'rb') as file_handle: text = file_handle.read()
     text = text.replace(old_text.encode(encoding='UTF-8'), new_text.encode(encoding='UTF-8'))
     with open(file_path, 'wb') as file_handle: file_handle.write(text)
-
 
 
 def main(argv):
