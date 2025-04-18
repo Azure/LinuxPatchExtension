@@ -76,8 +76,9 @@ class TdnfPackageManager(PackageManager):
 
         # if an Auto Patching request comes in on a Azure Linux machine with Security and/or Critical classifications selected, we need to install all patches, since classifications aren't available in Azure Linux repository
         installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
+        linux_distribution = str(env_layer.platform.linux_distribution())
         if execution_config.health_store_id is not str() and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
-                and Constants.AZURE_LINUX in str(env_layer.platform.linux_distribution()) \
+                and (Constants.AZURE_LINUX in linux_distribution or Constants.COMMON_BASE_LINUX_MARINER in linux_distribution) \
                 and 'Critical' in installation_included_classifications and 'Security' in installation_included_classifications:
             self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on Azure Linux machines")
             execution_config.included_classifications_list = [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER]

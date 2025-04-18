@@ -64,7 +64,8 @@ class EnvLayer(object):
         """ Detects package manager type """
         ret = None
 
-        if self.platform.linux_distribution()[0] == Constants.AZURE_LINUX:
+        distro_name = self.platform.linux_distribution()[0]
+        if distro_name == Constants.AZURE_LINUX or distro_name == Constants.COMMON_BASE_LINUX_MARINER:
             code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
                 ret = Constants.TDNF
