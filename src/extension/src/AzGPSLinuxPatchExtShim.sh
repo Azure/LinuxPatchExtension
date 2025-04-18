@@ -17,7 +17,7 @@
 # Requires Python 2.7+
 
 # Keeping the default command
-COMMAND="MsftLinuxPatchExt.py"
+COMMAND="AzGPSLinuxPatchExt.py"
 PYTHON=""
 
 USAGE="$(basename "$0") [-h] [-i|--install] [-u|--uninstall] [-d|--disable] [-e|--enable] [-p|--update] [-r|--reset]
