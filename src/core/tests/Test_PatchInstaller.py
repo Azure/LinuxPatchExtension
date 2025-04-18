@@ -241,8 +241,7 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer.maximum_duration = "PT30M"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('HappyPath')
-        patch_installation_successful, maintenance_window_exceeded = runtime.patch_installer.start_installation()
-        self.assertFalse(patch_installation_successful)                 # failure is in unrelated patch installation batch processing
+        self.assertFalse(runtime.patch_installer.start_installation())                 # failure is in unrelated patch installation batch processing
         self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
         self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: not enough time to use
 
@@ -254,24 +253,21 @@ class TestPatchInstaller(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('HappyPath')
         runtime.package_manager.install_security_updates_azgps_coordinated = lambda: (1, "Failed")
-        patch_installation_successful, maintenance_window_exceeded = runtime.patch_installer.start_installation()
-        self.assertFalse(patch_installation_successful)
+        self.assertFalse(runtime.patch_installer.start_installation())
         self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
         self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # reason: the strict SDP is forced to fail with the lambda above
         runtime.stop()
 
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
         runtime.set_legacy_test_type('HappyPath')
-        patch_installation_successful, maintenance_window_exceeded = runtime.patch_installer.start_installation()
-        self.assertTrue(patch_installation_successful)
+        self.assertTrue(runtime.patch_installer.start_installation())
         self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
         self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # unsupported in Yum
         runtime.stop()
 
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
         runtime.set_legacy_test_type('HappyPath')
-        patch_installation_successful, maintenance_window_exceeded = runtime.patch_installer.start_installation()
-        self.assertFalse(patch_installation_successful)                 # failure is in unrelated patch installation batch processing
+        self.assertFalse(runtime.patch_installer.start_installation())                 # failure is in unrelated patch installation batch processing
         self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
         self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # unsupported in Zypper
         runtime.stop()
