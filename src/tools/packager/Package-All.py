@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,45 +14,45 @@
 #
 # Requires Python 2.7+
 
-""" Merges individual python modules from src to the PatchMicrosoftOMSLinuxComputer.py and MsftLinuxPatchCore.py files in the out directory.
-Relative source and destination paths for the patch runbook are auto-detected if the optional src parameter is not present.
-How to use: python Package.py <optional: full path to runbook 'src' folder>"""
+""" Merges individual python modules from src to the AzGPSLinuxPatchExt files in the out directory.
+Relative source and destination paths for the extension are auto-detected if the optional src parameter is not present.
+How to use: python Package-All.py <optional: full path to extension 'src' folder>
+Note: Package-All.py internally invokes Package-Core.py to generate AzGPSLinuxPatchCore.py """
 
 from __future__ import print_function
-
-import shutil
 import sys
 import os
 import errno
 import datetime
-
+from shutil import copyfile
+from shutil import make_archive
+import subprocess
+import xml.etree.ElementTree as et
 
 # imports in VERY_FIRST_IMPORTS, order should be kept
 VERY_FIRST_IMPORTS = [
     'from __future__ import print_function\n',
     'from abc import ABCMeta, abstractmethod\n',
-    'from datetime import timedelta\n',
-    'from external_dependencies import distro\n',
-    'try:\n import urllib2 as urlreq   #Python 2.x \nexcept:\n import urllib.request as urlreq   #Python 3.x\n']
+    'from distutils.version import LooseVersion\n']
 GLOBAL_IMPORTS = set()
 
 
 def read_python_module(source_code_path, module_name):
     module_full_path = os.path.join(source_code_path, module_name)
     imports = []
-    codes = "\n\n# region ########## {0} ##########\n".format(os.path.basename(module_name).replace('.py',''))
+    codes = "\n\n# region ########## {0} ##########\n".format(os.path.basename(module_name))
     is_code_body = False
     if os.path.exists(module_full_path):
         with open(module_full_path) as py_file:
             for line in py_file:
                 if line.startswith('import'):
                     imports.append(line)
-                elif line.strip().startswith('class') or line.strip().startswith('def main(argv):') or line.strip().startswith('if __name__ == "__main__"'):
+                elif line.strip().startswith('class') or line.strip().startswith('def main(argv):'):
                     is_code_body = True
 
                 if is_code_body is True:
                     codes = codes + line
-    codes = codes + "\n# endregion ########## {0} ##########\n".format(os.path.basename(module_name).replace('.py',''))
+    codes = codes + "\n# endregion ########## {0} ##########\n".format(os.path.basename(module_name))
     return imports, codes
 
 
@@ -62,15 +62,16 @@ def write_merged_code(code, merged_file_full_path):
 
 
 def insert_copyright_notice(merged_file_full_path, merged_file_name):
-    notice = '# --------------------------------------------------------------------------------------------------------------------\n'
+    notice = '# coding=utf-8\n'
+    notice += '# --------------------------------------------------------------------------------------------------------------------\n'
     notice += '# <copyright file="' + merged_file_name + '" company="Microsoft">\n'
-    notice += '#   Copyright 2020 Microsoft Corporation\n' \
+    notice += '#   Copyright ' + str(datetime.date.today().year) + ' Microsoft Corporation\n' \
               '#\n' \
               '#   Licensed under the Apache License, Version 2.0 (the "License");\n' \
               '#   you may not use this file except in compliance with the License.\n' \
               '#   You may obtain a copy of the License at\n' \
               '#\n' \
-              '#     http://www.apache.org/licenses/LICENSE-2.0\n' \
+              '#     https://www.apache.org/licenses/LICENSE-2.0\n' \
               '#\n' \
               '#   Unless required by applicable law or agreed to in writing, software\n' \
               '#   distributed under the License is distributed on an "AS IS" BASIS,\n' \
@@ -107,15 +108,15 @@ def prepend_content_to_file(content, file_name):
     os.rename(temp_file, file_name)
 
 
-def generate_compiled_script(source_code_path, merged_file_full_path, merged_file_name, environment):
+def generate_compiled_script(source_code_path, merged_file_full_path, merged_file_name, environment, new_version):
     try:
-        print('\n\n=============================== GENERATING ' + merged_file_name + '... =============================================================\n')
+        print('\n=============================== (2/3) GENERATING ' + merged_file_name + '... ================================\n')
 
-        print('========== Delete old core file if it exists.')
+        print('------------- Deleting old extension file if it exists.')
         if os.path.exists(merged_file_full_path):
             os.remove(merged_file_full_path)
 
-        print('\n========== Merging modules: \n')
+        print('------------- Merging modules: ')
         modules_to_be_merged = []
         for root, dirs, files in os.walk(source_code_path):
             for file_name in files:
@@ -126,9 +127,7 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
                     modules_to_be_merged.append(file_path)
                 elif os.path.basename(file_path) in ('__init__.py'):
                     continue
-                elif 'external_dependencies' in file_path:
-                    continue
-                elif os.path.basename(file_path) in ('PackageManager.py', 'Constants.py', 'LifecycleManager.py', 'SystemctlManager.py'):
+                elif os.path.basename(file_path) in ('Constants.py'):
                     modules_to_be_merged.insert(0, file_path)
                 else:
                     if len(modules_to_be_merged) > 0 and '__main__.py' in modules_to_be_merged[-1]:
@@ -142,49 +141,23 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
             write_merged_code(codes, merged_file_full_path)
         print("<end>")
 
-        print('\n========== Prepend all import statements\n')
+        print('------------- Prepend all import statements')
         insert_imports(GLOBAL_IMPORTS, merged_file_full_path)
         insert_imports(VERY_FIRST_IMPORTS, merged_file_full_path)
 
-        print('========== Set Copyright, Version and Environment. Also enforce UNIX-style line endings.\n')
+        print('------------- Set Copyright, Version and Environment. Also enforce UNIX-style line endings.')
         insert_copyright_notice(merged_file_full_path, merged_file_name)
-        timestamp = datetime.datetime.utcnow().strftime("%y%m%d-%H%M")
-        replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name.split('.')[0])
-        replace_text_in_file(merged_file_full_path, '[%exec_sub_ver%]', timestamp)
+        timestamp = datetime.datetime.now(datetime.UTC).strftime("%y%m%d-%H%M")
+        replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name)
+        replace_text_in_file(merged_file_full_path, '[%exec_ver%]', str(new_version))
+        replace_text_in_file(merged_file_full_path, '[%exec_build_timestamp%]', timestamp)
+        replace_text_in_file(merged_file_full_path, 'Constants.UNKNOWN_ENV', environment)
         replace_text_in_file(merged_file_full_path, '\r\n', '\n')
 
-        print("========== Merged core code was saved to:\n{0}\n".format(merged_file_full_path))
+        print("------------- Merged extension code was saved to:\n{0}\n".format(merged_file_full_path))
 
     except Exception as error:
         print('Exception during merge python modules: ' + repr(error))
-        raise
-
-
-def add_external_dependencies(external_dependencies_destination, external_dependencies_source_code_path):
-    try:
-        print('\n========= ADDING EXTERNAL DEPENDENCIES\n')
-
-        print('========== Deleting old dependencies if they exists.')
-        if os.path.exists(external_dependencies_destination):
-            shutil.rmtree(external_dependencies_destination)
-
-        print('\n========== Adding all dependencies to external_dependencies directory: \n')
-        dependencies_to_be_added = []
-        for root, dirs, files in os.walk(external_dependencies_source_code_path):
-            for file_name in files:
-                if ".py" not in file_name or ".pyc" in file_name:
-                    continue
-                file_path = os.path.join(root, file_name)
-                dependencies_to_be_added.append(file_path)
-        os.mkdir(external_dependencies_destination)
-        for dependency in dependencies_to_be_added:
-            print(format(os.path.basename(dependency)), end=', ')
-            shutil.copyfile(dependency, os.path.join(external_dependencies_destination, os.path.basename(dependency)))
-
-        print("\n\n========== External dependencies saved to:\n{0}\n".format(external_dependencies_destination))
-
-    except Exception as error:
-        print('Exception during adding external dependencies: ' + repr(error))
         raise
 
 
@@ -197,15 +170,15 @@ def main(argv):
         # Determine code path if not specified
         if len(argv) < 2:
             # auto-detect src path
-            source_code_path = os.path.dirname(os.path.realpath(__file__)).replace("tools", os.path.join("core","src"))
+            source_code_path = os.path.dirname(os.path.realpath(__file__)).replace(os.path.join("tools", "packager"), os.path.join("extension", "src"))
             if os.path.exists(os.path.join(source_code_path, "__main__.py")) is False:
-                print("Invalid core source code path. Check enlistment.\n")
+                print("Invalid extension source code path. Check enlistment.\n")
                 return
         else:
             # explicit src path parameter
             source_code_path = argv[1]
-            if os.path.exists(os.path.join(source_code_path, "PatchInstaller.py")) is False:
-                print("Invalid core source code path. Check src parameter.\n")
+            if os.path.exists(os.path.join(source_code_path, "ActionHandler.py")) is False:
+                print("Invalid extension source code path. Check src parameter.\n")
                 return
 
         # Prepare destination for compiled scripts
@@ -217,22 +190,66 @@ def main(argv):
             if e.errno != errno.EEXIST:
                 raise
 
+        # Invoke core business logic code packager
+        exec_core_build_path = os.path.join(working_directory, 'tools', 'packager', 'Package-Core.py')
+        subprocess.call('python ' + exec_core_build_path, shell=True)
+
+        # Get version from manifest for code
+        new_version = None
+        manifest_xml_file_path = os.path.join(working_directory, 'extension', 'src', 'manifest.xml')
+        manifest_tree = et.parse(manifest_xml_file_path)
+        manifest_root = manifest_tree.getroot()
+        for i in range(0, len(manifest_root)):
+            if 'Version' in str(manifest_root[i]):
+                new_version = manifest_root[i].text
+        if new_version is None:
+            raise Exception("Unable to determine target version.")
+
         # Generated compiled scripts at the destination
-        merged_file_details = [('MsftLinuxPatchCore.py', 'Constants.PROD')]
+        merged_file_details = [('AzGPSLinuxPatchExt.py', 'Constants.PROD')]
         for merged_file_detail in merged_file_details:
             merged_file_destination = os.path.join(working_directory, 'out', merged_file_detail[0])
-            generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1])
+            generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1], new_version)
 
-        # add all dependencies under core/src/external_dependencies to destination directory
-        external_dependencies_destination = os.path.join(merge_file_directory, 'external_dependencies')
-        external_dependencies_source_code_path = os.path.join(source_code_path, 'external_dependencies')
-        add_external_dependencies(external_dependencies_destination, external_dependencies_source_code_path)
+        # GENERATING EXTENSION
+        print('\n=============================== (3/3) GENERATING LinuxPatchExtension.zip... ==============================\n')
+
+        # Copy extension files
+        print('------------- Copying extension files + enforcing UNIX style line endings.')
+        ext_files = ['HandlerManifest.json', 'manifest.xml', 'AzGPSLinuxPatchExtShim.sh']
+        for ext_file in ext_files:
+            ext_file_src = os.path.join(working_directory, 'extension', 'src', ext_file)
+            ext_file_destination = os.path.join(working_directory, 'out', ext_file)
+            copyfile(ext_file_src, ext_file_destination)
+            replace_text_in_file(ext_file_destination, '\r\n', '\n')
+
+        # Generate extension zip
+        ext_zip_file = 'LinuxPatchExtension.zip'
+        ext_zip_file_path_src = os.path.join(working_directory, ext_zip_file)
+        ext_zip_file_path_dest = os.path.join(working_directory, 'out', ext_zip_file)
+        if os.path.exists(ext_zip_file_path_src):
+            os.remove(ext_zip_file_path_src)
+        if os.path.exists(ext_zip_file_path_dest):
+            os.remove(ext_zip_file_path_dest)
+
+        # Generate zip
+        print('------------- Generating extension zip.')
+        make_archive(os.path.splitext(ext_zip_file_path_src)[0], 'zip', os.path.join(working_directory, 'out'), '..')
+        copyfile(ext_zip_file_path_src, ext_zip_file_path_dest)
+        os.remove(ext_zip_file_path_src)
+
+        # Remove extension file copies
+        print('------------- Cleaning up environment.')
+        for ext_file in ext_files:
+            ext_file_path = os.path.join(working_directory, 'out', ext_file)
+            os.remove(ext_file_path)
+
+        print("------------- Extension ZIP was saved to:\n{0}\n".format(ext_zip_file_path_dest))
 
     except Exception as error:
-        print('Exception during packaging all python modules in core: ' + repr(error))
+        print('Exception during merge python modules: ' + repr(error))
         raise
 
 
 if __name__ == "__main__":
     main(sys.argv)
-
