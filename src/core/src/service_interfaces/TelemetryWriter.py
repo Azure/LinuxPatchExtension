@@ -146,9 +146,10 @@ class TelemetryWriter(object):
         try:
             message_size_limit_in_chars = Constants.TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS
             formatted_message = re.sub(r"\s+", " ", str(full_message))
+            measured_size = len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
 
-            if len(formatted_message.encode('utf-8')) + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS > message_size_limit_in_chars:
-                self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [Message={0}]".format(str(formatted_message)))
+            if measured_size > message_size_limit_in_chars:
+                self.composite_logger.log_telemetry_module("Data sent to telemetry will be truncated as it exceeds size limit. [MeasuredSize={0}][MessageSample={1}...]".format(str(measured_size), str(formatted_message)[0:64]))
                 formatted_message = formatted_message.encode('utf-8')
                 chars_dropped = len(formatted_message) - message_size_limit_in_chars + Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS + Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS
                 formatted_message = formatted_message[:message_size_limit_in_chars - Constants.TELEMETRY_BUFFER_FOR_DROPPED_COUNT_MSG_IN_CHARS - Constants.TELEMETRY_EVENT_COUNTER_MSG_SIZE_LIMIT_IN_CHARS].decode('utf-8', errors='replace') + '. [{0} chars dropped]'.format(chars_dropped)
