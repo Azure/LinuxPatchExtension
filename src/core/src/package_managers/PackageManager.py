@@ -430,6 +430,9 @@ class PackageManager(object):
     @abstractmethod
     def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value, patch_configuration_sub_setting_pattern_to_match):
         pass
+
+    def revert_auto_os_update_to_system_default(self):
+        pass
     # endregion
 
     # region Handling known errors

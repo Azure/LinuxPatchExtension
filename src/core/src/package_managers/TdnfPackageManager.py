@@ -60,6 +60,7 @@ class TdnfPackageManager(PackageManager):
         self.apply_updates_identifier_text = ""
         self.enable_on_reboot_identifier_text = ""
         self.enable_on_reboot_check_cmd = ''
+        self.enable_on_reboot_cmd = ''
         self.installation_state_identifier_text = ""
         self.install_check_cmd = ""
         self.apply_updates_enabled = "Enabled"
@@ -375,6 +376,7 @@ class TdnfPackageManager(PackageManager):
         self.dnf_automatic_install_check_cmd = 'systemctl list-unit-files --type=service | grep dnf-automatic.service'  # list-unit-files returns installed services, ref: https://www.freedesktop.org/software/systemd/man/systemctl.html#Unit%20File%20Commands
         self.dnf_automatic_enable_on_reboot_check_cmd = 'systemctl is-enabled dnf-automatic.timer'
         self.dnf_automatic_disable_on_reboot_cmd = 'systemctl disable dnf-automatic.timer'
+        self.dnf_automatic_enable_on_reboot_cmd = 'systemctl enable dnf-automatic.timer'
         self.dnf_automatic_config_pattern_match_text = ' = (no|yes)'
         self.dnf_automatic_download_updates_identifier_text = 'download_updates'
         self.dnf_automatic_apply_updates_identifier_text = 'apply_updates'
@@ -425,6 +427,7 @@ class TdnfPackageManager(PackageManager):
         self.installation_state_identifier_text = self.dnf_automatic_installation_state_identifier_text
         self.auto_update_config_pattern_match_text = self.dnf_automatic_config_pattern_match_text
         self.enable_on_reboot_check_cmd = self.dnf_automatic_enable_on_reboot_check_cmd
+        self.enable_on_reboot_cmd = self.dnf_automatic_enable_on_reboot_cmd
         self.install_check_cmd = self.dnf_automatic_install_check_cmd
         self.current_auto_os_update_service = self.dnf_auto_os_update_service
 
@@ -550,19 +553,12 @@ class TdnfPackageManager(PackageManager):
                             "apply_updates": "yes/no/empty string",
                             "download_updates": "yes/no/empty string",
                             "enable_on_reboot": true/false,
-                            "install_state": true/false
+                            "installation_state": true/false
                         }
                     } """
         try:
             self.composite_logger.log_debug("[TDNF] Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
-            image_default_patch_configuration_backup = {}
-
-            # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
-            if self.image_default_patch_configuration_backup_exists():
-                try:
-                    image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
-                except Exception as error:
-                    self.composite_logger.log_error("Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
+            image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
 
             # verify if existing backup is valid if not, write to backup
             is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
@@ -640,6 +636,65 @@ class TdnfPackageManager(PackageManager):
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
+    def revert_auto_os_update_to_system_default(self):
+        """ Reverts the auto OS update patch state on the machine to it's system default value, if one exists in our backup file """
+        self.composite_logger.log("[TDNF] Reverting the current automatic OS patch state on the machine to it's system default value before patchmode was set to 'AutomaticByPlatform'")
+        self.revert_auto_os_update_to_system_default_for_dnf_automatic()
+        self.composite_logger.log_debug("[TDNF] Successfully reverted auto OS updates to system default config")
+
+    def revert_auto_os_update_to_system_default_for_dnf_automatic(self):
+        """ Reverts the auto OS update patch state on the machine to it's system default value for given service, if applicable """
+        self.__init_auto_update_for_dnf_automatic()
+        self.composite_logger.log("[TDNF] Reverting the current automatic OS patch state on the machine to it's system default value for [Service={0}]".format(str(self.current_auto_os_update_service)))
+        is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
+
+        if not is_service_installed:
+            self.composite_logger.log_debug("[TDNF] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service={0}]".format(str(self.current_auto_os_update_service)))
+            return
+
+        self.composite_logger.log_debug("[TDNF] Logging current configuration settings for auto OS updates [Service={0}][Is_Service_Installed={1}][Machine_default_update_enable_on_reboot={2}][{3}={4}]][{5}={6}]"
+                                        .format(str(self.current_auto_os_update_service), str(is_service_installed), str(enable_on_reboot_value), str(self.download_updates_identifier_text), str(download_updates_value), str(self.apply_updates_identifier_text), str(apply_updates_value)))
+
+        image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
+        self.composite_logger.log_debug("[TDNF] Logging system default configuration settings for auto OS updates. [Settings={0}]".format(str(image_default_patch_configuration_backup)))
+        is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
+
+        if is_backup_valid:
+            download_updates_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.download_updates_identifier_text]
+            apply_updates_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.apply_updates_identifier_text]
+            enable_on_reboot_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.enable_on_reboot_identifier_text]
+
+            self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, download_updates_value_from_backup, self.auto_update_config_pattern_match_text)
+            self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, apply_updates_value_from_backup, self.auto_update_config_pattern_match_text)
+            if str(enable_on_reboot_value_from_backup).lower() == 'true':
+                self.enable_auto_update_on_reboot()
+        else:
+            self.composite_logger.log_debug("[TDNF] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]".format(str(self.current_auto_os_update_service)))
+
+    def enable_auto_update_on_reboot(self):
+        command = self.enable_on_reboot_cmd
+        self.composite_logger.log_verbose("[TDNF] Enabling auto update on reboot. [Command={0}] ".format(command))
+        code, out = self.env_layer.run_command_output(command, False, False)
+
+        if code != 0:
+            self.composite_logger.log_error("[TDNF][ERROR] Error enabling auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
+            error_msg = 'Unexpected return code (' + str(code) + ') on command: ' + command
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+        else:
+            self.composite_logger.log_debug("[TDNF] Enabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
+
+    def __get_image_default_patch_configuration_backup(self):
+        """ Get image_default_patch_configuration_backup file"""
+        image_default_patch_configuration_backup = {}
+
+        # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
+        if self.image_default_patch_configuration_backup_exists():
+            try:
+                image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
+            except Exception as error:
+                self.composite_logger.log_error("[TDNF] Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
+        return image_default_patch_configuration_backup
     # endregion
 
     # region Reboot Management
