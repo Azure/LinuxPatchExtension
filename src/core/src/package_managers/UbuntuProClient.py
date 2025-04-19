@@ -42,7 +42,7 @@ class UbuntuProClient:
                 run_command_success = True
         except Exception as error:
             run_command_exception = repr(error)
-        self.composite_logger.log_debug("Ubuntu Pro Client installation: [InstallationSuccess={0}][Error={1}]".format(run_command_success, run_command_exception))
+        self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client installation: [InstallationSuccess={0}][Error={1}]".format(run_command_success, run_command_exception))
         return run_command_success
 
     def is_pro_working(self):
@@ -59,7 +59,7 @@ class UbuntuProClient:
             # extract version from pro_client_verison 27.13.4~18.04.1 -> 27.13.4
             extracted_ubuntu_pro_client_version = self.version_comparator.extract_version_from_os_version_nums(ubuntu_pro_client_version)
 
-            self.composite_logger.log_debug("Ubuntu Pro Client current version: [ClientVersion={0}]".format(str(extracted_ubuntu_pro_client_version)))
+            self.composite_logger.log_verbose("[APM][Pro] Ubuntu Pro Client current version: [ClientVersion={0}]".format(str(extracted_ubuntu_pro_client_version)))
 
             # use custom comparator output 0 (equal), -1 (less), +1 (greater)
             is_minimum_ubuntu_pro_version_installed = self.version_comparator.compare_versions(extracted_ubuntu_pro_client_version, Constants.UbuntuProClientSettings.MINIMUM_CLIENT_VERSION) >= 0
@@ -70,7 +70,7 @@ class UbuntuProClient:
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
 
-        self.composite_logger.log_debug("Is Ubuntu Pro Client working debug flags: [Success={0}][UbuntuProClientVersion={1}][UbuntuProClientMinimumVersionInstalled={2}][IsAttached={3}][Error={4}]".format(is_ubuntu_pro_client_working, ubuntu_pro_client_version, is_minimum_ubuntu_pro_version_installed, self.is_ubuntu_pro_client_attached, ubuntu_pro_client_exception))
+        self.composite_logger.log_debug("[APM][Pro] Is Ubuntu Pro Client working debug flags: [Success={0}][UbuntuProClientVersion={1}][UbuntuProClientMinimumVersionInstalled={2}][IsAttached={3}][Error={4}]".format(is_ubuntu_pro_client_working, ubuntu_pro_client_version, is_minimum_ubuntu_pro_version_installed, self.is_ubuntu_pro_client_attached, ubuntu_pro_client_exception))
         return is_ubuntu_pro_client_working
 
     def log_ubuntu_pro_client_attached(self):
@@ -82,7 +82,7 @@ class UbuntuProClient:
                 is_ubuntu_pro_client_attached = json.loads(output)['summary']['ua']['attached']
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
-            self.composite_logger.log_debug("Ubuntu Pro Client Attached Exception: [Exception={0}]".format(ubuntu_pro_client_exception))
+            self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client Attached Exception: [Exception={0}]".format(ubuntu_pro_client_exception))
         return is_ubuntu_pro_client_attached
 
     def extract_packages_and_versions(self, updates):
@@ -121,14 +121,14 @@ class UbuntuProClient:
         security_criteria = ["standard-security"]
         security_updates_query_success, security_updates_exception, security_updates, security_updates_versions = self.get_filtered_updates(security_criteria)
 
-        self.composite_logger.log_debug("Ubuntu Pro Client get security updates : [SecurityUpdatesCount={0}][error={1}]".format(len(security_updates), security_updates_exception))
+        self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client get standard security updates : [SecurityUpdatesCount={0}][error={1}]".format(len(security_updates), security_updates_exception))
         return security_updates_query_success, security_updates, security_updates_versions
 
     def get_security_esm_updates(self):
         """query Ubuntu Pro Client to get security-esm updates."""
         security_esm_updates_query_success, security_esm_updates_exception, security_esm_updates, security_esm_updates_versions = self.get_filtered_updates(self.security_esm_criteria_strings)
 
-        self.composite_logger.log_debug("Ubuntu Pro Client get security-esm updates : [SecurityEsmUpdatesCount={0}][error={1}]".format(len(security_esm_updates),security_esm_updates_exception))
+        self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client get security-esm updates : [SecurityEsmUpdatesCount={0}][error={1}]".format(len(security_esm_updates),security_esm_updates_exception))
         return security_esm_updates_query_success, security_esm_updates, security_esm_updates_versions
 
     def get_all_updates(self):
@@ -136,7 +136,7 @@ class UbuntuProClient:
         filter_criteria = []
         all_updates_query_success, all_updates_exception, all_updates, all_updates_versions = self.get_filtered_updates(filter_criteria)
 
-        self.composite_logger.log_debug("Ubuntu Pro Client get all updates: [AllUpdatesCount={0}][error={1}]".format(len(all_updates), all_updates_exception))
+        self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client get all updates: [AllUpdatesCount={0}][error={1}]".format(len(all_updates), all_updates_exception))
         return all_updates_query_success, all_updates, all_updates_versions
 
     def get_ubuntu_pro_client_updates(self):
@@ -148,7 +148,7 @@ class UbuntuProClient:
         other_criteria = ["standard-updates"]
         other_updates_query_success, other_update_exception, other_updates, other_updates_versions = self.get_filtered_updates(other_criteria)
 
-        self.composite_logger.log_debug("Ubuntu Pro Client get other updates: [OtherUpdatesCount={0}][error = {1}]".format(len(other_updates), other_update_exception))
+        self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client get other updates: [OtherUpdatesCount={0}][error = {1}]".format(len(other_updates), other_update_exception))
         return other_updates_query_success, other_updates, other_updates_versions
 
     def is_reboot_pending(self):
@@ -170,5 +170,5 @@ class UbuntuProClient:
             ubuntu_pro_client_api_success = False
             ubuntu_pro_client_exception = repr(error)
 
-        self.composite_logger.log_debug("Ubuntu Pro Client Reboot Required: [UbuntuProClientSuccess={0}][RebootRequiredFlag={1}][Error={2}]".format(ubuntu_pro_client_api_success, ubuntu_pro_client_reboot_required, ubuntu_pro_client_exception))
+        self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client Reboot Required: [UbuntuProClientSuccess={0}][RebootRequiredFlag={1}][Error={2}]".format(ubuntu_pro_client_api_success, ubuntu_pro_client_reboot_required, ubuntu_pro_client_exception))
         return ubuntu_pro_client_api_success, ubuntu_pro_client_reboot_required

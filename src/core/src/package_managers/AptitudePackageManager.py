@@ -333,9 +333,9 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_debug("[APM-Pro] Get all updates : [DefaultAllPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientAllPackagesCount={2}]"
                                             .format(len(self.all_updates_cached), ubuntu_pro_client_all_updates_query_success, len(self.ubuntu_pro_client_all_updates_cached)))
             if len(pro_client_missed_updates) > 0:       # not good, needs investigation
-                self.composite_logger.log_debug("[APM-Pro][!] Pro client missed updates found. [Count={0}][Updates={1}]".format(len(pro_client_missed_updates), pro_client_missed_updates))
+                self.composite_logger.log_debug("[APM-Pro][!] Pro Client missed updates found. [Count={0}][Updates={1}]".format(len(pro_client_missed_updates), pro_client_missed_updates))
             if len(all_updates_missed_updates) > 0:     # interesting, for review
-                self.composite_logger.log_debug("[APM-Pro] Pro client only updates found. [Count={0}][Updates={1}]".format(len(all_updates_missed_updates), all_updates_missed_updates))
+                self.composite_logger.log_debug("[APM-Pro][*] Pro Client only updates found. [Count={0}][Updates={1}]".format(len(all_updates_missed_updates), all_updates_missed_updates))
 
         if ubuntu_pro_client_all_updates_query_success:     # this needs to be revisited based on logs above
             return self.ubuntu_pro_client_all_updates_cached, self.ubuntu_pro_client_all_updates_versions_cached
@@ -348,27 +348,45 @@ class AptitudePackageManager(PackageManager):
         ubuntu_pro_client_security_packages = []
         ubuntu_pro_client_security_package_versions = []
 
-        self.composite_logger.log_verbose("[APM] Discovering 'security' packages...")
+        # regular security updates check
+        self.composite_logger.log_verbose("[APM] Discovering 'security' packages (default)...")
         source_parts, source_list = self.__get_custom_sources_to_spec(self.max_patch_publish_date, base_classification=Constants.PackageClassification.SECURITY)
         cmd = self.__generate_command_with_custom_sources(self.cmd_dist_upgrade_simulation_template, source_parts=source_parts, source_list=source_list)
         out = self.invoke_package_manager(cmd)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
-        self.composite_logger.log_debug("[APM] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
+        self.composite_logger.log_debug("[APM] Discovered 'security' packages (default). [Count={0}]".format(len(security_packages)))
 
+        # Query pro client if prerequisites are met
         if self.__pro_client_prereq_met:
+            self.refresh_repo()
+            self.composite_logger.log_verbose("[APM-Pro][Sec] Discovering 'security' packages (pro client)...")
             ubuntu_pro_client_security_updates_query_success, ubuntu_pro_client_security_packages, ubuntu_pro_client_security_package_versions = self.ubuntu_pro_client.get_security_updates()
-            pro_client_missed_updates = list(set(security_packages) - set(ubuntu_pro_client_security_packages))
-            sec_updates_missed_updates = list(set(ubuntu_pro_client_security_packages) - set(security_packages))
-            self.composite_logger.log_debug("[APM-Pro][Sec] Get Security Updates : [DefaultSecurityPackagesCount={0}][UbuntuProClientQuerySuccess={1}][UbuntuProClientSecurityPackagesCount={2}]".format(len(security_packages), ubuntu_pro_client_security_updates_query_success, len(ubuntu_pro_client_security_packages)))
-            if len(pro_client_missed_updates) > 0:       # not good, needs investigation
-                self.composite_logger.log_debug("[APM-Pro][Sec][!] Pro client missed updates found. [Count={0}][Updates={1}]".format(len(pro_client_missed_updates), pro_client_missed_updates))
-            if len(sec_updates_missed_updates) > 0:     # interesting, for review
-                self.composite_logger.log_debug("[APM-Pro][Sec] Pro client only updates found. [Count={0}][Updates={1}]".format(len(sec_updates_missed_updates), sec_updates_missed_updates))
 
-        if ubuntu_pro_client_security_updates_query_success:     # this needs to be revisited based on logs above
-            return ubuntu_pro_client_security_packages, ubuntu_pro_client_security_package_versions
-        else:
+        # Only use non-pro client results if either pre-reqs are not met or if the query fails
+        if not ubuntu_pro_client_security_updates_query_success:
+            self.composite_logger.log_debug("[APM-Pro][Sec] Using non-Pro Client results only. [ProClientPreReq={0}][ProClientQuerySuccess={1}]".format(str(self.__pro_client_prereq_met), str(ubuntu_pro_client_security_updates_query_success)))
             return security_packages, security_package_versions
+
+        # Pro-client works - Cross-examine the results of queries
+        pro_client_missed_updates = list(set(security_packages) - set(ubuntu_pro_client_security_packages))
+        sec_updates_missed_updates = list(set(ubuntu_pro_client_security_packages) - set(security_packages))
+        self.composite_logger.log_verbose("[APM-Pro][Sec] Pro Client to default package count comparison. [DefaultSecurityPackagesCount={0}][UbuntuProClientSecurityPackagesCount={1}]".format(len(security_packages), len(ubuntu_pro_client_security_packages)))
+        if len(pro_client_missed_updates) > 0:       # not good, needs investigation - incl. several pro client differences that are now known
+            self.composite_logger.log_debug("[APM-Pro][Sec][!] Pro Client missed updates found. [Count={0}][Updates={1}]".format(len(pro_client_missed_updates), pro_client_missed_updates))
+        if len(sec_updates_missed_updates) > 0:      # interesting, for review
+            self.composite_logger.log_debug("[APM-Pro][Sec][*] Pro Client-only updates found. [Count={0}][Updates={1}]".format(len(sec_updates_missed_updates), sec_updates_missed_updates))
+
+        # Use default security update list & versions as base, and adding pro client specific items on top
+        complete_list = security_packages
+        complete_version_list = security_package_versions   # default security update list (incl. versions) supersedes due to reliability
+        if len(sec_updates_missed_updates) > 0:
+            for index in range(len(ubuntu_pro_client_security_packages)):
+                if ubuntu_pro_client_security_packages[index] in sec_updates_missed_updates:
+                    complete_list.append(ubuntu_pro_client_security_packages[index])
+                    complete_version_list.append(ubuntu_pro_client_security_package_versions[index])
+            self.composite_logger.log_debug("[APM-Pro][Sec][!] Added Pro Client-only packages to full security package list. [CombinedCount={0}][ProClientOnlyCount={1}][DefaultSecOnlyCount={2}]".format(len(complete_list),len(sec_updates_missed_updates),len(pro_client_missed_updates)))
+
+        return complete_list, complete_version_list
 
     def get_security_esm_updates(self):
         """Get missing security-esm updates."""
