@@ -33,7 +33,7 @@ class RebootManager(object):
         self.__reboot_cmd = 'sudo shutdown -r '
         self.__maintenance_window_exceeded_flag = False   # flag to indicate if the maintenance window was exceeded **separately** at reboot manager
 
-        self.__reboot_setting = self.sanitize_reboot_setting(self.execution_config.reboot_setting, default_reboot_setting)
+        self.__reboot_setting_sanitized = self.sanitize_reboot_setting(self.execution_config.reboot_setting, default_reboot_setting)
 
     # region - Reboot condition reporters
     @staticmethod
@@ -55,7 +55,7 @@ class RebootManager(object):
     def get_reboot_setting_sanitized(self):
         # type: () -> str
         """ Get the sanitized reboot setting """
-        return self.__reboot_setting
+        return self.__reboot_setting_sanitized
     # endregion
 
     # region - Reboot setting helpers
@@ -75,7 +75,7 @@ class RebootManager(object):
 
     def is_setting(self, setting_to_check):
         # type: (str) -> bool
-        return self.__reboot_setting == setting_to_check
+        return self.__reboot_setting_sanitized == setting_to_check
     # endregion
 
     # region - Reboot action methods
@@ -89,7 +89,7 @@ class RebootManager(object):
             self.composite_logger.log("[RM] A reboot is pending as the package manager required it.")
 
         # No-op - return false if config says never reboot
-        if self.__reboot_setting == Constants.REBOOT_NEVER:
+        if self.__reboot_setting_sanitized == Constants.REBOOT_NEVER:
             if reboot_pending:
                 self.composite_logger.log_warning('[RM][!] Reboot is pending but BLOCKED by the customer configuration ({0}).'.format(str(Constants.REBOOT_NEVER)))
             else:
@@ -97,42 +97,42 @@ class RebootManager(object):
             return False
 
         # No-op - return if system doesn't require it (and only reboot if it does)
-        if self.__reboot_setting == Constants.REBOOT_IF_REQUIRED and not reboot_pending:
+        if self.__reboot_setting_sanitized == Constants.REBOOT_IF_REQUIRED and not reboot_pending:
             self.composite_logger.log_debug("[RM] No reboot pending detected. Reboot skipped as per customer configuration ({0}).".format(str(Constants.REBOOT_IF_REQUIRED)))
             return False
 
         # No-op - prevent repeated reboots
-        if self.__reboot_setting == Constants.REBOOT_ALWAYS and not reboot_pending and self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
+        if self.__reboot_setting_sanitized == Constants.REBOOT_ALWAYS and not reboot_pending and self.status_handler.get_installation_reboot_status() == Constants.RebootStatus.COMPLETED:
             self.composite_logger.log_debug("[RM] At least one reboot has occurred, and there's no reboot pending, so the conditions for the 'Reboot Always' setting is fulfilled and reboot won't be repeated.")
             return False
 
         # Try to reboot - if enough time is available
-        if self.__reboot_setting == Constants.REBOOT_ALWAYS or (self.__reboot_setting == Constants.REBOOT_IF_REQUIRED and reboot_pending):
+        if self.__reboot_setting_sanitized == Constants.REBOOT_ALWAYS or (self.__reboot_setting_sanitized == Constants.REBOOT_IF_REQUIRED and reboot_pending):
             if self.is_reboot_time_available(current_time_available):
-                self.composite_logger.log_debug('[RM] Reboot is being scheduled, as per customer configuration ({0}). [RebootPending={1}][CurrentTimeAvailable={2}]'.format(str(self.__reboot_setting), str(reboot_pending), str(current_time_available)))
+                self.composite_logger.log_debug('[RM] Reboot is being scheduled, as per customer configuration ({0}). [RebootPending={1}][CurrentTimeAvailable={2}]'.format(str(self.__reboot_setting_sanitized), str(reboot_pending), str(current_time_available)))
                 self.__start_reboot(maintenance_window_available_time_in_minutes=current_time_available)
                 return True
             else:
                 # Maintenance window will be marked exceeded as reboot is required and not enough time is available
-                error_msg = '[RM][!] Insufficient time to schedule a required reboot ({0}). [RebootPending={1}][CurrentTimeAvailable={2}]'.format(str(self.__reboot_setting), str(reboot_pending), str(current_time_available))
+                error_msg = '[RM][!] Insufficient time to schedule a required reboot ({0}). [RebootPending={1}][CurrentTimeAvailable={2}]'.format(str(self.__reboot_setting_sanitized), str(reboot_pending), str(current_time_available))
                 self.composite_logger.log_error(error_msg)
                 self.status_handler.add_error_to_status(str(error_msg), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
                 self.__maintenance_window_exceeded_flag = True
                 return False
 
         # No-op - This code should never be reached. If seen, it indicates a bug in the code.
-        self.composite_logger.log_error('[RM] Bug-check: Unexpected code branch reached. [RebootSetting={0}][RebootPending={1}]'.format(str(self.__reboot_setting), str(reboot_pending)))
+        self.composite_logger.log_error('[RM] Bug-check: Unexpected code branch reached. [RebootSetting={0}][RebootPending={1}]'.format(str(self.__reboot_setting_sanitized), str(reboot_pending)))
         return False
 
-    def __start_reboot(self, message="Azure VM Guest Patching initiated a reboot after an 'InstallPatches' operation.", maintenance_window_available_time_in_minutes=0):
+    def __start_reboot(self, message="Azure VM Guest Patching initiated a reboot as part of an 'InstallPatches' operation.", maintenance_window_available_time_in_minutes=0):
         # type: (str, int) -> None
         """ Performs a controlled system reboot with a system-wide notification broadcast. """
-        self.composite_logger.log("[RM] The machine is set to reboot in " + str(Constants.REBOOT_NOTIFY_TIMEOUT_IN_MINUTES) + " minutes.")
+        self.composite_logger.log("[RM] The machine is set to reboot in " + str(Constants.REBOOT_NOTIFY_WINDOW_IN_MINUTES) + " minutes.")
         self.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
         reboot_init_time = self.env_layer.datetime.datetime_utcnow()
 
         # Reboot after system-wide notification broadcast - no new logins will be allowed after this point.
-        self.env_layer.reboot_machine(self.__reboot_cmd + str(Constants.REBOOT_NOTIFY_TIMEOUT_IN_MINUTES) + ' ' + message)
+        self.env_layer.reboot_machine(self.__reboot_cmd + str(Constants.REBOOT_NOTIFY_WINDOW_IN_MINUTES) + ' ' + message)
 
         # Safety net - if the machine doesn't reboot, we need to fail the operation.
         max_allowable_time_to_reboot_in_minutes = self.__calc_max_allowable_time_to_reboot_in_minutes(maintenance_window_available_time_in_minutes)
