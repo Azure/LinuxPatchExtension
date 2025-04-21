@@ -60,11 +60,15 @@ class EnvLayer(object):
         # Constant paths
         self.etc_environment_file_path = "/etc/environment"
 
+    @staticmethod
+    def is_distro_azure_linux(distro_name):
+        return any(x in distro_name for x in Constants.AZURE_LINUX)
+
     def get_package_manager(self):
         """ Detects package manager type """
         ret = None
 
-        if self.platform.linux_distribution()[0] == Constants.AZURE_LINUX:
+        if self.is_distro_azure_linux(str(self.platform.linux_distribution())):
             code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
                 ret = Constants.TDNF
