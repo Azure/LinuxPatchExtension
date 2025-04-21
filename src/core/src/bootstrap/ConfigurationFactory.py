@@ -234,6 +234,25 @@ class ConfigurationFactory(object):
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'service_info'],
                 'component_kwargs': {}
             },
+            'service_info_legacy': {
+                'component': ServiceInfo,
+                'component_args': [],
+                'component_kwargs': {
+                    'service_name': Constants.AUTO_ASSESSMENT_SERVICE_NAME_LEGACY,
+                    'service_desc': Constants.AUTO_ASSESSMENT_SERVICE_DESC,
+                    'service_exec_path': os.path.join(os.path.dirname(os.path.realpath(__file__)), Constants.CORE_AUTO_ASSESS_SH_FILE_NAME_LEGACY)
+                }
+            },
+            'auto_assess_service_manager_legacy': {
+                'component': ServiceManager,
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'service_info'],
+                'component_kwargs': {}
+            },
+            'auto_assess_timer_manager_legacy': {
+                'component': TimerManager,
+                'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'service_info'],
+                'component_kwargs': {}
+            },
             'configure_patching_processor': {
                 'component': ConfigurePatchingProcessor,
                 'component_args': ['env_layer', 'execution_config', 'composite_logger', 'telemetry_writer', 'status_handler', 'package_manager', 'auto_assess_service_manager', 'auto_assess_timer_manager', 'lifecycle_manager'],

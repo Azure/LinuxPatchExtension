@@ -58,7 +58,7 @@ class ServiceManager(SystemctlManager):
         code, out = self.invoke_systemctl(self.service_start_cmd.format(self.service_name), "Starting the service.")
         return code == 0
 
-    def stop_service(self):
+    def stop_service(self, service_name=str()):
         code, out = self.invoke_systemctl(self.service_stop_cmd.format(self.service_name), "Stopping the service.")
         return code == 0
 
@@ -74,7 +74,7 @@ class ServiceManager(SystemctlManager):
         code, out = self.invoke_systemctl(self.service_enable_cmd.format(self.service_name), "Enabling the service.")
         return code == 0
 
-    def disable_service(self):
+    def disable_service(self, service_name=str()):
         code, out = self.invoke_systemctl(self.service_disable_cmd.format(self.service_name), "Disabling the service.")
         return code == 0
 

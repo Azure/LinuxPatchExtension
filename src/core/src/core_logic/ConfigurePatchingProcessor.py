@@ -19,7 +19,7 @@ from core.src.bootstrap.Constants import Constants
 
 
 class ConfigurePatchingProcessor(object):
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, auto_assess_service_manager, auto_assess_timer_manager, lifecycle_manager):
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, auto_assess_service_manager, auto_assess_timer_manager, lifecycle_manager, aasm_legacy=None, aatm_legacy=None):
         self.env_layer = env_layer
         self.execution_config = execution_config
 
@@ -73,6 +73,7 @@ class ConfigurePatchingProcessor(object):
     def __try_set_patch_mode(self):
         """ Set the patch mode for the VM """
         try:
+            self.composite_logger.log_verbose("[CPP] Processing patch mode configuration...")
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
 
@@ -85,9 +86,9 @@ class ConfigurePatchingProcessor(object):
 
             if self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM and self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.UNKNOWN:
                 # NOTE: only sending details in error objects for customer visibility on why patch state is unknown, overall configurepatching status will remain successful
-                self.configure_patching_exception_error = "Could not disable one or more automatic OS update services. Please check if they are configured correctly"
+                self.configure_patching_exception_error = "Could not disable one or more automatic OS update services. Please check if they are configured correctly."
 
-            self.composite_logger.log_debug("Completed processing patch mode configuration.")
+            self.composite_logger.log_debug("[CPP] Completed processing patch mode configuration.")
         except Exception as error:
             self.composite_logger.log_error("Error while processing patch mode configuration. [Error={0}]".format(repr(error)))
             self.configure_patching_exception_error = error
@@ -96,6 +97,7 @@ class ConfigurePatchingProcessor(object):
     def __try_set_auto_assessment_mode(self):
         """ Sets the preferred auto-assessment mode for the VM """
         try:
+            self.composite_logger.log_verbose("[CPP] Processing assessment mode configuration...")
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING_AUTO_ASSESSMENT)
             self.composite_logger.log_debug("Systemd information: {0}".format(str(self.auto_assess_service_manager.get_version())))     # proactive support telemetry
 
@@ -117,7 +119,7 @@ class ConfigurePatchingProcessor(object):
                 raise Exception("Unknown assessment mode specified. [AssessmentMode={0}]".format(self.execution_config.assessment_mode))
 
             self.__report_consolidated_configure_patch_status()
-            self.composite_logger.log_debug("Completed processing automatic assessment mode configuration.")
+            self.composite_logger.log_debug("[CPP] Completed processing automatic assessment mode configuration.")
         except Exception as error:
             # deliberately not setting self.configure_patching_exception_error here as it does not feed into the parent object. Not a bug, if you're thinking about it.
             self.composite_logger.log_error("Error while processing automatic assessment mode configuration. [Error={0}]".format(repr(error)))
@@ -127,6 +129,17 @@ class ConfigurePatchingProcessor(object):
         # revert operation back to parent
         self.composite_logger.log_debug("Restoring status handler operation to {0}.".format(Constants.CONFIGURE_PATCHING))
         self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
+
+    def __custom_clean_legacy_auto_assess_service(self):
+        """ Cleans up the legacy auto-assess service """
+        self.composite_logger.log_debug("Cleaning up legacy auto-assess service.")
+        try:
+            self.auto_assess_service_manager.remove_service()
+            self.auto_assess_timer_manager.remove_timer()
+            self.current_auto_assessment_state = Constants.AutoAssessmentStates.DISABLED
+        except Exception as error:
+            self.composite_logger.log_error("Error while cleaning up legacy auto-assess service. [Error={0}]".format(repr(error)))
+            self.configure_patching_successful &= False
 
     def __report_consolidated_configure_patch_status(self, status=Constants.STATUS_TRANSITIONING, error=Constants.DEFAULT_UNSPECIFIED_VALUE):
         """ Reports """
