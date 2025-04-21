@@ -693,7 +693,7 @@ class PatchInstaller(object):
     def mark_installation_completed_with_warning(self):
         """ Marks Installation operation as warning by updating the status of PatchInstallationSummary as warning and patch metadata to be sent to healthstore.
         This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as warning only after the implicit (2nd) assessment operation
-        and all supposed packages are installed as expected. """
+        and all expected packages are installed as expected. """
 
         self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)
 
@@ -817,6 +817,7 @@ class PatchInstaller(object):
         self.composite_logger.log(progress_status)
         
     def __send_metadata_to_health_store(self):
+        """ store patch metadata in status files for health store. """
         self.composite_logger.log_debug("[PI] Reviewing final healthstore record write. [HealthStoreId={0}][MaintenanceRunId={1}]".format(str(self.execution_config.health_store_id), str(self.execution_config.maintenance_run_id)))
         if self.execution_config.health_store_id is not None:
             self.status_handler.set_patch_metadata_for_healthstore_substatus_json(
