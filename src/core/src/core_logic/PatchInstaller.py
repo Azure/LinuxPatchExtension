@@ -836,7 +836,7 @@ class PatchInstaller(object):
     def __check_installation_status_can_set_to_warning(self, patch_installation_successful, maintenance_window_exceeded):
         """ Verify patch installation status can be set to warning from failed. """
         # type (bool, bool) -> bool
-        self.__enable_installation_status_to_warning_flag = not patch_installation_successful and not maintenance_window_exceeded and self.status_handler.check_all_requested_packages_install_state()
+        self.__enable_installation_status_to_warning_flag = not patch_installation_successful and not maintenance_window_exceeded and self.status_handler.are_all_requested_packages_installed()
         return self.__enable_installation_status_to_warning_flag
 
     def set_patch_installation_status_to_warning_from_failed(self):

@@ -1332,11 +1332,11 @@ class TestCoreMain(unittest.TestCase):
 
         # Store original methods
         original_batch_patching = runtime.patch_installer.batch_patching
-        original_check_all_requested_packages_install_state= runtime.status_handler.check_all_requested_packages_install_state
+        original_check_all_requested_packages_install_state= runtime.status_handler.are_all_requested_packages_installed
         
         # Mock batch_patching with packages to return [], [], false
         runtime.patch_installer.batch_patching = self.mock_batch_patching_with_no_packages
-        runtime.status_handler.check_all_requested_packages_install_state = self.mock_check_all_requested_packages_install_state
+        runtime.status_handler.are_all_requested_packages_installed = self.mock_check_all_requested_packages_install_state
 
         # Run CoreMain to execute the installation
         try:
