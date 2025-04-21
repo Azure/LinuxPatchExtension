@@ -64,7 +64,7 @@ class TestCoreMain(unittest.TestCase):
         """Mock batch_patching to simulate package installation failure, return no packages"""
         return [], [], 0, False
     
-    def mock_check_all_requested_packages_install_state(self):
+    def mock_are_all_requested_packages_installed(self):
         return True
 
     def test_operation_fail_for_non_autopatching_request(self):
@@ -1332,11 +1332,11 @@ class TestCoreMain(unittest.TestCase):
 
         # Store original methods
         original_batch_patching = runtime.patch_installer.batch_patching
-        original_check_all_requested_packages_install_state= runtime.status_handler.are_all_requested_packages_installed
+        original_are_all_requested_packages_installed = runtime.status_handler.are_all_requested_packages_installed
         
         # Mock batch_patching with packages to return [], [], false
         runtime.patch_installer.batch_patching = self.mock_batch_patching_with_no_packages
-        runtime.status_handler.are_all_requested_packages_installed = self.mock_check_all_requested_packages_install_state
+        runtime.status_handler.are_all_requested_packages_installed = self.mock_are_all_requested_packages_installed
 
         # Run CoreMain to execute the installation
         try:
@@ -1346,7 +1346,7 @@ class TestCoreMain(unittest.TestCase):
         finally:
             # reset mock
             runtime.patch_installer.batch_patching = original_batch_patching
-            runtime.status_handler.get_installation_packages_list = original_check_all_requested_packages_install_state
+            runtime.status_handler.are_all_requested_packages_installed = original_are_all_requested_packages_installed
             runtime.stop()
 
     def __check_telemetry_events(self, runtime):
