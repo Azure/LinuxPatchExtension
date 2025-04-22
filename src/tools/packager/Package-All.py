@@ -147,7 +147,7 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
 
         print('------------- Set Copyright, Version and Environment. Also enforce UNIX-style line endings.')
         insert_copyright_notice(merged_file_full_path, merged_file_name)
-        timestamp = datetime.datetime.now(datetime.UTC).strftime("%y%m%d-%H%M")
+        timestamp = datetime.datetime.now(datetime.timezone.UTC).strftime("%y%m%d-%H%M")
         replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name)
         replace_text_in_file(merged_file_full_path, '[%exec_ver%]', str(new_version))
         replace_text_in_file(merged_file_full_path, '[%exec_build_timestamp%]', timestamp)

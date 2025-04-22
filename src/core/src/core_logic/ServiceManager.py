@@ -35,7 +35,14 @@ class ServiceManager(SystemctlManager):
         self.service_is_active_cmd = "sudo systemctl is-active {0}.service"
 
     # region - Service Creation / Removal
+    def service_exists(self):
+        # type: () -> bool
+        """ Check if the service exists """
+        service_path = self.__systemd_service_unit_path.format(self.service_name)
+        return os.path.exists(service_path)
+
     def remove_service(self):
+        """ Remove the service if it exists """
         service_path = self.__systemd_service_unit_path.format(self.service_name)
         if os.path.exists(service_path):
             self.stop_service()

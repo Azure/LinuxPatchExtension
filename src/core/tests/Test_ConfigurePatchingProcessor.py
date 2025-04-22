@@ -18,6 +18,9 @@ import os
 import re
 import unittest
 import sys
+
+from library.ExtStatusAsserter import ExtStatusAsserter
+
 # Conditional import for StringIO
 try:
     from StringIO import StringIO  # Python 2
@@ -42,16 +45,17 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # self.runtime.stop()
         pass
 
-    #region Mocks
+    # region Mocks
     def mock_package_manager_get_current_auto_os_patch_state_returns_unknown(self):
         if self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count == 0:
             self.mock_package_manager_get_current_auto_os_patch_state_returns_unknown_call_count = 1
             return Constants.AutomaticOSPatchStates.DISABLED
         else:
             return Constants.AutomaticOSPatchStates.UNKNOWN
+
     def mock_get_current_auto_os_patch_state(self):
         raise Exception("Mocked Exception")
-    #endregion Mocks
+    # endregion Mocks
 
     def test_operation_success_for_configure_patching_request_for_apt_with_default_updates_config(self):
         # create and adjust arguments
@@ -138,9 +142,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
 
-        # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        # assert
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(runtime.env_layer.file_system.read_with_retry(runtime.package_manager.image_default_patch_configuration_backup_path))
         self.assertTrue(image_default_patch_configuration_backup is not None)
@@ -150,26 +152,14 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertTrue(os_patch_configuration_settings is not None)
         self.assertTrue('APT::Periodic::Update-Package-Lists "0"' in os_patch_configuration_settings)
         self.assertTrue('APT::Periodic::Unattended-Upgrade "0"' in os_patch_configuration_settings)
-        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
 
-        self.assertEqual(len(substatus_file_data), 4)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["name"], "python-samba")
-        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
-        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "samba-common-bin")
-        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
-        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["name"], "samba-libs")
-        self.assertTrue("python-samba_2:4.4.5+dfsg-2ubuntu5.4" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchId"]))
-        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["classifications"]))
-        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
-        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
-        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "pub_off_sku_2020.09.23")
-        self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
+        # check status file
+        ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
+        ext_status_asserter.assert_status_file_substatuses()
+        ext_status_asserter.assert_installation_summary_has_patch("python-samba", Constants.PackageClassification.SECURITY, "python-samba_2:4.4.5+dfsg-2ubuntu5.4")
+        ext_status_asserter.assert_installation_summary_has_patch("samba-common-bin", Constants.PackageClassification.SECURITY)
+        ext_status_asserter.assert_installation_summary_has_patch("samba-libs", Constants.PackageClassification.SECURITY)
+        ext_status_asserter.assert_healthstore_status_info(patch_version="pub_off_sku_2020.09.23", should_report=True)
         runtime.stop()
 
     def test_operation_fail_for_configure_patching_telemetry_not_supported(self):
