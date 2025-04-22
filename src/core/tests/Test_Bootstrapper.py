@@ -13,7 +13,14 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import os
+import sys
 import unittest
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
 
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -21,6 +28,9 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
 class TestBootstrapper(unittest.TestCase):
+    def __init__(self, methodName: str = "runTest"):
+        super().__init__(methodName)
+    
     def setUp(self):
         self.sudo_check_status_attempts = 0
         Constants.SET_CHECK_SUDO_STATUS_TRUE = False
@@ -64,6 +74,15 @@ class TestBootstrapper(unittest.TestCase):
     
     def mock_get_arguments_configuration(self, argv):
         raise Exception("EXCEPTION during patch management core bootstrap:")
+    
+    def mock_os_path_exists(self, path):
+        return True
+
+    def mock_os_path_getsize(self, path):
+        return Constants.MAX_AUTO_ASSESSMENT_LOGFILE_SIZE_IN_BYTES + 1
+
+    def mock_os_remove(self, path):
+        raise Exception("Mocked exception in os.remove")
     # end regions mock
 
     def test_check_sudo_status_all_attempts_failed(self):
@@ -132,7 +151,40 @@ class TestBootstrapper(unittest.TestCase):
             
         # Restore original methods
         self.runtime.bootstrapper.configuration_factory.get_arguments_configuration = original_get_arguments_configuration
+        self.runtime.stop()
         
-
+    def test_reset_auto_assessment_log_file_if_needed_raise_exception(self):
+        # Arrange, Capture stdout
+        captured_output = StringIO()
+        original_output = sys.stdout
+        sys.stdout = captured_output  # Redirect stdout to the StringIO object
+        
+        # Save original methods
+        self.runtime.bootstrapper.auto_assessment_only = True
+        original_path_exists = os.path.exists
+        original_path_getsize = os.path.getsize
+        original_os_remove = os.remove
+        
+        # Mock
+        os.path.exists = self.mock_os_path_exists
+        os.path.getsize = self.mock_os_path_getsize
+        os.remove = self.mock_os_remove
+        
+        self.runtime.bootstrapper.reset_auto_assessment_log_file_if_needed()
+        
+        # Restore stdout
+        sys.stdout = original_output
+        
+        # Assert
+        output = captured_output.getvalue()
+        self.assertIn("INFO: Error while checking/removing auto-assessment log file.", output)  # Verify the log output contains the expected text
+        
+        # Restore original methods
+        os.path.exists = original_path_exists
+        os.path.getsize = original_path_getsize
+        os.remove = original_os_remove
+        self.runtime.stop()
+        
+        
 if __name__ == '__main__':
     unittest.main()
