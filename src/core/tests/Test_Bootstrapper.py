@@ -61,6 +61,9 @@ class TestBootstrapper(unittest.TestCase):
         # Mock success (True) on the 3rd attempt
         elif self.sudo_check_status_attempts == 3:
             return (0, "uid=0(root) gid=0(root) groups=0(root)\nTrue")
+    
+    def mock_get_arguments_configuration(self, argv):
+        raise Exception("EXCEPTION during patch management core bootstrap:")
     # end regions mock
 
     def test_check_sudo_status_all_attempts_failed(self):
@@ -113,7 +116,23 @@ class TestBootstrapper(unittest.TestCase):
 
         # Verify 3 attempts were made
         self.assertEqual(self.sudo_check_status_attempts, 3, "Expected exactly 3 attempts in check_sudo_status")
-
+        
+    def test_build_out_container_throw_exception(self):
+        # Test build_out_container throws exception when no container name is provided
+        
+        # Save original methods
+        original_get_arguments_configuration = self.runtime.bootstrapper.configuration_factory.get_arguments_configuration
+        
+        # Mock
+        self.runtime.bootstrapper.configuration_factory.get_arguments_configuration = self.mock_get_arguments_configuration
+        
+        # Verify exception
+        with self.assertRaises(Exception) as context:
+            self.runtime.bootstrapper.build_out_container()
+            
+        # Restore original methods
+        self.runtime.bootstrapper.configuration_factory.get_arguments_configuration = original_get_arguments_configuration
+        
 
 if __name__ == '__main__':
     unittest.main()
