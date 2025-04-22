@@ -144,22 +144,24 @@ class Bootstrapper(object):
 
         # Ensure sudo works in the environment
         sudo_check_result = self.check_sudo_status_with_retry()
-        self.composite_logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
+        self.composite_logger.log_debug("[BST] Sudo status check: " + str(sudo_check_result) + "\n")
 
     def check_sudo_status_with_retry(self, raise_if_not_sudo=True):
         # type:(bool) -> any
-        """ retry to invoke sudo check """
+        """ Retry up to max six times to invoke sudo check """
+        
+        self.composite_logger.log("[BST] Performing sudo status check... This should complete within 10 seconds.")
         for attempts in range(1, Constants.MAX_CHECK_SUDO_RETRY_COUNT + 1):
             try:
                 sudo_status = self.check_sudo_status(raise_if_not_sudo=raise_if_not_sudo)
 
-                if sudo_status and attempts > 1:
-                    self.composite_logger.log_debug("Sudo Check Successfully [RetryCount={0}][MaxRetryCount={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
+                if sudo_status and attempts >= 1:
+                    self.composite_logger.log_debug("[BST] Sudo Check Successfully [RetryCount={0}][MaxRetryCount={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
                     return sudo_status
 
                 elif sudo_status is None or sudo_status is False:
                     if attempts < Constants.MAX_CHECK_SUDO_RETRY_COUNT:
-                        self.composite_logger.log_debug("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                        self.composite_logger.log_debug("[BST] Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                         time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
                         continue
 
@@ -168,18 +170,17 @@ class Bootstrapper(object):
 
             except Exception as exception:
                 if attempts >= Constants.MAX_CHECK_SUDO_RETRY_COUNT:
-                    self.composite_logger.log_error("Customer environment error (sudo failure). [Exception={0}][MaxRetryCount={1}]".format(str(exception), str(attempts)))
+                    self.composite_logger.log_error("[BST] Customer environment error (sudo failure). [Exception={0}][MaxRetryCount={1}]".format(str(exception), str(attempts)))
                     if raise_if_not_sudo:
                         raise
-                self.composite_logger.log_debug("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                self.composite_logger.log_debug("[BST] Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                 time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
 
     def check_sudo_status(self, raise_if_not_sudo=True):
         # type:(bool) -> any
         """ Checks if we can invoke sudo successfully. """
         try:
-            self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
-            return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
+            return_code, output = self.env_layer.run_command_output("[BST] timeout 10 sudo id && echo True || echo False", False, False)
             # output should look like either this (bad):
             #   [sudo] password for username:
             #   False
@@ -189,18 +190,18 @@ class Bootstrapper(object):
 
             output_lines = output.splitlines()
             if len(output_lines) < 2:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
+                raise Exception("[BST] Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
 
             if output_lines[1] == "True":
                 return True
             elif output_lines[1] == "False":
                 if raise_if_not_sudo:
-                    raise Exception("Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
+                    raise Exception("[BST] Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
                 return False
             else:
-                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
+                raise Exception("[BST] Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
         except Exception as exception:
-            self.composite_logger.log_debug("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
+            self.composite_logger.log_debug("[BST] Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
                                             "Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise
