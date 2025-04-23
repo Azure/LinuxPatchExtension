@@ -107,7 +107,7 @@ class Bootstrapper(object):
                     return str(argv[x+1])
 
         if default_value == Constants.DEFAULT_UNSPECIFIED_VALUE:
-            raise Exception("Unable to find key {0} in core arguments: {1}.".format(key, str(argv)))
+            raise Exception("[BST] Unable to find key {0} in core arguments: {1}.".format(key, str(argv)))
         else:
             return default_value
 
@@ -123,7 +123,7 @@ class Bootstrapper(object):
 
             return self.container
         except Exception as error:
-            self.composite_logger.log_error('\nEXCEPTION during patch management core bootstrap: ' + repr(error))
+            self.composite_logger.log_error('\n[BST] EXCEPTION during patch management core bootstrap: ' + repr(error))
             raise
         pass
 
@@ -143,37 +143,37 @@ class Bootstrapper(object):
         self.composite_logger.log("Process id: " + str(os.getpid()))
 
         # Ensure sudo works in the environment
-        sudo_check_result = self.check_sudo_status_with_retry()
+        sudo_check_result = self.check_sudo_status_with_attempts()
         self.composite_logger.log_debug("[BST] Sudo status check: " + str(sudo_check_result) + "\n")
 
-    def check_sudo_status_with_retry(self, raise_if_not_sudo=True):
+    def check_sudo_status_with_attempts(self, raise_if_not_sudo=True):
         # type:(bool) -> any
-        """ Retry up to max six times to invoke sudo check """
+        """ Attempt(s) up to max six times to invoke sudo check """
         
         self.composite_logger.log("[BST] Performing sudo status check... This should complete within 10 seconds.")
-        for attempts in range(1, Constants.MAX_CHECK_SUDO_RETRY_COUNT + 1):
+        for attempts in range(1, Constants.MAX_CHECK_SUDO_ATTEMPTS + 1):
             try:
                 sudo_status = self.check_sudo_status(raise_if_not_sudo=raise_if_not_sudo)
 
                 if sudo_status and attempts >= 1:
-                    self.composite_logger.log_debug("[BST] Sudo Check Successfully [RetryCount={0}][MaxRetryCount={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
+                    self.composite_logger.log_debug("[BST] Sudo Check Successfully [Attempt(s)={0}][MaxAttempt(s)={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_ATTEMPTS))
                     return sudo_status
 
                 elif sudo_status is None or sudo_status is False:
-                    if attempts < Constants.MAX_CHECK_SUDO_RETRY_COUNT:
-                        self.composite_logger.log_debug("[BST] Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                    if attempts < Constants.MAX_CHECK_SUDO_ATTEMPTS:
+                        self.composite_logger.log_debug("[BST] Attempt sudo status check after a delay of [ElapsedTimeInSeconds={0}][Attempt(s)={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                         time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
                         continue
 
-                    elif attempts >= Constants.MAX_CHECK_SUDO_RETRY_COUNT:
+                    elif attempts >= Constants.MAX_CHECK_SUDO_ATTEMPTS:
                         raise
 
             except Exception as exception:
-                if attempts >= Constants.MAX_CHECK_SUDO_RETRY_COUNT:
-                    self.composite_logger.log_error("[BST] Customer environment error (sudo failure). [Exception={0}][MaxRetryCount={1}]".format(str(exception), str(attempts)))
+                if attempts >= Constants.MAX_CHECK_SUDO_ATTEMPTS:
+                    self.composite_logger.log_error("[BST] Customer environment error (sudo failure). [Exception={0}][Attempt(s)={1}[MaxAttempt(s)={2}]".format(str(exception), str(attempts), str(attempts)))
                     if raise_if_not_sudo:
                         raise
-                self.composite_logger.log_debug("[BST] Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                self.composite_logger.log_debug("[BST] Attempt sudo status check after a delay of [ElapsedTimeInSeconds={0}][Attempt(s)={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                 time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
 
     def check_sudo_status(self, raise_if_not_sudo=True):
