@@ -170,7 +170,7 @@ class Bootstrapper(object):
 
             except Exception as exception:
                 if attempts >= Constants.MAX_CHECK_SUDO_ATTEMPTS:
-                    self.composite_logger.log_error("[BST] Customer environment error (sudo failure). [Exception={0}][Attempt(s)={1}[MaxAttempt(s)={2}]".format(str(exception), str(attempts), str(attempts)))
+                    self.composite_logger.log_error("[BST] Customer environment error (sudo failure). [Exception={0}][Attempt(s)={1}][MaxAttempt(s)={2}]".format(str(exception), str(attempts), Constants.MAX_CHECK_SUDO_ATTEMPTS))
                     if raise_if_not_sudo:
                         raise
                 self.composite_logger.log_debug("[BST] Attempt sudo status check after a delay of [ElapsedTimeInSeconds={0}][Attempt(s)={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
