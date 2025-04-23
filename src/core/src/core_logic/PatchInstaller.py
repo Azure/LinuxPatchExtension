@@ -53,7 +53,6 @@ class PatchInstaller(object):
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
-        self.__enable_installation_status_to_warning_flag = False
 
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
