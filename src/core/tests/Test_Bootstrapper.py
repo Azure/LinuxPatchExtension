@@ -46,29 +46,29 @@ class TestBootstrapper(unittest.TestCase):
 
     # regions mock
     def mock_false_run_command_output(self, command, no_output=False, chk_err=True):
-        """Mock a failed sudo check status command output to test retry logic."""
-        # Mock failure to trigger retry logic in check_sudo_status
+        """Mock a failed sudo check status command output to test multiple attempts logic."""
+        # Mock failure to trigger multiple attempts logic in check_sudo_status
         return (1, "[sudo] password for user:\nFalse")
 
     def mock_insufficient_run_command_output(self, command, no_output=False, chk_err=True):
         """Mock an insufficient output line in sudo check status command output."""
-        # Mock failure to trigger retry logic in check_sudo_status
+        # Mock failure to trigger multiple attempts logic in check_sudo_status
         return (1, "[sudo] password for user:")
 
     def mock_unexpected_output_run_command_output(self, command, no_output=False, chk_err=True):
         """Mock an unexpected output line in sudo check status command output."""
-        # Mock failure to trigger retry logic in check_sudo_status
+        # Mock failure to trigger multiple attempts logic in check_sudo_status
         return (1, "[sudo] password for user:\nUnexpectedOutput")
 
-    def mock_retry_run_command_output(self, command, no_output=False, chk_err=True):
-        """Mock 3 failed sudo check status attempts followed by a success on the 4th attempt."""
+    def mock_run_command_output_with_attempts(self, command, no_output=False, chk_err=True):
+        """Mock 3 failed sudo check status attempts followed by a success on the 4th attempts."""
         self.sudo_check_status_attempts += 1
 
         # Mock failure on the first two attempts
         if self.sudo_check_status_attempts <= 2:
             return (1, "[sudo] password for user:\nFalse")
 
-        # Mock success (True) on the 3rd attempt
+        # Mock success (True) on the 3rd attempts
         elif self.sudo_check_status_attempts == 3:
             return (0, "uid=0(root) gid=0(root) groups=0(root)\nTrue")
     
@@ -91,8 +91,8 @@ class TestBootstrapper(unittest.TestCase):
 
         result = self.runtime.bootstrapper.check_sudo_status_with_attempts(raise_if_not_sudo=False)
 
-        # Verify check_sudo_status_with_retry is False
-        self.assertEqual(result, None, "Expected check_sudo_status retry to return None after all attempts failed")
+        # Verify check_sudo_status_with_attempts is False
+        self.assertEqual(result, None, "Expected check_sudo_status_with_attempts to return None after all attempts failed")
 
     def test_check_sudo_status_throw_exception(self):
         # Set raise_if_not_sudo=True to throw exception) after all retries
@@ -123,11 +123,11 @@ class TestBootstrapper(unittest.TestCase):
         # Verify exception msg contains the expected failure text
         self.assertTrue("Unexpected sudo check result" in str(context.exception))
 
-    def test_check_sudo_status_succeeds_on_third_attempt(self):
-        # Test retry logic in check sudo status after 2 failed attempts followed by success (true)
-        self.runtime.env_layer.run_command_output = self.mock_retry_run_command_output
+    def test_check_sudo_status_succeeds_on_third_attempts(self):
+        # Test check sudo status after 2 failed attempts followed by success (true)
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_with_attempts
 
-        # Attempt to check sudo status, succeed (true) on the 3rd attempt
+        # Attempt to check sudo status, succeed (true) on the 3rd attempts
         result = self.runtime.bootstrapper.check_sudo_status_with_attempts(raise_if_not_sudo=True)
 
         # Verify the result is success (True)
