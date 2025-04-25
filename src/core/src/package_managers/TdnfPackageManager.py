@@ -674,6 +674,8 @@ class TdnfPackageManager(PackageManager):
             self.composite_logger.log_debug("[TDNF] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]".format(str(self.current_auto_os_update_service)))
 
     def enable_auto_update_on_reboot(self):
+        """Enables machine default auto update on reboot"""
+        # type () -> None
         command = self.enable_on_reboot_cmd
         self.composite_logger.log_verbose("[TDNF] Enabling auto update on reboot. [Command={0}] ".format(command))
         code, out = self.env_layer.run_command_output(command, False, False)

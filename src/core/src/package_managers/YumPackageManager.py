@@ -842,6 +842,8 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_debug("[YPM] Disabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
 
     def enable_auto_update_on_reboot(self):
+        """Enables machine default auto update on reboot"""
+        # type () -> None
         command = self.enable_on_reboot_cmd
         self.composite_logger.log_verbose("[YPM] Enabling auto update on reboot. [Command={0}] ".format(command))
         code, out = self.env_layer.run_command_output(command, False, False)
