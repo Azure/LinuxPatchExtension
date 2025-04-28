@@ -25,6 +25,8 @@ class ExtStatusAsserter(object):
 
         self.__substatus_file_data = self.__read_status_file(self.__status_file_path)
 
+        self.__substatus_index_mapping = [[]]
+
         self.substatus_index_count = 0
         self.configure_patching_substatus_index = self.patch_assessment_substatus_index = self.patch_installation_substatus_index =  self.healthstore_substatus_index = None
         self.__populate_substatus_indices()
