@@ -142,7 +142,8 @@ class RebootManager(object):
 
             # Keep logging to indicate machine hasn't rebooted yet. If successful, this will be the last log we see from this process.
             if elapsed_time_in_minutes < max_allowable_time_to_reboot_in_minutes:
-                self.__reboot_wait_pulse(int(elapsed_time_in_minutes), int(max_allowable_time_to_reboot_in_minutes), int(maintenance_window_available_time_in_minutes))
+                self.__reboot_wait_pulse(int(elapsed_time_in_minutes), int(max_allowable_time_to_reboot_in_minutes),
+                                         maintenance_window_allowable_limit_remaining_in_minutes = int(maintenance_window_available_time_in_minutes - elapsed_time_in_minutes))
                 continue
 
             # If we get here, the machine has not rebooted in the time we expected. We need to fail the operation.
@@ -155,10 +156,10 @@ class RebootManager(object):
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
-    def __reboot_wait_pulse(self, elapsed_time_in_minutes, max_allowable_time_to_reboot_in_minutes, maintenance_window_available_time_in_minutes):
+    def __reboot_wait_pulse(self, elapsed_time_in_minutes, max_allowable_time_to_reboot_in_minutes, maintenance_window_allowable_limit_remaining):
         # type: (int, int, int) -> None
-        self.composite_logger.log("[RM] Waiting for machine reboot. [ElapsedTimeInMinutes={0}][MaxTimeInMinutes={1}][MaintenanceWindowAllowable={2}]"
-                                  .format(str(elapsed_time_in_minutes), str(max_allowable_time_to_reboot_in_minutes), str(maintenance_window_available_time_in_minutes - elapsed_time_in_minutes)))
+        self.composite_logger.log("[RM] Waiting for machine reboot. [ElapsedTimeInMinutes={0}][MaxTimeInMinutes={1}][MWAllowableLimitRemainingInMins={2}]"
+                                  .format(str(elapsed_time_in_minutes), str(max_allowable_time_to_reboot_in_minutes), str(maintenance_window_allowable_limit_remaining)))
         self.composite_logger.file_logger.flush()
         self.status_handler.set_installation_substatus_json()   # keep refreshing to minimize the chance of service-side timeout
         time.sleep(Constants.REBOOT_WAIT_PULSE_INTERVAL_IN_SECONDS)
