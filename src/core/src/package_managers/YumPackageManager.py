@@ -187,9 +187,7 @@ class YumPackageManager(PackageManager):
         """ Check if image is RHEL return true else false """
         if self.env_layer.platform.linux_distribution() is not None:
             if "Red Hat Enterprise Linux" in self.env_layer.platform.linux_distribution():
-                self.composite_logger.log_debug("[YPM] RHEL image detected. Attempting to fix SSL certificate issue by updating the client package...")
                 return True
-
         return False
     
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
