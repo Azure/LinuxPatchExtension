@@ -36,8 +36,11 @@ class TestExecutionConfig(unittest.TestCase):
     def mock_linux_distribution(self):
         return ['test', 'test', 'test']
 
-    def mock_linux_distribution_to_return_azure_linux(self):
+    def mock_linux_distribution_to_return_azure_linux_3(self):
         return ['Microsoft Azure Linux', '3.0', '']
+
+    def mock_linux_distribution_to_return_azure_linux_2(self):
+        return ['Common Base Linux Mariner', '2.0', '']
 
     def mock_run_command_for_apt(self, cmd, no_output=False, chk_err=False):
         if cmd.find("which apt-get") > -1:
@@ -69,8 +72,9 @@ class TestExecutionConfig(unittest.TestCase):
 
         test_input_output_table = [
             [self.mock_run_command_for_apt, self.mock_linux_distribution, Constants.APT],
-            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux, Constants.TDNF],
-            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux, str()],  # check for Azure Linux machine which does not have tdnf
+            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_3, Constants.TDNF],
+            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, str()],  # check for Azure Linux machine which does not have tdnf
+            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, Constants.TDNF],
             [self.mock_run_command_for_yum, self.mock_linux_distribution, Constants.YUM],
             [self.mock_run_command_for_zypper, self.mock_linux_distribution, Constants.ZYPPER],
             [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, str()],    # no matches for any package manager

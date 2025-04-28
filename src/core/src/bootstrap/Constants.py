@@ -31,7 +31,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.58"
+    EXT_VERSION = "1.6.59"
 
     # Runtime environments
     TEST = 'Test'
@@ -197,7 +197,7 @@ class Constants(object):
     RED_HAT = 'Red Hat'
     SUSE = 'SUSE'
     CENTOS = 'CentOS'
-    AZURE_LINUX = 'Microsoft Azure Linux'
+    AZURE_LINUX = ['Microsoft Azure Linux', 'Common Base Linux Mariner']
 
     # Package Managers
     APT = 'apt'
@@ -378,7 +378,7 @@ class Constants(object):
     class UbuntuProClientSettings(EnumBackport):
         FEATURE_ENABLED = True
         MINIMUM_PYTHON_VERSION_REQUIRED = (3, 5)  # using tuple as we can compare this with sys.version_info. The comparison will happen in the same order. Major version checked first. Followed by Minor version.
-        MAX_OS_MAJOR_VERSION_SUPPORTED = 20
+        MAX_OS_MAJOR_VERSION_SUPPORTED = 24
         MINIMUM_CLIENT_VERSION = "27.14.4"
 
     class BufferMessage(EnumBackport):
