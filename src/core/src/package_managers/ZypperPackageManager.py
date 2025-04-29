@@ -664,7 +664,7 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_debug("[ZPM] Cannot disable auto updates using yast2-online-update-configuration because the configuration file does not exist, indicating the service is not installed")
             return
 
-        self.composite_logger.log_debug("[ZPM] Preemptively disabling auto OS updates using yum-cron")
+        self.composite_logger.log_debug("[ZPM] Preemptively disabling auto OS updates using yast2-online-update-configuration")
         self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "false", self.auto_update_config_pattern_match_text)
 
         self.composite_logger.log_debug("[ZPM] Successfully disabled auto OS updates using yast2-online-update-configuration")

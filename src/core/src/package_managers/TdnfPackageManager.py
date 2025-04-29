@@ -386,11 +386,11 @@ class TdnfPackageManager(PackageManager):
 
     def get_current_auto_os_patch_state(self):
         """ Gets the current auto OS update patch state on the machine """
-        self.composite_logger.log("Fetching the current automatic OS patch state on the machine...")
+        self.composite_logger.log("[TDNF] Fetching the current automatic OS patch state on the machine...")
 
         current_auto_os_patch_state_for_dnf_automatic = self.__get_current_auto_os_patch_state_for_dnf_automatic()
 
-        self.composite_logger.log("OS patch state per auto OS update service: [dnf-automatic={0}]".format(str(current_auto_os_patch_state_for_dnf_automatic)))
+        self.composite_logger.log("[TDNF] OS patch state per auto OS update service: [dnf-automatic={0}]".format(str(current_auto_os_patch_state_for_dnf_automatic)))
 
         if current_auto_os_patch_state_for_dnf_automatic == Constants.AutomaticOSPatchStates.ENABLED:
             current_auto_os_patch_state = Constants.AutomaticOSPatchStates.ENABLED
@@ -399,12 +399,12 @@ class TdnfPackageManager(PackageManager):
         else:
             current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
 
-        self.composite_logger.log_debug("Overall Auto OS Patch State based on all auto OS update service states [OverallAutoOSPatchState={0}]".format(str(current_auto_os_patch_state)))
+        self.composite_logger.log_debug("[TDNF] Overall Auto OS Patch State based on all auto OS update service states [OverallAutoOSPatchState={0}]".format(str(current_auto_os_patch_state)))
         return current_auto_os_patch_state
 
     def __get_current_auto_os_patch_state_for_dnf_automatic(self):
         """ Gets current auto OS update patch state for dnf-automatic """
-        self.composite_logger.log_debug("Fetching current automatic OS patch state in dnf-automatic service. This includes checks on whether the service is installed, current auto patch enable state and whether it is set to enable on reboot")
+        self.composite_logger.log_debug("[TDNF] Fetching current automatic OS patch state in dnf-automatic service. This includes checks on whether the service is installed, current auto patch enable state and whether it is set to enable on reboot")
         self.__init_auto_update_for_dnf_automatic()
         is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
 
