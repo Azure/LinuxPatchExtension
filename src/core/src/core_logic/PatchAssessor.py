@@ -42,7 +42,9 @@ class PatchAssessor(object):
 
     def start_assessment(self):
         """ Start a patch assessment """
-        self.status_handler.set_current_operation(Constants.ASSESSMENT)
+        # Prevent operation override during installation operation
+        if self.status_handler.get_current_operation() != Constants.INSTALLATION:
+            self.status_handler.set_current_operation(Constants.ASSESSMENT)
         self.raise_if_telemetry_unsupported()
         self.raise_if_min_python_version_not_met()
 

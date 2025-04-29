@@ -53,7 +53,6 @@ class PatchInstaller(object):
 
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
 
-
     def start_installation(self, simulate=False):
         """ Kick off a patch installation run """
         self.status_handler.set_current_operation(Constants.INSTALLATION)
@@ -326,7 +325,6 @@ class PatchInstaller(object):
             # package_and_dependencies initially contains only one package. The dependencies are added in the list by method include_dependencies
             package_and_dependencies = [package]
             package_and_dependency_versions = [version]
-
             self.include_dependencies(package_manager, [package], [version], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
 
             # parent package install (+ dependencies) and parent package result management
@@ -825,10 +823,11 @@ class PatchInstaller(object):
 
         message = "All requested package(s) are installed. Any patch errors marked are from previous attempts."
         self.composite_logger.log(message)
-        self.status_handler.add_error_to_status(message=message, error_code=Constants.PatchOperationErrorCodes.PACKAGES_RETRY_SUCCEEDED, current_operation_override_for_error=Constants.INSTALLATION)
+        self.status_handler.add_error_to_status(message=message, error_code=Constants.PatchOperationErrorCodes.PACKAGES_RETRY_SUCCEEDED)
     
     def should_patch_installation_status_be_set_to_warning(self, patch_installation_successful, maintenance_window_exceeded):
         """ Check if patch installation status can be set to warning from failed. """
         # type (bool, bool) -> bool
         return not patch_installation_successful and not maintenance_window_exceeded and self.status_handler.are_all_requested_packages_installed()
     # endregion
+
