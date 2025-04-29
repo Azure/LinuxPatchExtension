@@ -180,7 +180,7 @@ class Bootstrapper(object):
         # type:(bool) -> any
         """ Checks if we can invoke sudo successfully. """
         try:
-            return_code, output = self.env_layer.run_command_output("[BST] timeout 10 sudo id && echo True || echo False", False, False)
+            return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
             # output should look like either this (bad):
             #   [sudo] password for username:
             #   False
