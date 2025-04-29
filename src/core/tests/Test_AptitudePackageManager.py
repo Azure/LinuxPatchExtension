@@ -48,8 +48,8 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
 
-    def mock_linux_distribution_to_return_ubuntu_focal(self):
-        return ['Ubuntu', '24.04', 'focal']
+    def mock_linux_distribution_to_return_ubuntu_oracular(self):
+        return ['Ubuntu', '26.04', 'oracular']
 
     def mock_is_pro_working_return_true(self):
         return True
@@ -563,7 +563,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
         backup_package_manager_ubuntu_pro_client_is_pro_working = package_manager.ubuntu_pro_client.is_pro_working
-        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_focal
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_oracular
         package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
 
         self.assertFalse(package_manager.check_pro_client_prerequisites())
@@ -699,7 +699,7 @@ class TestAptitudePackageManager(unittest.TestCase):
     def test_check_pro_client_prerequisites_should_return_false(self):
         package_manager = self.container.get('package_manager')
         backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
-        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_focal
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_oracular
         backup_ubuntu_pro_client_is_pro_working = package_manager.ubuntu_pro_client.is_pro_working
         package_manager.ubuntu_pro_client.is_pro_working = self.mock_is_pro_working_return_true
 
