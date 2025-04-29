@@ -327,6 +327,7 @@ class PatchInstaller(object):
             package_and_dependency_versions = [version]
 
             self.include_dependencies(package_manager, [package], [version], all_packages, all_package_versions, packages, package_versions, package_and_dependencies, package_and_dependency_versions)
+            
             # parent package install (+ dependencies) and parent package result management
             install_result = package_manager.install_update_and_dependencies_and_get_status(package_and_dependencies, package_and_dependency_versions, simulate)
 
