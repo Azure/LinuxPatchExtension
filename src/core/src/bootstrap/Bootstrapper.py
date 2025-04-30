@@ -107,7 +107,7 @@ class Bootstrapper(object):
                     return str(argv[x+1])
 
         if default_value == Constants.DEFAULT_UNSPECIFIED_VALUE:
-            raise Exception("[BST] Unable to find key {0} in core arguments: {1}.".format(key, str(argv)))
+            raise Exception("Unable to find key {0} in core arguments: {1}.".format(key, str(argv)))
         else:
             return default_value
 
@@ -123,7 +123,7 @@ class Bootstrapper(object):
 
             return self.container
         except Exception as error:
-            self.composite_logger.log_error('\n[BST] EXCEPTION during patch management core bootstrap: ' + repr(error))
+            self.composite_logger.log_error('\nEXCEPTION during patch management core bootstrap: ' + repr(error))
             raise
         pass
 
@@ -190,16 +190,16 @@ class Bootstrapper(object):
 
             output_lines = output.splitlines()
             if len(output_lines) < 2:
-                raise Exception("[BST] Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
+                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
 
             if output_lines[1] == "True":
                 return True
             elif output_lines[1] == "False":
                 if raise_if_not_sudo:
-                    raise Exception("[BST] Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
+                    raise Exception("Unable to invoke sudo successfully. Output: " + " ".join(output.split("\n")))
                 return False
             else:
-                raise Exception("[BST] Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
+                raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
         except Exception as exception:
             self.composite_logger.log_debug("[BST] Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
                                             "Exception details: " + str(exception))
