@@ -41,7 +41,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         raise Exception
     # endregion
 
-    def test_invalid_health_store_id_posix_time(self):
+    def test_invalid_datetime_to_convert_to_posix_time(self):
         # health_store_id is None
         self.runtime.stop()
         argument_composer = ArgumentComposer()
@@ -49,7 +49,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.health_store_id_in_posix_time is str())
+        self.assertTrue(package_manager.snapshot_posix_time is str())
 
         # health_store_id is empty string
         self.runtime.stop()
@@ -58,7 +58,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.health_store_id_in_posix_time is str())
+        self.assertTrue(package_manager.snapshot_posix_time is str())
 
         # health_store_id is random string
         self.runtime.stop()
@@ -67,9 +67,9 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.health_store_id_in_posix_time is str())
+        self.assertTrue(package_manager.snapshot_posix_time is str())
 
-    def test_valid_health_store_id_posix_time(self):
+    def test_valid_datetime_to_convert_to_posix_time(self):
         # valid health_store_id
         self.runtime.stop()
         argument_composer = ArgumentComposer()
@@ -77,8 +77,8 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.health_store_id_in_posix_time is not None)
-        self.assertEqual("1711954800", package_manager.health_store_id_in_posix_time)
+        self.assertTrue(package_manager.snapshot_posix_time is not None)
+        self.assertEqual("1711954800", package_manager.snapshot_posix_time)
 
         # health_store_id is in unexpected format
         self.runtime.stop()
@@ -87,8 +87,8 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.health_store_id_in_posix_time is not None)
-        self.assertEqual("1711954800", package_manager.health_store_id_in_posix_time)
+        self.assertTrue(package_manager.snapshot_posix_time is not None)
+        self.assertEqual("1711954800", package_manager.snapshot_posix_time)
 
     def test_do_processes_require_restart(self):
         """Unit test for tdnf package manager"""

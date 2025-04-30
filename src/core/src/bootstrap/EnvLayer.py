@@ -534,6 +534,14 @@ class EnvLayer(object):
         def standard_datetime_to_utc(std_datetime):
             """ Converts datetime object to string of format '"%Y-%m-%dT%H:%M:%SZ"' """
             return std_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        @staticmethod
+        def datetime_string_to_posix_time(datetime_string, format_string):
+            """ Converts string of given format to posix datetime string. """
+            # eg: Input: datetime_string: 20241220T000000Z (str), format_string: '%Y%m%dT%H%M%SZ' -> Output: 1734681600 (str)
+            datetime_object = datetime.datetime.strptime(datetime_string, format_string)
+            posix_timestamp = str(int(time.mktime(datetime_object.timetuple())))
+            return posix_timestamp
 # endregion - DateTime emulator and extensions
 
 # region - Core Emulator support functions

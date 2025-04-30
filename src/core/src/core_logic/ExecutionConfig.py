@@ -107,23 +107,13 @@ class ExecutionConfig(object):
         # type: (str) -> object
         """ Obtains implicit date ceiling for published date - converts pub_off_sku_2024.04.01 to 20240401T000000Z """
         max_patch_publish_date = str()
-        date_in_health_store_id = self.validate_date_in_health_store_id(health_store_id)
-        if date_in_health_store_id != "":
-            max_patch_publish_date = date_in_health_store_id + "T000000Z"
-
-        self.composite_logger.log_debug("[EC] Getting max patch publish date. [MaxPatchPublishDate={0}][HealthStoreId={1}]".format(str(max_patch_publish_date), str(health_store_id)))
-        return max_patch_publish_date
-
-    @staticmethod
-    def validate_date_in_health_store_id(health_store_id):
-        # type: (str) -> (str)
-        """ Verifies if health_store_id contains an acceptable date i.e. Validates 2024.04.01 is an acceptable date format if health_store_id=pub_off_sku_2024.04.01 """
-        """ Returns date in format: %Y%m%d i.e 20240401 in the above example """
         if health_store_id is not None and health_store_id != "":
             date_candidate = str(health_store_id)[-10:].replace(".", "")  # last 10 characters and remove '.'
             if len(date_candidate) == 8 and date_candidate.isdigit() and str(health_store_id)[-11:-10] == "_":
-                return date_candidate
-        return ""
+                max_patch_publish_date = date_candidate + "T000000Z"
+
+        self.composite_logger.log_debug("[EC] Getting max patch publish date. [MaxPatchPublishDate={0}][HealthStoreId={1}]".format(str(max_patch_publish_date), str(health_store_id)))
+        return max_patch_publish_date
 
     def __get_max_patch_publish_date_from_inclusions(self, included_package_name_mask_list):
         # type (str) -> str

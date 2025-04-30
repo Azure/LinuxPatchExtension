@@ -36,16 +36,16 @@ class TdnfPackageManager(PackageManager):
         self.cmd_repo_refresh = "sudo tdnf -q list updates"
 
         # fetch snapshottime from health_store_id
-        self.health_store_id_in_posix_time = self.__get_posix_time_from_health_store_id(execution_config)
+        self.snapshot_posix_time = self.__get_posix_time(execution_config.max_patch_publish_date, env_layer)
 
         # Support to get updates and their dependencies
-        self.tdnf_check = self.__generate_command_with_snapshottime('sudo tdnf -q list updates <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
-        self.single_package_check_versions = self.__generate_command_with_snapshottime('sudo tdnf list available <PACKAGE-NAME> <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
-        self.single_package_check_installed = self.__generate_command_with_snapshottime('sudo tdnf list installed <PACKAGE-NAME> <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
-        self.single_package_upgrade_simulation_cmd = self.__generate_command_with_snapshottime('sudo tdnf install --assumeno --skip-broken <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
+        self.tdnf_check = self.__generate_command_with_snapshottime('sudo tdnf -q list updates <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.single_package_check_versions = self.__generate_command_with_snapshottime('sudo tdnf list available <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.single_package_check_installed = self.__generate_command_with_snapshottime('sudo tdnf list installed <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.single_package_upgrade_simulation_cmd = self.__generate_command_with_snapshottime('sudo tdnf install --assumeno --skip-broken <SNAPSHOTTIME>', self.snapshot_posix_time)
 
         # Install update
-        self.single_package_upgrade_cmd = self.__generate_command_with_snapshottime('sudo tdnf -y install --skip-broken <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
+        self.single_package_upgrade_cmd = self.__generate_command_with_snapshottime('sudo tdnf -y install --skip-broken <SNAPSHOTTIME>', self.snapshot_posix_time)
 
         # Package manager exit code(s)
         self.tdnf_exitcode_ok = 0
@@ -94,28 +94,20 @@ class TdnfPackageManager(PackageManager):
         self.invoke_package_manager(self.cmd_clean_cache)
         self.invoke_package_manager(self.cmd_repo_refresh)
 
-    # region Fetch SnapshotTime
-    def __get_posix_time_from_health_store_id(self, execution_config):
-        """Converts date str received (in format: yyyy.mm.dd) to POSIX time string"""
-        # eg: Input: 2024.12.20 (str) -> Output: 1734681600 (str)
+    # region Strict SDP using SnapshotTime
+    def __get_posix_time(self, datetime_to_convert, env_layer):
+        """Converts date str received to POSIX time string"""
         posix_time = str()
-        health_store_id = execution_config.health_store_id
-        date_in_health_store_id = execution_config.validate_date_in_health_store_id(health_store_id)
+        datetime_to_convert_format = '%Y%m%dT%H%M%SZ'
+        self.composite_logger.log_debug("[TDNF] Getting POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}]".format(str(datetime_to_convert), datetime_to_convert_format))
+        try:
+            if datetime_to_convert != str():
+                posix_time = env_layer.datetime.datetime_string_to_posix_time(datetime_to_convert, datetime_to_convert_format)
+        except Exception as error:
+            self.composite_logger.log_debug("[TDNF] Could not fetch POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}][ComputedPosixTime={2}][Error={3}]".format(str(datetime_to_convert), datetime_to_convert_format, posix_time, repr(error)))
 
-        if date_in_health_store_id != "":
-            try:
-                posix_time = str(int(self.__string_to_posix_time(date_in_health_store_id, "%Y%m%d")))
-            except Exception as error:
-                self.composite_logger.log_debug("[TDNF] Could not fetch POSIX time from health store id. [HealthStoreId={0}][Exception={1}]".format(str(health_store_id), repr(error)))
-
-        self.composite_logger.log_debug("[TDNF] Getting POSIX time from health store id. [POSIXTime={0}][HealthStoreId={1}]".format(str(posix_time), str(health_store_id)))
+        self.composite_logger.log_debug("[TDNF] Computed POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}][ComputedPosixTime={2}]".format(str(datetime_to_convert), datetime_to_convert_format, posix_time))
         return posix_time
-
-    @staticmethod
-    def __string_to_posix_time(string, format_string):
-        datetime_object = datetime.datetime.strptime(string, format_string)
-        posix_timestamp = time.mktime(datetime_object.timetuple())
-        return posix_timestamp
 
     @staticmethod
     def __generate_command_with_snapshottime(command_template, snapshotposixtime=str()):
