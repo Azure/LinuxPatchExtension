@@ -174,20 +174,19 @@ class YumPackageManager(PackageManager):
 
     def __is_image_rhel8_or_higher(self):
         """ Check if image is RHEL8+ return true else false """
-        if self.env_layer.platform.linux_distribution() is not None:
-            os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
-
-            if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
-                self.composite_logger.log_debug("[YPM] RHEL version >= 8 detected. [DetectedVersion={0}]".format(str(os_version)))
-                return True
-
+        os_offer, os_version, os_code = self.env_layer.platform.linux_distribution_images_details()
+        if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
+            self.composite_logger.log_debug("[YPM] RHEL version >= 8 detected. [DetectedVersion={0}]".format(str(os_version)))
+            return True
         return False
     
     def __is_image_rhel(self):
         """ Check if image is RHEL return true else false """
-        if self.env_layer.platform.linux_distribution() is not None:
-            if "Red Hat Enterprise Linux" in self.env_layer.platform.linux_distribution():
-                return True
+        print('what is linux distribution', self.env_layer.platform.linux_distribution())
+        os_offer, os_version, os_code = self.env_layer.platform.linux_distribution_images_details()
+        if "Red Hat Enterprise Linux" in os_offer:
+            print('did this get called3')
+            return True
         return False
     
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
@@ -899,18 +898,19 @@ class YumPackageManager(PackageManager):
 
     def fix_ssl_certificate_issue(self):
         """ Fixes the SSL certificate issue by updating the client package """
-        if not self.__is_image_rhel():
-            error_msg = 'Customer environment error (expired SSL certs)'
+        if self.__is_image_rhel() is False:
+            print('did this called, __is_image_rhel', self.__is_image_rhel())
+            error_msg = '[YMP] Customer environment error (expired SSL certs)'
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-        
+        print('did this called, __is_image_rhel outside')
         # Image is rhel, attempt to update the client package
         command = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
         self.composite_logger.log_debug("[YPM][Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
         
         if code != self.yum_exitcode_no_applicable_packages:
-            error_msg = 'Customer environment error (expired SSL certs):  [Command={0}][Code={1}]'.format(command, str(code))
+            error_msg = '[YMP] Customer environment error (expired SSL certs):  [Command={0}][Code={1}]'.format(command, str(code))
             self.composite_logger.log_error("{0}[Out={1}]".format(error_msg, out))
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
@@ -922,7 +922,7 @@ class YumPackageManager(PackageManager):
     def log_error_mitigation_failure(self, output, raise_on_exception=True):
         self.composite_logger.log_error("[YPM] Customer Environment Error: Unable to auto-mitigate known issue. Please investigate and address. [Out={0}]".format(output))
         if raise_on_exception:
-            error_msg = 'Customer environment error (Unable to auto-mitigate known issue):  [Out={0}]'.format(output)
+            error_msg = '[YMP] Customer environment error (Unable to auto-mitigate known issue):  [Out={0}]'.format(output)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
     # endregion

@@ -42,6 +42,9 @@ class TestYumPackageManager(unittest.TestCase):
 
     def mock_linux8_distribution_to_return_redhat(self):
         return ['Red Hat Enterprise Linux Server', '8', 'Ootpa']
+    
+    def mock_is_rhel_image(self):
+        return ['Red Hat Enterprise Linux Server', '7', 'Maipo']
     #endregion Mocks
 
     def mock_do_processes_require_restart_raise_exception(self):
@@ -756,6 +759,20 @@ class TestYumPackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         dependent_list = package_manager.get_dependent_list(["polkit.x86_64"])
         self.assertEqual(len(dependent_list), 0)
+        
+    def test_fix_ssl_cert_issue_success(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType1HappyPathAfterFix')
+        
+        package_manager = self.runtime.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+    
+        self.runtime.env_layer.platform.linux_distribution = self.mock_is_rhel_image
+        result = package_manager.fix_ssl_certificate_issue()
+        
+        self.assertTrue(result)
+    
+        self.runtime.stop()
+        
 
 if __name__ == '__main__':
     unittest.main()
