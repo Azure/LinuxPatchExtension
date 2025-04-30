@@ -20,6 +20,8 @@ How to use: python Package-All.py <optional: full path to extension 'src' folder
 Note: Package-All.py internally invokes Package-Core.py to generate AzGPSLinuxPatchCore.py """
 
 from __future__ import print_function
+
+import shutil
 import sys
 import os
 import errno
@@ -147,10 +149,10 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
 
         print('------------- Set Copyright, Version and Environment. Also enforce UNIX-style line endings.')
         insert_copyright_notice(merged_file_full_path, merged_file_name)
-        timestamp = datetime.datetime.now(datetime.timezone.UTC).strftime("%y%m%d-%H%M")
+        date = datetime.datetime.now(datetime.timezone.utc).strftime("%y.%m.%d")
         replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name)
         replace_text_in_file(merged_file_full_path, '[%exec_ver%]', str(new_version))
-        replace_text_in_file(merged_file_full_path, '[%exec_build_timestamp%]', timestamp)
+        replace_text_in_file(merged_file_full_path, '[%exec_build_date%]', date)
         replace_text_in_file(merged_file_full_path, 'Constants.UNKNOWN_ENV', environment)
         replace_text_in_file(merged_file_full_path, '\r\n', '\n')
 
@@ -185,6 +187,8 @@ def main(argv):
         working_directory = os.path.abspath(os.path.join(source_code_path, os.pardir, os.pardir))
         merge_file_directory = os.path.join(working_directory, 'out')
         try:
+            if os.path.exists(merge_file_directory):
+                shutil.rmtree(merge_file_directory)
             os.makedirs(merge_file_directory)
         except OSError as e:
             if e.errno != errno.EEXIST:
