@@ -130,15 +130,72 @@ class TestRebootManager(unittest.TestCase):
         argument_composer = ArgumentComposer()
         argument_composer.reboot_setting = reboot_setting_in_api
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
-        Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES = -20
+        Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES_MIN = -20
 
         with self.assertRaises(Exception) as context:
             runtime.use_original_rm_start_reboot()
-            runtime.reboot_manager.start_reboot()
+            runtime.reboot_manager._RebootManager__start_reboot()
 
         # assert
-        self.assertIn("Reboot failed to proceed on the machine in a timely manner.", repr(context.exception))
+        self.assertIn("Customer environment issue: Reboot failed to proceed on the machine in a timely manner. Please retry the operation.", repr(context.exception))
         self.assertEqual(context.exception.args[1], "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+        runtime.stop()
+
+    def test_reboot_manager_start_reboot_bug_check(self):
+        """ Branches code into a code path that should never execute """
+        argument_composer = ArgumentComposer()
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+        runtime.reboot_manager._RebootManager__reboot_setting = 'NotARealSetting'   # needs to be set like this to bypass code protections.
+        self.assertEqual(runtime.reboot_manager.start_reboot_if_required_and_time_available(20), False)
+        runtime.stop()
+
+    def test_max_allowable_time_calculations(self):
+        """ Test the max allowable time to reboot calculations """
+        argument_composer = ArgumentComposer()
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.YUM)
+
+        # shorten vars to aid test matrix readability
+        min_timeout = Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES_MIN
+        max_timeout = Constants.REBOOT_WAIT_TIMEOUT_IN_MINUTES_MAX
+        ready_time = Constants.REBOOT_TO_MACHINE_READY_TIME_IN_MINUTES
+
+        # declarative test case matrix
+        input_output_matrix = [
+            # [dataset number, total mw time available, expected_output]
+            [0, 0, min_timeout],                                    # never less than min timeout
+
+            # Boundary of min
+            [1, min_timeout - 1, min_timeout],
+            [2, min_timeout, min_timeout],
+            [3, min_timeout + 1, min_timeout],
+            [4, min_timeout + ready_time, min_timeout],
+            [5, min_timeout + ready_time + 1, min_timeout + 1],     # only allowed to exceed min timeout if available time > min timeout + time allocated for machine to be ready
+
+            # Boundary of max
+            [6, max_timeout - 1, max_timeout - 1 - ready_time],     # ready time is always subtracted to get the max allowable time
+            [7, max_timeout, max_timeout - ready_time],
+            [8, max_timeout + 1, max_timeout - ready_time + 1],
+            [9, max_timeout + ready_time - 1, max_timeout - 1],
+            [10, max_timeout + ready_time + 1, max_timeout],
+            [11, max_timeout + 100, max_timeout],                   # never exceeds max timeout
+        ]
+
+        for dataset in input_output_matrix:
+            input_value = dataset[1]
+            expected_output = dataset[2]
+            self.assertEqual(runtime.reboot_manager._RebootManager__calc_max_allowable_time_to_reboot_in_minutes(input_value),
+                             expected_output,
+                             msg="Failed on dataset {0} with input {1} and expected output {2}.".format(dataset[0], input_value, expected_output))
+
+        runtime.stop()
+
+    def test_reboot_manager_wait_pulse(self):
+        argument_composer = ArgumentComposer()
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        backup_pulse_interval_value = Constants.REBOOT_WAIT_PULSE_INTERVAL_IN_SECONDS
+        Constants.REBOOT_WAIT_PULSE_INTERVAL_IN_SECONDS = 0
+        runtime.reboot_manager._RebootManager__reboot_wait_pulse(1, 10, 15)
+        Constants.REBOOT_WAIT_PULSE_INTERVAL_IN_SECONDS = backup_pulse_interval_value
         runtime.stop()
 
 
