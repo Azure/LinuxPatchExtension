@@ -113,7 +113,7 @@ class PatchInstaller(object):
 
         # Reboot as per setting and environment state
         reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
-        maintenance_window_exceeded = maintenance_window_exceeded or reboot_manager.maintenance_window_exceeded_flag
+        maintenance_window_exceeded = maintenance_window_exceeded or reboot_manager.has_maintenance_window_exceeded_at_reboot_manager()
 
         # Combining maintenance
         overall_patch_installation_successful = bool(update_run_successful and not maintenance_window_exceeded)
@@ -667,7 +667,7 @@ class PatchInstaller(object):
         self.status_handler.set_current_operation(Constants.INSTALLATION)  # Required for status handler to log errors, that occur during marking installation completed, in installation substatus
 
         # RebootNever is selected and pending, set status warning else success
-        if self.reboot_manager.reboot_setting == Constants.REBOOT_NEVER and self.reboot_manager.is_reboot_pending():
+        if self.reboot_manager.get_reboot_setting_sanitized() == Constants.REBOOT_NEVER and self.reboot_manager.is_reboot_pending():
             # Set error details inline with windows extension when setting warning status. This message will be shown in portal.
             self.status_handler.add_error_to_status("Machine is Required to reboot. However, the customer-specified reboot setting doesn't allow reboots.", Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             self.status_handler.set_installation_substatus_json(status=Constants.STATUS_WARNING)

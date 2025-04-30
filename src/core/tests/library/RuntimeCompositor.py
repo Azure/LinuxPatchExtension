@@ -157,16 +157,16 @@ class RuntimeCompositor(object):
 
     def reconfigure_reboot_manager(self):
         # Preserve the original reboot manager start_reboot method
-        self.original_rm_start_reboot = self.reboot_manager.start_reboot
+        self.original_rm_start_reboot = self.reboot_manager._RebootManager__start_reboot
 
         # Reassign start_reboot to a new mock method
-        self.reboot_manager.start_reboot = self.start_reboot
+        self.reboot_manager._RebootManager__start_reboot = self.start_reboot
 
-    def start_reboot(self, message="Test initiated reboot mock"):
+    def start_reboot(self, message="Test initiated reboot mock", maintenance_window_available_time_in_minutes=0):
         self.status_handler.set_installation_reboot_status(Constants.RebootStatus.STARTED)
 
     def use_original_rm_start_reboot(self):
-        self.reboot_manager.start_reboot = self.original_rm_start_reboot
+        self.reboot_manager._RebootManager__start_reboot = self.original_rm_start_reboot
 
     def reconfigure_package_manager(self):
         self.backup_get_current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state
