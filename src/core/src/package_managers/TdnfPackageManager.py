@@ -15,9 +15,11 @@
 # Requires Python 2.7+
 
 """TdnfPackageManager for Azure Linux"""
+import datetime
 import json
 import os
 import re
+import time
 
 from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.package_managers.PackageManager import PackageManager
@@ -33,14 +35,17 @@ class TdnfPackageManager(PackageManager):
         self.cmd_clean_cache = "sudo tdnf clean expire-cache"
         self.cmd_repo_refresh = "sudo tdnf -q list updates"
 
+        # fetch snapshottime from health_store_id
+        self.health_store_id_in_posix_time = self.__get_posix_time_from_health_store_id(execution_config)
+
         # Support to get updates and their dependencies
-        self.tdnf_check = 'sudo tdnf -q list updates'
-        self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME>'
-        self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME>'
-        self.single_package_upgrade_simulation_cmd = 'sudo tdnf install --assumeno --skip-broken '
+        self.tdnf_check = self.__generate_command_with_snapshottime('sudo tdnf -q list updates <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
+        self.single_package_check_versions = self.__generate_command_with_snapshottime('sudo tdnf list available <PACKAGE-NAME> <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
+        self.single_package_check_installed = self.__generate_command_with_snapshottime('sudo tdnf list installed <PACKAGE-NAME> <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
+        self.single_package_upgrade_simulation_cmd = self.__generate_command_with_snapshottime('sudo tdnf install --assumeno --skip-broken <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
 
         # Install update
-        self.single_package_upgrade_cmd = 'sudo tdnf -y install --skip-broken '
+        self.single_package_upgrade_cmd = self.__generate_command_with_snapshottime('sudo tdnf -y install --skip-broken <SNAPSHOTTIME>', self.health_store_id_in_posix_time)
 
         # Package manager exit code(s)
         self.tdnf_exitcode_ok = 0
@@ -88,6 +93,39 @@ class TdnfPackageManager(PackageManager):
         self.composite_logger.log("[TDNF] Refreshing local repo...")
         self.invoke_package_manager(self.cmd_clean_cache)
         self.invoke_package_manager(self.cmd_repo_refresh)
+
+    # region Fetch SnapshotTime
+    def __get_posix_time_from_health_store_id(self, execution_config):
+        """Converts date str received (in format: yyyy.mm.dd) to POSIX time string"""
+        # eg: Input: 2024.12.20 (str) -> Output: 1734681600 (str)
+        posix_time = str()
+        health_store_id = execution_config.health_store_id
+        date_in_health_store_id = execution_config.validate_date_in_health_store_id(health_store_id)
+
+        if date_in_health_store_id != "":
+            try:
+                posix_time = str(int(self.__string_to_posix_time(date_in_health_store_id, "%Y%m%d")))
+            except Exception as error:
+                self.composite_logger.log_debug("[TDNF] Could not fetch POSIX time from health store id. [HealthStoreId={0}][Exception={1}]".format(str(health_store_id), repr(error)))
+
+        self.composite_logger.log_debug("[TDNF] Getting POSIX time from health store id. [POSIXTime={0}][HealthStoreId={1}]".format(str(posix_time), str(health_store_id)))
+        return posix_time
+
+    @staticmethod
+    def __string_to_posix_time(string, format_string):
+        datetime_object = datetime.datetime.strptime(string, format_string)
+        posix_timestamp = time.mktime(datetime_object.timetuple())
+        return posix_timestamp
+
+    @staticmethod
+    def __generate_command_with_snapshottime(command_template, snapshotposixtime=str()):
+        # type: (str, str) -> str
+        """ Prepares a standard command to use snapshottime."""
+        if snapshotposixtime == str():
+            return command_template.replace('<SNAPSHOTTIME>', str())
+        else:
+            return command_template.replace('<SNAPSHOTTIME>', ('--snapshottime={0}'.format(str(snapshotposixtime))))
+    # endregion
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
@@ -318,14 +356,15 @@ class TdnfPackageManager(PackageManager):
 
     def get_dependent_list(self, packages):
         """Returns dependent List for the list of packages"""
+        cmd = self.single_package_upgrade_simulation_cmd
         package_names = ""
         for index, package in enumerate(packages):
             if index != 0:
                 package_names += ' '
             package_names += package
 
-        self.composite_logger.log_verbose("[TDNF] Resolving dependencies. [Command={0}]".format(str(self.single_package_upgrade_simulation_cmd + package_names)))
-        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_names)
+        self.composite_logger.log_verbose("[TDNF] Resolving dependencies. [Command={0}]".format(str(cmd + package_names)))
+        output = self.invoke_package_manager(cmd + package_names)
         dependencies = self.extract_dependencies(output, packages)
         self.composite_logger.log_verbose("[TDNF] Resolved dependencies. [Packages={0}][DependencyCount={1}]".format(str(packages), len(dependencies)))
         return dependencies
