@@ -263,8 +263,12 @@ class Constants(object):
         'IfRequired': REBOOT_IF_REQUIRED,
         'Always': REBOOT_ALWAYS
     }
-    REBOOT_BUFFER_IN_MINUTES = 15
-    REBOOT_WAIT_TIMEOUT_IN_MINUTES = 5
+    REBOOT_BUFFER_IN_MINUTES = 15                # minimum MW time required to consider rebooting if required (notify - 3, wait - 7, machine - 5)
+    REBOOT_NOTIFY_WINDOW_IN_MINUTES = 3          # time to broadcast reboot notification to other processes as part of the reboot command
+    REBOOT_WAIT_TIMEOUT_IN_MINUTES_MIN = 7       # minimum time to wait for a reboot to have started in the current execution context
+    REBOOT_WAIT_TIMEOUT_IN_MINUTES_MAX = 40      # maximum possible** time to wait for a reboot to have started in the current execution context (**IF MW time remaining allows it)
+    REBOOT_TO_MACHINE_READY_TIME_IN_MINUTES = 5  # time to wait for the machine to be ready after a reboot actually happens
+    REBOOT_WAIT_PULSE_INTERVAL_IN_SECONDS = 60   # time to wait between checks for reboot completion
 
     # Installation Reboot Statuses
     class RebootStatus(EnumBackport):
