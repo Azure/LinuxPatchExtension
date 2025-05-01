@@ -150,7 +150,7 @@ class ConfigurePatchingProcessor(object):
                 self.composite_logger.log_debug("[CPP] Cleaning up the {0} auto-assess timer.".format(service_name))
                 timer_manager.remove_timer()
         except Exception as error:
-            self.composite_logger.log_warning("[CPP] Retriable error while cleaning up auto-assess service. [Error={0}]".format(repr(error)))
+            self.composite_logger.log_warning("[CPP] Retriable error while cleaning up auto-assess config. [Error={0}]".format(repr(error)))
             self.configure_patching_successful &= False
 
     def __report_consolidated_configure_patch_status(self, status=Constants.STATUS_TRANSITIONING, error=Constants.DEFAULT_UNSPECIFIED_VALUE):

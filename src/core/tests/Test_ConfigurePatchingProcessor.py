@@ -172,10 +172,16 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         runtime.configure_patching_processor.start_configure_patching()
 
         # check status file
+        ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
+        ext_status_asserter.assert_status_file_substatuses(substatus_expectations={
+            Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_SUCCESS
+        })
+
         with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
             substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
         self.assertEqual(len(substatus_file_data), 1)
         self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+
         if runtime.vm_cloud_type == Constants.VMCloudType.AZURE:
             self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
             self.assertTrue(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
@@ -355,14 +361,17 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('HappyPath')
 
-        # mock swap
+        # mock swap service manager
         back_up_auto_assess_service_manager = runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists
         runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists = lambda: False
-
         self.assertRaises(Exception, runtime.configure_patching_processor.start_configure_patching())
-
-        # restore
         runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists = back_up_auto_assess_service_manager
+
+        # mock swap legacy timer manager
+        back_up_auto_assess_timer_manager_legacy = runtime.configure_patching_processor.auto_assess_timer_manager_legacy
+        runtime.configure_patching_processor.auto_assess_timer_manager_legacy = object()
+        self.assertRaises(Exception, runtime.configure_patching_processor.start_configure_patching())
+        runtime.configure_patching_processor.auto_assess_timer_manager = back_up_auto_assess_timer_manager_legacy
 
         runtime.stop()
 
