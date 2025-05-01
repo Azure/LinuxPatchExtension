@@ -299,11 +299,11 @@ class EnvLayer(object):
                 code, output = self.__read_record(operation)
                 return eval(output)
             
-        def linux_distribution_images_details(self):
+        def extract_linux_distribution_os_info(self):
+            # type: () -> tuple
             """
             Extract os information: offer, version, code
-            Returns:
-                tuple: A tuple containing (os_offer, os_version, os_code).
+            Returns: tuple: A tuple of (os_offer, os_version, os_code).
             """
             os_offer, os_version, os_code = None, None, None
             if self.linux_distribution() is not None:

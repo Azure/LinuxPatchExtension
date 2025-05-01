@@ -175,7 +175,7 @@ class YumPackageManager(PackageManager):
     def __is_image_rhel8_or_higher(self):
         # type: () -> bool
         """ Check if image is RHEL8+ return true else false """
-        os_offer, os_version, os_code = self.env_layer.platform.linux_distribution_images_details()
+        os_offer, os_version, os_code = self.env_layer.platform.extract_linux_distribution_os_info()
         if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
             self.composite_logger.log_debug("[YPM] RHEL version >= 8 detected. [DetectedVersion={0}]".format(str(os_version)))
             return True
@@ -184,7 +184,7 @@ class YumPackageManager(PackageManager):
     def __is_image_rhel(self):
         # type: () -> bool
         """ Check if image is RHEL return true else false """
-        os_offer, os_version, os_code = self.env_layer.platform.linux_distribution_images_details()
+        os_offer, os_version, os_code = self.env_layer.platform.extract_linux_distribution_os_info()
         if "Red Hat Enterprise Linux" in os_offer:
             return True
         return False
