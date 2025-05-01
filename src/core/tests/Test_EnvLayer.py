@@ -118,9 +118,9 @@ class TestExecutionConfig(unittest.TestCase):
         os_offer, os_version, os_name = self.envlayer.platform.extract_linux_distribution_os_info()
         
         # Verify
-        self.assertEqual(os_offer, None)
-        self.assertEqual(os_version, None)
-        self.assertEqual(os_name, None)
+        self.assertIsNone(os_offer, None)
+        self.assertIsNone(os_version, None)
+        self.assertIsNone(os_name, None)
         
         # Restore mocks
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
