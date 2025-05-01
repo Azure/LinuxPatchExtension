@@ -16,6 +16,13 @@
 import json
 import os
 import unittest
+import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
+    
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
@@ -42,9 +49,6 @@ class TestYumPackageManager(unittest.TestCase):
 
     def mock_linux8_distribution_to_return_redhat(self):
         return ['Red Hat Enterprise Linux Server', '8', 'Ootpa']
-    
-    def mock_is_rhel_image(self):
-        return ['Red Hat Enterprise Linux Server', '7', 'Maipo']
     #endregion Mocks
 
     def mock_do_processes_require_restart_raise_exception(self):
@@ -760,16 +764,31 @@ class TestYumPackageManager(unittest.TestCase):
         dependent_list = package_manager.get_dependent_list(["polkit.x86_64"])
         self.assertEqual(len(dependent_list), 0)
         
-    def test_fix_ssl_cert_issue_success(self):
+    def test_apply_fix_ssl_cert_issue_success(self):
+        """ Test ssl expired cert issue with success on rhel images only."""
+        # Set up and mocks
+        captured_output = StringIO()
+        original_output = sys.stdout
+        sys.stdout = captured_output  # Redirect stdout to the StringIO object
+        
+        original_env_layer_platform_linux_distribution = self.runtime.env_layer.platform.linux_distribution
+        self.runtime.env_layer.platform.linux_distribution = self.mock_linux7_distribution_to_return_redhat
         self.runtime.set_legacy_test_type('SSLCertificateIssueType1HappyPathAfterFix')
         
         package_manager = self.runtime.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-    
-        self.runtime.env_layer.platform.linux_distribution = self.mock_is_rhel_image
-        result = package_manager.fix_ssl_certificate_issue()
         
-        self.assertTrue(result)
+        # Act
+        package_manager.fix_ssl_certificate_issue()
+        
+        # Verify
+        output = captured_output.getvalue()
+        self.assertIn("[YPM][Customer-environment-error] Updating client package to avoid errors from older certificates using command", output)  # Verify the log output contains the expected text # Verify the log output contains the expected text
+        self.assertIn("Client package update complete", output)  # Verify the log output contains the expected text
+        
+        # Restore stdout, mock
+        sys.stdout = original_output
+        self.runtime.env_layer.platform.linux_distribution = original_env_layer_platform_linux_distribution
     
         self.runtime.stop()
         

@@ -173,6 +173,7 @@ class YumPackageManager(PackageManager):
         return other_packages, other_package_versions
 
     def __is_image_rhel8_or_higher(self):
+        # type: () -> bool
         """ Check if image is RHEL8+ return true else false """
         os_offer, os_version, os_code = self.env_layer.platform.linux_distribution_images_details()
         if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
@@ -181,6 +182,7 @@ class YumPackageManager(PackageManager):
         return False
     
     def __is_image_rhel(self):
+        # type: () -> bool
         """ Check if image is RHEL return true else false """
         print('what is linux distribution', self.env_layer.platform.linux_distribution())
         os_offer, os_version, os_code = self.env_layer.platform.linux_distribution_images_details()
@@ -897,24 +899,27 @@ class YumPackageManager(PackageManager):
         return False
 
     def fix_ssl_certificate_issue(self):
-        """ Fixes the SSL certificate issue by updating the client package """
+        # type: () -> None
+        """ Attempt to fix the SSL certificate issue by updating the client package """
         if self.__is_image_rhel() is False:
-            print('did this called, __is_image_rhel', self.__is_image_rhel())
+            print('did this called1, __is_image_rhel', self.__is_image_rhel())
             error_msg = '[YMP] Customer environment error (expired SSL certs)'
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-        print('did this called, __is_image_rhel outside')
+        print('did this called2, __is_image_rhel outside')
         # Image is rhel, attempt to update the client package
         command = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
         self.composite_logger.log_debug("[YPM][Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
         
         if code != self.yum_exitcode_no_applicable_packages:
+            print('did this called3, code:', code)
             error_msg = '[YMP] Customer environment error (expired SSL certs):  [Command={0}][Code={1}]'.format(command, str(code))
             self.composite_logger.log_error("{0}[Out={1}]".format(error_msg, out))
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:
+            print('did this called4, code:', code)
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug("Client package update complete. [Code={0}][Out={1}]".format(str(code), out))
             self.composite_logger.log_verbose("==========================================================================\n\n")
