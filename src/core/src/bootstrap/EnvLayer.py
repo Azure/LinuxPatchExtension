@@ -82,7 +82,7 @@ class EnvLayer(object):
 
             environment_vars_lines = environment_vars.strip().split("\n")
 
-            if var_value is str():
+            if var_value is None or var_value == str():
                 # remove environment variable
                 regex = re.compile('{0}=.+'.format(var_name))
                 search = regex.search(environment_vars)
