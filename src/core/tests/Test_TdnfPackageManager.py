@@ -49,7 +49,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.snapshot_posix_time is str())
+        self.assertTrue(isinstance(package_manager.snapshot_posix_time, str))
 
         # health_store_id is empty string
         self.runtime.stop()
@@ -58,7 +58,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.snapshot_posix_time is str())
+        self.assertTrue(isinstance(package_manager.snapshot_posix_time, str))
 
         # health_store_id is random string
         self.runtime.stop()
@@ -67,7 +67,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.snapshot_posix_time is str())
+        self.assertTrue(isinstance(package_manager.snapshot_posix_time, str))
 
     def test_valid_datetime_to_convert_to_posix_time(self):
         # valid health_store_id

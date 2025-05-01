@@ -15,11 +15,9 @@
 # Requires Python 2.7+
 
 """TdnfPackageManager for Azure Linux"""
-import datetime
 import json
 import os
 import re
-import time
 
 from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.package_managers.PackageManager import PackageManager
@@ -348,15 +346,14 @@ class TdnfPackageManager(PackageManager):
 
     def get_dependent_list(self, packages):
         """Returns dependent List for the list of packages"""
-        cmd = self.single_package_upgrade_simulation_cmd
         package_names = ""
         for index, package in enumerate(packages):
             if index != 0:
                 package_names += ' '
             package_names += package
 
-        self.composite_logger.log_verbose("[TDNF] Resolving dependencies. [Command={0}]".format(str(cmd + package_names)))
-        output = self.invoke_package_manager(cmd + package_names)
+        self.composite_logger.log_verbose("[TDNF] Resolving dependencies. [Command={0}]".format(str(self.single_package_upgrade_simulation_cmd + package_names)))
+        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_names)
         dependencies = self.extract_dependencies(output, packages)
         self.composite_logger.log_verbose("[TDNF] Resolved dependencies. [Packages={0}][DependencyCount={1}]".format(str(packages), len(dependencies)))
         return dependencies
