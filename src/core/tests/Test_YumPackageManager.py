@@ -49,6 +49,9 @@ class TestYumPackageManager(unittest.TestCase):
 
     def mock_linux8_distribution_to_return_redhat(self):
         return ['Red Hat Enterprise Linux Server', '8', 'Ootpa']
+    
+    def mock_ubuntu_distribution(self):
+        return ['Ubuntu', '20.04', 'Focal Fossa']
     #endregion Mocks
 
     def mock_do_processes_require_restart_raise_exception(self):
@@ -764,7 +767,7 @@ class TestYumPackageManager(unittest.TestCase):
         dependent_list = package_manager.get_dependent_list(["polkit.x86_64"])
         self.assertEqual(len(dependent_list), 0)
         
-    def test_apply_fix_ssl_cert_issue_success(self):
+    def test_apply_fix_ssl_cert_issue_rhel_image_success(self):
         """ Test ssl expired cert issue with success on rhel images only."""
         # Set up and mocks
         captured_output = StringIO()
@@ -791,7 +794,50 @@ class TestYumPackageManager(unittest.TestCase):
         self.runtime.env_layer.platform.linux_distribution = original_env_layer_platform_linux_distribution
     
         self.runtime.stop()
+    
+    def test_apply_fix_ssl_cert_issue_rhel_image_failed(self):
+        """ Test ssl expired cert issue failed to fix throw exception on rhel images only."""
+        # Set up and mocks
+        original_env_layer_platform_linux_distribution = self.runtime.env_layer.platform.linux_distribution
+        self.runtime.env_layer.platform.linux_distribution = self.mock_linux7_distribution_to_return_redhat
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType1SadPathAfterFix')
         
+        package_manager = self.runtime.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        
+        # Act
+        with self.assertRaises(Exception) as context:
+            package_manager.fix_ssl_certificate_issue()
+        
+        # Verify
+        self.assertTrue('Customer environment error (expired SSL certs)' in str(context.exception))
+        self.assertTrue("sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'" in str(context.exception))
+        
+        # Restore mock
+        self.runtime.env_layer.platform.linux_distribution = original_env_layer_platform_linux_distribution
+        
+        self.runtime.stop()
+    
+    def test_apply_fix_ssl_cert_issue_non_rhel_img_failed(self):
+        """ Test ssl expired cert issue throw exception on non rhel images."""
+        # Set up and mocks
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType1SadPathAfterFix')
+        original_env_layer_platform_linux_distribution_images_details = self.runtime.env_layer.platform.linux_distribution_images_details
+        self.runtime.env_layer.platform.linux_distribution_images_details = self.mock_ubuntu_distribution
+        package_manager = self.runtime.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        
+        # Act
+        with self.assertRaises(Exception) as context:
+            package_manager.fix_ssl_certificate_issue()
+        
+        # Verify
+        self.assertTrue('Customer environment error (expired SSL certs)' in str(context.exception))
+        
+        # Restore mock
+        self.runtime.env_layer.platform.linux_distribution_images_details = original_env_layer_platform_linux_distribution_images_details
+        self.runtime.stop()
+
 
 if __name__ == '__main__':
     unittest.main()
