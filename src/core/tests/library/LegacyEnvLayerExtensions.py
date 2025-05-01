@@ -27,9 +27,6 @@ class LegacyEnvLayerExtensions():
     class LegacyPlatform(object):
         def linux_distribution(self):
             return ['Ubuntu', '16.04', 'Xenial']
-        
-        def extract_linux_distribution_os_info(self):
-            return ['Red Hat Enterprise Linux Server', '7', 'Maipo']
 
         @staticmethod
         def system():   # OS Type

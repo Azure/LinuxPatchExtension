@@ -298,21 +298,6 @@ class EnvLayer(object):
             else:
                 code, output = self.__read_record(operation)
                 return eval(output)
-            
-        def extract_linux_distribution_os_info(self):
-            # type: () -> tuple
-            """
-            Extract os information: offer, version, code
-            Returns: tuple: A tuple of (os_offer, os_version, os_code).
-            """
-            os_offer, os_version, os_code = None, None, None
-            if self.linux_distribution() is not None:
-                try:
-                    os_offer, os_version, os_code = self.linux_distribution()
-                except (ValueError, TypeError):
-                    print("Failed to extract linux image information")
-                    
-            return os_offer, os_version, os_code
         
         def system(self):   # OS Type
             operation = "PLATFORM_SYSTEM"

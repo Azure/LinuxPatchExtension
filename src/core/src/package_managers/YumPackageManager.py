@@ -139,7 +139,6 @@ class YumPackageManager(PackageManager):
 
         if not self.__is_image_rhel8_or_higher():
             self.install_yum_security_prerequisite()
-
         out = self.invoke_package_manager(self.yum_check_security)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
 
@@ -175,18 +174,20 @@ class YumPackageManager(PackageManager):
     def __is_image_rhel8_or_higher(self):
         # type: () -> bool
         """ Check if image is RHEL8+ return true else false """
-        os_offer, os_version, os_code = self.env_layer.platform.extract_linux_distribution_os_info()
-        if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
-            self.composite_logger.log_debug("[YPM] RHEL version >= 8 detected. [DetectedVersion={0}]".format(str(os_version)))
-            return True
+        if self.env_layer.platform.linux_distribution is not None:
+            os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
+            if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
+                self.composite_logger.log_debug("[YPM] RHEL version >= 8 detected. [DetectedVersion={0}]".format(str(os_version)))
+                return True
         return False
     
     def __is_image_rhel(self):
         # type: () -> bool
         """ Check if image is RHEL return true else false """
-        os_offer, os_version, os_code = self.env_layer.platform.extract_linux_distribution_os_info()
-        if "Red Hat Enterprise Linux" in os_offer:
-            return True
+        if self.env_layer.platform.linux_distribution is not None:
+            os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
+            if "Red Hat Enterprise Linux" in os_offer:
+                return True
         return False
     
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
@@ -899,10 +900,11 @@ class YumPackageManager(PackageManager):
     def fix_ssl_certificate_issue(self):
         # type: () -> None
         """ Attempt to fix the SSL certificate issue by updating the client package """
-        if self.__is_image_rhel() is False:
+        if not self.__is_image_rhel():
             error_msg = 'Customer environment error (expired SSL certs)'
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+        
         # Image is rhel, attempt to update the client package
         command = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
         self.composite_logger.log_debug("[YPM][Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))

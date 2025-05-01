@@ -680,8 +680,8 @@ class TestYumPackageManager(unittest.TestCase):
     def test_rhel7_image_with_security_plugin(self):
         """Unit test for yum package manager rhel images below 8 and Classification = Security"""
         # mock linux_distribution
-        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.extract_linux_distribution_os_info
-        LegacyEnvLayerExtensions.LegacyPlatform.extract_linux_distribution_os_info = self.mock_linux7_distribution_to_return_redhat
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux7_distribution_to_return_redhat
 
         self.__assert_test_rhel8_image()
 
@@ -691,8 +691,8 @@ class TestYumPackageManager(unittest.TestCase):
     def test_rhel8_image_higher_no_security_plugin(self):
         """Unit test for yum package manager rhel images >= 8 and Classification = Security"""
         # mock linux_distribution
-        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.extract_linux_distribution_os_info
-        LegacyEnvLayerExtensions.LegacyPlatform.extract_linux_distribution_os_info = self.mock_linux8_distribution_to_return_redhat
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux8_distribution_to_return_redhat
 
         self.__assert_test_rhel8_image()
 

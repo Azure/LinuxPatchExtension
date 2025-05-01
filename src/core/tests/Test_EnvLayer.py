@@ -85,47 +85,6 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.run_command_output = self.backup_run_command_output
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
         platform.system = self.backup_platform_system
-        
-    def test_extract_linux_distribution_os_info_with_data(self):
-        """ Test linux_distribution_images_details returning tuples of os info. """
-        # set up mocks
-        self.backup_platform_system = platform.system()
-        platform.system = self.mock_platform_system
-        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
-        self.envlayer.platform.linux_distribution = self.mock_linux_distribution
-        
-        # Act
-        os_offer, os_version, os_name = self.envlayer.platform.extract_linux_distribution_os_info()
-        
-        # Verify
-        self.assertEqual(os_offer, 'test')
-        self.assertEqual(os_version, 'test')
-        self.assertEqual(os_name, 'test')
-        
-        # Restore mocks
-        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
-        platform.system = self.backup_platform_system
-    
-    def test_extract_linux_distribution_os_info_no_data(self):
-        """ Test linux_distribution_images_details returning none. """
-        # set up mocks
-        self.backup_platform_system = platform.system()
-        platform.system = self.mock_platform_system
-        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
-        self.envlayer.platform.linux_distribution = lambda: None
-        
-        # Act
-        os_offer, os_version, os_name = self.envlayer.platform.extract_linux_distribution_os_info()
-        
-        # Verify
-        self.assertIsNone(os_offer, None)
-        self.assertIsNone(os_version, None)
-        self.assertIsNone(os_name, None)
-        
-        # Restore mocks
-        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
-        platform.system = self.backup_platform_system
-        
 
 if __name__ == '__main__':
     unittest.main()
