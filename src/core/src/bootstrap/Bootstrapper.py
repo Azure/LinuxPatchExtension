@@ -156,12 +156,12 @@ class Bootstrapper(object):
                 sudo_status = self.check_sudo_status(raise_if_not_sudo=raise_if_not_sudo)
 
                 if sudo_status and attempts >= 1:
-                    self.composite_logger.log_debug("[BST] Sudo Check Successfully [Attempt(s)={0}][MaxAttempt(s)={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_ATTEMPTS))
+                    self.composite_logger.log_debug("[BST] Sudo status check completed successfully.[Attempt(s)={0}][MaxAttempt(s)={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_ATTEMPTS))
                     return sudo_status
 
                 elif sudo_status is None or sudo_status is False:
                     if attempts < Constants.MAX_CHECK_SUDO_ATTEMPTS:
-                        self.composite_logger.log_debug("[BST] Attempt sudo status check after a delay of [ElapsedTimeInSeconds={0}][Attempt(s)={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                        self.composite_logger.log_debug("[BST] Re-attempt sudo status check after a delay.[ElapsedTimeInSeconds={0}][Attempt(s)={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                         time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
                         continue
 
@@ -170,10 +170,10 @@ class Bootstrapper(object):
 
             except Exception as exception:
                 if attempts >= Constants.MAX_CHECK_SUDO_ATTEMPTS:
-                    self.composite_logger.log_error("[BST] Customer environment error (sudo failure). [Exception={0}][Attempt(s)={1}][MaxAttempt(s)={2}]".format(str(exception), str(attempts), Constants.MAX_CHECK_SUDO_ATTEMPTS))
+                    self.composite_logger.log_error("[BST] Customer environment error (sudo failure).[Exception={0}][Attempt(s)={1}][MaxAttempt(s)={2}]".format(str(exception), str(attempts), Constants.MAX_CHECK_SUDO_ATTEMPTS))
                     if raise_if_not_sudo:
                         raise
-                self.composite_logger.log_debug("[BST] Attempt sudo status check after a delay of [ElapsedTimeInSeconds={0}][Attempt(s)={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                self.composite_logger.log_debug("[BST] Re-attempt sudo status check after a delay.[ElapsedTimeInSeconds={0}][Attempt(s)={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                 time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
 
     def check_sudo_status(self, raise_if_not_sudo=True):
