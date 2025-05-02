@@ -82,6 +82,57 @@ class TestZypperPackageManager(unittest.TestCase):
         raise Exception
     #endregion Mocks
 
+    # region Utility Functions
+    def __setup_config_and_invoke_revert_auto_os_to_system_default(self, package_manager, create_current_auto_os_config=True, create_backup_for_system_default_config=True, current_auto_os_update_config_value='', setup_enable_config=True, enable_cron_value="", installation_state_value=False):
+        """ Sets up current auto OS update config, backup for system default config (if requested) and invoke revert to system default """
+        # setup current auto OS update config
+        if create_current_auto_os_config:
+            self.__setup_current_auto_os_update_config(package_manager, current_auto_os_update_config_value)
+
+        # setup backup for system default auto OS update config
+        if create_backup_for_system_default_config:
+            self.__setup_backup_for_system_default_OS_update_config(package_manager, setup_enable_config=setup_enable_config, enable_cron_value=enable_cron_value, installation_state_value=installation_state_value)
+
+        package_manager.revert_auto_os_update_to_system_default()
+
+    def __setup_current_auto_os_update_config(self, package_manager, config_value='', config_file_name="automatic_online_update"):
+        # setup current auto OS update config
+        package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, config_file_name)
+        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, config_value)
+
+    def __setup_backup_for_system_default_OS_update_config(self, package_manager, setup_enable_config=True, enable_cron_value="", installation_state_value=False):
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "yast2-online-update-configuration": {
+                "installation_state": installation_state_value
+            }
+        }
+        if setup_enable_config:
+            backup_image_default_patch_configuration_json["yast2-online-update-configuration"]["AOU_ENABLE_CRONJOB"] = enable_cron_value
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+    @staticmethod
+    def __capture_std_io():
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+        return captured_output, original_stdout
+
+    def __assert_std_io(self, captured_output, expected_output):
+        output = captured_output.getvalue()
+        self.assertTrue(expected_output in output)
+
+    def __assert_reverted_automatic_patch_configuration_settings(self, package_manager, config_exists=True, config_value_expected=''):
+        if config_exists:
+            reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+            self.assertTrue(reverted_os_patch_configuration_settings is not None)
+            self.assertTrue(config_value_expected in reverted_os_patch_configuration_settings)
+        else:
+            self.assertFalse(os.path.exists(package_manager.os_patch_configuration_settings_file_path))
+    # endregion
+
     def test_package_manager_no_updates(self):
         """Unit test for zypper package manager with no updates"""
         # Path change
@@ -437,138 +488,68 @@ class TestZypperPackageManager(unittest.TestCase):
     def test_revert_auto_os_update_to_system_default_success(self):
         package_manager = self.container.get('package_manager')
 
-        # setup current auto OS update config
-        package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
-        yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="false"'
-        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
+        # setup current auto OS update config, backup for system default config and invoke revert to system default
+        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='AOU_ENABLE_CRONJOB="false"', enable_cron_value="true", installation_state_value=True)
 
-        # setup backup for system default auto OS update config
-        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
-        backup_image_default_patch_configuration_json = {
-            "yast2-online-update-configuration": {
-                "AOU_ENABLE_CRONJOB": "true",
-                "installation_state": True
-            }
-        }
-        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
-
-        package_manager.revert_auto_os_update_to_system_default()
-        reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
-        self.assertTrue(reverted_os_patch_configuration_settings is not None)
-        self.assertTrue('AOU_ENABLE_CRONJOB="true"' in reverted_os_patch_configuration_settings)
+        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_value_expected='AOU_ENABLE_CRONJOB="true"')
 
     def test_revert_auto_os_update_to_system_default_current_auto_os_update_config_does_not_exist(self):
         # arrange capture std IO
-        captured_output = StringIO()
-        original_stdout = sys.stdout
-        sys.stdout = captured_output
+        captured_output, original_stdout = self.__capture_std_io()
 
         package_manager = self.container.get('package_manager')
 
-        # setup backup for system default auto OS update config
-        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
-        backup_image_default_patch_configuration_json = {
-            "yast2-online-update-configuration": {
-                "AOU_ENABLE_CRONJOB": "true",
-                "installation_state": True
-            }
-        }
-        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+        # setup backup for system default config and invoke revert to system default
+        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, create_current_auto_os_config=False, enable_cron_value="true", installation_state_value=True)
 
-        package_manager.revert_auto_os_update_to_system_default()
         # restore sys.stdout output
         sys.stdout = original_stdout
 
         # assert
-        output = captured_output.getvalue()
-        self.assertTrue("[ZPM] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service={0}]".format(package_manager.current_auto_os_update_service) in output)
+        self.__assert_std_io(captured_output=captured_output, expected_output="[ZPM] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service={0}]".format(package_manager.current_auto_os_update_service))
+        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=False)
 
     def test_revert_auto_os_update_to_system_default_backup_config_does_not_exist(self):
         # arrange capture std IO
-        captured_output = StringIO()
-        original_stdout = sys.stdout
-        sys.stdout = captured_output
+        captured_output, original_stdout = self.__capture_std_io()
 
         package_manager = self.container.get('package_manager')
 
-        # setup current auto OS update config
-        package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
-        yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="false"'
-        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
+        # setup current auto OS update config, backup for system default auto OS update config is NOT setup and invoke revert to system default
+        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='AOU_ENABLE_CRONJOB="false"', create_backup_for_system_default_config=False)
 
-        # backup for system default auto OS update config is NOT setup
-
-        package_manager.revert_auto_os_update_to_system_default()
         # restore sys.stdout output
         sys.stdout = original_stdout
 
         # assert
-        output = captured_output.getvalue()
-        self.assertTrue("[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]"
-                        .format(package_manager.current_auto_os_update_service) in output)
-
-        reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
-        self.assertTrue(reverted_os_patch_configuration_settings is not None)
-        self.assertTrue('AOU_ENABLE_CRONJOB="false"' in reverted_os_patch_configuration_settings)
+        self.__assert_std_io(captured_output=captured_output, expected_output="[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]"
+                             .format(package_manager.current_auto_os_update_service))
+        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_value_expected='AOU_ENABLE_CRONJOB="false"')
 
     def test_revert_auto_os_update_to_system_default_backup_config_invalid(self):
         # arrange capture std IO
-        captured_output = StringIO()
-        original_stdout = sys.stdout
-        sys.stdout = captured_output
+        captured_output, original_stdout = self.__capture_std_io()
 
         package_manager = self.container.get('package_manager')
 
-        # setup current auto OS update config
-        package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
-        yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="false"'
-        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
+        # setup current auto OS update config, backup for system default config and invoke revert to system default
+        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='AOU_ENABLE_CRONJOB="false"', setup_enable_config=False, installation_state_value=True)
 
-        # setup incomplete backup for system default auto OS update config
-        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
-        backup_image_default_patch_configuration_json = {
-            "yast2-online-update": {
-                "AOU_ENABLE_CRONJOB": "true",
-                "installation_state": True
-            }
-        }
-        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
-
-        package_manager.revert_auto_os_update_to_system_default()
         # restore sys.stdout output
         sys.stdout = original_stdout
 
         # assert
-        output = captured_output.getvalue()
-        self.assertTrue("[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]"
-                        .format(package_manager.current_auto_os_update_service) in output)
-
-        reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
-        self.assertTrue(reverted_os_patch_configuration_settings is not None)
-        self.assertTrue('AOU_ENABLE_CRONJOB="false"' in reverted_os_patch_configuration_settings)
+        self.__assert_std_io(captured_output=captured_output, expected_output="[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]"
+                             .format(package_manager.current_auto_os_update_service))
+        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_value_expected='AOU_ENABLE_CRONJOB="false"')
 
     def test_revert_auto_os_update_to_system_default_backup_config_contains_empty_values(self):
         package_manager = self.container.get('package_manager')
 
-        # setup current auto OS update config
-        package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, "automatic_online_update")
-        yast2_online_update_configuration_os_patch_configuration_settings = 'AOU_ENABLE_CRONJOB="false"'
-        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, yast2_online_update_configuration_os_patch_configuration_settings)
+        # setup current auto OS update config, backup for system default config and invoke revert to system default
+        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='AOU_ENABLE_CRONJOB="false"', enable_cron_value="", installation_state_value=True)
 
-        # setup backup for system default auto OS update config
-        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
-        backup_image_default_patch_configuration_json = {
-            "yast2-online-update-configuration": {
-                "AOU_ENABLE_CRONJOB": "",
-                "installation_state": True
-            }
-        }
-        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
-
-        package_manager.revert_auto_os_update_to_system_default()
-        reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
-        self.assertTrue(reverted_os_patch_configuration_settings is not None)
-        self.assertTrue('AOU_ENABLE_CRONJOB="false"' in reverted_os_patch_configuration_settings)
+        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_value_expected='AOU_ENABLE_CRONJOB="false"')
 
     def is_string_in_status_file(self, str_to_find):
         with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:

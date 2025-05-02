@@ -868,7 +868,7 @@ class YumPackageManager(PackageManager):
             return False
 
     def revert_auto_os_update_to_system_default(self):
-        """ Reverts the auto OS update patch state on the machine to it's system default value, if one exists in our backup file """
+        """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
         # type () -> None
         self.composite_logger.log("[YPM] Reverting the current automatic OS patch state on the machine to it's system default value before patchmode was set to 'AutomaticByPlatform'")
         self.revert_auto_os_update_to_system_default_for_service(Constants.YumAutoOSUpdateServices.YUM_CRON)
@@ -877,7 +877,7 @@ class YumPackageManager(PackageManager):
         self.composite_logger.log_debug("[YPM] Successfully reverted auto OS updates to system default config")
 
     def revert_auto_os_update_to_system_default_for_service(self, service):
-        """ Reverts the auto OS update patch state on the machine to it's system default value for given service, if applicable """
+        """ Reverts the auto OS update patch state on the machine to its system default value for given service, if applicable """
         # type () -> None
         self.composite_logger.log("[YPM] Reverting the current automatic OS patch state on the machine to it's system default value for [Service={0}]]".format(str(service)))
         self.__init_auto_update_for_service(service)
@@ -913,10 +913,7 @@ class YumPackageManager(PackageManager):
             Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC: self.__init_auto_update_for_dnf_automatic,
             Constants.YumAutoOSUpdateServices.PACKAGEKIT: self.__init_auto_update_for_packagekit
         }
-        try:
-            return switcher[service]()
-        except KeyError as e:
-            raise e
+        return switcher[service]()
 
     def __get_image_default_patch_configuration_backup(self):
         """ Get image_default_patch_configuration_backup file"""
