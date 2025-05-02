@@ -464,69 +464,156 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
 
-    def test_revert_auto_os_update_to_system_default_success(self):
-        package_manager = self.container.get('package_manager')
+    def test_revert_auto_os_update_to_system_default(self):
+        revert_success_testcase = {
+            "stdio": {
+                "capture_output": False,
+                "expected_output": ''
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "update_package_list_value": "1",
+                    "unattended_upgrade_value": "1",
+                    "set_unattended_upgrade": True
+                }
+            },
+            "assertions": {
+                "update_package_list_value_expected": 'APT::Periodic::Update-Package-Lists "1"',
+                "unattended_upgrade_value_expected": 'APT::Periodic::Unattended-Upgrade "1"',
+                "config_exists": True
+            }
+        }
 
-        # setup current auto OS update config, backup for system default config and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n', update_package_list_value="1", unattended_upgrade_value="1")
+        revert_success_auto_os_update_config_does_not_exist = {
+            "stdio": {
+                "capture_output": True,
+                "expected_output": 'Automatic OS patch config file not found on the VM. We won\'t be able to revert auto OS patch settings to their system default values'
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": False,
+                    "current_auto_os_update_config_value": ''
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "update_package_list_value": "1",
+                    "unattended_upgrade_value": "1",
+                    "set_unattended_upgrade": True
+                }
+            },
+            "assertions": {
+                "update_package_list_value_expected": '',
+                "unattended_upgrade_value_expected": '',
+                "config_exists": False
+            }
+        }
 
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, update_package_list_value_expected='APT::Periodic::Update-Package-Lists "1"', unattended_upgrade_value_expected='APT::Periodic::Unattended-Upgrade "1"')
+        revert_success_backup_config_does_not_exist = {
+            "stdio": {
+                "capture_output": True,
+                "expected_output": 'Since the backup is invalid or does not exist, we won\'t be able to revert auto OS patch settings to their system default value'
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": False,
+                    "update_package_list_value": "",
+                    "unattended_upgrade_value": "",
+                    "set_unattended_upgrade": False
+                }
+            },
+            "assertions": {
+                "update_package_list_value_expected": 'APT::Periodic::Update-Package-Lists "0"',
+                "unattended_upgrade_value_expected": 'APT::Periodic::Unattended-Upgrade "0"',
+                "config_exists": True
+            }
+        }
 
-    def test_revert_auto_os_update_to_system_default_current_auto_os_update_config_does_not_exist(self):
-        # arrange capture std IO
-        captured_output, original_stdout = self.__capture_std_io()
+        revert_success_backup_config_invalid = {
+            "stdio": {
+                "capture_output": True,
+                "expected_output": 'Since the backup is invalid or does not exist, we won\'t be able to revert auto OS patch settings to their system default value'
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "update_package_list_value": "1",
+                    "unattended_upgrade_value": "",
+                    "set_unattended_upgrade": False
+                }
+            },
+            "assertions": {
+                "update_package_list_value_expected": 'APT::Periodic::Update-Package-Lists "0"',
+                "unattended_upgrade_value_expected": 'APT::Periodic::Unattended-Upgrade "0"',
+                "config_exists": True
+            }
+        }
 
-        package_manager = self.container.get('package_manager')
+        revert_success_backup_config_contains_empty_values = {
+            "stdio": {
+                "capture_output": False,
+                "expected_output": ''
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "update_package_list_value": "1",
+                    "unattended_upgrade_value": "",
+                    "set_unattended_upgrade": True
+                }
+            },
+            "assertions": {
+                "update_package_list_value_expected": 'APT::Periodic::Update-Package-Lists "1"',
+                "unattended_upgrade_value_expected": 'APT::Periodic::Unattended-Upgrade "0"',
+                "config_exists": True
+            }
+        }
 
-        # setup backup for system default auto OS update con and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, create_current_auto_os_config=False, update_package_list_value="1", unattended_upgrade_value="1")
+        all_testcases = [revert_success_testcase, revert_success_auto_os_update_config_does_not_exist, revert_success_backup_config_does_not_exist, revert_success_backup_config_invalid, revert_success_backup_config_contains_empty_values]
 
-        # restore sys.stdout output
-        sys.stdout = original_stdout
+        for testcase in all_testcases:
+            self.tearDown()
+            self.setUp()
+            captured_output, original_stdout = None, None
+            if testcase["stdio"]["capture_output"]:
+                # arrange capture std IO
+                captured_output, original_stdout = self.__capture_std_io()
 
-        # assert
-        self.__assert_std_io(captured_output=captured_output, expected_output="Automatic OS patch config file not found on the VM. We won't be able to revert auto OS patch settings to their system default values")
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=False)
+            package_manager = self.container.get('package_manager')
 
-    def test_revert_auto_os_update_to_system_default_backup_config_does_not_exist(self):
-        # arrange capture std IO
-        captured_output, original_stdout = self.__capture_std_io()
+            # setup current auto OS update config, backup for system default config and invoke revert to system default
+            self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager,
+                                                                            create_current_auto_os_config=bool(testcase["config"]["current_auto_update_config"]["create_current_auto_os_config"]),
+                                                                            current_auto_os_update_config_value=testcase["config"]["current_auto_update_config"]["current_auto_os_update_config_value"],
+                                                                            create_backup_for_system_default_config=bool(testcase["config"]["backup_system_default_config"]["create_backup_for_system_default_config"]),
+                                                                            update_package_list_value=testcase["config"]["backup_system_default_config"]["update_package_list_value"],
+                                                                            unattended_upgrade_value=testcase["config"]["backup_system_default_config"]["unattended_upgrade_value"],
+                                                                            set_unattended_upgrade=bool(testcase["config"]["backup_system_default_config"]["set_unattended_upgrade"]))
 
-        package_manager = self.container.get('package_manager')
-
-        # setup current auto OS update config, backup for system default auto OS update config is NOT setup and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n', create_backup_for_system_default_config=False)
-
-        # restore sys.stdout output
-        sys.stdout = original_stdout
-
-        # assert
-        self.__assert_std_io(captured_output=captured_output, expected_output="Since the backup is invalid or does not exist, we won't be able to revert auto OS patch settings to their system default value")
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, update_package_list_value_expected='APT::Periodic::Update-Package-Lists "0"', unattended_upgrade_value_expected='APT::Periodic::Unattended-Upgrade "0"')
-
-    def test_revert_auto_os_update_to_system_default_backup_config_invalid(self):
-        # arrange capture std IO
-        captured_output, original_stdout = self.__capture_std_io()
-
-        package_manager = self.container.get('package_manager')
-
-        # setup current auto OS update config, backup for system default config and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n', update_package_list_value="1", set_unattended_upgrade=False)
-
-        # restore sys.stdout output
-        sys.stdout = original_stdout
-
-        # assert
-        self.__assert_std_io(captured_output=captured_output, expected_output="Since the backup is invalid or does not exist, we won't be able to revert auto OS patch settings to their system default value")
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, update_package_list_value_expected='APT::Periodic::Update-Package-Lists "0"', unattended_upgrade_value_expected='APT::Periodic::Unattended-Upgrade "0"')
-
-    def test_revert_auto_os_update_to_system_default_backup_config_contains_empty_values(self):
-        package_manager = self.container.get('package_manager')
-
-        # setup current auto OS update config, backup for system default config and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n', update_package_list_value="1", unattended_upgrade_value="")
-
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, update_package_list_value_expected='APT::Periodic::Update-Package-Lists "1"', unattended_upgrade_value_expected='APT::Periodic::Unattended-Upgrade "0"')
+            # assert
+            if testcase["stdio"]["capture_output"]:
+                # restore sys.stdout output
+                sys.stdout = original_stdout
+                self.__assert_std_io(captured_output=captured_output, expected_output=testcase["stdio"]["expected_output"])
+            self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(testcase["assertions"]["config_exists"]),
+                                                                          update_package_list_value_expected=testcase["assertions"]["update_package_list_value_expected"],
+                                                                          unattended_upgrade_value_expected=testcase["assertions"]["unattended_upgrade_value_expected"])
 
     def test_is_reboot_pending_prerequisite_not_met_should_return_false(self):
         package_manager = self.container.get('package_manager')

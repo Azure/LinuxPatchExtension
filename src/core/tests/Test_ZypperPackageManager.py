@@ -485,71 +485,149 @@ class TestZypperPackageManager(unittest.TestCase):
         self.assertTrue(yast2_online_update_configuration_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('AOU_ENABLE_CRONJOB="false"' in yast2_online_update_configuration_os_patch_configuration_settings_file_path_read)
 
-    def test_revert_auto_os_update_to_system_default_success(self):
-        package_manager = self.container.get('package_manager')
+    def test_revert_auto_os_update_to_system_default(self):
+        revert_success_testcase = {
+            "stdio": {
+                "capture_output": False,
+                "expected_output": None
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'AOU_ENABLE_CRONJOB="false"'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "setup_enable_config": True,
+                    "enable_cron_value": "true",
+                    "installation_state_value": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'AOU_ENABLE_CRONJOB="true"',
+                "config_exists": True
+            }
+        }
 
-        # setup current auto OS update config, backup for system default config and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='AOU_ENABLE_CRONJOB="false"', enable_cron_value="true", installation_state_value=True)
+        revert_success_auto_os_update_config_does_not_exist = {
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[ZPM] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service=yast2-online-update-configuration]"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": False,
+                    "current_auto_os_update_config_value": ''
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "setup_enable_config": True,
+                    "enable_cron_value": "true",
+                    "installation_state_value": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": '',
+                "config_exists": False
+            }
+        }
 
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_value_expected='AOU_ENABLE_CRONJOB="true"')
+        revert_success_backup_config_does_not_exist = {
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=yast2-online-update-configuration]"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'AOU_ENABLE_CRONJOB="false"'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": False,
+                    "setup_enable_config": True,
+                    "enable_cron_value": "",
+                    "installation_state_value": False
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'AOU_ENABLE_CRONJOB="false"',
+                "config_exists": True
+            }
+        }
 
-    def test_revert_auto_os_update_to_system_default_current_auto_os_update_config_does_not_exist(self):
-        # arrange capture std IO
-        captured_output, original_stdout = self.__capture_std_io()
+        revert_success_backup_config_invalid = {
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=yast2-online-update-configuration]"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'AOU_ENABLE_CRONJOB="false"'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "setup_enable_config": False,
+                    "enable_cron_value": "",
+                    "installation_state_value": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'AOU_ENABLE_CRONJOB="false"',
+                "config_exists": True
+            }
+        }
 
-        package_manager = self.container.get('package_manager')
+        revert_success_backup_config_contains_empty_values = {
+            "stdio": {
+                "capture_output": False,
+                "expected_output": ""
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'AOU_ENABLE_CRONJOB="false"'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "setup_enable_config": True,
+                    "enable_cron_value": "",
+                    "installation_state_value": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'AOU_ENABLE_CRONJOB="false"',
+                "config_exists": True
+            }
+        }
 
-        # setup backup for system default config and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, create_current_auto_os_config=False, enable_cron_value="true", installation_state_value=True)
+        all_testcases = [revert_success_testcase, revert_success_auto_os_update_config_does_not_exist, revert_success_backup_config_does_not_exist, revert_success_backup_config_invalid, revert_success_backup_config_contains_empty_values]
 
-        # restore sys.stdout output
-        sys.stdout = original_stdout
+        for testcase in all_testcases:
+            self.tearDown()
+            self.setUp()
+            captured_output, original_stdout = None, None
+            if testcase["stdio"]["capture_output"]:
+                # arrange capture std IO
+                captured_output, original_stdout = self.__capture_std_io()
 
-        # assert
-        self.__assert_std_io(captured_output=captured_output, expected_output="[ZPM] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service={0}]".format(package_manager.current_auto_os_update_service))
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=False)
+            package_manager = self.container.get('package_manager')
 
-    def test_revert_auto_os_update_to_system_default_backup_config_does_not_exist(self):
-        # arrange capture std IO
-        captured_output, original_stdout = self.__capture_std_io()
+            # setup current auto OS update config, backup for system default config and invoke revert to system default
+            self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager,
+                                                                            create_current_auto_os_config=bool(testcase["config"]["current_auto_update_config"]["create_current_auto_os_config"]),
+                                                                            current_auto_os_update_config_value=testcase["config"]["current_auto_update_config"]["current_auto_os_update_config_value"],
+                                                                            create_backup_for_system_default_config=bool(testcase["config"]["backup_system_default_config"]["create_backup_for_system_default_config"]),
+                                                                            setup_enable_config=bool(testcase["config"]["backup_system_default_config"]["setup_enable_config"]),
+                                                                            enable_cron_value=testcase["config"]["backup_system_default_config"]["enable_cron_value"],
+                                                                            installation_state_value=bool(testcase["config"]["backup_system_default_config"]["installation_state_value"]))
 
-        package_manager = self.container.get('package_manager')
-
-        # setup current auto OS update config, backup for system default auto OS update config is NOT setup and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='AOU_ENABLE_CRONJOB="false"', create_backup_for_system_default_config=False)
-
-        # restore sys.stdout output
-        sys.stdout = original_stdout
-
-        # assert
-        self.__assert_std_io(captured_output=captured_output, expected_output="[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]"
-                             .format(package_manager.current_auto_os_update_service))
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_value_expected='AOU_ENABLE_CRONJOB="false"')
-
-    def test_revert_auto_os_update_to_system_default_backup_config_invalid(self):
-        # arrange capture std IO
-        captured_output, original_stdout = self.__capture_std_io()
-
-        package_manager = self.container.get('package_manager')
-
-        # setup current auto OS update config, backup for system default config and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='AOU_ENABLE_CRONJOB="false"', setup_enable_config=False, installation_state_value=True)
-
-        # restore sys.stdout output
-        sys.stdout = original_stdout
-
-        # assert
-        self.__assert_std_io(captured_output=captured_output, expected_output="[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]"
-                             .format(package_manager.current_auto_os_update_service))
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_value_expected='AOU_ENABLE_CRONJOB="false"')
-
-    def test_revert_auto_os_update_to_system_default_backup_config_contains_empty_values(self):
-        package_manager = self.container.get('package_manager')
-
-        # setup current auto OS update config, backup for system default config and invoke revert to system default
-        self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager, current_auto_os_update_config_value='AOU_ENABLE_CRONJOB="false"', enable_cron_value="", installation_state_value=True)
-
-        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_value_expected='AOU_ENABLE_CRONJOB="false"')
+            # assert
+            if testcase["stdio"]["capture_output"]:
+                # restore sys.stdout output
+                sys.stdout = original_stdout
+                self.__assert_std_io(captured_output=captured_output, expected_output=testcase["stdio"]["expected_output"])
+            self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(testcase["assertions"]["config_exists"]), config_value_expected=str(testcase["assertions"]["config_value_expected"]))
 
     def is_string_in_status_file(self, str_to_find):
         with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
