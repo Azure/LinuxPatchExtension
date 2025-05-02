@@ -17,10 +17,18 @@
 """ Configure Patching """
 from core.src.bootstrap.Constants import Constants
 
+from core.src.bootstrap.EnvLayer import EnvLayer
+from core.src.core_logic.ExecutionConfig import ExecutionConfig
+from core.src.local_loggers.CompositeLogger import CompositeLogger
+from core.src.service_interfaces.StatusHandler import StatusHandler
+from core.src.package_managers.PackageManager import PackageManager
+from core.src.core_logic.ServiceManager import ServiceManager
+from core.src.core_logic.TimerManager import TimerManager
 
 class ConfigurePatchingProcessor(object):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, auto_assess_service_manager, auto_assess_timer_manager, lifecycle_manager,
                  auto_assess_service_manager_legacy=None, auto_assess_timer_manager_legacy=None):
+        # type: (EnvLayer, ExecutionConfig, CompositeLogger, TelemetryWriter, StatusHandler, PackageManager, ServiceManager, TimerManager, ServiceManager, TimerManager) -> None
         self.env_layer = env_layer
         self.execution_config = execution_config
 
@@ -43,7 +51,7 @@ class ConfigurePatchingProcessor(object):
     def start_configure_patching(self):
         """ Start configure patching """
         try:
-            self.composite_logger.log("\nStarting configure patching... [MachineId: " + self.env_layer.platform.node() +"][ActivityId: " + self.execution_config.activity_id +"][StartTime: " + self.execution_config.start_time +"]")
+            self.composite_logger.log("[CP] Starting configure patching... [MachineId: " + self.env_layer.platform.node() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time +"]")
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
             self.__raise_if_telemetry_unsupported()
 
@@ -120,8 +128,8 @@ class ConfigurePatchingProcessor(object):
             elif self.execution_config.assessment_mode == Constants.AssessmentModes.IMAGE_DEFAULT:
                 self.composite_logger.log_debug("Disabling platform-based automatic assessment.")
 
-                self.__erase_auto_assess_config_if_any("AzGPS", self.auto_assess_service_manager, self.auto_assess_timer_manager)
-                self.__erase_auto_assess_config_if_any("legacy", self.auto_assess_service_manager_legacy, self.auto_assess_timer_manager_legacy)
+                self.__erase_auto_assess_config_if_any(Constants.AUTO_ASSESSMENT_SERVICE_NAME, self.auto_assess_service_manager, self.auto_assess_timer_manager)
+                self.__erase_auto_assess_config_if_any(Constants.AUTO_ASSESSMENT_SERVICE_NAME_LEGACY, self.auto_assess_service_manager_legacy, self.auto_assess_timer_manager_legacy)
 
                 self.current_auto_assessment_state = Constants.AutoAssessmentStates.DISABLED
             else:
@@ -143,11 +151,11 @@ class ConfigurePatchingProcessor(object):
         """ Cleans up the legacy auto-assess service """
         try:
             if service_manager is not None and not service_manager.service_exists():
-                self.composite_logger.log_debug("[CPP] Cleaning up the {0} auto-assess service.".format(service_name))
+                self.composite_logger.log_debug("[CPP] Cleaning up the {0} service.".format(service_name))
                 service_manager.remove_service()
 
             if timer_manager is not None and not timer_manager.timer_exists():
-                self.composite_logger.log_debug("[CPP] Cleaning up the {0} auto-assess timer.".format(service_name))
+                self.composite_logger.log_debug("[CPP] Cleaning up the {0} timer.".format(service_name))
                 timer_manager.remove_timer()
         except Exception as error:
             self.composite_logger.log_warning("[CPP] Retriable error while cleaning up auto-assess config. [Error={0}]".format(repr(error)))

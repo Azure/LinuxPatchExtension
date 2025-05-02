@@ -80,24 +80,15 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
 
-        # check status file for configure patching patch mode
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-
-        # check status file for configure patching patch state (and including for 'Platform' initiated assessment data)
+        # assertions
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
-        self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        message = json.loads(substatus_file_data[0]["formattedMessage"]["message"])
-        self.assertTrue(message["startedBy"], Constants.PatchAssessmentSummaryStartedBy.PLATFORM)
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)
-
-        # check status file for configure patching assessment state
-        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.DISABLED)
+        ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
+        ext_status_asserter.assert_status_file_substatuses(substatus_expectations={
+            Constants.PATCH_ASSESSMENT_SUMMARY: Constants.STATUS_SUCCESS,
+            Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_SUCCESS
+        })
+        ext_status_asserter.assert_configure_patching_patch_mode_state(Constants.AutomaticOSPatchStates.DISABLED)
+        ext_status_asserter.assert_configure_patching_auto_assessment_state(Constants.AutomaticOSPatchStates.DISABLED)
 
         # stop test runtime
         runtime.stop()
@@ -116,13 +107,11 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)   # assessment is now part of the CP flow
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
+        ext_status_asserter.assert_status_file_substatuses(substatus_expectations={
+            Constants.PATCH_ASSESSMENT_SUMMARY: Constants.STATUS_SUCCESS,
+            Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_SUCCESS
+        })
         runtime.stop()
 
     def test_operation_success_for_installation_request_with_configure_patching(self):
@@ -156,9 +145,9 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check status file
         ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
         ext_status_asserter.assert_status_file_substatuses()
-        ext_status_asserter.assert_installation_summary_has_patch("python-samba", Constants.PackageClassification.SECURITY, "python-samba_2:4.4.5+dfsg-2ubuntu5.4")
-        ext_status_asserter.assert_installation_summary_has_patch("samba-common-bin", Constants.PackageClassification.SECURITY)
-        ext_status_asserter.assert_installation_summary_has_patch("samba-libs", Constants.PackageClassification.SECURITY)
+        ext_status_asserter.assert_operation_summary_has_patch(Constants.PATCH_INSTALLATION_SUMMARY, "python-samba", Constants.PackageClassification.SECURITY, "python-samba_2:4.4.5+dfsg-2ubuntu5.4")
+        ext_status_asserter.assert_operation_summary_has_patch(Constants.PATCH_INSTALLATION_SUMMARY,"samba-common-bin", Constants.PackageClassification.SECURITY)
+        ext_status_asserter.assert_operation_summary_has_patch(Constants.PATCH_INSTALLATION_SUMMARY,"samba-libs", Constants.PackageClassification.SECURITY)
         ext_status_asserter.assert_healthstore_status_info(patch_version="pub_off_sku_2020.09.23", should_report=True)
         runtime.stop()
 
@@ -174,22 +163,16 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check status file
         ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
         ext_status_asserter.assert_status_file_substatuses(substatus_expectations={
-            Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_SUCCESS
+            Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_ERROR
         })
 
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEqual(len(substatus_file_data), 1)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-
         if runtime.vm_cloud_type == Constants.VMCloudType.AZURE:
-            self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_ERROR.lower())
-            self.assertTrue(len(json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"]), 1)
-            self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]["details"][0]["message"])
-            self.assertTrue(Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["autoAssessmentStatus"]["errors"]["details"][0]["message"])
-            self.assertTrue(Constants.STATUS_ERROR in json.loads(substatus_file_data[0]["formattedMessage"]["message"])["autoAssessmentStatus"]["autoAssessmentState"])
+            ext_status_asserter.assert_status_file_substatus(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.STATUS_ERROR)
+            ext_status_asserter.assert_operation_summary_has_error(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG)
+            ext_status_asserter.assert_operation_summary_has_error(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG, 'autoAssessmentStatus')
+            ext_status_asserter.assert_configure_patching_auto_assessment_state(Constants.STATUS_ERROR)
         else:
-            self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+            ext_status_asserter.assert_status_file_substatus(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.STATUS_SUCCESS)
         runtime.stop()
 
     def test_patch_mode_set_failure_for_configure_patching(self):
@@ -212,21 +195,18 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.__check_telemetry_events(runtime)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)   # assessment is now part of the CP flow
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_ERROR.lower())
+        ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
+        ext_status_asserter.assert_status_file_substatuses(substatus_expectations={
+            Constants.PATCH_ASSESSMENT_SUMMARY: Constants.STATUS_SUCCESS,
+            Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_ERROR
+        })
 
-        #restore
+        # restore
         runtime.package_manager.get_current_auto_os_patch_state = backup_package_manager_get_current_auto_os_patch_state
 
         runtime.stop()
 
     def test_configure_patching_with_assessment_mode_by_platform(self):
-
         # create and adjust arguments
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.CONFIGURE_PATCHING
@@ -249,22 +229,14 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
 
-        # check status file for configure patching patch mode
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-
-        # check status file for configure patching patch state
-        self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.ENABLED)  # no change is made on Auto OS updates for patch mode 'ImageDefault'
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-
-        # check status file for configure patching assessment state
-        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
+        # assertions
+        ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
+        ext_status_asserter.assert_status_file_substatuses(substatus_expectations={
+            Constants.PATCH_ASSESSMENT_SUMMARY: Constants.STATUS_SUCCESS,
+            Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_SUCCESS
+        })
+        ext_status_asserter.assert_configure_patching_patch_mode_state(Constants.AutomaticOSPatchStates.ENABLED)   # no change is made on Auto OS updates for patch mode 'ImageDefault'
+        ext_status_asserter.assert_configure_patching_auto_assessment_state(Constants.AutomaticOSPatchStates.ENABLED)   # auto assessment is enabled
 
         # stop test runtime
         runtime.stop()
@@ -293,23 +265,15 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # check telemetry events
         self.__check_telemetry_events(runtime)
 
-        # check status file for configure patching patch mode
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-
-        # check status file for configure patching patch state
+        # assertions
         self.assertTrue(runtime.package_manager.image_default_patch_configuration_backup_exists())
-        self.assertEqual(len(substatus_file_data), 2)
-        self.assertTrue(substatus_file_data[1]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["automaticOSPatchState"], Constants.AutomaticOSPatchStates.DISABLED)  # auto OS updates are disabled on patch mode 'AutomaticByPlatform'
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
-
-        # check status file for configure patching assessment state
-        message = json.loads(substatus_file_data[1]["formattedMessage"]["message"])
-        self.assertEqual(message["autoAssessmentStatus"]["autoAssessmentState"], Constants.AutoAssessmentStates.ENABLED)  # auto assessment is enabled
+        ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
+        ext_status_asserter.assert_status_file_substatuses(substatus_expectations={
+            Constants.PATCH_ASSESSMENT_SUMMARY: Constants.STATUS_SUCCESS,
+            Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_SUCCESS
+        })
+        ext_status_asserter.assert_configure_patching_patch_mode_state(Constants.AutomaticOSPatchStates.DISABLED)   # auto OS updates are disabled on patch mode 'AutomaticByPlatform'
+        ext_status_asserter.assert_configure_patching_auto_assessment_state(Constants.AutomaticOSPatchStates.ENABLED)   # auto assessment is enabled
 
         # stop test runtime
         runtime.stop()
@@ -334,7 +298,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
 
         runtime.configure_patching_processor.start_configure_patching()
 
-        # restore sdt.out ouptput
+        # restore sdt.out output
         sys.stdout = original_stdout
 
         # assert
@@ -342,11 +306,10 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         self.assertIn("Error while processing patch mode configuration", output)
 
         # check status file
-        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
-            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
-        self.assertEqual(len(substatus_file_data), 1)
-        self.assertTrue(substatus_file_data[0]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
-        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_TRANSITIONING.lower())
+        ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
+        ext_status_asserter.assert_status_file_substatuses(substatus_expectations={
+            Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_TRANSITIONING
+        })
 
         # restore
         runtime.package_manager.get_current_auto_os_patch_state = backup_package_manager_get_current_auto_os_patch_state
