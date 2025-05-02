@@ -30,6 +30,9 @@ class TestExecutionConfig(unittest.TestCase):
     def mock_platform_system(self):
         return 'Linux'
 
+    def mock_platform_system_windows(self):
+        return 'Windows'
+
     def mock_linux_distribution(self):
         return ['test', 'test', 'test']
 
@@ -61,7 +64,7 @@ class TestExecutionConfig(unittest.TestCase):
     # endregion
 
     def test_get_package_manager(self):
-        self.backup_platform_system = platform.system()
+        self.backup_platform_system = platform.system
         platform.system = self.mock_platform_system
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.envlayer.platform.linux_distribution = self.mock_linux_distribution
@@ -70,10 +73,11 @@ class TestExecutionConfig(unittest.TestCase):
         test_input_output_table = [
             [self.mock_run_command_for_apt, self.mock_linux_distribution, Constants.APT],
             [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_3, Constants.TDNF],
-            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, None],  # check for Azure Linux machine which does not have tdnf
+            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, str()],  # check for Azure Linux machine which does not have tdnf
             [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, Constants.TDNF],
             [self.mock_run_command_for_yum, self.mock_linux_distribution, Constants.YUM],
             [self.mock_run_command_for_zypper, self.mock_linux_distribution, Constants.ZYPPER],
+            [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, str()],    # no matches for any package manager
         ]
 
         for row in test_input_output_table:
@@ -82,9 +86,28 @@ class TestExecutionConfig(unittest.TestCase):
             package_manager = self.envlayer.get_package_manager()
             self.assertTrue(package_manager is row[2])
 
+        # test for Windows
+        platform.system = self.mock_platform_system_windows
+        self.assertEqual(self.envlayer.get_package_manager(), Constants.APT)
+
+        # restore original methods
         self.envlayer.run_command_output = self.backup_run_command_output
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
         platform.system = self.backup_platform_system
+
+    def test_filesystem(self):
+        # only validates if these invocable without exceptions
+        backup_retry_count = Constants.MAX_FILE_OPERATION_RETRY_COUNT
+        Constants.MAX_FILE_OPERATION_RETRY_COUNT = 2
+        self.envlayer.file_system.read_with_retry("fake.path", raise_if_not_found=False)
+        Constants.MAX_FILE_OPERATION_RETRY_COUNT = backup_retry_count
+
+    def test_platform(self):
+        # only validates if these invocable without exceptions
+        self.envlayer.platform.linux_distribution()
+        self.envlayer.platform.os_type()
+        self.envlayer.platform.cpu_arch()
+        self.envlayer.platform.vm_name()
 
 
 if __name__ == '__main__':
