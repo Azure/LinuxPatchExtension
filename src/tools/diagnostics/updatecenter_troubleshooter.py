@@ -1257,20 +1257,20 @@ def check_azure_extension():
 def check_autoassessment_service():
     rule_id = "Linux.AutoAssessment"
     rule_group_id = "Extensions"
-    command = "sudo systemctl is-active MsftLinuxPatchAutoAssess.timer"
+    command = "sudo systemctl is-active AzGPSLinuxPatchAutoAssess.timer"
     grep_output = os.popen(command).read()
     if "active" not in str(grep_output):
-        write_log_output(rule_id, rule_group_id, status_failed, empty_failure_reason," MsftLinuxPatchAutoAssess.timer is not active")
+        write_log_output(rule_id, rule_group_id, status_failed, empty_failure_reason," AzGPSLinuxPatchAutoAssess.timer is not active")
     else:
-        write_log_output(rule_id, rule_group_id, status_passed , empty_failure_reason, " MsftLinuxPatchAutoAssess.timer is active")
+        write_log_output(rule_id, rule_group_id, status_passed , empty_failure_reason, " AzGPSLinuxPatchAutoAssess.timer is active")
 
 
-    command = "sudo systemctl is-enabled MsftLinuxPatchAutoAssess.service"
+    command = "sudo systemctl is-enabled AzGPSLinuxPatchAutoAssess.service"
     grep_output = os.popen(command).read()
     if "enabled" not in str(grep_output):
-        write_log_output(rule_id, rule_group_id, status_failed, empty_failure_reason," MsftLinuxPatchAutoAssess.service is not enabled")
+        write_log_output(rule_id, rule_group_id, status_failed, empty_failure_reason," AzGPSLinuxPatchAutoAssess.service is not enabled")
     else:
-        write_log_output(rule_id, rule_group_id, status_passed , empty_failure_reason, " MsftLinuxPatchAutoAssess.service is enabled")
+        write_log_output(rule_id, rule_group_id, status_passed , empty_failure_reason, " AzGPSLinuxPatchAutoAssess.service is enabled")
     return 0
 
 

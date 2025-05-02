@@ -44,8 +44,8 @@ class Constants(object):
     HANDLER_ENVIRONMENT_FILE_PATH = os.getcwd()
     CONFIG_SETTINGS_FILE_EXTENSION = '.settings'
     STATUS_FILE_EXTENSION = '.status'
-    CORE_CODE_FILE_NAME = 'MsftLinuxPatchCore.py'
-    CORE_AUTO_ASSESS_SH_FILE_NAME = "MsftLinuxPatchAutoAssess.sh"
+    CORE_CODE_FILE_NAME = 'AzGPSLinuxPatchCore.py'
+    CORE_AUTO_ASSESS_SH_FILE_NAME = "AzGPSLinuxPatchAutoAssess.sh"
     LOG_FILE_EXTENSION = '.log'
     LOG_FILES_TO_RETAIN = 15
     MAX_LOG_FILES_ALLOWED = 40
