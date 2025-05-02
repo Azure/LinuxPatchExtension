@@ -40,7 +40,7 @@ class ConfigurePatchingProcessor(object):
     def start_configure_patching(self):
         """ Start configure patching """
         try:
-            self.composite_logger.log("\nStarting configure patching... [MachineId: " + self.env_layer.platform.node() +"][ActivityId: " + self.execution_config.activity_id +"][StartTime: " + self.execution_config.start_time +"]")
+            self.composite_logger.log("\nStarting configure patching... [MachineId: " + self.env_layer.platform.vm_name() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time + "]")
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
             self.__raise_if_telemetry_unsupported()
 

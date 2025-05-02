@@ -29,15 +29,15 @@ class LegacyEnvLayerExtensions():
             return ['Ubuntu', '16.04', 'Xenial']
 
         @staticmethod
-        def system():   # OS Type
+        def os_type():   # OS Type
             return 'Linux'
 
         @staticmethod
-        def machine():  # architecture
+        def cpu_arch():  # architecture
             return 'x86_64'
 
         @staticmethod
-        def node():     # machine name
+        def vm_name():     # machine name
             return 'LegacyTestVM'
 
     def get_package_manager(self):
