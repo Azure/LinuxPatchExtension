@@ -835,7 +835,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertTrue('Customer environment error (expired SSL certs)' in str(context.exception))
         
         # Restore mock
-        self.runtime.env_layer.platform.extract_linux_distribution_os_info = original_env_layer_platform_linux_distribution
+        self.runtime.env_layer.platform.linux_distribution = original_env_layer_platform_linux_distribution
         self.runtime.stop()
 
 
