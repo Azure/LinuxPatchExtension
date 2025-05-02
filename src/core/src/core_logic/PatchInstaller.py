@@ -684,6 +684,9 @@ class PatchInstaller(object):
         This is set outside of start_installation function to a restriction in CRP, where installation substatus should be marked as warning only after the implicit (2nd) assessment operation
         and all customer requested packages are installed. """
         
+        # setting current operation to ensure correct substatus is updated
+        self.status_handler.set_current_operation(Constants.INSTALLATION)
+        
         # Update status handler error msg
         self.__log_final_warning_metric()
         
