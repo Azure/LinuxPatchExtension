@@ -42,6 +42,15 @@ class TestYumPackageManager(unittest.TestCase):
 
     def mock_linux8_distribution_to_return_redhat(self):
         return ['Red Hat Enterprise Linux Server', '8', 'Ootpa']
+    
+    def mock_centos_linux_distribution(self):
+        return ['CentOS Linux', '7.9.2009', 'Core']
+    
+    def mock_get_all_updates(self, cached):
+        return [], []
+    
+    def mock_get_security_updates(self):
+        return [], []
     #endregion Mocks
 
     def mock_do_processes_require_restart_raise_exception(self):
@@ -757,5 +766,22 @@ class TestYumPackageManager(unittest.TestCase):
         dependent_list = package_manager.get_dependent_list(["polkit.x86_64"])
         self.assertEqual(len(dependent_list), 0)
 
+    def test_get_other_updates_exception(self):
+        """ test get_other_updates throw exception path. """
+        # Set up
+        package_manager = self.runtime.container.get('package_manager')
+        package_manager.get_all_updates = self.mock_get_all_updates
+        package_manager.get_security_updates = self.mock_get_security_updates
+        self.runtime.env_layer.platform.linux_distribution = self.mock_centos_linux_distribution
+        
+        # Act
+        with self.assertRaises(Exception) as context:
+            package_manager.get_other_updates()
+            
+        # Assert
+        print(str(context.exception))
+        self.assertTrue("Classification-based patching is only supported on YUM if the computer is independently configured to receive classification information." in str(context.exception))
+        
+        
 if __name__ == '__main__':
     unittest.main()
