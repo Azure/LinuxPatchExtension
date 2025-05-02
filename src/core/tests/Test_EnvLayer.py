@@ -86,5 +86,6 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
         platform.system = self.backup_platform_system
 
+
 if __name__ == '__main__':
     unittest.main()

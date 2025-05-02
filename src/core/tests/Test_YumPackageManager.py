@@ -822,8 +822,8 @@ class TestYumPackageManager(unittest.TestCase):
         """ Test ssl expired cert issue throw exception on non rhel images."""
         # Set up and mocks
         self.runtime.set_legacy_test_type('SSLCertificateIssueType1SadPathAfterFix')
-        original_env_layer_platform_linux_distribution_images_details = self.runtime.env_layer.platform.extract_linux_distribution_os_info
-        self.runtime.env_layer.platform.extract_linux_distribution_os_info = self.mock_ubuntu_distribution
+        original_env_layer_platform_linux_distribution = self.runtime.env_layer.platform.linux_distribution
+        self.runtime.env_layer.platform.linux_distribution = self.mock_ubuntu_distribution
         package_manager = self.runtime.container.get('package_manager')
         self.assertIsNotNone(package_manager)
         
@@ -835,7 +835,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertTrue('Customer environment error (expired SSL certs)' in str(context.exception))
         
         # Restore mock
-        self.runtime.env_layer.platform.extract_linux_distribution_os_info = original_env_layer_platform_linux_distribution_images_details
+        self.runtime.env_layer.platform.extract_linux_distribution_os_info = original_env_layer_platform_linux_distribution
         self.runtime.stop()
 
 
