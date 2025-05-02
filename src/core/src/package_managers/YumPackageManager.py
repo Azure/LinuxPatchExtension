@@ -870,7 +870,7 @@ class YumPackageManager(PackageManager):
     def revert_auto_os_update_to_system_default(self):
         """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
         # type () -> None
-        self.composite_logger.log("[YPM] Reverting the current automatic OS patch state on the machine to it's system default value before patchmode was set to 'AutomaticByPlatform'")
+        self.composite_logger.log("[YPM] Reverting the current automatic OS patch state on the machine to its system default value before patchmode was set to 'AutomaticByPlatform'")
         self.revert_auto_os_update_to_system_default_for_service(Constants.YumAutoOSUpdateServices.YUM_CRON)
         self.revert_auto_os_update_to_system_default_for_service(Constants.YumAutoOSUpdateServices.DNF_AUTOMATIC)
         self.revert_auto_os_update_to_system_default_for_service(Constants.YumAutoOSUpdateServices.PACKAGEKIT)
@@ -879,7 +879,7 @@ class YumPackageManager(PackageManager):
     def revert_auto_os_update_to_system_default_for_service(self, service):
         """ Reverts the auto OS update patch state on the machine to its system default value for given service, if applicable """
         # type () -> None
-        self.composite_logger.log("[YPM] Reverting the current automatic OS patch state on the machine to it's system default value for [Service={0}]]".format(str(service)))
+        self.composite_logger.log("[YPM] Reverting the current automatic OS patch state on the machine to its system default value for [Service={0}]]".format(str(service)))
         self.__init_auto_update_for_service(service)
         is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
 

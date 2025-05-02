@@ -795,7 +795,7 @@ class AptitudePackageManager(PackageManager):
     def revert_auto_os_update_to_system_default(self):
         """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
         # type () -> None
-        self.composite_logger.log("[APM] Reverting the current automatic OS patch state on the machine to it's system default value before patchmode was set to 'AutomaticByPlatform'")
+        self.composite_logger.log("[APM] Reverting the current automatic OS patch state on the machine to its system default value before patchmode was set to 'AutomaticByPlatform'")
 
         if not os.path.exists(self.os_patch_configuration_settings_file_path):
             self.composite_logger.log_debug("[APM] Automatic OS patch config file not found on the VM. We won't be able to revert auto OS patch settings to their system default values")

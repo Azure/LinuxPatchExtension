@@ -764,7 +764,7 @@ class ZypperPackageManager(PackageManager):
     def revert_auto_os_update_to_system_default(self):
         """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
         # type () -> None
-        self.composite_logger.log("[ZPM] Reverting the current automatic OS patch state on the machine to it's system default value before patchmode was set to 'AutomaticByPlatform'")
+        self.composite_logger.log("[ZPM] Reverting the current automatic OS patch state on the machine to its system default value before patchmode was set to 'AutomaticByPlatform'")
         self.__init_auto_update_for_yast_online_update_configuration()
         is_service_installed, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
 
