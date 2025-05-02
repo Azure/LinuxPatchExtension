@@ -95,8 +95,6 @@ class YumPackageManager(PackageManager):
                                        "Error: Cannot retrieve repository metadata (repomd.xml) for repository": self.fix_ssl_certificate_issue,
                                        "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
 
-        self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
-
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 90 seconds for yum.
 
     def refresh_repo(self):
@@ -141,7 +139,6 @@ class YumPackageManager(PackageManager):
 
         if not self.__is_image_rhel8_or_higher():
             self.install_yum_security_prerequisite()
-
         out = self.invoke_package_manager(self.yum_check_security)
         security_packages, security_package_versions = self.extract_packages_and_versions(out)
 
@@ -175,16 +172,24 @@ class YumPackageManager(PackageManager):
         return other_packages, other_package_versions
 
     def __is_image_rhel8_or_higher(self):
+        # type: () -> bool
         """ Check if image is RHEL8+ return true else false """
-        if self.env_layer.platform.linux_distribution() is not None:
+        if self.env_layer.platform.linux_distribution is not None:
             os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
-
             if "Red Hat Enterprise Linux" in os_offer and int(os_version.split('.')[0]) >= 8:
                 self.composite_logger.log_debug("[YPM] RHEL version >= 8 detected. [DetectedVersion={0}]".format(str(os_version)))
                 return True
-
         return False
-
+    
+    def __is_image_rhel(self):
+        # type: () -> bool
+        """ Check if image is RHEL return true else false """
+        if self.env_layer.platform.linux_distribution is not None:
+            os_offer, os_version, os_code = self.env_layer.platform.linux_distribution()
+            if "Red Hat Enterprise Linux" in os_offer:
+                return True
+        return False
+    
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         pass
 
@@ -893,11 +898,20 @@ class YumPackageManager(PackageManager):
         return False
 
     def fix_ssl_certificate_issue(self):
-        command = self.yum_update_client_package
-        self.composite_logger.log_debug("[Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
+        # type: () -> None
+        """ Attempt to fix the SSL certificate issue by updating the client package """
+        if not self.__is_image_rhel():
+            error_msg = 'Customer environment error (expired SSL certs)'
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+        
+        # Image is rhel, attempt to update the client package
+        command = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
+        self.composite_logger.log_debug("[YPM][Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
+        
         if code != self.yum_exitcode_no_applicable_packages:
-            error_msg = 'Customer environment error (expired SSL certs):  [Command={0}][Code={1}]'.format(command,str(code))
+            error_msg = 'Customer environment error (expired SSL certs):  [Command={0}][Code={1}]'.format(command, str(code))
             self.composite_logger.log_error("{0}[Out={1}]".format(error_msg, out))
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
@@ -905,11 +919,11 @@ class YumPackageManager(PackageManager):
             self.composite_logger.log_verbose("\n\n==[SUCCESS]===============================================================")
             self.composite_logger.log_debug("Client package update complete. [Code={0}][Out={1}]".format(str(code), out))
             self.composite_logger.log_verbose("==========================================================================\n\n")
-
+            
     def log_error_mitigation_failure(self, output, raise_on_exception=True):
         self.composite_logger.log_error("[YPM] Customer Environment Error: Unable to auto-mitigate known issue. Please investigate and address. [Out={0}]".format(output))
         if raise_on_exception:
-            error_msg = 'Customer environment error (Unable to auto-mitigate known issue):  [Out={0}]'.format(output)
+            error_msg = '[YMP] Customer environment error (Unable to auto-mitigate known issue):  [Out={0}]'.format(output)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
     # endregion

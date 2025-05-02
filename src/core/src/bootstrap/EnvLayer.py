@@ -298,7 +298,7 @@ class EnvLayer(object):
             else:
                 code, output = self.__read_record(operation)
                 return eval(output)
-
+        
         def system(self):   # OS Type
             operation = "PLATFORM_SYSTEM"
             if not self.__emulator_enabled:
