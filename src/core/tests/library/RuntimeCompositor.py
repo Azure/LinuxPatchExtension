@@ -151,7 +151,6 @@ class RuntimeCompositor(object):
     def reconfigure_env_layer_to_legacy_mode(self):
         self.env_layer.get_package_manager = self.legacy_env_layer_extensions.get_package_manager
         self.env_layer.platform = self.legacy_env_layer_extensions.LegacyPlatform()
-        self.env_layer.set_legacy_test_mode()
         self.env_layer.run_command_output = self.legacy_env_layer_extensions.run_command_output
         if os.name == 'nt':
             self.env_layer.etc_environment_file_path = os.getcwd()
