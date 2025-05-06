@@ -259,7 +259,6 @@ class YumPackageManager(PackageManager):
         for excluded_package in excluded_packages:
             excluded_string += excluded_package + ' '
         cmd = self.all_but_excluded_upgrade_cmd + excluded_string
-
         self.composite_logger.log_debug("[YPM][FAIL SAFE MODE] UPDATING PACKAGES USING COMMAND: " + cmd)
         self.invoke_package_manager(cmd)
 

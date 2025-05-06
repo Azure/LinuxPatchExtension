@@ -782,6 +782,35 @@ class TestYumPackageManager(unittest.TestCase):
         print(str(context.exception))
         self.assertTrue("Classification-based patching is only supported on YUM if the computer is independently configured to receive classification information." in str(context.exception))
         
+    def test_install_updates_fail_safe(self):
+        """Test package manager's install_updates_fail_safe method"""
+        # Set up
+        test_excluded_pkgs = ["kernel.x86_64", "kernel.i686", "tzdata.noarch"]
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
         
+        # Act
+        result = package_manager.install_updates_fail_safe(test_excluded_pkgs)
+        
+        # Verify
+        self.assertIsNone(result)
+        
+        self.runtime.stop()
+        
+    def test_get_product_arch(self):
+        # Set up
+        test_pkg_name = "selinux-policy.noarch"
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        
+        # Act
+        result = package_manager.get_product_arch(test_pkg_name)
+        
+        # verify
+        self.assertEqual(".noarch", result)
+        
+        self.runtime.stop()
+    
+
 if __name__ == '__main__':
     unittest.main()
