@@ -51,6 +51,9 @@ class TestYumPackageManager(unittest.TestCase):
     
     def mock_get_security_updates(self):
         return [], []
+    
+    def mock_bad_run_command_output(self, cmd, no_output=False, chk_err=False):
+        return 1, "bad cmd"
     #endregion Mocks
 
     def mock_do_processes_require_restart_raise_exception(self):
@@ -783,7 +786,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertTrue("Classification-based patching is only supported on YUM if the computer is independently configured to receive classification information." in str(context.exception))
         
     def test_install_updates_fail_safe(self):
-        """Test package manager's install_updates_fail_safe method"""
+        """Test install_updates_fail_safe """
         # Set up
         test_excluded_pkgs = ["kernel.x86_64", "kernel.i686", "tzdata.noarch"]
         package_manager = self.container.get('package_manager')
@@ -798,6 +801,7 @@ class TestYumPackageManager(unittest.TestCase):
         self.runtime.stop()
         
     def test_get_product_arch(self):
+        """ Test get_product_arch method to return pkg arch type."""
         # Set up
         test_pkg_name = "selinux-policy.noarch"
         package_manager = self.container.get('package_manager')
@@ -810,7 +814,23 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertEqual(".noarch", result)
         
         self.runtime.stop()
+        
+    def test_disable_auto_update_on_reboot_exception(self):
+        """ test disable_auto_update_on_reboot throw exception path. """
+        # Set up
+        bad_disable_cmd = "systemctl disable yum-cron123"
+        package_manager = self.runtime.container.get('package_manager')
+        package_manager.env_layer.run_command_output = self.mock_bad_run_command_output
+        
+        # Act
+        with self.assertRaises(Exception) as context:
+            package_manager.disable_auto_update_on_reboot(bad_disable_cmd)
+            
+        # Assert
+        print(str(context.exception))
+        self.assertTrue("Unexpected return code (1) on command: systemctl disable yum-cron123" in str(context.exception))
     
 
 if __name__ == '__main__':
     unittest.main()
+
