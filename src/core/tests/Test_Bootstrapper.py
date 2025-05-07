@@ -68,7 +68,7 @@ class TestBootstrapper(unittest.TestCase):
         if self.sudo_check_status_attempts <= 2:
             return (1, "[sudo] password for user:\nFalse")
 
-        # Mock success (True) on the 3rd attempts
+        # Mock success (True) on the 3rd attempt
         elif self.sudo_check_status_attempts == 3:
             return (0, "uid=0(root) gid=0(root) groups=0(root)\nTrue")
     
@@ -123,11 +123,11 @@ class TestBootstrapper(unittest.TestCase):
         # Verify exception msg contains the expected failure text
         self.assertTrue("Unexpected sudo check result" in str(context.exception))
 
-    def test_check_sudo_status_succeeds_on_third_attempts(self):
+    def test_check_sudo_status_succeeds_on_third_attempt(self):
         # Test check sudo status after 2 failed attempts followed by success (true)
         self.runtime.env_layer.run_command_output = self.mock_run_command_output_with_attempts
 
-        # Attempt to check sudo status, succeed (true) on the 3rd attempts
+        # Attempt to check sudo status, succeed (true) on the 3rd attempt
         result = self.runtime.bootstrapper.check_sudo_status_with_attempts(raise_if_not_sudo=True)
 
         # Verify the result is success (True)
