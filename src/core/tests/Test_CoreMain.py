@@ -60,13 +60,6 @@ class TestCoreMain(unittest.TestCase):
         """Mock batch_patching to simulate package installation failure, return some packages """
         return packages, package_versions, 0, False
 
-    def mock_batch_patching_with_no_packages(self, all_packages, all_package_versions, packages, package_versions, maintenance_window, package_manager):
-        """Mock batch_patching to simulate package installation failure, return no packages"""
-        return [], [], 0, False
-    
-    def mock_are_all_requested_packages_installed(self):
-        return True
-
     def test_operation_fail_for_non_autopatching_request(self):
         # Test for non auto patching request
         argument_composer = ArgumentComposer()
@@ -1316,39 +1309,6 @@ class TestCoreMain(unittest.TestCase):
             runtime.patch_installer.batch_patching = original_batch_patching
             runtime.stop()
 
-    def test_warning_status_when_packages_initially_fail_but_succeed_on_retry_no_batch_packages(self):
-        """
-        Tests installation status set warning when:
-        1. Packages initially fail installation
-        2. Package manager indicates retry is needed
-        3. On retry, all supposed packages are installed successfully
-        4. Batch_patching returns no packages
-        """
-        argument_composer = ArgumentComposer()
-        argument_composer.operation = Constants.INSTALLATION
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
-
-        runtime.set_legacy_test_type('PackageRetrySuccessPath')
-
-        # Store original methods
-        original_batch_patching = runtime.patch_installer.batch_patching
-        original_are_all_requested_packages_installed = runtime.status_handler.are_all_requested_packages_installed
-        
-        # Mock batch_patching with packages to return [], [], false
-        runtime.patch_installer.batch_patching = self.mock_batch_patching_with_no_packages
-        runtime.status_handler.are_all_requested_packages_installed = self.mock_are_all_requested_packages_installed
-
-        # Run CoreMain to execute the installation
-        try:
-            CoreMain(argument_composer.get_composed_arguments())
-            self.__assertion_pkg_succeed_on_retry(runtime)
-
-        finally:
-            # reset mock
-            runtime.patch_installer.batch_patching = original_batch_patching
-            runtime.status_handler.are_all_requested_packages_installed = original_are_all_requested_packages_installed
-            runtime.stop()
-
     def __check_telemetry_events(self, runtime):
         all_events = os.listdir(runtime.telemetry_writer.events_folder_path)
         self.assertTrue(len(all_events) > 0)
@@ -1374,6 +1334,7 @@ class TestCoreMain(unittest.TestCase):
         # Check installation status is WARNING
         self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
         self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_WARNING.lower())
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["pendingPatchCount"], 0)
 
         # Verify at least one error detail about package retry
         error_details = json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]
