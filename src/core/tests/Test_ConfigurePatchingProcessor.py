@@ -151,12 +151,13 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         ext_status_asserter.assert_healthstore_status_info(patch_version="pub_off_sku_2020.09.23", should_report=True)
         runtime.stop()
 
-    def test_operation_fail_for_configure_patching_telemetry_not_supported(self):
+    def test_operation_fail_for_configure_patching_telemetry_not_supported(self, vm_cloud_type=Constants.VMCloudType.AZURE):
         argument_composer = ArgumentComposer()
         argument_composer.operation = Constants.CONFIGURE_PATCHING
         argument_composer.patch_mode = Constants.PatchModes.AUTOMATIC_BY_PLATFORM
         argument_composer.events_folder = None
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(env_settings=dict(telemetrySupported=False)), True, Constants.APT)
+        runtime.vm_cloud_type = Constants.VMCloudType.ARC
         runtime.set_legacy_test_type('HappyPath')
         runtime.configure_patching_processor.start_configure_patching()
 

@@ -25,6 +25,7 @@ from core.src.package_managers.PackageManager import PackageManager
 from core.src.core_logic.ServiceManager import ServiceManager
 from core.src.core_logic.TimerManager import TimerManager
 
+
 class ConfigurePatchingProcessor(object):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, auto_assess_service_manager, auto_assess_timer_manager, lifecycle_manager,
                  auto_assess_service_manager_legacy=None, auto_assess_timer_manager_legacy=None):
@@ -51,7 +52,7 @@ class ConfigurePatchingProcessor(object):
     def start_configure_patching(self):
         """ Start configure patching """
         try:
-            self.composite_logger.log("[CP] Starting configure patching... [MachineId: " + self.env_layer.platform.node() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time +"]")
+            self.composite_logger.log("[CPP] Starting configure patching... [MachineId: " + self.env_layer.platform.node() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time +"]")
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
             self.__raise_if_telemetry_unsupported()
 
