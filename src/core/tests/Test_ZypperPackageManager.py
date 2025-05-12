@@ -18,6 +18,13 @@ import os
 import unittest
 import tempfile
 import shutil
+import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
+
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -74,6 +81,57 @@ class TestZypperPackageManager(unittest.TestCase):
     def mock_do_processes_require_restart(self):
         raise Exception
     #endregion Mocks
+
+    # region Utility Functions
+    def __setup_config_and_invoke_revert_auto_os_to_system_default(self, package_manager, create_current_auto_os_config=True, create_backup_for_system_default_config=True, current_auto_os_update_config_value='', setup_enable_config=True, enable_cron_value="", installation_state_value=False):
+        """ Sets up current auto OS update config, backup for system default config (if requested) and invoke revert to system default """
+        # setup current auto OS update config
+        if create_current_auto_os_config:
+            self.__setup_current_auto_os_update_config(package_manager, current_auto_os_update_config_value)
+
+        # setup backup for system default auto OS update config
+        if create_backup_for_system_default_config:
+            self.__setup_backup_for_system_default_OS_update_config(package_manager, setup_enable_config=setup_enable_config, enable_cron_value=enable_cron_value, installation_state_value=installation_state_value)
+
+        package_manager.revert_auto_os_update_to_system_default()
+
+    def __setup_current_auto_os_update_config(self, package_manager, config_value='', config_file_name="automatic_online_update"):
+        # setup current auto OS update config
+        package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH = os.path.join(self.runtime.execution_config.config_folder, config_file_name)
+        self.runtime.write_to_file(package_manager.YastOnlineUpdateConfigurationConstants.OS_PATCH_CONFIGURATION_SETTINGS_FILE_PATH, config_value)
+
+    def __setup_backup_for_system_default_OS_update_config(self, package_manager, setup_enable_config=True, enable_cron_value="", installation_state_value=False):
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "yast2-online-update-configuration": {
+                "installation_state": installation_state_value
+            }
+        }
+        if setup_enable_config:
+            backup_image_default_patch_configuration_json["yast2-online-update-configuration"]["AOU_ENABLE_CRONJOB"] = enable_cron_value
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+    @staticmethod
+    def __capture_std_io():
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+        return captured_output, original_stdout
+
+    def __assert_std_io(self, captured_output, expected_output):
+        output = captured_output.getvalue()
+        self.assertTrue(expected_output in output)
+
+    def __assert_reverted_automatic_patch_configuration_settings(self, package_manager, config_exists=True, config_value_expected=''):
+        if config_exists:
+            reverted_os_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
+            self.assertTrue(reverted_os_patch_configuration_settings is not None)
+            self.assertTrue(config_value_expected in reverted_os_patch_configuration_settings)
+        else:
+            self.assertFalse(os.path.exists(package_manager.os_patch_configuration_settings_file_path))
+    # endregion
 
     def test_package_manager_no_updates(self):
         """Unit test for zypper package manager with no updates"""
@@ -426,6 +484,150 @@ class TestZypperPackageManager(unittest.TestCase):
         yast2_online_update_configuration_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
         self.assertTrue(yast2_online_update_configuration_os_patch_configuration_settings_file_path_read is not None)
         self.assertTrue('AOU_ENABLE_CRONJOB="false"' in yast2_online_update_configuration_os_patch_configuration_settings_file_path_read)
+
+    def test_revert_auto_os_update_to_system_default(self):
+        revert_success_testcase = {
+            "stdio": {
+                "capture_output": False,
+                "expected_output": None
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'AOU_ENABLE_CRONJOB="false"'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "setup_enable_config": True,
+                    "enable_cron_value": "true",
+                    "installation_state_value": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'AOU_ENABLE_CRONJOB="true"',
+                "config_exists": True
+            }
+        }
+
+        revert_success_auto_os_update_config_does_not_exist = {
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[ZPM] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service=yast2-online-update-configuration]"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": False,
+                    "current_auto_os_update_config_value": ''
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "setup_enable_config": True,
+                    "enable_cron_value": "true",
+                    "installation_state_value": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": '',
+                "config_exists": False
+            }
+        }
+
+        revert_success_backup_config_does_not_exist = {
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=yast2-online-update-configuration]"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'AOU_ENABLE_CRONJOB="false"'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": False,
+                    "setup_enable_config": True,
+                    "enable_cron_value": "",
+                    "installation_state_value": False
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'AOU_ENABLE_CRONJOB="false"',
+                "config_exists": True
+            }
+        }
+
+        revert_success_backup_config_invalid = {
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=yast2-online-update-configuration]"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'AOU_ENABLE_CRONJOB="false"'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "setup_enable_config": False,
+                    "enable_cron_value": "",
+                    "installation_state_value": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'AOU_ENABLE_CRONJOB="false"',
+                "config_exists": True
+            }
+        }
+
+        revert_success_backup_config_contains_empty_values = {
+            "stdio": {
+                "capture_output": False,
+                "expected_output": ""
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'AOU_ENABLE_CRONJOB="false"'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "setup_enable_config": True,
+                    "enable_cron_value": "",
+                    "installation_state_value": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'AOU_ENABLE_CRONJOB="false"',
+                "config_exists": True
+            }
+        }
+
+        all_testcases = [revert_success_testcase, revert_success_auto_os_update_config_does_not_exist, revert_success_backup_config_does_not_exist, revert_success_backup_config_invalid, revert_success_backup_config_contains_empty_values]
+
+        for testcase in all_testcases:
+            self.tearDown()
+            self.setUp()
+            captured_output, original_stdout = None, None
+            if testcase["stdio"]["capture_output"]:
+                # arrange capture std IO
+                captured_output, original_stdout = self.__capture_std_io()
+
+            package_manager = self.container.get('package_manager')
+
+            # setup current auto OS update config, backup for system default config and invoke revert to system default
+            self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager,
+                                                                            create_current_auto_os_config=bool(testcase["config"]["current_auto_update_config"]["create_current_auto_os_config"]),
+                                                                            current_auto_os_update_config_value=testcase["config"]["current_auto_update_config"]["current_auto_os_update_config_value"],
+                                                                            create_backup_for_system_default_config=bool(testcase["config"]["backup_system_default_config"]["create_backup_for_system_default_config"]),
+                                                                            setup_enable_config=bool(testcase["config"]["backup_system_default_config"]["setup_enable_config"]),
+                                                                            enable_cron_value=testcase["config"]["backup_system_default_config"]["enable_cron_value"],
+                                                                            installation_state_value=bool(testcase["config"]["backup_system_default_config"]["installation_state_value"]))
+
+            # assert
+            if testcase["stdio"]["capture_output"]:
+                # restore sys.stdout output
+                sys.stdout = original_stdout
+                self.__assert_std_io(captured_output=captured_output, expected_output=testcase["stdio"]["expected_output"])
+            self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(testcase["assertions"]["config_exists"]), config_value_expected=str(testcase["assertions"]["config_value_expected"]))
 
     def is_string_in_status_file(self, str_to_find):
         with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:

@@ -31,7 +31,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.59"
+    EXT_VERSION = "1.6.60"
 
     # Runtime environments
     TEST = 'Test'
@@ -224,7 +224,7 @@ class Constants(object):
     MAX_ZYPPER_REPO_REFRESH_RETRY_COUNT = 5
     MAX_COMPLETE_STATUS_FILES_TO_RETAIN = 10
     SET_CHECK_SUDO_STATUS_TRUE = True
-    MAX_CHECK_SUDO_RETRY_COUNT = 6
+    MAX_CHECK_SUDO_ATTEMPTS = 6
     MAX_CHECK_SUDO_INTERVAL_IN_SEC = 300
 
     class PackageBatchConfig(EnumBackport):

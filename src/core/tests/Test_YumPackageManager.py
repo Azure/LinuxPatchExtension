@@ -16,6 +16,13 @@
 import json
 import os
 import unittest
+import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
+
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
@@ -55,6 +62,109 @@ class TestYumPackageManager(unittest.TestCase):
     def mock_bad_run_command_output(self, cmd, no_output=False, chk_err=False):
         return 1, "bad cmd"
     #endregion Mocks
+
+    # region Utility Functions
+    def __setup_config_and_invoke_revert_auto_os_to_system_default(self, package_manager, create_current_auto_os_config=True, create_backup_for_system_default_config=True,
+                                                                   set_yum_cron=True, yum_cron_config_value='', set_dnf_automatic=True, dnf_automatic_config_value='',
+                                                                   set_packagekit=True, packagekit_config_value='',
+                                                                   yum_cron_apply_updates_value="", yum_cron_download_updates_value="", yum_cron_enable_on_reboot_value=False, yum_cron_installation_state_value=False, yum_cron_set_installation_state=True,
+                                                                   dnf_automatic_apply_updates_value="", dnf_automatic_download_updates_value="", dnf_automatic_enable_on_reboot_value=False, dnf_automatic_installation_state_value=False, dnf_automatic_set_installation_state=True,
+                                                                   packagekit_apply_updates_value="", packagekit_download_updates_value="", packagekit_enable_on_reboot_value=False, packagekit_installation_state_value=False, packagekit_set_installation_state=True):
+        """ Sets up current auto OS update config, backup for system default config (if requested) and invoke revert to system default """
+        # setup current auto OS update config
+        if create_current_auto_os_config:
+            self.__setup_all_current_auto_os_update_config(package_manager, set_yum_cron=set_yum_cron, yum_cron_config_value=yum_cron_config_value,
+                                                           set_dnf_automatic=set_dnf_automatic, dnf_automatic_config_value=dnf_automatic_config_value,
+                                                           set_packagekit=set_packagekit, packagekit_config_value=packagekit_config_value)
+
+        # setup backup for system default auto OS update config
+        if create_backup_for_system_default_config:
+            self.__setup_backup_for_system_default_OS_update_config(package_manager, yum_cron_apply_updates_value=yum_cron_apply_updates_value, yum_cron_download_updates_value=yum_cron_download_updates_value, yum_cron_enable_on_reboot_value=yum_cron_enable_on_reboot_value,
+                                                                    yum_cron_installation_state_value=yum_cron_installation_state_value, yum_cron_set_installation_state=yum_cron_set_installation_state,
+                                                                    dnf_automatic_apply_updates_value=dnf_automatic_apply_updates_value, dnf_automatic_download_updates_value=dnf_automatic_download_updates_value, dnf_automatic_enable_on_reboot_value=dnf_automatic_enable_on_reboot_value,
+                                                                    dnf_automatic_installation_state_value=dnf_automatic_installation_state_value, dnf_automatic_set_installation_state=dnf_automatic_set_installation_state,
+                                                                    packagekit_apply_updates_value=packagekit_apply_updates_value, packagekit_download_updates_value=packagekit_download_updates_value, packagekit_enable_on_reboot_value=packagekit_enable_on_reboot_value,
+                                                                    packagekit_installation_state_value=packagekit_installation_state_value, packagekit_set_installation_state=packagekit_set_installation_state)
+
+        package_manager.revert_auto_os_update_to_system_default()
+
+    def __setup_auto_os_update_config_and_return_file_path(self, config_value='', config_file_name=''):
+        config_file_path = os.path.join(self.runtime.execution_config.config_folder, config_file_name)
+        self.runtime.write_to_file(config_file_path, config_value)
+        return config_file_path
+
+    def __setup_all_current_auto_os_update_config(self, package_manager, set_yum_cron=True, yum_cron_config_value='', set_dnf_automatic=True, dnf_automatic_config_value='', set_packagekit=True, packagekit_config_value=''):
+        # setup current auto OS update config
+        if set_yum_cron:
+            package_manager.yum_cron_configuration_settings_file_path = self.__setup_auto_os_update_config_and_return_file_path(config_value=yum_cron_config_value, config_file_name="yum-cron.conf")
+        if set_dnf_automatic:
+            package_manager.dnf_automatic_configuration_file_path = self.__setup_auto_os_update_config_and_return_file_path(config_value=dnf_automatic_config_value, config_file_name="automatic.conf")
+        if set_packagekit:
+            package_manager.packagekit_configuration_file_path = self.__setup_auto_os_update_config_and_return_file_path(config_value=packagekit_config_value, config_file_name="PackageKit.conf")
+
+    def __setup_backup_for_system_default_OS_update_config(self, package_manager,
+                                                           yum_cron_apply_updates_value="", yum_cron_download_updates_value="", yum_cron_enable_on_reboot_value=False, yum_cron_installation_state_value=False, yum_cron_set_installation_state=True,
+                                                           dnf_automatic_apply_updates_value="", dnf_automatic_download_updates_value="", dnf_automatic_enable_on_reboot_value=False, dnf_automatic_installation_state_value=False, dnf_automatic_set_installation_state=True,
+                                                           packagekit_apply_updates_value="", packagekit_download_updates_value="", packagekit_enable_on_reboot_value=False, packagekit_installation_state_value=False, packagekit_set_installation_state=True):
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "yum-cron": self.__set_config_json(apply_updates_value=yum_cron_apply_updates_value, download_updates_value=yum_cron_download_updates_value,
+                                               enable_on_reboot_value=yum_cron_enable_on_reboot_value, installation_state_value=yum_cron_installation_state_value, set_installation_state=yum_cron_set_installation_state),
+            "dnf-automatic": self.__set_config_json(apply_updates_value=dnf_automatic_apply_updates_value, download_updates_value=dnf_automatic_download_updates_value,
+                                                    enable_on_reboot_value=dnf_automatic_enable_on_reboot_value, installation_state_value=dnf_automatic_installation_state_value, set_installation_state=dnf_automatic_set_installation_state),
+            "packagekit": self.__set_config_json(apply_updates_value=packagekit_apply_updates_value, download_updates_value=packagekit_download_updates_value,
+                                                 enable_on_reboot_value=packagekit_enable_on_reboot_value, installation_state_value=packagekit_installation_state_value, set_installation_state=packagekit_set_installation_state, is_packagekit=True)
+        }
+
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+    @staticmethod
+    def __set_config_json(apply_updates_value="", download_updates_value="", enable_on_reboot_value=False, installation_state_value=False, set_installation_state=True, is_packagekit=False):
+        image_default_patch_configuration_json = {
+            "enable_on_reboot": enable_on_reboot_value
+        }
+        if is_packagekit:
+            image_default_patch_configuration_json["WritePreparedUpdates"] = apply_updates_value
+            image_default_patch_configuration_json["GetPreparedUpdates"] = download_updates_value
+        else:
+            image_default_patch_configuration_json["apply_updates"] = apply_updates_value
+            image_default_patch_configuration_json["download_updates"] = download_updates_value
+        if set_installation_state:
+            image_default_patch_configuration_json["installation_state"] = installation_state_value
+        return image_default_patch_configuration_json
+
+    @staticmethod
+    def __capture_std_io():
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+        return captured_output, original_stdout
+
+    def __assert_std_io(self, captured_output, expected_output=''):
+        output = captured_output.getvalue()
+        self.assertTrue(expected_output in output)
+
+    def __assert_all_reverted_automatic_patch_configuration_settings(self, package_manager, yum_cron_config_exists=True, yum_cron_apply_updates_expected='', yum_cron_download_updates_expected='',
+                                                                     dnf_automatic_config_exists=True, dnf_automatic_apply_updates_expected='', dnf_automatic_download_updates_expected='',
+                                                                     packagekit_config_exists=True, packagekit_apply_updates_expected='', packagekit_download_updates_expected=''):
+        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_file_path=package_manager.yum_cron_configuration_settings_file_path, config_exists=yum_cron_config_exists,
+                                                                      apply_updates_value_expected=yum_cron_apply_updates_expected, download_updates_value_expected=yum_cron_download_updates_expected)
+        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_file_path=package_manager.dnf_automatic_configuration_file_path, config_exists=dnf_automatic_config_exists,
+                                                                      apply_updates_value_expected=dnf_automatic_apply_updates_expected, download_updates_value_expected=dnf_automatic_download_updates_expected)
+        self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_file_path=package_manager.packagekit_configuration_file_path, config_exists=packagekit_config_exists,
+                                                                      apply_updates_value_expected=packagekit_apply_updates_expected, download_updates_value_expected=packagekit_download_updates_expected)
+
+    def __assert_reverted_automatic_patch_configuration_settings(self, package_manager, config_file_path, config_exists=True, apply_updates_value_expected='', download_updates_value_expected=''):
+        if config_exists:
+            reverted_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(config_file_path)
+            self.assertTrue(reverted_patch_configuration_settings is not None)
+            self.assertTrue(apply_updates_value_expected in reverted_patch_configuration_settings)
+            self.assertTrue(download_updates_value_expected in reverted_patch_configuration_settings)
+        else:
+            self.assertFalse(os.path.exists(package_manager.dnf_automatic_configuration_file_path))
+    # endregion
 
     def mock_do_processes_require_restart_raise_exception(self):
         raise Exception
@@ -660,6 +770,392 @@ class TestYumPackageManager(unittest.TestCase):
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
 
+    def test_revert_auto_os_update_to_system_default(self):
+        revert_success_testcase = {
+            "legacy_type": 'HappyPath',
+            "stdio": {
+                "capture_output": False,
+                "expected_output": ''
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "yum_cron": {
+                        "set_yum_cron": True,
+                        "yum_cron_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    },
+                    "dnf_automatic": {
+                        "set_dnf_automatic": True,
+                        "dnf_automatic_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    },
+                    "packagekit": {
+                        "set_packagekit": True,
+                        "packagekit_config_value": "WritePreparedUpdates = false\nGetPreparedUpdates = false\n"
+                    }
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "yum_cron": {
+                        "yum_cron_apply_updates_value": "yes",
+                        "yum_cron_download_updates_value": "yes",
+                        "yum_cron_enable_on_reboot_value": True,
+                        "yum_cron_installation_state_value": True,
+                        "yum_cron_set_installation_state": True
+                    },
+                    "dnf_automatic": {
+                        "dnf_automatic_apply_updates_value": "yes",
+                        "dnf_automatic_download_updates_value": "yes",
+                        "dnf_automatic_enable_on_reboot_value": True,
+                        "dnf_automatic_installation_state_value": True,
+                        "dnf_automatic_set_installation_state": True
+                    },
+                    "packagekit": {
+                        "packagekit_apply_updates_value": "true",
+                        "packagekit_download_updates_value": "true",
+                        "packagekit_enable_on_reboot_value": True,
+                        "packagekit_installation_state_value": True,
+                        "packagekit_set_installation_state": True
+                    }
+                }
+            },
+            "assertions": {
+                "yum_cron": {
+                    "yum_cron_config_exists": True,
+                    "yum_cron_apply_updates_expected": 'apply_updates = yes',
+                    "yum_cron_download_updates_expected": 'download_updates = yes',
+                },
+                "dnf_automatic": {
+                    "dnf_automatic_config_exists": True,
+                    "dnf_automatic_apply_updates_expected": 'apply_updates = yes',
+                    "dnf_automatic_download_updates_expected": 'download_updates = yes',
+                },
+                "packagekit": {
+                    "packagekit_config_exists": True,
+                    "packagekit_apply_updates_expected": 'WritePreparedUpdates = true',
+                    "packagekit_download_updates_expected": 'GetPreparedUpdates = true',
+                }
+            }
+        }
+
+        revert_success_with_only_yum_cron_installed_testcase = {
+            "legacy_type": 'RevertToImageDefault',
+            "stdio": {
+                "capture_output": False,
+                "expected_output": ''
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "yum_cron": {
+                        "set_yum_cron": True,
+                        "yum_cron_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    },
+                    "dnf_automatic": {
+                        "set_dnf_automatic": False,
+                        "dnf_automatic_config_value": ""
+                    },
+                    "packagekit": {
+                        "set_packagekit": False,
+                        "packagekit_config_value": ""
+                    }
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "yum_cron": {
+                        "yum_cron_apply_updates_value": "yes",
+                        "yum_cron_download_updates_value": "yes",
+                        "yum_cron_enable_on_reboot_value": True,
+                        "yum_cron_installation_state_value": True,
+                        "yum_cron_set_installation_state": True
+                    },
+                    "dnf_automatic": {
+                        "dnf_automatic_apply_updates_value": "",
+                        "dnf_automatic_download_updates_value": "",
+                        "dnf_automatic_enable_on_reboot_value": False,
+                        "dnf_automatic_installation_state_value": False,
+                        "dnf_automatic_set_installation_state": True
+                    },
+                    "packagekit": {
+                        "packagekit_apply_updates_value": "",
+                        "packagekit_download_updates_value": "",
+                        "packagekit_enable_on_reboot_value": False,
+                        "packagekit_installation_state_value": False,
+                        "packagekit_set_installation_state": True
+                    }
+                }
+            },
+            "assertions": {
+                "yum_cron": {
+                    "yum_cron_config_exists": True,
+                    "yum_cron_apply_updates_expected": 'apply_updates = yes',
+                    "yum_cron_download_updates_expected": 'download_updates = yes',
+                },
+                "dnf_automatic": {
+                    "dnf_automatic_config_exists": False,
+                    "dnf_automatic_apply_updates_expected": '',
+                    "dnf_automatic_download_updates_expected": '',
+                },
+                "packagekit": {
+                    "packagekit_config_exists": False,
+                    "packagekit_apply_updates_expected": '',
+                    "packagekit_download_updates_expected": '',
+                }
+            }
+        }
+
+        revert_success_backup_config_does_not_exist_testcase = {
+            "legacy_type": 'RevertToImageDefault',
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[YPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "yum_cron": {
+                        "set_yum_cron": True,
+                        "yum_cron_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    },
+                    "dnf_automatic": {
+                        "set_dnf_automatic": False,
+                        "dnf_automatic_config_value": ""
+                    },
+                    "packagekit": {
+                        "set_packagekit": False,
+                        "packagekit_config_value": ""
+                    }
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": False,
+                    "yum_cron": {
+                        "yum_cron_apply_updates_value": "",
+                        "yum_cron_download_updates_value": "",
+                        "yum_cron_enable_on_reboot_value": False,
+                        "yum_cron_installation_state_value": False,
+                        "yum_cron_set_installation_state": True
+                    },
+                    "dnf_automatic": {
+                        "dnf_automatic_apply_updates_value": "",
+                        "dnf_automatic_download_updates_value": "",
+                        "dnf_automatic_enable_on_reboot_value": False,
+                        "dnf_automatic_installation_state_value": False,
+                        "dnf_automatic_set_installation_state": True
+                    },
+                    "packagekit": {
+                        "packagekit_apply_updates_value": "",
+                        "packagekit_download_updates_value": "",
+                        "packagekit_enable_on_reboot_value": False,
+                        "packagekit_installation_state_value": False,
+                        "packagekit_set_installation_state": True
+                    }
+                }
+            },
+            "assertions": {
+                "yum_cron": {
+                    "yum_cron_config_exists": True,
+                    "yum_cron_apply_updates_expected": 'apply_updates = no',
+                    "yum_cron_download_updates_expected": 'download_updates = no',
+                },
+                "dnf_automatic": {
+                    "dnf_automatic_config_exists": False,
+                    "dnf_automatic_apply_updates_expected": '',
+                    "dnf_automatic_download_updates_expected": '',
+                },
+                "packagekit": {
+                    "packagekit_config_exists": False,
+                    "packagekit_apply_updates_expected": '',
+                    "packagekit_download_updates_expected": '',
+                }
+            }
+        }
+
+        revert_success_backup_config_invalid_testcase = {
+            "legacy_type": 'RevertToImageDefault',
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[YPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "yum_cron": {
+                        "set_yum_cron": True,
+                        "yum_cron_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    },
+                    "dnf_automatic": {
+                        "set_dnf_automatic": False,
+                        "dnf_automatic_config_value": ""
+                    },
+                    "packagekit": {
+                        "set_packagekit": False,
+                        "packagekit_config_value": ""
+                    }
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "yum_cron": {
+                        "yum_cron_apply_updates_value": "yes",
+                        "yum_cron_download_updates_value": "yes",
+                        "yum_cron_enable_on_reboot_value": True,
+                        "yum_cron_installation_state_value": False,
+                        "yum_cron_set_installation_state": False
+                    },
+                    "dnf_automatic": {
+                        "dnf_automatic_apply_updates_value": "",
+                        "dnf_automatic_download_updates_value": "",
+                        "dnf_automatic_enable_on_reboot_value": False,
+                        "dnf_automatic_installation_state_value": False,
+                        "dnf_automatic_set_installation_state": True
+                    },
+                    "packagekit": {
+                        "packagekit_apply_updates_value": "",
+                        "packagekit_download_updates_value": "",
+                        "packagekit_enable_on_reboot_value": False,
+                        "packagekit_installation_state_value": False,
+                        "packagekit_set_installation_state": True
+                    }
+                }
+            },
+            "assertions": {
+                "yum_cron": {
+                    "yum_cron_config_exists": True,
+                    "yum_cron_apply_updates_expected": 'apply_updates = no',
+                    "yum_cron_download_updates_expected": 'download_updates = no',
+                },
+                "dnf_automatic": {
+                    "dnf_automatic_config_exists": False,
+                    "dnf_automatic_apply_updates_expected": '',
+                    "dnf_automatic_download_updates_expected": '',
+                },
+                "packagekit": {
+                    "packagekit_config_exists": False,
+                    "packagekit_apply_updates_expected": '',
+                    "packagekit_download_updates_expected": '',
+                }
+            }
+        }
+
+        revert_success_backup_config_contains_empty_values_testcase = {
+            "legacy_type": 'HappyPath',
+            "stdio": {
+                "capture_output": False,
+                "expected_output": ""
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "yum_cron": {
+                        "set_yum_cron": True,
+                        "yum_cron_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    },
+                    "dnf_automatic": {
+                        "set_dnf_automatic": True,
+                        "dnf_automatic_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    },
+                    "packagekit": {
+                        "set_packagekit": True,
+                        "packagekit_config_value": "WritePreparedUpdates = false\n"
+                    }
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "yum_cron": {
+                        "yum_cron_apply_updates_value": "no",
+                        "yum_cron_download_updates_value": "yes",
+                        "yum_cron_enable_on_reboot_value": True,
+                        "yum_cron_installation_state_value": True,
+                        "yum_cron_set_installation_state": True
+                    },
+                    "dnf_automatic": {
+                        "dnf_automatic_apply_updates_value": "yes",
+                        "dnf_automatic_download_updates_value": "",
+                        "dnf_automatic_enable_on_reboot_value": True,
+                        "dnf_automatic_installation_state_value": True,
+                        "dnf_automatic_set_installation_state": True
+                    },
+                    "packagekit": {
+                        "packagekit_apply_updates_value": "",
+                        "packagekit_download_updates_value": "",
+                        "packagekit_enable_on_reboot_value": True,
+                        "packagekit_installation_state_value": True,
+                        "packagekit_set_installation_state": True
+                    }
+                }
+            },
+            "assertions": {
+                "yum_cron": {
+                    "yum_cron_config_exists": True,
+                    "yum_cron_apply_updates_expected": 'apply_updates = no',
+                    "yum_cron_download_updates_expected": 'download_updates = yes',
+                },
+                "dnf_automatic": {
+                    "dnf_automatic_config_exists": True,
+                    "dnf_automatic_apply_updates_expected": 'apply_updates = yes',
+                    "dnf_automatic_download_updates_expected": 'download_updates = no',
+                },
+                "packagekit": {
+                    "packagekit_config_exists": True,
+                    "packagekit_apply_updates_expected": 'WritePreparedUpdates = false',
+                    "packagekit_download_updates_expected": '',
+                }
+            }
+        }
+
+        all_testcases = [revert_success_testcase, revert_success_with_only_yum_cron_installed_testcase, revert_success_backup_config_does_not_exist_testcase, revert_success_backup_config_invalid_testcase, revert_success_backup_config_contains_empty_values_testcase]
+
+        for testcase in all_testcases:
+            self.tearDown()
+            self.setUp()
+            captured_output, original_stdout = None, None
+            if testcase["stdio"]["capture_output"]:
+                # arrange capture std IO
+                captured_output, original_stdout = self.__capture_std_io()
+
+            self.runtime.set_legacy_test_type(testcase["legacy_type"])
+            package_manager = self.container.get('package_manager')
+
+            # setup current auto OS update config, backup for system default config and invoke revert to system default
+            self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager,
+                                                                            create_current_auto_os_config=bool(testcase["config"]["current_auto_update_config"]["create_current_auto_os_config"]),
+                                                                            set_yum_cron=bool(testcase["config"]["current_auto_update_config"]["yum_cron"]["set_yum_cron"]),
+                                                                            yum_cron_config_value=testcase["config"]["current_auto_update_config"]["yum_cron"]["yum_cron_config_value"],
+                                                                            set_dnf_automatic=bool(testcase["config"]["current_auto_update_config"]["dnf_automatic"]["set_dnf_automatic"]),
+                                                                            dnf_automatic_config_value=testcase["config"]["current_auto_update_config"]["dnf_automatic"]["dnf_automatic_config_value"],
+                                                                            set_packagekit=bool(testcase["config"]["current_auto_update_config"]["packagekit"]["set_packagekit"]),
+                                                                            packagekit_config_value=testcase["config"]["current_auto_update_config"]["packagekit"]["packagekit_config_value"],
+                                                                            create_backup_for_system_default_config=bool(testcase["config"]["backup_system_default_config"]["create_backup_for_system_default_config"]),
+                                                                            yum_cron_apply_updates_value=testcase["config"]["backup_system_default_config"]["yum_cron"]["yum_cron_apply_updates_value"],
+                                                                            yum_cron_download_updates_value=testcase["config"]["backup_system_default_config"]["yum_cron"]["yum_cron_download_updates_value"],
+                                                                            yum_cron_enable_on_reboot_value=bool(testcase["config"]["backup_system_default_config"]["yum_cron"]["yum_cron_enable_on_reboot_value"]),
+                                                                            yum_cron_installation_state_value=bool(testcase["config"]["backup_system_default_config"]["yum_cron"]["yum_cron_installation_state_value"]),
+                                                                            yum_cron_set_installation_state=bool(testcase["config"]["backup_system_default_config"]["yum_cron"]["yum_cron_set_installation_state"]),
+                                                                            dnf_automatic_apply_updates_value=testcase["config"]["backup_system_default_config"]["dnf_automatic"]["dnf_automatic_apply_updates_value"],
+                                                                            dnf_automatic_download_updates_value=testcase["config"]["backup_system_default_config"]["dnf_automatic"]["dnf_automatic_download_updates_value"],
+                                                                            dnf_automatic_enable_on_reboot_value=bool(testcase["config"]["backup_system_default_config"]["dnf_automatic"]["dnf_automatic_enable_on_reboot_value"]),
+                                                                            dnf_automatic_installation_state_value=bool(testcase["config"]["backup_system_default_config"]["dnf_automatic"]["dnf_automatic_installation_state_value"]),
+                                                                            dnf_automatic_set_installation_state=bool(testcase["config"]["backup_system_default_config"]["dnf_automatic"]["dnf_automatic_set_installation_state"]),
+                                                                            packagekit_apply_updates_value=testcase["config"]["backup_system_default_config"]["packagekit"]["packagekit_apply_updates_value"],
+                                                                            packagekit_download_updates_value=testcase["config"]["backup_system_default_config"]["packagekit"]["packagekit_download_updates_value"],
+                                                                            packagekit_enable_on_reboot_value=bool(testcase["config"]["backup_system_default_config"]["packagekit"]["packagekit_enable_on_reboot_value"]),
+                                                                            packagekit_installation_state_value=bool(testcase["config"]["backup_system_default_config"]["packagekit"]["packagekit_installation_state_value"]),
+                                                                            packagekit_set_installation_state=bool(testcase["config"]["backup_system_default_config"]["packagekit"]["packagekit_set_installation_state"]))
+
+            # assert
+            if testcase["stdio"]["capture_output"]:
+                # restore sys.stdout output
+                sys.stdout = original_stdout
+                self.__assert_std_io(captured_output=captured_output, expected_output=testcase["stdio"]["expected_output"])
+            self.__assert_all_reverted_automatic_patch_configuration_settings(package_manager,
+                                                                              yum_cron_config_exists=bool(testcase["assertions"]["yum_cron"]["yum_cron_config_exists"]),
+                                                                              yum_cron_apply_updates_expected=testcase["assertions"]["yum_cron"]["yum_cron_apply_updates_expected"],
+                                                                              yum_cron_download_updates_expected=testcase["assertions"]["yum_cron"]["yum_cron_download_updates_expected"],
+                                                                              dnf_automatic_config_exists=bool(testcase["assertions"]["dnf_automatic"]["dnf_automatic_config_exists"]),
+                                                                              dnf_automatic_apply_updates_expected=testcase["assertions"]["dnf_automatic"]["dnf_automatic_apply_updates_expected"],
+                                                                              dnf_automatic_download_updates_expected=testcase["assertions"]["dnf_automatic"]["dnf_automatic_download_updates_expected"],
+                                                                              packagekit_config_exists=bool(testcase["assertions"]["packagekit"]["packagekit_config_exists"]),
+                                                                              packagekit_apply_updates_expected=testcase["assertions"]["packagekit"]["packagekit_apply_updates_expected"],
+                                                                              packagekit_download_updates_expected=testcase["assertions"]["packagekit"]["packagekit_download_updates_expected"])
+
     def test_is_reboot_pending_return_true_when_exception_raised(self):
         package_manager = self.container.get('package_manager')
         backup_do_process_require_restart = package_manager.do_processes_require_restart
@@ -830,6 +1326,7 @@ class TestYumPackageManager(unittest.TestCase):
         print(str(context.exception))
         self.assertTrue("Unexpected return code (1) on command: systemctl disable yum-cron123" in str(context.exception))
     
+
 
 if __name__ == '__main__':
     unittest.main()
