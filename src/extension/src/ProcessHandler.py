@@ -82,7 +82,7 @@ class ProcessHandler(object):
         python_cmd = self.get_python_cmd()
         if python_cmd == Constants.PYTHON_NOT_FOUND:
             self.logger.log("Cannot execute patch operation due to error. [Error={0}]".format(Constants.PYTHON_NOT_FOUND))
-            return
+            return None
 
         # Generating core execution command
         base_command = python_cmd + " " + exec_path + " " + args
@@ -92,16 +92,18 @@ class ProcessHandler(object):
         self.stage_auto_assess_sh_safely(base_command)
 
         # Execute core process
-        self.logger.log("Launching process. [command={0}]".format(str(command)))
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if process.pid is not None:
-            self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
-            did_process_start = self.__check_process_state(process, seq_no)
-            return process if did_process_start else None
+        for pipe_value in (None, subprocess.PIPE):      # normal execution and diagnostic execution afterward if it fails
+            self.logger.log("Launching process. [Command={0}]".format(str(command)))
+            process = subprocess.Popen(command, shell=True, stdout=pipe_value, stderr=pipe_value)
+            if process.pid is not None:
+                self.logger.log("New shell process launched successfully. [Process ID (PID)={0}]".format(str(process.pid)))
+                did_process_start = self.__check_process_state(process, seq_no)
+                return process if did_process_start else None
 
         # Clear temp folder since core process launch failed
         ext_env_handler.delete_temp_folder_contents()
         self.logger.log_error("Error launching process for given sequence. [sequence={0}]".format(seq_no))
+        return None
 
     def stage_auto_assess_sh_safely(self, core_process_command):
         """ Primes the auto-assessment shell script with the latest data """

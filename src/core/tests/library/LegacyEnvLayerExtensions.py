@@ -30,15 +30,15 @@ class LegacyEnvLayerExtensions():
             return ['Ubuntu', '16.04', 'Xenial']
 
         @staticmethod
-        def system():   # OS Type
+        def os_type():   # OS Type
             return 'Linux'
 
         @staticmethod
-        def machine():  # architecture
+        def cpu_arch():  # architecture
             return 'x86_64'
 
         @staticmethod
-        def node():     # machine name
+        def vm_name():     # machine name
             return 'LegacyTestVM'
 
     def get_package_manager(self):
@@ -669,8 +669,12 @@ class LegacyEnvLayerExtensions():
                         code = 103
                         output = ''
                 elif self.legacy_package_manager_name is Constants.TDNF:
-                    code = 0
-                    output = ''
+                    if cmd.find("systemctl list-unit-files --type=service | grep dnf-automatic.service") > -1:
+                        code = 1
+                        output = 'Auto update service is not installed'
+                    else:
+                        code = 0
+                        output = ''
                 elif cmd.find("systemctl") > -1:
                     code = 1
                     output = ''
@@ -1450,6 +1454,18 @@ class LegacyEnvLayerExtensions():
                                  "\n" + \
                                  "Total download size: 231 k\n" + \
                                  "Operation aborted.\n"
+            elif self.legacy_test_type == 'RevertToImageDefault':
+                if self.legacy_package_manager_name is Constants.YUM:
+                    if cmd.find("systemctl list-unit-files --type=service | grep yum-cron.service") > -1:
+                        code = 0
+                        output = 'Auto update service installed'
+                    elif cmd.find("systemctl list-unit-files --type=service ") > -1:
+                        code = 1
+                        output = 'Auto update service not installed'
+                elif self.legacy_package_manager_name is Constants.TDNF:
+                    if cmd.find("systemctl list-unit-files --type=service | grep dnf-automatic.service") > -1:
+                        code = 0
+                        output = 'Auto update service installed'
             major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')

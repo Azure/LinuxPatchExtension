@@ -32,12 +32,11 @@ class Bootstrapper(object):
         self.current_env = self.get_current_env()
         self.argv = argv
         self.auto_assessment_only = bool(self.get_value_from_argv(self.argv, Constants.ARG_AUTO_ASSESS_ONLY, "False") == "True")
-        self.log_file_path, self.real_record_path, self.events_folder, self.telemetry_supported = self.get_path_to_log_files_and_telemetry_dir(argv, self.auto_assessment_only)
-        self.recorder_enabled, self.emulator_enabled = self.get_recorder_emulator_flags(argv)
+        self.log_file_path, self.events_folder, self.telemetry_supported = self.get_path_to_log_files_and_telemetry_dir(argv, self.auto_assessment_only)
 
         # Container initialization
         print("Building bootstrap container configuration...")
-        self.configuration_factory = ConfigurationFactory(self.log_file_path, self.real_record_path, self.recorder_enabled, self.emulator_enabled, self.events_folder, self.telemetry_supported)
+        self.configuration_factory = ConfigurationFactory(self.log_file_path, self.events_folder, self.telemetry_supported)
         self.container = Container()
         self.container.build(self.configuration_factory.get_bootstrap_configuration(self.current_env))
 
@@ -74,10 +73,9 @@ class Bootstrapper(object):
         log_folder = environment_settings[Constants.EnvSettings.LOG_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
         exec_demarcator = ".aa" if auto_assessment_only else ""
         log_file_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.log")
-        real_rec_path = os.path.join(log_folder, str(sequence_number) + exec_demarcator + ".core.rec")
         events_folder = environment_settings[Constants.EnvSettings.EVENTS_FOLDER]  # can throw exception and that's okay (since we can't recover from this)
         telemetry_supported = environment_settings[Constants.EnvSettings.TELEMETRY_SUPPORTED]
-        return log_file_path, real_rec_path, events_folder, telemetry_supported
+        return log_file_path, events_folder, telemetry_supported
 
     def reset_auto_assessment_log_file_if_needed(self):
         """ Deletes the auto assessment log file when needed to prevent excessive growth """
@@ -86,17 +84,6 @@ class Bootstrapper(object):
                 os.remove(self.log_file_path)
         except Exception as error:
             print("INFO: Error while checking/removing auto-assessment log file. [Path={0}][ExistsRecheck={1}]".format(self.log_file_path, str(os.path.exists(self.log_file_path))))
-
-    def get_recorder_emulator_flags(self, argv):
-        """ Determines if the recorder or emulator flags need to be changed from the defaults """
-        recorder_enabled = False
-        emulator_enabled = False
-        try:
-            recorder_enabled = bool(self.get_value_from_argv(argv, Constants.ARG_INTERNAL_RECORDER_ENABLED))
-            emulator_enabled = bool(self.get_value_from_argv(argv, Constants.ARG_INTERNAL_EMULATOR_ENABLED))
-        except Exception as error:
-            print("INFO: Default environment layer settings loaded.")
-        return recorder_enabled, emulator_enabled
 
     @staticmethod
     def get_value_from_argv(argv, key, default_value=Constants.DEFAULT_UNSPECIFIED_VALUE):
@@ -143,42 +130,43 @@ class Bootstrapper(object):
         self.composite_logger.log("Process id: " + str(os.getpid()))
 
         # Ensure sudo works in the environment
-        sudo_check_result = self.check_sudo_status_with_retry()
-        self.composite_logger.log_debug("Sudo status check: " + str(sudo_check_result) + "\n")
+        sudo_check_result = self.check_sudo_status_with_attempts()
+        self.composite_logger.log_debug("[BST] Sudo status check: " + str(sudo_check_result) + "\n")
 
-    def check_sudo_status_with_retry(self, raise_if_not_sudo=True):
+    def check_sudo_status_with_attempts(self, raise_if_not_sudo=True):
         # type:(bool) -> any
-        """ retry to invoke sudo check """
-        for attempts in range(1, Constants.MAX_CHECK_SUDO_RETRY_COUNT + 1):
+        """ Attempt(s) up to max six times to invoke sudo check """
+        
+        self.composite_logger.log("[BST] Performing sudo status check... This should complete within 10 seconds.")
+        for attempts in range(1, Constants.MAX_CHECK_SUDO_ATTEMPTS + 1):
             try:
                 sudo_status = self.check_sudo_status(raise_if_not_sudo=raise_if_not_sudo)
 
-                if sudo_status and attempts > 1:
-                    self.composite_logger.log_debug("Sudo Check Successfully [RetryCount={0}][MaxRetryCount={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_RETRY_COUNT))
+                if sudo_status and attempts >= 1:
+                    self.composite_logger.log_debug("[BST] Sudo status check completed successfully. [Attempt(s)={0}][MaxAttempt(s)={1}]".format(str(attempts), Constants.MAX_CHECK_SUDO_ATTEMPTS))
                     return sudo_status
 
                 elif sudo_status is None or sudo_status is False:
-                    if attempts < Constants.MAX_CHECK_SUDO_RETRY_COUNT:
-                        self.composite_logger.log_debug("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                    if attempts < Constants.MAX_CHECK_SUDO_ATTEMPTS:
+                        self.composite_logger.log_debug("[BST] Re-attempt sudo status check after a delay. [ElapsedTimeInSeconds={0}][Attempt(s)={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                         time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
                         continue
 
-                    elif attempts >= Constants.MAX_CHECK_SUDO_RETRY_COUNT:
+                    elif attempts >= Constants.MAX_CHECK_SUDO_ATTEMPTS:
                         raise
 
             except Exception as exception:
-                if attempts >= Constants.MAX_CHECK_SUDO_RETRY_COUNT:
-                    self.composite_logger.log_error("Customer environment error (sudo failure). [Exception={0}][MaxRetryCount={1}]".format(str(exception), str(attempts)))
+                if attempts >= Constants.MAX_CHECK_SUDO_ATTEMPTS:
+                    self.composite_logger.log_error("[BST] Customer environment error (sudo failure). [Attempt(s)={0}][MaxAttempt(s)={1}][Exception={2}]".format(str(attempts), Constants.MAX_CHECK_SUDO_ATTEMPTS, str(exception)))
                     if raise_if_not_sudo:
                         raise
-                self.composite_logger.log_debug("Retrying sudo status check after a delay of [ElapsedTimeInSeconds={0}][RetryCount={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
+                self.composite_logger.log_debug("[BST] Re-attempt sudo status check after a delay. [ElapsedTimeInSeconds={0}][Attempt(s)={1}]".format(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC, str(attempts)))
                 time.sleep(Constants.MAX_CHECK_SUDO_INTERVAL_IN_SEC)
 
     def check_sudo_status(self, raise_if_not_sudo=True):
         # type:(bool) -> any
         """ Checks if we can invoke sudo successfully. """
         try:
-            self.composite_logger.log("Performing sudo status check... This should complete within 10 seconds.")
             return_code, output = self.env_layer.run_command_output("timeout 10 sudo id && echo True || echo False", False, False)
             # output should look like either this (bad):
             #   [sudo] password for username:
@@ -200,7 +188,7 @@ class Bootstrapper(object):
             else:
                 raise Exception("Unexpected sudo check result. Output: " + " ".join(output.split("\n")))
         except Exception as exception:
-            self.composite_logger.log_debug("Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
+            self.composite_logger.log_debug("[BST] Sudo status check failed. Please ensure the computer is configured correctly for sudo invocation. " +
                                             "Exception details: " + str(exception))
             if raise_if_not_sudo:
                 raise

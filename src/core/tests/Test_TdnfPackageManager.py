@@ -16,6 +16,13 @@
 import json
 import os
 import unittest
+import sys
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
+
 from core.src.bootstrap.Constants import Constants
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.ArgumentComposer import ArgumentComposer
@@ -41,54 +48,60 @@ class TestTdnfPackageManager(unittest.TestCase):
         raise Exception
     # endregion
 
-    def test_invalid_datetime_to_convert_to_posix_time(self):
-        # health_store_id is None
-        self.runtime.stop()
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = None
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
-        self.container = self.runtime.container
-        package_manager = self.container.get('package_manager')
-        self.assertTrue(isinstance(package_manager.snapshot_posix_time, str))
+    # region Utility Functions
+    def __setup_config_and_invoke_revert_auto_os_to_system_default(self, package_manager, create_current_auto_os_config=True, create_backup_for_system_default_config=True, current_auto_os_update_config_value='', apply_updates_value="",
+                                                                   download_updates_value="", enable_on_reboot_value=False, installation_state_value=False, set_installation_state=True):
+        """ Sets up current auto OS update config, backup for system default config (if requested) and invoke revert to system default """
+        # setup current auto OS update config
+        if create_current_auto_os_config:
+            self.__setup_current_auto_os_update_config(package_manager, current_auto_os_update_config_value)
 
-        # health_store_id is empty string
-        self.runtime.stop()
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = ""
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
-        self.container = self.runtime.container
-        package_manager = self.container.get('package_manager')
-        self.assertTrue(isinstance(package_manager.snapshot_posix_time, str))
+        # setup backup for system default auto OS update config
+        if create_backup_for_system_default_config:
+            self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value=apply_updates_value, download_updates_value=download_updates_value, enable_on_reboot_value=enable_on_reboot_value,
+                                                                    installation_state_value=installation_state_value, set_installation_state=set_installation_state)
 
-        # health_store_id is random string
-        self.runtime.stop()
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = "pub_offer_sku_20.312.543"
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
-        self.container = self.runtime.container
-        package_manager = self.container.get('package_manager')
-        self.assertTrue(isinstance(package_manager.snapshot_posix_time, str))
+        package_manager.revert_auto_os_update_to_system_default()
 
-    def test_valid_datetime_to_convert_to_posix_time(self):
-        # valid health_store_id
-        self.runtime.stop()
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = "pub_offer_sku_2024.04.01"
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
-        self.container = self.runtime.container
-        package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.snapshot_posix_time is not None)
-        self.assertEqual("1711954800", package_manager.snapshot_posix_time)
+    def __setup_current_auto_os_update_config(self, package_manager, config_value='', config_file_name="automatic.conf"):
+        # setup current auto OS update config
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, config_file_name)
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, config_value)
 
-        # health_store_id is in unexpected format
-        self.runtime.stop()
-        argument_composer = ArgumentComposer()
-        argument_composer.health_store_id = "pub_offer_sk_u_2024.04.01"
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
-        self.container = self.runtime.container
-        package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.snapshot_posix_time is not None)
-        self.assertEqual("1711954800", package_manager.snapshot_posix_time)
+    def __setup_backup_for_system_default_OS_update_config(self, package_manager, apply_updates_value="", download_updates_value="", enable_on_reboot_value=False, installation_state_value=False, set_installation_state=True):
+        # setup backup for system default auto OS update config
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_image_default_patch_configuration_json = {
+            "dnf-automatic": {
+                "apply_updates": apply_updates_value,
+                "download_updates": download_updates_value,
+                "enable_on_reboot": enable_on_reboot_value
+            }
+        }
+        if set_installation_state:
+            backup_image_default_patch_configuration_json["dnf-automatic"]["installation_state"] = installation_state_value
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
+
+    @staticmethod
+    def __capture_std_io():
+        # arrange capture std IO
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+        return captured_output, original_stdout
+
+    def __assert_std_io(self, captured_output, expected_output=''):
+        output = captured_output.getvalue()
+        self.assertTrue(expected_output in output)
+
+    def __assert_reverted_automatic_patch_configuration_settings(self, package_manager, config_exists=True, config_value_expected=''):
+        if config_exists:
+            reverted_dnf_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.dnf_automatic_configuration_file_path)
+            self.assertTrue(reverted_dnf_automatic_patch_configuration_settings is not None)
+            self.assertTrue(config_value_expected in reverted_dnf_automatic_patch_configuration_settings)
+        else:
+            self.assertFalse(os.path.exists(package_manager.dnf_automatic_configuration_file_path))
+    # endregion
 
     def test_do_processes_require_restart(self):
         """Unit test for tdnf package manager"""
@@ -695,6 +708,168 @@ class TestTdnfPackageManager(unittest.TestCase):
 
         self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
         self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.UNKNOWN)
+
+    def test_revert_auto_os_update_to_system_default(self):
+        revert_success_testcase = {
+            "legacy_type": 'HappyPath',
+            "stdio": {
+                "capture_output": False,
+                "expected_output": None
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'apply_updates = no\ndownload_updates = no\n'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "apply_updates_value": "yes",
+                    "download_updates_value": "yes",
+                    "enable_on_reboot_value": True,
+                    "installation_state_value": True,
+                    "set_installation_state": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'apply_updates = yes\ndownload_updates = yes\n',
+                "config_exists": True
+            }
+        }
+
+        revert_success_with_dnf_not_installed_testcase = {
+            "legacy_type": 'SadPath',
+            "stdio": {
+                "capture_output": False,
+                "expected_output": None
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": False,
+                    "current_auto_os_update_config_value": ''
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "apply_updates_value": "",
+                    "download_updates_value": "",
+                    "enable_on_reboot_value": False,
+                    "installation_state_value": False,
+                    "set_installation_state": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": "",
+                "config_exists": False
+            }
+        }
+
+        revert_success_with_dnf_installed_but_no_config_value_testcase = {
+            "legacy_type": 'RevertToImageDefault',
+            "stdio": {
+                "capture_output": False,
+                "expected_output": None
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'test_value = yes\n'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "apply_updates_value": "",
+                    "download_updates_value": "",
+                    "enable_on_reboot_value": False,
+                    "installation_state_value": False,
+                    "set_installation_state": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'download_updates =\napply_updates = \n',
+                "config_exists": True
+            }
+        }
+
+        revert_success_backup_config_does_not_exist_testcase = {
+            "legacy_type": 'RevertToImageDefault',
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[TDNF] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=dnf-automatic]"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'apply_updates = no\ndownload_updates = no\n'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": False,
+                    "apply_updates_value": "",
+                    "download_updates_value": "",
+                    "enable_on_reboot_value": False,
+                    "installation_state_value": False,
+                    "set_installation_state": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
+                "config_exists": True
+            }
+        }
+
+        revert_success_default_backup_config_invalid_testcase = {
+            "legacy_type": 'RevertToImageDefault',
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[TDNF] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=dnf-automatic]"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'apply_updates = no\ndownload_updates = no\n'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "apply_updates_value": "yes",
+                    "download_updates_value": "yes",
+                    "enable_on_reboot_value": True,
+                    "installation_state_value": False,
+                    "set_installation_state": False
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
+                "config_exists": True
+            }
+        }
+
+        all_testcases = [revert_success_testcase, revert_success_with_dnf_not_installed_testcase, revert_success_with_dnf_installed_but_no_config_value_testcase, revert_success_backup_config_does_not_exist_testcase, revert_success_default_backup_config_invalid_testcase]
+
+        for testcase in all_testcases:
+            self.tearDown()
+            self.setUp()
+            captured_output, original_stdout = None, None
+            if testcase["stdio"]["capture_output"]:
+                # arrange capture std IO
+                captured_output, original_stdout = self.__capture_std_io()
+
+            self.runtime.set_legacy_test_type(testcase["legacy_type"])
+            package_manager = self.container.get('package_manager')
+
+            # setup current auto OS update config, backup for system default config and invoke revert to system default
+            self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager,
+                                                                            create_current_auto_os_config=bool(testcase["config"]["current_auto_update_config"]["create_current_auto_os_config"]),
+                                                                            current_auto_os_update_config_value=testcase["config"]["current_auto_update_config"]["current_auto_os_update_config_value"],
+                                                                            create_backup_for_system_default_config=bool(testcase["config"]["backup_system_default_config"]["create_backup_for_system_default_config"]),
+                                                                            apply_updates_value=testcase["config"]["backup_system_default_config"]["apply_updates_value"],
+                                                                            download_updates_value=testcase["config"]["backup_system_default_config"]["download_updates_value"],
+                                                                            enable_on_reboot_value=bool(testcase["config"]["backup_system_default_config"]["enable_on_reboot_value"]),
+                                                                            installation_state_value=bool(testcase["config"]["backup_system_default_config"]["installation_state_value"]),
+                                                                            set_installation_state=bool(testcase["config"]["backup_system_default_config"]["set_installation_state"]))
+
+            # assert
+            if testcase["stdio"]["capture_output"]:
+                # restore sys.stdout output
+                sys.stdout = original_stdout
+                self.__assert_std_io(captured_output=captured_output, expected_output=testcase["stdio"]["expected_output"])
+            self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(testcase["assertions"]["config_exists"]), config_value_expected=testcase["assertions"]["config_value_expected"])
 
 
 if __name__ == '__main__':
