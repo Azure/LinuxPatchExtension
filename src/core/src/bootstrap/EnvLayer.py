@@ -241,6 +241,11 @@ class EnvLayer(object):
         @staticmethod
         def vm_name():     # machine name
             return platform.node()
+
+        @staticmethod
+        def version():
+            return str() if (EnvLayer.get_python_major_version() == 2) else distro.os_release_attr('version')
+
 # endregion - Platform extensions
 
 # region - File system extensions

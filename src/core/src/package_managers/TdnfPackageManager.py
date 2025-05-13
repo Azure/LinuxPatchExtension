@@ -112,6 +112,17 @@ class TdnfPackageManager(PackageManager):
     def __generate_command_with_snapshottime(command_template, snapshotposixtime=str()):
         # type: (str, str) -> str
         """ Prepares a standard command to use snapshottime."""
+
+        # finds azlinux major version, and tdnf version
+            # if azlinux < 3.0.20241005
+                # no snaphottime
+            # if azlinux >= 3.0.20241005 and tdnf < 3.5.8-3
+                # 1 attempt to update tdnf
+                    # if succeeds, add snapshottime
+                    # if fails, no snapshottime
+            # if azlinux >= 3.0.20241005 and tdnf >= 3.5.8-3
+                # add snapshottime
+
         if snapshotposixtime == str():
             return command_template.replace('<SNAPSHOTTIME>', str())
         else:
