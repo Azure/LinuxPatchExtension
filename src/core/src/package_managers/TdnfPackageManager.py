@@ -33,14 +33,17 @@ class TdnfPackageManager(PackageManager):
         self.cmd_clean_cache = "sudo tdnf clean expire-cache"
         self.cmd_repo_refresh = "sudo tdnf -q list updates"
 
+        # fetch snapshottime from health_store_id
+        self.snapshot_posix_time = self.__get_posix_time(execution_config.max_patch_publish_date, env_layer)
+
         # Support to get updates and their dependencies
-        self.tdnf_check = 'sudo tdnf -q list updates'
-        self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME>'
-        self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME>'
-        self.single_package_upgrade_simulation_cmd = 'sudo tdnf install --assumeno --skip-broken '
+        self.tdnf_check = self.__generate_command_with_snapshottime('sudo tdnf -q list updates <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.single_package_check_versions = self.__generate_command_with_snapshottime('sudo tdnf list available <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.single_package_check_installed = self.__generate_command_with_snapshottime('sudo tdnf list installed <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.single_package_upgrade_simulation_cmd = self.__generate_command_with_snapshottime('sudo tdnf install --assumeno --skip-broken <SNAPSHOTTIME>', self.snapshot_posix_time)
 
         # Install update
-        self.single_package_upgrade_cmd = 'sudo tdnf -y install --skip-broken '
+        self.single_package_upgrade_cmd = self.__generate_command_with_snapshottime('sudo tdnf -y install --skip-broken <SNAPSHOTTIME>', self.snapshot_posix_time)
 
         # Package manager exit code(s)
         self.tdnf_exitcode_ok = 0
@@ -89,6 +92,42 @@ class TdnfPackageManager(PackageManager):
         self.composite_logger.log("[TDNF] Refreshing local repo...")
         self.invoke_package_manager(self.cmd_clean_cache)
         self.invoke_package_manager(self.cmd_repo_refresh)
+
+    # region Strict SDP using SnapshotTime
+    def __get_posix_time(self, datetime_to_convert, env_layer):
+        """Converts date str received to POSIX time string"""
+        posix_time = str()
+        datetime_to_convert_format = '%Y%m%dT%H%M%SZ'
+        self.composite_logger.log_debug("[TDNF] Getting POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}]".format(str(datetime_to_convert), datetime_to_convert_format))
+        try:
+            if datetime_to_convert != str():
+                posix_time = env_layer.datetime.datetime_string_to_posix_time(datetime_to_convert, datetime_to_convert_format)
+        except Exception as error:
+            self.composite_logger.log_debug("[TDNF] Could not fetch POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}][ComputedPosixTime={2}][Error={3}]".format(str(datetime_to_convert), datetime_to_convert_format, posix_time, repr(error)))
+
+        self.composite_logger.log_debug("[TDNF] Computed POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}][ComputedPosixTime={2}]".format(str(datetime_to_convert), datetime_to_convert_format, posix_time))
+        return posix_time
+
+    @staticmethod
+    def __generate_command_with_snapshottime(command_template, snapshotposixtime=str()):
+        # type: (str, str) -> str
+        """ Prepares a standard command to use snapshottime."""
+
+        # finds azlinux major version, and tdnf version
+            # if azlinux < 3.0.20241005
+                # no snaphottime
+            # if azlinux >= 3.0.20241005 and tdnf < 3.5.8-3
+                # 1 attempt to update tdnf
+                    # if succeeds, add snapshottime
+                    # if fails, no snapshottime
+            # if azlinux >= 3.0.20241005 and tdnf >= 3.5.8-3
+                # add snapshottime
+
+        if snapshotposixtime == str():
+            return command_template.replace('<SNAPSHOTTIME>', str())
+        else:
+            return command_template.replace('<SNAPSHOTTIME>', ('--snapshottime={0}'.format(str(snapshotposixtime))))
+    # endregion
 
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
