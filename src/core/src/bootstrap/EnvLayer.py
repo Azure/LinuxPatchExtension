@@ -135,8 +135,9 @@ class EnvLayer(object):
             print("Error occurred while getting environment variable [Variable={0}][Exception={1}]".format(str(var_name), repr(error)))
             if raise_if_not_success:
                 raise
+            return None
 
-    def run_command_output(self, cmd, no_output, chk_err=True):
+    def run_command_output(self, cmd, no_output=False, chk_err=True):
         # type: (str, bool, bool) -> (int, any)
         """ Wrapper for subprocess.check_output. Execute 'cmd'. Returns return code and STDOUT, trapping expected exceptions. Reports exceptions to Error if chk_err parameter is True """
 
@@ -185,7 +186,7 @@ class EnvLayer(object):
             output = subprocess.check_output(no_output, cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
             if chk_err:
-                print("Error: CalledProcessError. [Code={0}][Command={1}][Result={2}]".format(str(e.returncode), e.cmd, self.__convert_process_output_to_ascii(e.output[:-1])), file=sys.stdout)
+                print("Error: CalledProcessError. [Code={0}][Command={1}][Result={2}]".format(str(e.return_code), e.cmd, self.__convert_process_output_to_ascii(e.output[:-1])), file=sys.stdout)
             if no_output:
                 return e.return_code, None
             else:
