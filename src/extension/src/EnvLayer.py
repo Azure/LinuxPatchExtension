@@ -97,7 +97,7 @@ class EnvLayer(object):
                 no_output, cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
             if chk_err:
-                print("Error: CalledProcessError.  Error Code is: " + str(e.returncode), file=sys.stdout)
+                print("Error: CalledProcessError.  Error Code is: " + str(e.return_code), file=sys.stdout)
                 print("Error: CalledProcessError.  Command string was: " + e.cmd, file=sys.stdout)
                 print("Error: CalledProcessError.  Command result was: " + self.__convert_process_output_to_ascii(e.output[:-1]), file=sys.stdout)
             if no_output:
