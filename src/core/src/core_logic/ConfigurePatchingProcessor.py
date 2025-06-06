@@ -52,7 +52,7 @@ class ConfigurePatchingProcessor(object):
     def start_configure_patching(self):
         """ Start configure patching """
         try:
-            self.composite_logger.log("[CPP] Starting configure patching... [MachineId: " + self.env_layer.platform.node() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time +"]")
+            self.composite_logger.log("[CPP] Starting configure patching... [MachineId: " + self.env_layer.platform.vm_name() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time + "]")
             self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
             self.__raise_if_telemetry_unsupported()
 
@@ -68,7 +68,7 @@ class ConfigurePatchingProcessor(object):
             self.configure_patching_exception_error = error
             # If the tracked operation is Configure patching, we cannot write a final status until assessment has also written a final status (mitigation for a CRP bug)
             if self.execution_config.operation != Constants.CONFIGURE_PATCHING.lower():
-                self.__report_consolidated_configure_patch_status(status=Constants.STATUS_ERROR, error=repr(self.configure_patching_exception_error))
+                self.__report_consolidated_configure_patch_status(status=Constants.STATUS_ERROR, error=self.configure_patching_exception_error)
             self.configure_patching_successful &= False
 
         self.composite_logger.log("\nConfigure patching completed.\n")
@@ -141,7 +141,7 @@ class ConfigurePatchingProcessor(object):
         except Exception as error:
             # deliberately not setting self.configure_patching_exception_error here as it does not feed into the parent object. Not a bug, if you're thinking about it.
             self.composite_logger.log_error("Error while processing automatic assessment mode configuration. [Error={0}]".format(repr(error)))
-            self.__report_consolidated_configure_patch_status(status=Constants.STATUS_TRANSITIONING, error=repr(error))
+            self.__report_consolidated_configure_patch_status(status=Constants.STATUS_TRANSITIONING, error=error)
             self.configure_patching_successful &= False
 
         # revert operation back to parent
@@ -163,7 +163,7 @@ class ConfigurePatchingProcessor(object):
             self.configure_patching_successful &= False
 
     def __report_consolidated_configure_patch_status(self, status=Constants.STATUS_TRANSITIONING, error=Constants.DEFAULT_UNSPECIFIED_VALUE):
-        # type: (str, str) -> None
+        # type: (str, any) -> None
         """ Reports the consolidated configure patching status """
         self.composite_logger.log_debug("[CPP] Reporting consolidated current configure patch status. [OSPatchState={0}][AssessmentState={1}]".format(self.current_auto_os_patch_state, self.current_auto_assessment_state))
 

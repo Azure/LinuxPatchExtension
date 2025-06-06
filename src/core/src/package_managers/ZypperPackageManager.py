@@ -570,12 +570,6 @@ class ZypperPackageManager(PackageManager):
     # endregion
 
     # region auto OS updates
-    # def __init_constants_for_yast2_online_update_configuration(self):
-    #     self.yast2_online_update_configuration_os_patch_configuration_settings_file_path = '/etc/sysconfig/automatic_online_update'
-    #     self.yast2_online_update_configuration_apply_updates_identifier_text = 'AOU_ENABLE_CRONJOB'
-    #     self.yast2_online_update_configuration_auto_update_config_pattern_match_text = '="(true|false)"'
-    #     self.yast2_online_update_configuration_installation_state_identifier_text = "installation_state"
-
     def get_current_auto_os_patch_state(self):
         """ Gets the current auto OS update patch state on the machine """
         self.composite_logger.log_debug("[ZPM] Fetching the current automatic OS patch state on the machine...")
@@ -670,10 +664,10 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_debug("[ZPM] Cannot disable auto updates using yast2-online-update-configuration because the configuration file does not exist, indicating the service is not installed")
             return
 
-        self.composite_logger.log_debug("[ZPM] Preemptively disabling auto OS updates using yum-cron")
+        self.composite_logger.log_debug("[ZPM] Preemptively disabling auto OS updates using yast2-online-update-configuration")
         self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "false", self.auto_update_config_pattern_match_text)
 
-        self.composite_logger.log_debug("[ZPM] [ZPM] Successfully disabled auto OS updates using yast2-online-update-configuration")
+        self.composite_logger.log_debug("[ZPM] Successfully disabled auto OS updates using yast2-online-update-configuration")
 
     def backup_image_default_patch_configuration_if_not_exists(self):
         """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
@@ -681,20 +675,13 @@ class ZypperPackageManager(PackageManager):
         """ JSON format for backup file:
                             {
                                 "yast2-online-update-configuration": {
-                                    "apply_updates": "true/false/empty string"
-                                    "install_state": true/false
+                                    "AOU_ENABLE_CRONJOB": "true/false/empty string"
+                                    "installation_state": true/false
                                 }
                             } """
         try:
             self.composite_logger.log_debug("Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
-            image_default_patch_configuration_backup = {}
-
-            # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
-            if self.image_default_patch_configuration_backup_exists():
-                try:
-                    image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
-                except Exception as error:
-                    self.composite_logger.log_error("Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
+            image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
 
             # verify if existing backup is valid if not, write to backup
             is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
@@ -733,16 +720,22 @@ class ZypperPackageManager(PackageManager):
     def is_backup_valid_for_yast_online_update_configuration(self, image_default_patch_configuration_backup):
         if self.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION in image_default_patch_configuration_backup \
                 and self.apply_updates_identifier_text in image_default_patch_configuration_backup[self.ZypperAutoOSUpdateServices.YAST2_ONLINE_UPDATE_CONFIGURATION]:
-            self.composite_logger.log_debug("[ZPM] Extension has a valid backup for default yum-cron configuration settings")
+            self.composite_logger.log_debug("[ZPM] Extension has a valid backup for default yast2-online-update-configuration settings")
             return True
         else:
-            self.composite_logger.log_debug("[ZPM] Extension does not have a valid backup for default yum-cron configuration settings")
+            self.composite_logger.log_debug("[ZPM] Extension does not have a valid backup for default yast2-online-update-configuration settings")
             return False
 
     def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="false", config_pattern_match_text=""):
         """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
         try:
             self.composite_logger.log_debug("[ZPM] Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
+
+            if value == '':
+                self.composite_logger.log_debug("[ZPM] We won't update the system configuration settings since new configuration value to update does not match any of it's acceptable values. [Patch Configuration Sub Setting={0}] [Value To Update={1}][Acceptable Values={2}]"
+                                                .format(str(patch_configuration_sub_setting), value, config_pattern_match_text))
+                return
+
             os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
             patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + '="' + value + '"'
             patch_configuration_sub_setting_found_in_file = False
@@ -767,6 +760,43 @@ class ZypperPackageManager(PackageManager):
             self.composite_logger.log_error("[ZPM] " + error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
+
+    def revert_auto_os_update_to_system_default(self):
+        """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
+        # type () -> None
+        self.composite_logger.log("[ZPM] Reverting the current automatic OS patch state on the machine to its system default value before patchmode was set to 'AutomaticByPlatform'")
+        self.__init_auto_update_for_yast_online_update_configuration()
+        is_service_installed, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
+
+        if not is_service_installed:
+            self.composite_logger.log_debug("[ZPM] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service={0}]".format(str(self.current_auto_os_update_service)))
+            return
+
+        self.composite_logger.log_debug("[ZPM] Logging current configuration settings for auto OS updates [Service={0}][Is_Service_Installed={1}][{2}={3}]"
+                                        .format(str(self.current_auto_os_update_service), str(is_service_installed), str(self.apply_updates_identifier_text), str(apply_updates_value)))
+
+        image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
+        self.composite_logger.log_debug("[ZPM] Logging system default configuration settings for auto OS updates. [Settings={0}]".format(str(image_default_patch_configuration_backup)))
+        is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
+
+        if is_backup_valid:
+            apply_updates_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.apply_updates_identifier_text]
+            self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, apply_updates_value_from_backup, self.auto_update_config_pattern_match_text)
+            self.composite_logger.log_debug("[ZPM] Successfully reverted auto OS updates to system default config")
+        else:
+            self.composite_logger.log_debug("[ZPM] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]".format(str(self.current_auto_os_update_service)))
+
+    def __get_image_default_patch_configuration_backup(self):
+        """ Get image_default_patch_configuration_backup file"""
+        image_default_patch_configuration_backup = {}
+
+        # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
+        if self.image_default_patch_configuration_backup_exists():
+            try:
+                image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
+            except Exception as error:
+                self.composite_logger.log_error("[ZPM] Unable to read backup for default patch state. [Exception={0}]".format(repr(error)))
+        return image_default_patch_configuration_backup
     # endregion
 
     # region Reboot Management
