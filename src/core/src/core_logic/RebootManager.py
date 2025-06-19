@@ -142,8 +142,8 @@ class RebootManager(object):
 
             # Keep logging to indicate machine hasn't rebooted yet. If successful, this will be the last log we see from this process.
             if elapsed_time_in_minutes < max_allowable_time_to_reboot_in_minutes:
-                self.__reboot_wait_pulse(int(elapsed_time_in_minutes), int(max_allowable_time_to_reboot_in_minutes),
-                                         maintenance_window_allowable_limit_remaining_in_minutes = int(maintenance_window_available_time_in_minutes - elapsed_time_in_minutes))
+                self.__reboot_wait_pulse(elapsed_time_in_minutes = int(elapsed_time_in_minutes), max_allowable_time_to_reboot_in_minutes = int(max_allowable_time_to_reboot_in_minutes),
+                                         maintenance_window_allowable_limit_remaining = int(maintenance_window_available_time_in_minutes - elapsed_time_in_minutes))
                 continue
 
             # If we get here, the machine has not rebooted in the time we expected. We need to fail the operation.

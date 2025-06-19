@@ -28,8 +28,6 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
 class TestBootstrapper(unittest.TestCase):
-    # def __init__(self, methodName: str = "runTest"):
-    #     super().__init__(methodName)
     
     def setUp(self):
         self.sudo_check_status_attempts = 0
