@@ -35,11 +35,20 @@ class TdnfPackageManager(PackageManager):
 
         # fetch snapshottime from health_store_id
         self.snapshot_posix_time = self.__get_posix_time(execution_config.max_patch_publish_date, env_layer)
+        # Pseudo code for strict sdp
+        # if execution_config.operation.lower() == Constants.INSTALLATION.lower() and execution_config.max_patch_publish_date is not None and execution_config.health_store_id is not None:
+        #     verify if VM matches config azlinux version and tdnf version
+        #     if azlinux < 3.0.20241005 and tdnf < 3.5.8-3:
+        #           self.snapshot_posix_time = Compute posixtime from execution_config.max_patch_publish_date // could throw an exception and fail the entire operation any issues with posix time computation
+        #     else:
+        #         Log and return unsupported error: VM config doesn't match the requirements for strict SDP
+        # else:
+        #     self.snapshot_posix_time = str()  # no snapshottime
 
         # Support to get updates and their dependencies
-        self.tdnf_check = self.__generate_command_with_snapshottime('sudo tdnf -q list updates <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.tdnf_check = self.__generate_command_with_snapshottime('sudo tdnf -q list updates <SNAPSHOTTIME>', self.snapshot_posix_time) # TBD: snapshottime doesn't work here and only returns the latest version from the timestamp it is valida for. For older snapshottime, it returns empty
         self.single_package_check_versions = self.__generate_command_with_snapshottime('sudo tdnf list available <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time)
-        self.single_package_check_installed = self.__generate_command_with_snapshottime('sudo tdnf list installed <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.single_package_check_installed = self.__generate_command_with_snapshottime('sudo tdnf list installed <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time) # doesn't need snapshottime
         self.single_package_upgrade_simulation_cmd = self.__generate_command_with_snapshottime('sudo tdnf install --assumeno --skip-broken <SNAPSHOTTIME>', self.snapshot_posix_time)
 
         # Install update
@@ -111,8 +120,12 @@ class TdnfPackageManager(PackageManager):
     @staticmethod
     def __generate_command_with_snapshottime(command_template, snapshotposixtime=str()):
         # type: (str, str) -> str
-        """ Prepares a standard command to use snapshottime."""
 
+        # Pseudo code for strict sdp
+        # generates commands with snapshottime if snapshot_posix_time is not empty and machine meets the requirements of Az Linux and TDNF versions
+
+        """ Prepares a standard command to use snapshottime."""
+        # Psuedo code for strict sdp: Oppurtunistic tdnf upgrade to supported version by AzGPS, good to have for later as an enhancement
         # finds azlinux major version, and tdnf version
             # if azlinux < 3.0.20241005
                 # no snaphottime
@@ -158,6 +171,11 @@ class TdnfPackageManager(PackageManager):
 
         out = self.invoke_package_manager(self.tdnf_check)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
+        # Pseudo code for strict sdp:
+        # if self.snapshot_posix_time != str(): // OR execution_config.max_patch_publish_date is not None:
+            # run sudo tdnf list available --snapshottime=<SNAPSHOTTIME> to get the list of available updates for that snapshottime
+            # For each package in all_updates_cached:
+            #     Find it's corresponding entry in list available output and fetch the package version from it
 
         self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
         return self.all_updates_cached, self.all_update_versions_cached
