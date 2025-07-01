@@ -33,14 +33,26 @@ class TdnfPackageManager(PackageManager):
         self.cmd_clean_cache = "sudo tdnf clean expire-cache"
         self.cmd_repo_refresh = "sudo tdnf -q list updates"
 
+        # fetch snapshottime from health_store_id
+        self.snapshot_posix_time = self.__get_posix_time(execution_config.max_patch_publish_date, env_layer)
+        # Pseudo code for strict sdp
+        # if execution_config.operation.lower() == Constants.INSTALLATION.lower() and execution_config.max_patch_publish_date is not None and execution_config.health_store_id is not None:
+        #     verify if VM matches config azlinux version and tdnf version
+        #     if azlinux < 3.0.20241005 and tdnf < 3.5.8-3:
+        #           self.snapshot_posix_time = Compute posixtime from execution_config.max_patch_publish_date // could throw an exception and fail the entire operation any issues with posix time computation
+        #     else:
+        #         Log and return unsupported error: VM config doesn't match the requirements for strict SDP
+        # else:
+        #     self.snapshot_posix_time = str()  # no snapshottime
+
         # Support to get updates and their dependencies
-        self.tdnf_check = 'sudo tdnf -q list updates'
-        self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME>'
-        self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME>'
-        self.single_package_upgrade_simulation_cmd = 'sudo tdnf install --assumeno --skip-broken '
+        self.tdnf_check = self.__generate_command_with_snapshottime('sudo tdnf -q list updates <SNAPSHOTTIME>', self.snapshot_posix_time) # TBD: snapshottime doesn't work here and only returns the latest version from the timestamp it is valida for. For older snapshottime, it returns empty
+        self.single_package_check_versions = self.__generate_command_with_snapshottime('sudo tdnf list available <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.single_package_check_installed = self.__generate_command_with_snapshottime('sudo tdnf list installed <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time) # doesn't need snapshottime
+        self.single_package_upgrade_simulation_cmd = self.__generate_command_with_snapshottime('sudo tdnf install --assumeno --skip-broken <SNAPSHOTTIME>', self.snapshot_posix_time)
 
         # Install update
-        self.single_package_upgrade_cmd = 'sudo tdnf -y install --skip-broken '
+        self.single_package_upgrade_cmd = self.__generate_command_with_snapshottime('sudo tdnf -y install --skip-broken <SNAPSHOTTIME>', self.snapshot_posix_time)
 
         # Package manager exit code(s)
         self.tdnf_exitcode_ok = 0
@@ -90,6 +102,46 @@ class TdnfPackageManager(PackageManager):
         self.invoke_package_manager(self.cmd_clean_cache)
         self.invoke_package_manager(self.cmd_repo_refresh)
 
+    # region Strict SDP using SnapshotTime
+    def __get_posix_time(self, datetime_to_convert, env_layer):
+        """Converts date str received to POSIX time string"""
+        posix_time = str()
+        datetime_to_convert_format = '%Y%m%dT%H%M%SZ'
+        self.composite_logger.log_debug("[TDNF] Getting POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}]".format(str(datetime_to_convert), datetime_to_convert_format))
+        try:
+            if datetime_to_convert != str():
+                posix_time = env_layer.datetime.datetime_string_to_posix_time(datetime_to_convert, datetime_to_convert_format)
+        except Exception as error:
+            self.composite_logger.log_debug("[TDNF] Could not fetch POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}][ComputedPosixTime={2}][Error={3}]".format(str(datetime_to_convert), datetime_to_convert_format, posix_time, repr(error)))
+
+        self.composite_logger.log_debug("[TDNF] Computed POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}][ComputedPosixTime={2}]".format(str(datetime_to_convert), datetime_to_convert_format, posix_time))
+        return posix_time
+
+    @staticmethod
+    def __generate_command_with_snapshottime(command_template, snapshotposixtime=str()):
+        # type: (str, str) -> str
+
+        # Pseudo code for strict sdp
+        # generates commands with snapshottime if snapshot_posix_time is not empty and machine meets the requirements of Az Linux and TDNF versions
+
+        """ Prepares a standard command to use snapshottime."""
+        # Psuedo code for strict sdp: Oppurtunistic tdnf upgrade to supported version by AzGPS, good to have for later as an enhancement
+        # finds azlinux major version, and tdnf version
+            # if azlinux < 3.0.20241005
+                # no snaphottime
+            # if azlinux >= 3.0.20241005 and tdnf < 3.5.8-3
+                # 1 attempt to update tdnf
+                    # if succeeds, add snapshottime
+                    # if fails, no snapshottime
+            # if azlinux >= 3.0.20241005 and tdnf >= 3.5.8-3
+                # add snapshottime
+
+        if snapshotposixtime == str():
+            return command_template.replace('<SNAPSHOTTIME>', str())
+        else:
+            return command_template.replace('<SNAPSHOTTIME>', ('--snapshottime={0}'.format(str(snapshotposixtime))))
+    # endregion
+
     # region Get Available Updates
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         """Get missing updates using the command input"""
@@ -119,6 +171,11 @@ class TdnfPackageManager(PackageManager):
 
         out = self.invoke_package_manager(self.tdnf_check)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
+        # Pseudo code for strict sdp:
+        # if self.snapshot_posix_time != str(): // OR execution_config.max_patch_publish_date is not None:
+            # run sudo tdnf list available --snapshottime=<SNAPSHOTTIME> to get the list of available updates for that snapshottime
+            # For each package in all_updates_cached:
+            #     Find it's corresponding entry in list available output and fetch the package version from it
 
         self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
         return self.all_updates_cached, self.all_update_versions_cached

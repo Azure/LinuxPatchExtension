@@ -14,6 +14,7 @@
 #
 # Requires Python 2.7+
 import os
+import re
 import sys
 from core.src.bootstrap.Constants import Constants
 
@@ -606,6 +607,7 @@ class LegacyEnvLayerExtensions():
                                  "Error(1032) : Operation aborted.\n"
                     elif cmd.find("list installed") > -1:
                         code = 0
+                        cmd = re.sub(r"--snapshottime=\d+", '', cmd)
                         package = cmd.replace('sudo tdnf list installed ', '')
                         whitelisted_versions = [
                             '3.0-16.azl3', '3.0-3.azl3', '2.5.4-1.azl3', '3.12.3-6.azl3', '2.11.5-1.azl3', '102-7.azl3', '6.6.78.1-1.azl3']  # any list of versions you want to work for *any* package
