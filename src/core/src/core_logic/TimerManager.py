@@ -35,6 +35,12 @@ class TimerManager(SystemctlManager):
         self.timer_is_active_cmd = "sudo systemctl is-active {0}.timer"
 
     # region - Time Creation / Removal
+    def timer_exists(self):
+        # type: () -> bool
+        """ Check if the timer exists """
+        timer_path = self.__systemd_timer_unit_path.format(self.service_name)
+        return os.path.exists(timer_path)
+
     def remove_timer(self):
         timer_path = self.__systemd_timer_unit_path.format(self.service_name)
         if os.path.exists(timer_path):
