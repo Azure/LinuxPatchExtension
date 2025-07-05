@@ -56,6 +56,10 @@ class TestCoreMain(unittest.TestCase):
     def mock_os_path_exists(self, patch_to_validate):
         return False
 
+    def mock_batch_patching_with_packages(self, all_packages, all_package_versions, packages, package_versions, maintenance_window, package_manager):
+        """Mock batch_patching to simulate package installation failure, return some packages """
+        return packages, package_versions, 0, False
+
     def test_operation_fail_for_non_autopatching_request(self):
         # Test for non auto patching request
         argument_composer = ArgumentComposer()
@@ -1275,6 +1279,36 @@ class TestCoreMain(unittest.TestCase):
         os.remove = self.backup_os_remove
         runtime.stop()
 
+    def test_warning_status_when_packages_initially_fail_but_succeed_on_retry(self):
+        """
+        Tests installation status set warning when:
+        1. Packages initially fail installation
+        2. Package manager indicates retry is needed
+        3. On retry, all supposed packages are installed successfully
+        4. Batch_patching returns some packages
+        """
+        argument_composer = ArgumentComposer()
+        argument_composer.operation = Constants.INSTALLATION
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.ZYPPER)
+
+        runtime.set_legacy_test_type('PackageRetrySuccessPath')
+
+        # Store original methods
+        original_batch_patching = runtime.patch_installer.batch_patching
+
+        # Mock batch_patching with packages to return false
+        runtime.patch_installer.batch_patching = self.mock_batch_patching_with_packages
+
+        # Run CoreMain to execute the installation
+        try:
+            CoreMain(argument_composer.get_composed_arguments())
+            self.__assertion_pkg_succeed_on_retry(runtime)
+
+        finally:
+            # reset mock
+            runtime.patch_installer.batch_patching = original_batch_patching
+            runtime.stop()
+
     def __check_telemetry_events(self, runtime):
         all_events = os.listdir(runtime.telemetry_writer.events_folder_path)
         self.assertTrue(len(all_events) > 0)
@@ -1284,6 +1318,27 @@ class TestCoreMain(unittest.TestCase):
             self.assertTrue(events is not None)
             self.assertTrue('Core' in events[0]['TaskName'])
             f.close()
+
+    def __assertion_pkg_succeed_on_retry(self, runtime):
+        # Check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # Check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+        self.assertEqual(len(substatus_file_data), 3)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+
+        # Check installation status is WARNING
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_WARNING.lower())
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["pendingPatchCount"], 0)
+
+        # Verify at least one error detail about package retry
+        error_details = json.loads(substatus_file_data[1]["formattedMessage"]["message"])["errors"]["details"]
+        self.assertTrue(any("package(s) are installed" in detail["message"] for detail in error_details))
 
 
 if __name__ == '__main__':
