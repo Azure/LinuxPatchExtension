@@ -404,9 +404,12 @@ class EnvLayer(object):
 
         @staticmethod
         def datetime_string_to_posix_time(datetime_string, format_string):
-            """ Converts string of given format to posix datetime string. """
+            """ Converts string of given format to posix datetime string.
+                type: (str, str) -> str"""
             # eg: Input: datetime_string: 20241220T000000Z (str), format_string: '%Y%m%dT%H%M%SZ' -> Output: 1734681600 (str)
-            datetime_object = datetime.datetime.strptime(datetime_string, format_string)
-            posix_timestamp = str(int(time.mktime(datetime_object.timetuple())))
+            posix_timestamp = str()
+            if datetime_string != str():
+                datetime_object = datetime.datetime.strptime(datetime_string, format_string)
+                posix_timestamp = str(int(time.mktime(datetime_object.timetuple())))
             return posix_timestamp
 # endregion - DateTime emulator and extensions

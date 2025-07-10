@@ -93,20 +93,6 @@ class TdnfPackageManager(PackageManager):
         self.invoke_package_manager(self.cmd_repo_refresh)
 
     # region Strict SDP using SnapshotTime
-    def __get_posix_time(self, datetime_to_convert, env_layer):
-        """Converts date str received to POSIX time string"""
-        posix_time = str()
-        datetime_to_convert_format = '%Y%m%dT%H%M%SZ'
-        self.composite_logger.log_debug("[TDNF] Getting POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}]".format(str(datetime_to_convert), datetime_to_convert_format))
-        try:
-            if datetime_to_convert != str():
-                posix_time = env_layer.datetime.datetime_string_to_posix_time(datetime_to_convert, datetime_to_convert_format)
-        except Exception as error:
-            self.composite_logger.log_debug("[TDNF] Could not fetch POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}][ComputedPosixTime={2}][Error={3}]".format(str(datetime_to_convert), datetime_to_convert_format, posix_time, repr(error)))
-
-        self.composite_logger.log_debug("[TDNF] Computed POSIX time from given datetime. [DateTimeToConvert={0}][DateTimeStringFormat={1}][ComputedPosixTime={2}]".format(str(datetime_to_convert), datetime_to_convert_format, posix_time))
-        return posix_time
-
     @staticmethod
     def __generate_command(command_template, snapshotposixtime=str()):
         # type: (str, str) -> str
@@ -171,7 +157,7 @@ class TdnfPackageManager(PackageManager):
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         """Set the max patch publish date in POSIX time for strict SDP"""
         self.composite_logger.log_debug("[TDNF] Setting max patch publish date. [MaxPatchPublishDate={0}]".format(str(max_patch_publish_date)))
-        self.max_patch_publish_date = self.__get_posix_time(max_patch_publish_date, self.env_layer)
+        self.max_patch_publish_date = self.env_layer.datetime.datetime_string_to_posix_time(max_patch_publish_date, '%Y%m%dT%H%M%SZ')
         self.composite_logger.log_debug("[TDNF] Set max patch publish date. [MaxPatchPublishDatePosixTime={0}]".format(str(self.max_patch_publish_date)))
     # endregion
 
