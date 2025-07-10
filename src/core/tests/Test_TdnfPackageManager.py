@@ -347,7 +347,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.assertEqual("6.6.78.1-1.azl3", package_versions[8])
 
     def test_inclusion_type_critical(self):
-        """Unit test for tdnf package manager with inclusion and Classification = Critical. Returns no packages since classifications are not available in Azure Linux"""
+        """Unit test for tdnf package manager with inclusion and Classification = Critical. Returns all packages since classifications are not available in Azure Linux, hence everything is considered as Critical."""
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager is not None)
@@ -365,8 +365,8 @@ class TestTdnfPackageManager(unittest.TestCase):
 
         # test for get_available_updates
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
-        self.assertTrue(available_updates == [])
-        self.assertTrue(package_versions == [])
+        self.assertEqual(9, len(available_updates))
+        self.assertEqual(9, len(package_versions))
 
     def test_inclusion_type_other(self):
         """Unit test for tdnf package manager with inclusion and Classification = Other. All packages are considered are 'Other' since AzLinux does not have patch classification"""

@@ -33,26 +33,15 @@ class TdnfPackageManager(PackageManager):
         self.cmd_clean_cache = "sudo tdnf clean expire-cache"
         self.cmd_repo_refresh = "sudo tdnf -q list updates"
 
-        # fetch snapshottime from health_store_id
-        self.snapshot_posix_time = self.__get_posix_time(execution_config.max_patch_publish_date, env_layer)
-        # Pseudo code for strict sdp
-        # if execution_config.operation.lower() == Constants.INSTALLATION.lower() and execution_config.max_patch_publish_date is not None and execution_config.health_store_id is not None:
-        #     verify if VM matches config azlinux version and tdnf version
-        #     if azlinux < 3.0.20241005 and tdnf < 3.5.8-3:
-        #           self.snapshot_posix_time = Compute posixtime from execution_config.max_patch_publish_date // could throw an exception and fail the entire operation any issues with posix time computation
-        #     else:
-        #         Log and return unsupported error: VM config doesn't match the requirements for strict SDP
-        # else:
-        #     self.snapshot_posix_time = str()  # no snapshottime
-
         # Support to get updates and their dependencies
-        self.tdnf_check = self.__generate_command_with_snapshottime('sudo tdnf -q list updates <SNAPSHOTTIME>', self.snapshot_posix_time) # TBD: snapshottime doesn't work here and only returns the latest version from the timestamp it is valida for. For older snapshottime, it returns empty
-        self.single_package_check_versions = self.__generate_command_with_snapshottime('sudo tdnf list available <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time)
-        self.single_package_check_installed = self.__generate_command_with_snapshottime('sudo tdnf list installed <PACKAGE-NAME> <SNAPSHOTTIME>', self.snapshot_posix_time) # doesn't need snapshottime
-        self.single_package_upgrade_simulation_cmd = self.__generate_command_with_snapshottime('sudo tdnf install --assumeno --skip-broken <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.tdnf_check = 'sudo tdnf -q list updates <SNAPSHOTTIME>'
+        self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME> '
+        self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME> '
+        self.single_package_upgrade_simulation_cmd = 'sudo tdnf install --assumeno --skip-broken '
 
         # Install update
-        self.single_package_upgrade_cmd = self.__generate_command_with_snapshottime('sudo tdnf -y install --skip-broken <SNAPSHOTTIME>', self.snapshot_posix_time)
+        self.single_package_upgrade_cmd = 'sudo tdnf -y install --skip-broken '
+        self.install_security_updates_azgps_coordinated_cmd = 'sudo tdnf -y upgrade --skip-broken <SNAPSHOTTIME>'
 
         # Package manager exit code(s)
         self.tdnf_exitcode_ok = 0
@@ -87,7 +76,8 @@ class TdnfPackageManager(PackageManager):
         self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
         self.version_comparator = VersionComparator()
 
-        # if an Auto Patching request comes in on a Azure Linux machine with Security and/or Critical classifications selected, we need to install all patches, since classifications aren't available in Azure Linux repository
+        # Todo: Q: Do we need this now that get_security_updates() returns all updates?
+        # if an Auto Patching request comes in on an Azure Linux machine with Security and/or Critical classifications selected, we need to install all patches, since classifications aren't available in Azure Linux repository
         installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
         if execution_config.health_store_id is not str() and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
                 and (env_layer.is_distro_azure_linux(str(env_layer.platform.linux_distribution()))) \
@@ -118,23 +108,8 @@ class TdnfPackageManager(PackageManager):
         return posix_time
 
     @staticmethod
-    def __generate_command_with_snapshottime(command_template, snapshotposixtime=str()):
+    def __generate_command(command_template, snapshotposixtime=str()):
         # type: (str, str) -> str
-
-        # Pseudo code for strict sdp
-        # generates commands with snapshottime if snapshot_posix_time is not empty and machine meets the requirements of Az Linux and TDNF versions
-
-        """ Prepares a standard command to use snapshottime."""
-        # Psuedo code for strict sdp: Oppurtunistic tdnf upgrade to supported version by AzGPS, good to have for later as an enhancement
-        # finds azlinux major version, and tdnf version
-            # if azlinux < 3.0.20241005
-                # no snaphottime
-            # if azlinux >= 3.0.20241005 and tdnf < 3.5.8-3
-                # 1 attempt to update tdnf
-                    # if succeeds, add snapshottime
-                    # if fails, no snapshottime
-            # if azlinux >= 3.0.20241005 and tdnf >= 3.5.8-3
-                # add snapshottime
 
         if snapshotposixtime == str():
             return command_template.replace('<SNAPSHOTTIME>', str())
@@ -169,25 +144,20 @@ class TdnfPackageManager(PackageManager):
             self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
-        out = self.invoke_package_manager(self.tdnf_check)
+        out = self.invoke_package_manager(self.__generate_command(self.tdnf_check, self.max_patch_publish_date))
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
-        # Pseudo code for strict sdp:
-        # if self.snapshot_posix_time != str(): // OR execution_config.max_patch_publish_date is not None:
-            # run sudo tdnf list available --snapshottime=<SNAPSHOTTIME> to get the list of available updates for that snapshottime
-            # For each package in all_updates_cached:
-            #     Find it's corresponding entry in list available output and fetch the package version from it
-
         self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
         return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
         """Get missing security updates. NOTE: Classification based categorization of patches is not available in Azure Linux as of now"""
-        self.composite_logger.log_verbose("[TDNF] Discovering 'security' packages...")
-        security_packages, security_package_versions = [], []
+        self.composite_logger.log_verbose("[TDNF] Discovering all packages as 'security' packages, since Azure Linux does not support package classification...")
+        security_packages, security_package_versions = self.get_all_updates(cached=False)
         self.composite_logger.log_debug("[TDNF] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
         return security_packages, security_package_versions
 
     def get_other_updates(self):
+        # todo: Q: What should this function do in Azure Linux? Since all updates are considered 'security' updates, should this return anything?
         """Get missing other updates.
         NOTE: This function will return all available packages since Azure Linux does not support package classification in it's repository"""
         self.composite_logger.log_verbose("[TDNF] Discovering 'other' packages...")
@@ -199,7 +169,10 @@ class TdnfPackageManager(PackageManager):
         return all_packages, all_package_versions
 
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
-        pass
+        """Set the max patch publish date in POSIX time for strict SDP"""
+        self.composite_logger.log_debug("[TDNF] Setting max patch publish date. [MaxPatchPublishDate={0}]".format(str(max_patch_publish_date)))
+        self.max_patch_publish_date = self.__get_posix_time(max_patch_publish_date, self.env_layer)
+        self.composite_logger.log_debug("[TDNF] Set max patch publish date. [MaxPatchPublishDatePosixTime={0}]".format(str(self.max_patch_publish_date)))
     # endregion
 
     # region Output Parser(s)
@@ -272,7 +245,10 @@ class TdnfPackageManager(PackageManager):
         return
 
     def install_security_updates_azgps_coordinated(self):
-        pass
+        """Install security updates in Azure Linux following strict SDP"""
+        command = self.__generate_command(self.install_security_updates_azgps_coordinated_cmd, self.max_patch_publish_date)
+        out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
+        return code, out
     # endregion
 
     # region Package Information
@@ -382,8 +358,9 @@ class TdnfPackageManager(PackageManager):
                 package_names += ' '
             package_names += package
 
-        self.composite_logger.log_verbose("[TDNF] Resolving dependencies. [Command={0}]".format(str(self.single_package_upgrade_simulation_cmd + package_names)))
-        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_names)
+        cmd = self.single_package_upgrade_simulation_cmd + package_names
+        self.composite_logger.log_verbose("[TDNF] Resolving dependencies. [Command={0}]".format(str(cmd)))
+        output = self.invoke_package_manager(cmd)
         dependencies = self.extract_dependencies(output, packages)
         self.composite_logger.log_verbose("[TDNF] Resolved dependencies. [Packages={0}][DependencyCount={1}]".format(str(packages), len(dependencies)))
         return dependencies

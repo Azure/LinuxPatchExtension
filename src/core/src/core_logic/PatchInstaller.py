@@ -79,6 +79,7 @@ class PatchInstaller(object):
 
         if self.execution_config.max_patch_publish_date != str():
             self.package_manager.set_max_patch_publish_date(self.execution_config.max_patch_publish_date)
+            # todo: validate if this meets the Az Linux and tdnf requirements
 
         if self.package_manager.max_patch_publish_date != str():
             """ Strict SDP with the package manager that supports it """
@@ -170,7 +171,6 @@ class PatchInstaller(object):
         remaining_time = maintenance_window.get_remaining_time_in_minutes()
 
         try:
-            # TBD: Pseudo code for strict sdp: this will change and follow install_updates() logic to get_available_updates() and then use get_security_packages to only mark the packages as Security, This is needed in all distros that don't support package classifications
             all_packages, all_package_versions = package_manager.get_all_updates(cached=False)
             packages, package_versions = package_manager.get_security_updates()
             self.last_still_needed_packages = list(all_packages)
@@ -192,8 +192,7 @@ class PatchInstaller(object):
 
             install_result = Constants.FAILED
             for i in range(0, Constants.MAX_INSTALLATION_RETRY_COUNT):
-                # TBD: Do we need batch processing in AzGPS-coordinated? No, as we are only installing security updates without passing in a list of packages.
-                code, out = package_manager.install_security_updates_azgps_coordinated() # TBD: this will change to pass in the compiled list of packages to update
+                code, out = package_manager.install_security_updates_azgps_coordinated()
                 installed_update_count += self.perform_status_reconciliation_conditionally(package_manager)
 
                 remaining_time = maintenance_window.get_remaining_time_in_minutes()
