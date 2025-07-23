@@ -369,7 +369,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.assertEqual(9, len(package_versions))
 
     def test_inclusion_type_other(self):
-        """Unit test for tdnf package manager with inclusion and Classification = Other. All packages are considered are 'Other' since AzLinux does not have patch classification"""
+        """Unit test for tdnf package manager with inclusion and Classification = Other. All packages are considered are 'Security' since TDNF does not have patch classification"""
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager is not None)
@@ -389,26 +389,8 @@ class TestTdnfPackageManager(unittest.TestCase):
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
         self.assertTrue(available_updates is not None)
         self.assertTrue(package_versions is not None)
-        self.assertEqual(9, len(available_updates))
-        self.assertEqual(9, len(package_versions))
-        self.assertEqual("azurelinux-release.noarch", available_updates[0])
-        self.assertEqual("3.0-16.azl3", package_versions[0])
-        self.assertEqual("azurelinux-repos-ms-oss.noarch", available_updates[1])
-        self.assertEqual("3.0-3.azl3", package_versions[1])
-        self.assertEqual("libseccomp.x86_64", available_updates[2])
-        self.assertEqual("2.5.4-1.azl3", package_versions[2])
-        self.assertEqual("python3.x86_64", available_updates[3])
-        self.assertEqual("3.12.3-6.azl3", package_versions[3])
-        self.assertEqual("libxml2.x86_64", available_updates[4])
-        self.assertEqual("2.11.5-1.azl3", package_versions[4])
-        self.assertEqual("dracut.x86_64", available_updates[5])
-        self.assertEqual("102-7.azl3", package_versions[5])
-        self.assertEqual("hyperv-daemons-license.noarch", available_updates[6])
-        self.assertEqual("6.6.78.1-1.azl3", package_versions[6])
-        self.assertEqual("hypervvssd.x86_64", available_updates[7])
-        self.assertEqual("6.6.78.1-1.azl3", package_versions[7])
-        self.assertEqual("hypervkvpd.x86_64", available_updates[8])
-        self.assertEqual("6.6.78.1-1.azl3", package_versions[8])
+        self.assertEqual(0, len(available_updates))
+        self.assertEqual(0, len(package_versions))
 
     def test_inclusion_only(self):
         """Unit test for tdnf package manager with inclusion only and NotSelected Classifications"""

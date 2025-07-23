@@ -76,7 +76,6 @@ class TdnfPackageManager(PackageManager):
         self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
         self.version_comparator = VersionComparator()
 
-        # Todo: Q: Do we need this now that get_security_updates() returns all updates?
         # if an Auto Patching request comes in on an Azure Linux machine with Security and/or Critical classifications selected, we need to install all patches, since classifications aren't available in Azure Linux repository
         installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
         if execution_config.health_store_id is not str() and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
@@ -136,23 +135,26 @@ class TdnfPackageManager(PackageManager):
         return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
-        """Get missing security updates. NOTE: Classification based categorization of patches is not available in Azure Linux as of now"""
-        self.composite_logger.log_verbose("[TDNF] Discovering all packages as 'security' packages, since Azure Linux does not support package classification...")
+        """Get missing security updates. NOTE: Classification based categorization of patches is not available in TDNF as of now"""
+        self.composite_logger.log_verbose("[TDNF] Discovering all packages as 'security' packages, since TDNF does not support package classification...")
         security_packages, security_package_versions = self.get_all_updates(cached=False)
         self.composite_logger.log_debug("[TDNF] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
         return security_packages, security_package_versions
 
     def get_other_updates(self):
-        # todo: Q: What should this function do in Azure Linux? Since all updates are considered 'security' updates, should this return anything?
-        """Get missing other updates.
-        NOTE: This function will return all available packages since Azure Linux does not support package classification in it's repository"""
+        """Get missing other updates."""
         self.composite_logger.log_verbose("[TDNF] Discovering 'other' packages...")
         other_packages, other_package_versions = [], []
 
         all_packages, all_package_versions = self.get_all_updates(True)
+        security_packages, security_package_versions = self.get_security_updates()
+        for index, package in enumerate(all_packages):
+            if package not in security_packages:
+                other_packages.append(package)
+                other_package_versions.append(all_package_versions[index])
 
         self.composite_logger.log_debug("[TDNF] Discovered 'other' packages. [Count={0}]".format(len(other_packages)))
-        return all_packages, all_package_versions
+        return other_packages, other_package_versions
 
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         """Set the max patch publish date in POSIX time for strict SDP"""
