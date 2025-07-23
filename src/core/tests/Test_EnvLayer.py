@@ -108,7 +108,6 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.os_type()
         self.envlayer.platform.cpu_arch()
         self.envlayer.platform.vm_name()
-        self.envlayer.platform.version()
 
 
 if __name__ == '__main__':

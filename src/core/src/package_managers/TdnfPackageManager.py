@@ -157,7 +157,7 @@ class TdnfPackageManager(PackageManager):
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         """Set the max patch publish date in POSIX time for strict SDP"""
         self.composite_logger.log_debug("[TDNF] Setting max patch publish date. [MaxPatchPublishDate={0}]".format(str(max_patch_publish_date)))
-        self.max_patch_publish_date = self.env_layer.datetime.datetime_string_to_posix_time(max_patch_publish_date, '%Y%m%dT%H%M%SZ')
+        self.max_patch_publish_date = str(self.env_layer.datetime.datetime_string_to_posix_time(max_patch_publish_date, '%Y%m%dT%H%M%SZ')) if max_patch_publish_date != str() else max_patch_publish_date
         self.composite_logger.log_debug("[TDNF] Set max patch publish date. [MaxPatchPublishDatePosixTime={0}]".format(str(self.max_patch_publish_date)))
     # endregion
 
@@ -235,6 +235,65 @@ class TdnfPackageManager(PackageManager):
         command = self.__generate_command(self.install_security_updates_azgps_coordinated_cmd, self.max_patch_publish_date)
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
+
+    def meets_azgps_coordinated_requirements(self):
+        """ Check if the system meets the requirements for Azure Linux strict safe deployment and attempt to update TDNF if necessary """
+        self.composite_logger.log_debug("[TDNF] Checking if system meets Azure Linux security updates requirements...")
+        # Check if the system is Azure Linux 3.0 or beyond
+        if not self.env_layer.is_distro_azure_linux_3_or_beyond():
+            self.composite_logger.log_error("[TDNF] The system does not meet minimum Azure Linux requirement of 3.0 or above for strict safe deployment. Defaulting to regular upgrades.")
+            self.set_max_patch_publish_date()  # fall-back
+            return False
+        else:
+            if self.is_miminum_tdnf_version_for_strict_sdp_installed():
+                self.composite_logger.log_debug("[TDNF] Minimum tdnf version for strict safe deployment is installed.")
+                return True
+            else:
+                if not self.attempt_tdnf_update_to_meet_strict_sdp_requirements():
+                    error_msg = "Failed to meet minimum TDNF version requirement for strict safe deployment. Defaulting to regular upgrades."
+                    self.composite_logger.log_error(error_msg + "[Error={0}]".format(repr(error_msg)))
+                    self.status_handler.add_error_to_status(error_msg)
+                    self.set_max_patch_publish_date()  # fall-back
+                    return False
+                return True
+
+    def is_miminum_tdnf_version_for_strict_sdp_installed(self):
+        """Check if  at least the minimum required version of TDNF is installed"""
+        self.composite_logger.log_debug("[TDNF] Checking if minimum TDNF version required for strict safe deployment is installed...")
+        tdnf_version = self.get_tdnf_version()
+        if tdnf_version is None:
+            self.composite_logger.log_error("[TDNF] Failed to get TDNF version. Cannot proceed with strict safe deployment. Defaulting to regular upgrades.")
+            return False
+        elif not self.version_comparator.compare_versions(tdnf_version, Constants.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP) >= 0:
+            self.composite_logger.log_warning("[TDNF] TDNF version installed is less than the minimum required version. [InstalledVersion={0}][MinimumRequiredVersion={1}]".format(tdnf_version, Constants.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP))
+            return False
+        return True
+
+    def get_tdnf_version(self):
+        """Get the version of TDNF installed on the system"""
+        self.composite_logger.log_debug("[TDNF] Getting tdnf version...")
+        cmd = "rpm -q tdnf | sed -E 's/tdnf-([0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+).*/\\1/'"
+        code, output = self.env_layer.run_command_output(cmd, False, False)
+        if code == 0:
+            # Sample output: 3.5.8-3
+            version = output.split()[0] if output else None
+            self.composite_logger.log_debug("[TDNF] Installed TDNF version [Version={0}]".format(version))
+            return version
+        else:
+            self.composite_logger.log_error("[TDNF] Failed to get TDNF version. [Command={0}][Code={1}][Output={2}]".format(cmd, code, output))
+            return None
+
+    def attempt_tdnf_update_to_meet_strict_sdp_requirements(self):
+        """Attempt to update TDNF to meet the minimum version required for strict SDP"""
+        self.composite_logger.log_debug("[TDNF] Attempting to update TDNF to meet strict safe deployment requirements...")
+        cmd = "sudo tdnf -y install tdnf-" + Constants.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP
+        code, output = self.env_layer.run_command_output(cmd, no_output=True, chk_err=False)
+        if code == 0:
+            self.composite_logger.log_debug("[TDNF] Successfully updated TDNF. [Command={0}][Code={1}]".format(cmd, code))
+            return True
+        else:
+            self.composite_logger.log_error("[TDNF] Failed to update TDNF. [Command={0}][Code={1}][Output={2}]".format(cmd, code, output))
+            return False
     # endregion
 
     # region Package Information

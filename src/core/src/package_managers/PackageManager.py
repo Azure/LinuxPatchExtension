@@ -346,6 +346,10 @@ class PackageManager(object):
     @abstractmethod
     def install_security_updates_azgps_coordinated(self):
         pass
+
+    @abstractmethod
+    def meets_azgps_coordinated_requirements(self):
+        return
     # endregion
 
     # region Package Information

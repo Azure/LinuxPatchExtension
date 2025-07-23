@@ -46,6 +46,15 @@ class EnvLayer(object):
     def is_distro_azure_linux(distro_name):
         return any(x in distro_name for x in Constants.AZURE_LINUX)
 
+    @staticmethod
+    def is_distro_azure_linux_3_or_beyond():
+        # type: () -> bool
+        """ Checks if the current distro is Azure Linux 3 """
+
+        version = distro.os_release_attr('version')
+        major = version.split('.')[0] if version else None
+        return major is not None and int(major) >= 3
+
     def get_package_manager(self):
         # type: () -> str
         """ Detects package manager type """
@@ -243,10 +252,6 @@ class EnvLayer(object):
         def vm_name():     # machine name
             return platform.node()
 
-        @staticmethod
-        def version():
-            return str() if (EnvLayer.get_python_major_version() == 2) else distro.os_release_attr('version')
-
 # endregion - Platform extensions
 
 # region - File system extensions
@@ -405,11 +410,8 @@ class EnvLayer(object):
         @staticmethod
         def datetime_string_to_posix_time(datetime_string, format_string):
             """ Converts string of given format to posix datetime string.
-                type: (str, str) -> str"""
+                type: (str, str) -> int"""
             # eg: Input: datetime_string: 20241220T000000Z (str), format_string: '%Y%m%dT%H%M%SZ' -> Output: 1734681600 (str)
-            posix_timestamp = str()
-            if datetime_string != str():
-                datetime_object = datetime.datetime.strptime(datetime_string, format_string)
-                posix_timestamp = str(int(time.mktime(datetime_object.timetuple())))
-            return posix_timestamp
+            datetime_object = datetime.datetime.strptime(datetime_string, format_string)
+            return int(time.mktime(datetime_object.timetuple()))
 # endregion - DateTime emulator and extensions

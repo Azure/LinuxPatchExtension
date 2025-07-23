@@ -205,6 +205,8 @@ class Constants(object):
     YUM = 'yum'
     ZYPPER = 'zypper'
 
+    TDNF_MINIMUM_VERSION_FOR_STRICT_SDP = "3.5.8-3.azl3" # minimum version of tdnf required to support Strict SDP
+
     # Package Statuses
     INSTALLED = 'Installed'
     FAILED = 'Failed'
