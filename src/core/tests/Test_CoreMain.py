@@ -27,6 +27,7 @@ from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
+from core.src.external_dependencies import distro
 
 
 class TestCoreMain(unittest.TestCase):
@@ -55,6 +56,9 @@ class TestCoreMain(unittest.TestCase):
 
     def mock_os_path_exists(self, patch_to_validate):
         return False
+
+    def mock_distro_os_release_attr_return_azure_linux_3(self, attribute):
+        return '3.0.0'
 
     def test_operation_fail_for_non_autopatching_request(self):
         # Test for non auto patching request
@@ -689,6 +693,49 @@ class TestCoreMain(unittest.TestCase):
         runtime.stop()
 
         LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
+
+    def test_install_all_packages_for_azure_linux_strict_sdp(self):
+        # backups
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        backup_distro_os_release_attr = distro.os_release_attr
+
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_azure_linux
+        distro.os_release_attr = self.mock_distro_os_release_attr_return_azure_linux_3
+
+        argument_composer = ArgumentComposer()
+        classifications_to_include = ["Security", "Critical"]
+        argument_composer.maximum_duration = "PT3H"
+        argument_composer.classifications_to_include = classifications_to_include
+        argument_composer.patches_to_include = ["MaxPatchPublishDate=20250210T000000Z", "AzGPS_Mitigation_Mode_No_SLA"]
+        argument_composer.reboot_setting = 'Always'
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
+        runtime.set_legacy_test_type("HappyPath")
+        CoreMain(argument_composer.get_composed_arguments())
+
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "1739174400")
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 4)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
+        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "")
+        self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        runtime.stop()
+
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
+        distro.os_release_attr = backup_distro_os_release_attr
 
     # test with both assessment mode and patch mode set in configure patching or install patches or assess patches or auto assessment
     def test_auto_assessment_success_with_configure_patching_in_prev_operation_on_same_sequence(self):

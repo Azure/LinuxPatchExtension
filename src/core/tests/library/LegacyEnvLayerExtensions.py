@@ -626,6 +626,24 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("systemctl disable ") > -1:
                         code = 0
                         output = 'Auto update service disabled'
+                    elif cmd.find("rpm -q tdnf") > -1:
+                        code = 0
+                        output = '3.5.8-3'
+                    elif cmd.find('tdnf -y upgrade') > -1:
+                        code = 0
+                        output = "Loaded plugin: tdnfrepogpgcheck\n" + \
+                                 "Upgrading:\n" + \
+                                 "azurelinux-release          noarch             3.0-16.azl3             azurelinux-official-base  847.91k               403.29k\n" + \
+                                 "azurelinux-repos-ms-oss     noarch             3.0-3.azl3              azurelinux-official-base  382.51k               258.06k\n\n" + \
+                                 "libseccomp                  x86_64             2.5.4-1.azl3            azurelinux-official-base  847.91k               403.29k\n" + \
+                                 "python3                     x86_64             3.12.3-6.azl3           azurelinux-official-base  382.51k               258.06k\n\n" + \
+                                 "libxml2                     x86_64             2.11.5-1.azl3           azurelinux-official-base  847.91k               403.29k\n" + \
+                                 "dracut                      x86_64             102-7.azl3              azurelinux-official-base  382.51k               258.06k\n\n" + \
+                                 "hyperv-daemons-license      noarch             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
+                                 "hypervvssd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  382.51k               258.06k\n\n" + \
+                                 "hypervkvpd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
+                                 "Total installed size:   1.20M\n" + \
+                                 "Total download size: 661.34k\n"
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0

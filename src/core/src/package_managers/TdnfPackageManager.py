@@ -95,7 +95,6 @@ class TdnfPackageManager(PackageManager):
     @staticmethod
     def __generate_command(command_template, snapshotposixtime=str()):
         # type: (str, str) -> str
-
         if snapshotposixtime == str():
             return command_template.replace('<SNAPSHOTTIME>', str())
         else:
@@ -247,7 +246,7 @@ class TdnfPackageManager(PackageManager):
             self.set_max_patch_publish_date()  # fall-back
             return False
         else:
-            if self.is_miminum_tdnf_version_for_strict_sdp_installed():
+            if self.is_minimum_tdnf_version_for_strict_sdp_installed():
                 self.composite_logger.log_debug("[TDNF] Minimum tdnf version for strict safe deployment is installed.")
                 return True
             else:
@@ -259,14 +258,15 @@ class TdnfPackageManager(PackageManager):
                     return False
                 return True
 
-    def is_miminum_tdnf_version_for_strict_sdp_installed(self):
+    def is_minimum_tdnf_version_for_strict_sdp_installed(self):
         """Check if  at least the minimum required version of TDNF is installed"""
         self.composite_logger.log_debug("[TDNF] Checking if minimum TDNF version required for strict safe deployment is installed...")
         tdnf_version = self.get_tdnf_version()
+        minimum_tdnf_version_for_strict_sdp = re.match(r"(\d+\.\d+\.\d+-\d+)", Constants.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP).group(1)
         if tdnf_version is None:
             self.composite_logger.log_error("[TDNF] Failed to get TDNF version. Cannot proceed with strict safe deployment. Defaulting to regular upgrades.")
             return False
-        elif not self.version_comparator.compare_versions(tdnf_version, Constants.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP) >= 0:
+        elif not self.version_comparator.compare_versions(tdnf_version, minimum_tdnf_version_for_strict_sdp) >= 0:
             self.composite_logger.log_warning("[TDNF] TDNF version installed is less than the minimum required version. [InstalledVersion={0}][MinimumRequiredVersion={1}]".format(tdnf_version, Constants.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP))
             return False
         return True

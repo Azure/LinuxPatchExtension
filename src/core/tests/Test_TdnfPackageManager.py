@@ -27,6 +27,7 @@ from core.src.bootstrap.Constants import Constants
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
+from core.src.external_dependencies import distro
 
 
 class TestTdnfPackageManager(unittest.TestCase):
@@ -46,6 +47,38 @@ class TestTdnfPackageManager(unittest.TestCase):
 
     def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
+
+    def mock_run_command_output_return_tdnf_3(self, cmd, no_output=False, chk_err=True):
+        """ Mock for run_command_output to return tdnf 3 """
+        return 0, "3.5.8-3\n"
+
+    def mock_run_command_output_return_1(self, cmd, no_output=False, chk_err=True):
+        """ Mock for run_command_output to return None """
+        return 1, "No output available\n"
+
+    def mock_run_command_output_return_0(self, cmd, no_output=False, chk_err=True):
+        return 0, "Successfully executed command\n"
+
+    def mock_get_tdnf_version_return_tdnf_3_5_8_3(self):
+        return "3.5.8-3"
+
+    def mock_get_tdnf_version_return_tdnf_4_0(self):
+        return "4.0.0-1"
+
+    def mock_get_tdnf_version_return_tdnf_2_5(self):
+        return "2.5.0-1"
+
+    def mock_get_tdnf_version_return_tdnf_3_5_8_2(self):
+        return "3.5.8-2.azl3"
+
+    def mock_get_tdnf_version_return_None(self):
+        return None
+
+    def mock_distro_os_release_attr_return_azure_linux_3(self, attribute):
+        return '3.0.0'
+
+    def mock_distro_os_release_attr_return_azure_linux_2(self, attribute):
+        return '2.9.0'
     # endregion
 
     # region Utility Functions
@@ -852,6 +885,113 @@ class TestTdnfPackageManager(unittest.TestCase):
                 sys.stdout = original_stdout
                 self.__assert_std_io(captured_output=captured_output, expected_output=testcase["stdio"]["expected_output"])
             self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(testcase["assertions"]["config_exists"]), config_value_expected=testcase["assertions"]["config_value_expected"])
+
+    def test_set_max_patch_publish_date(self):
+        """Unit test for tdnf package manager set_max_patch_publish_date method"""
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+
+        input_output_table_for_successful_cases = [
+            ["20240702T000000Z", "1719903600"],
+            ["", ""]
+        ]
+        for row in input_output_table_for_successful_cases:
+            package_manager.set_max_patch_publish_date(row[0])
+            self.assertEqual(package_manager.max_patch_publish_date, row[1])
+
+        # posix time computation throws an exception if the date is not in the correct format
+        self.assertRaises(ValueError, package_manager.set_max_patch_publish_date, "2024-07-02T00:00:00Z")
+
+    def test_get_tdnf_version(self):
+        """Unit test for tdnf package manager get_tdnf_version method"""
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+        self.backup_run_command_output = self.runtime.env_layer.run_command_output
+
+        test_input_output_table = [
+            [self.mock_run_command_output_return_tdnf_3, "3.5.8-3"],
+            [self.mock_run_command_output_return_1, None],
+        ]
+
+        for row in test_input_output_table:
+            self.runtime.env_layer.run_command_output = row[0]
+            version = package_manager.get_tdnf_version()
+            self.assertEqual(version, row[1])
+
+        self.runtime.env_layer.run_command_output = self.backup_run_command_output
+
+    def test_is_mininum_tdnf_version_for_strict_sdp_installed(self):
+        """Unit test for tdnf package manager is_minimum_tdnf_version method"""
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+
+        self.backup_get_tdnf_version = package_manager.get_tdnf_version
+
+        test_input_output_table = [
+            [self.mock_get_tdnf_version_return_tdnf_2_5, False],
+            [self.mock_get_tdnf_version_return_tdnf_3_5_8_2, False],
+            [self.mock_get_tdnf_version_return_tdnf_3_5_8_3, True],
+            [self.mock_get_tdnf_version_return_tdnf_4_0, True],
+            [self.mock_get_tdnf_version_return_None, False]
+        ]
+
+        for row in test_input_output_table:
+            package_manager.get_tdnf_version = row[0]
+            result = package_manager.is_minimum_tdnf_version_for_strict_sdp_installed()
+            self.assertEqual(result, row[1])
+
+        package_manager.get_tdnf_version = self.backup_get_tdnf_version
+
+    def test_attempt_tdnf_update_to_meet_strict_sdp_requirements(self):
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+
+        self.backup_run_command_output = self.runtime.env_layer.run_command_output
+
+        input_output_table = [
+            [self.mock_run_command_output_return_0, True],
+            [self.mock_run_command_output_return_1, False],
+        ]
+
+        for row in input_output_table:
+            self.runtime.env_layer.run_command_output = row[0]
+            result = package_manager.attempt_tdnf_update_to_meet_strict_sdp_requirements()
+            self.assertEqual(result, row[1])
+
+        self.runtime.env_layer.run_command_output = self.backup_run_command_output
+
+    def test_meets_azgps_coordinated_requirements(self):
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+
+        # backup methods
+        self.backup_distro_os_release_attr = distro.os_release_attr
+        self.backup_get_tdnf_version = package_manager.get_tdnf_version
+        self.backup_run_command_output = self.runtime.env_layer.run_command_output
+
+        """ test cases:
+                    1. Azure Linux 3 with tdnf version > 3.5.8-3
+                    2. Azure Linux 3 with tdnf version = 3.5.8-3
+                    3. Azure Linux 3 with tdnf version < 3.5.8-3, will be updated to 3.5.8-3 successfully
+                    4. Azure Linux 3 with tdnf version < 3.5.8-3, will not be updated to 3.5.8-3
+                    5. Azure Linux 2"""
+        test_input_output_table = [
+            [self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_4_0, self.backup_run_command_output, True],
+            [self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_3_5_8_3, self.backup_run_command_output, True],
+            [self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_2_5, self.mock_run_command_output_return_0, True],
+            [self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_2_5, self.mock_run_command_output_return_1, False],
+            [self.mock_distro_os_release_attr_return_azure_linux_2, self.backup_distro_os_release_attr, self.backup_run_command_output, False]
+        ]
+
+        for row in test_input_output_table:
+            # set test case values
+            distro.os_release_attr = row[0]
+            package_manager.get_tdnf_version = row[1]
+            self.runtime.env_layer.run_command_output = row[2]
+
+            # run test case
+            result = package_manager.meets_azgps_coordinated_requirements()
+            self.assertEqual(result, row[3])
 
 
 if __name__ == '__main__':
