@@ -892,7 +892,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.assertTrue(package_manager is not None)
 
         input_output_table_for_successful_cases = [
-            ["20240702T000000Z", "1719903600"],
+            ["20240702T000000Z", "1719878400"],
             ["", ""]
         ]
         for row in input_output_table_for_successful_cases:

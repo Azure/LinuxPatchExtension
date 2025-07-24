@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 
 from __future__ import print_function
+
 import datetime
 import glob
 import os
@@ -412,6 +413,12 @@ class EnvLayer(object):
             """ Converts string of given format to posix datetime string.
                 type: (str, str) -> int"""
             # eg: Input: datetime_string: 20241220T000000Z (str), format_string: '%Y%m%dT%H%M%SZ' -> Output: 1734681600 (str)
-            datetime_object = datetime.datetime.strptime(datetime_string, format_string)
-            return int(time.mktime(datetime_object.timetuple()))
+
+            # Parse the datetime string
+            dt = datetime.datetime.strptime(datetime_string, format_string)
+
+            # Convert to POSIX time assuming UTC
+            epoch = datetime.datetime(1970, 1, 1)
+            return int((dt - epoch).total_seconds())
+
 # endregion - DateTime emulator and extensions

@@ -712,7 +712,7 @@ class TestCoreMain(unittest.TestCase):
         runtime.set_legacy_test_type("HappyPath")
         CoreMain(argument_composer.get_composed_arguments())
 
-        self.assertEqual(runtime.package_manager.max_patch_publish_date, "1739174400")
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "1739145600")
 
         # check telemetry events
         self.__check_telemetry_events(runtime)
