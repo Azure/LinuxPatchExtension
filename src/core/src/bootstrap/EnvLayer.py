@@ -55,6 +55,7 @@ class EnvLayer(object):
         if self.is_distro_azure_linux(str(self.platform.linux_distribution())):
             code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
+                print("[EL] Package manager found. [PM=tdnf][Code={0}][Out={1}]".format(str(code), out))
                 return Constants.TDNF
             else:
                 print("Error: Expected package manager tdnf not found on this Azure Linux VM.")
@@ -67,6 +68,7 @@ class EnvLayer(object):
         for entry in package_manager_map:
             code, out = self.run_command_output('which ' + entry[0], False, False)
             if code == 0:
+                print("[EL] Package manager found. [PM={0}][Code={1}][Out={2}]".format(entry[0], str(code), out))
                 return entry[1]
 
         return str()
@@ -396,4 +398,4 @@ class EnvLayer(object):
         def standard_datetime_to_utc(std_datetime):
             """ Converts datetime object to string of format '"%Y-%m-%dT%H:%M:%SZ"' """
             return std_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
-# endregion - DateTime emulator and extensions
+# endregion - DateTime extensions

@@ -113,11 +113,11 @@ class ConfigurationFactory(object):
     def get_configuration(self, env, package_manager_name):
         """ Gets the final configuration for a given env and package manager. """
         if str(env) not in [Constants.DEV, Constants.TEST, Constants.PROD]:
-            print ("Error: Environment configuration not supported - " + str(env))
+            print("Error: Environment configuration not supported - " + str(env))
             return None
 
         if str(package_manager_name) not in [Constants.APT, Constants.TDNF, Constants.YUM, Constants.ZYPPER]:
-            print ("Error: Package manager configuration not supported - " + str(package_manager_name))
+            print("Error: Package manager configuration not supported - " + str(package_manager_name))
             return None
 
         configuration_key = str.lower('{0}_{1}_config'.format(str(package_manager_name), str(env)))
