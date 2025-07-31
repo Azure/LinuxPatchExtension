@@ -45,6 +45,9 @@ class TestTdnfPackageManager(unittest.TestCase):
     def mock_linux_distribution_to_return_azure_linux(self):
         return ['Microsoft Azure Linux', '3.0', '']
 
+    def mock_linux_distribution_to_return_azure_linux_2(self):
+        return ['Common Base Linux Mariner', '2.0', '']
+
     def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
 
@@ -60,16 +63,19 @@ class TestTdnfPackageManager(unittest.TestCase):
         return 0, "Successfully executed command\n"
 
     def mock_get_tdnf_version_return_tdnf_3_5_8_3(self):
-        return "3.5.8-3"
+        return "3.5.8-3.azl3"
 
     def mock_get_tdnf_version_return_tdnf_4_0(self):
-        return "4.0.0-1"
+        return "4.0.0-1.azl3"
 
     def mock_get_tdnf_version_return_tdnf_2_5(self):
-        return "2.5.0-1"
+        return "2.5.0-1.cm2"
 
     def mock_get_tdnf_version_return_tdnf_3_5_8_2(self):
         return "3.5.8-2.azl3"
+
+    def mock_get_tdnf_version_return_tdnf_3_5_8_6_cm2(self):
+        return "3.5.8-6.cm2"
 
     def mock_get_tdnf_version_return_None(self):
         return None
@@ -928,11 +934,12 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.backup_get_tdnf_version = package_manager.get_tdnf_version
 
         test_input_output_table = [
+            [self.mock_get_tdnf_version_return_None, False],
             [self.mock_get_tdnf_version_return_tdnf_2_5, False],
             [self.mock_get_tdnf_version_return_tdnf_3_5_8_2, False],
+            [self.mock_get_tdnf_version_return_tdnf_3_5_8_6_cm2, False],
             [self.mock_get_tdnf_version_return_tdnf_3_5_8_3, True],
-            [self.mock_get_tdnf_version_return_tdnf_4_0, True],
-            [self.mock_get_tdnf_version_return_None, False]
+            [self.mock_get_tdnf_version_return_tdnf_4_0, True]
         ]
 
         for row in test_input_output_table:
@@ -942,7 +949,7 @@ class TestTdnfPackageManager(unittest.TestCase):
 
         package_manager.get_tdnf_version = self.backup_get_tdnf_version
 
-    def test_attempt_tdnf_update_to_meet_strict_sdp_requirements(self):
+    def test_try_tdnf_update_to_meet_strict_sdp_requirements(self):
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager is not None)
 
@@ -955,7 +962,7 @@ class TestTdnfPackageManager(unittest.TestCase):
 
         for row in input_output_table:
             self.runtime.env_layer.run_command_output = row[0]
-            result = package_manager.attempt_tdnf_update_to_meet_strict_sdp_requirements()
+            result = package_manager.try_tdnf_update_to_meet_strict_sdp_requirements()
             self.assertEqual(result, row[1])
 
         self.runtime.env_layer.run_command_output = self.backup_run_command_output
@@ -965,6 +972,7 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.assertTrue(package_manager is not None)
 
         # backup methods
+        self.backup_linux_distribution = self.runtime.env_layer.platform.linux_distribution
         self.backup_distro_os_release_attr = distro.os_release_attr
         self.backup_get_tdnf_version = package_manager.get_tdnf_version
         self.backup_run_command_output = self.runtime.env_layer.run_command_output
@@ -976,22 +984,29 @@ class TestTdnfPackageManager(unittest.TestCase):
                     4. Azure Linux 3 with tdnf version < 3.5.8-3, will not be updated to 3.5.8-3
                     5. Azure Linux 2"""
         test_input_output_table = [
-            [self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_4_0, self.backup_run_command_output, True],
-            [self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_3_5_8_3, self.backup_run_command_output, True],
-            [self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_2_5, self.mock_run_command_output_return_0, True],
-            [self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_2_5, self.mock_run_command_output_return_1, False],
-            [self.mock_distro_os_release_attr_return_azure_linux_2, self.backup_distro_os_release_attr, self.backup_run_command_output, False]
+            [self.mock_linux_distribution_to_return_azure_linux, self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_4_0, self.backup_run_command_output, True],
+            [self.mock_linux_distribution_to_return_azure_linux, self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_3_5_8_3, self.backup_run_command_output, True],
+            [self.mock_linux_distribution_to_return_azure_linux, self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_2_5, self.mock_run_command_output_return_0, True],
+            [self.mock_linux_distribution_to_return_azure_linux, self.mock_distro_os_release_attr_return_azure_linux_3, self.mock_get_tdnf_version_return_tdnf_2_5, self.mock_run_command_output_return_1, False],
+            [self.mock_linux_distribution_to_return_azure_linux_2, self.mock_distro_os_release_attr_return_azure_linux_2, self.backup_distro_os_release_attr, self.backup_run_command_output, False]
         ]
 
         for row in test_input_output_table:
             # set test case values
-            distro.os_release_attr = row[0]
-            package_manager.get_tdnf_version = row[1]
-            self.runtime.env_layer.run_command_output = row[2]
+            self.runtime.env_layer.platform.linux_distribution = row[0]
+            distro.os_release_attr = row[1]
+            package_manager.get_tdnf_version = row[2]
+            self.runtime.env_layer.run_command_output = row[3]
 
             # run test case
             result = package_manager.meets_azgps_coordinated_requirements()
-            self.assertEqual(result, row[3])
+            self.assertEqual(result, row[4])
+
+        # restore original methods
+        self.runtime.env_layer.platform.linux_distribution = self.backup_linux_distribution
+        distro.os_release_attr = self.backup_distro_os_release_attr
+        package_manager.get_tdnf_version = self.backup_get_tdnf_version
+        self.runtime.env_layer.run_command_output = self.backup_run_command_output
 
 
 if __name__ == '__main__':

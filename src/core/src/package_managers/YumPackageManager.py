@@ -268,7 +268,8 @@ class YumPackageManager(PackageManager):
         pass
 
     def meets_azgps_coordinated_requirements(self):
-        return
+        # type: () -> bool
+        return False
     # endregion
 
     # region Package Information

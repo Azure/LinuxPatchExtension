@@ -106,21 +106,24 @@ class TestExecutionConfig(unittest.TestCase):
         platform.system = self.backup_platform_system
 
     def test_is_distro_azure_linux_3_or_beyond(self):
+        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.backup_envlayer_distro_os_release_attr = distro.os_release_attr
 
         test_input_output_table = [
-            [self.mock_distro_os_release_attr_return_azure_linux_3, True],
-            [self.mock_distro_os_release_attr_return_azure_linux_2, False],
-            [self.mock_distro_os_release_attr_return_none, False]
+            [self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_azure_linux_3, True],
+            [self.mock_linux_distribution_to_return_azure_linux_2, self.mock_distro_os_release_attr_return_azure_linux_2, False],
+            [self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_none, False]
         ]
 
         for row in test_input_output_table:
-            distro.os_release_attr = row[0]
+            self.envlayer.platform.linux_distribution = row[0]
+            distro.os_release_attr = row[1]
             result = self.envlayer.is_distro_azure_linux_3_or_beyond()
-            self.assertEqual(result, row[1])
+            self.assertEqual(result, row[2])
 
         # restore original methods
         distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
+        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
 
     def test_filesystem(self):
         # only validates if these invocable without exceptions

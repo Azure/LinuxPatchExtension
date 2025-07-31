@@ -490,6 +490,7 @@ class AptitudePackageManager(PackageManager):
         return code, out
 
     def meets_azgps_coordinated_requirements(self):
+        # type: () -> bool
         return True
     # endregion
 

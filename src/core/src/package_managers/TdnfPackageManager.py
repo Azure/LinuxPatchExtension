@@ -71,6 +71,9 @@ class TdnfPackageManager(PackageManager):
         # commands for DNF Automatic updates service
         self.__init_constants_for_dnf_automatic()
 
+        # AzLinux3 Package Manager.
+        self.azl3_tdnf_packagemanager = self.AzL3TdnfPackageManager()
+
         # Miscellaneous
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.TDNF)
         self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
@@ -93,7 +96,7 @@ class TdnfPackageManager(PackageManager):
 
     # region Strict SDP using SnapshotTime
     @staticmethod
-    def __generate_command(command_template, snapshotposixtime=str()):
+    def __generate_command_with_snapshotposixtime_if_specified(command_template, snapshotposixtime=str()):
         # type: (str, str) -> str
         if snapshotposixtime == str():
             return command_template.replace('<SNAPSHOTTIME>', str())
@@ -128,7 +131,7 @@ class TdnfPackageManager(PackageManager):
             self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
-        out = self.invoke_package_manager(self.__generate_command(self.tdnf_check, self.max_patch_publish_date))
+        out = self.invoke_package_manager(self.__generate_command_with_snapshotposixtime_if_specified(self.tdnf_check, self.max_patch_publish_date))
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
         self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
         return self.all_updates_cached, self.all_update_versions_cached
@@ -143,17 +146,7 @@ class TdnfPackageManager(PackageManager):
     def get_other_updates(self):
         """Get missing other updates."""
         self.composite_logger.log_verbose("[TDNF] Discovering 'other' packages...")
-        other_packages, other_package_versions = [], []
-
-        all_packages, all_package_versions = self.get_all_updates(True)
-        security_packages, security_package_versions = self.get_security_updates()
-        for index, package in enumerate(all_packages):
-            if package not in security_packages:
-                other_packages.append(package)
-                other_package_versions.append(all_package_versions[index])
-
-        self.composite_logger.log_debug("[TDNF] Discovered 'other' packages. [Count={0}]".format(len(other_packages)))
-        return other_packages, other_package_versions
+        return [], []
 
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         """Set the max patch publish date in POSIX time for strict SDP"""
@@ -233,11 +226,12 @@ class TdnfPackageManager(PackageManager):
 
     def install_security_updates_azgps_coordinated(self):
         """Install security updates in Azure Linux following strict SDP"""
-        command = self.__generate_command(self.install_security_updates_azgps_coordinated_cmd, self.max_patch_publish_date)
+        command = self.__generate_command_with_snapshotposixtime_if_specified(self.install_security_updates_azgps_coordinated_cmd, self.max_patch_publish_date)
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
 
     def meets_azgps_coordinated_requirements(self):
+        # type: () -> bool
         """ Check if the system meets the requirements for Azure Linux strict safe deployment and attempt to update TDNF if necessary """
         self.composite_logger.log_debug("[TDNF] Checking if system meets Azure Linux security updates requirements...")
         # Check if the system is Azure Linux 3.0 or beyond
@@ -250,7 +244,7 @@ class TdnfPackageManager(PackageManager):
                 self.composite_logger.log_debug("[TDNF] Minimum tdnf version for strict safe deployment is installed.")
                 return True
             else:
-                if not self.attempt_tdnf_update_to_meet_strict_sdp_requirements():
+                if not self.try_tdnf_update_to_meet_strict_sdp_requirements():
                     error_msg = "Failed to meet minimum TDNF version requirement for strict safe deployment. Defaulting to regular upgrades."
                     self.composite_logger.log_error(error_msg + "[Error={0}]".format(repr(error_msg)))
                     self.status_handler.add_error_to_status(error_msg)
@@ -259,42 +253,49 @@ class TdnfPackageManager(PackageManager):
                 return True
 
     def is_minimum_tdnf_version_for_strict_sdp_installed(self):
+        # type: () -> bool
         """Check if  at least the minimum required version of TDNF is installed"""
         self.composite_logger.log_debug("[TDNF] Checking if minimum TDNF version required for strict safe deployment is installed...")
         tdnf_version = self.get_tdnf_version()
-        minimum_tdnf_version_for_strict_sdp = re.match(r"(\d+\.\d+\.\d+-\d+)", Constants.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP).group(1)
+        minimum_tdnf_version_for_strict_sdp = self.azl3_tdnf_packagemanager.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP
+        distro_from_minimum_tdnf_version_for_strict_sdp = re.match(r".*-\d+\.([a-zA-Z0-9]+)$", minimum_tdnf_version_for_strict_sdp).group(1)
         if tdnf_version is None:
             self.composite_logger.log_error("[TDNF] Failed to get TDNF version. Cannot proceed with strict safe deployment. Defaulting to regular upgrades.")
             return False
+        elif re.match(r".*-\d+\.([a-zA-Z0-9]+)$", tdnf_version).group(1) != distro_from_minimum_tdnf_version_for_strict_sdp:
+            self.composite_logger.log_warning("[TDNF] TDNF version installed is not from the same Azure Linux distribution as the minimum required version for strict SDP. [InstalledVersion={0}][MinimumRequiredVersion={1}]".format(tdnf_version, self.azl3_tdnf_packagemanager.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP))
+            return False
         elif not self.version_comparator.compare_versions(tdnf_version, minimum_tdnf_version_for_strict_sdp) >= 0:
-            self.composite_logger.log_warning("[TDNF] TDNF version installed is less than the minimum required version. [InstalledVersion={0}][MinimumRequiredVersion={1}]".format(tdnf_version, Constants.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP))
+            self.composite_logger.log_warning("[TDNF] TDNF version installed is less than the minimum required version for strict SDP. [InstalledVersion={0}][MinimumRequiredVersion={1}]".format(tdnf_version, self.azl3_tdnf_packagemanager.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP))
             return False
         return True
 
     def get_tdnf_version(self):
+        # type: () -> any
         """Get the version of TDNF installed on the system"""
         self.composite_logger.log_debug("[TDNF] Getting tdnf version...")
-        cmd = "rpm -q tdnf | sed -E 's/tdnf-([0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+).*/\\1/'"
+        cmd = "rpm -q tdnf | sed -E 's/^tdnf-([0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+\\.[a-zA-Z0-9]+).*/\\1/'"
         code, output = self.env_layer.run_command_output(cmd, False, False)
         if code == 0:
-            # Sample output: 3.5.8-3
+            # Sample output: 3.5.8-3-azl3
             version = output.split()[0] if output else None
-            self.composite_logger.log_debug("[TDNF] Installed TDNF version [Version={0}]".format(version))
+            self.composite_logger.log_debug("[TDNF] TDNF version detected. [Version={0}]".format(version))
             return version
         else:
             self.composite_logger.log_error("[TDNF] Failed to get TDNF version. [Command={0}][Code={1}][Output={2}]".format(cmd, code, output))
             return None
 
-    def attempt_tdnf_update_to_meet_strict_sdp_requirements(self):
+    def try_tdnf_update_to_meet_strict_sdp_requirements(self):
+        # type: () -> bool
         """Attempt to update TDNF to meet the minimum version required for strict SDP"""
         self.composite_logger.log_debug("[TDNF] Attempting to update TDNF to meet strict safe deployment requirements...")
-        cmd = "sudo tdnf -y install tdnf-" + Constants.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP
+        cmd = "sudo tdnf -y install tdnf-" + self.azl3_tdnf_packagemanager.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP
         code, output = self.env_layer.run_command_output(cmd, no_output=True, chk_err=False)
         if code == 0:
-            self.composite_logger.log_debug("[TDNF] Successfully updated TDNF. [Command={0}][Code={1}]".format(cmd, code))
+            self.composite_logger.log_debug("[TDNF] Successfully updated TDNF for Strict SDP. [Command={0}][Code={1}]".format(cmd, code))
             return True
         else:
-            self.composite_logger.log_error("[TDNF] Failed to update TDNF. [Command={0}][Code={1}][Output={2}]".format(cmd, code, output))
+            self.composite_logger.log_error("[TDNF] Failed to update TDNF for Strict SDP. [Command={0}][Code={1}][Output={2}]".format(cmd, code, output))
             return False
     # endregion
 
@@ -406,10 +407,9 @@ class TdnfPackageManager(PackageManager):
             package_names += package
 
         cmd = self.single_package_upgrade_simulation_cmd + package_names
-        self.composite_logger.log_verbose("[TDNF] Resolving dependencies. [Command={0}]".format(str(cmd)))
         output = self.invoke_package_manager(cmd)
         dependencies = self.extract_dependencies(output, packages)
-        self.composite_logger.log_verbose("[TDNF] Resolved dependencies. [Packages={0}][DependencyCount={1}]".format(str(packages), len(dependencies)))
+        self.composite_logger.log_verbose("[TDNF] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd),str(packages), len(dependencies)))
         return dependencies
 
     def get_product_name(self, package_name):
@@ -828,4 +828,10 @@ class TdnfPackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
+
+    # region - AzLinux specilizations
+    class AzL3TdnfPackageManager(object):
+        """AzLinux Package Manager class for TDNF package manager."""
+        def __init__(self):
+            self.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP = "3.5.8-3.azl3"  # minimum version of tdnf required to support Strict SDP in Azure Linux
 

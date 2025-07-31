@@ -205,8 +205,6 @@ class Constants(object):
     YUM = 'yum'
     ZYPPER = 'zypper'
 
-    TDNF_MINIMUM_VERSION_FOR_STRICT_SDP = "3.5.8-3.azl3" # minimum version of tdnf required to support Strict SDP
-
     # Package Statuses
     INSTALLED = 'Installed'
     FAILED = 'Failed'
@@ -349,7 +347,7 @@ class Constants(object):
     TELEMETRY_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Azure Linux Agent version. To resolve: http://aka.ms/UpdateLinuxAgent"
     TELEMETRY_COMPATIBLE_MSG = "Minimum Azure Linux Agent version prerequisite met"
     PYTHON_NOT_COMPATIBLE_ERROR_MSG = "Unsupported older Python version. Minimum Python version required is 2.7. [DetectedPythonVersion={0}]"
-    INFO_STRICT_SDP_SUCCESS = "Success: Safely patched your VM in a AzGPS-coordinated global rollout. https://aka.ms/AzGPS/StrictSDP [Target={0}]" # TBD: the link is specific to Canonical, we need a generic one or one link of each distro
+    INFO_STRICT_SDP_SUCCESS = "Success: Safely patched your VM in a AzGPS-coordinated global rollout. https://aka.ms/AzGPS/StrictSDP [Target={0}]" # aka.ms link to be distro-agnostic
     UTC_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
     # EnvLayer Constants

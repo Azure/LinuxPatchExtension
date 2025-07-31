@@ -47,14 +47,14 @@ class EnvLayer(object):
     def is_distro_azure_linux(distro_name):
         return any(x in distro_name for x in Constants.AZURE_LINUX)
 
-    @staticmethod
-    def is_distro_azure_linux_3_or_beyond():
+    def is_distro_azure_linux_3_or_beyond(self):
         # type: () -> bool
         """ Checks if the current distro is Azure Linux 3 """
-
-        version = distro.os_release_attr('version')
-        major = version.split('.')[0] if version else None
-        return major is not None and int(major) >= 3
+        if self.is_distro_azure_linux(self.platform.linux_distribution()):
+            version = distro.os_release_attr('version')
+            major = version.split('.')[0] if version else None
+            return major is not None and int(major) >= 3
+        return False
 
     def get_package_manager(self):
         # type: () -> str
@@ -410,8 +410,8 @@ class EnvLayer(object):
 
         @staticmethod
         def datetime_string_to_posix_time(datetime_string, format_string):
-            """ Converts string of given format to posix datetime string.
-                type: (str, str) -> int"""
+            # type: (str, str) -> int
+            """ Converts string of given format to posix datetime string. """
             # eg: Input: datetime_string: 20241220T000000Z (str), format_string: '%Y%m%dT%H%M%SZ' -> Output: 1734681600 (str)
 
             # Parse the datetime string

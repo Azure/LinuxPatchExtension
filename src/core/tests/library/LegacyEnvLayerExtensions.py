@@ -628,7 +628,7 @@ class LegacyEnvLayerExtensions():
                         output = 'Auto update service disabled'
                     elif cmd.find("rpm -q tdnf") > -1:
                         code = 0
-                        output = '3.5.8-3'
+                        output = '3.5.8-3.azl3'
                     elif cmd.find('tdnf -y upgrade') > -1:
                         code = 0
                         output = "Loaded plugin: tdnfrepogpgcheck\n" + \
