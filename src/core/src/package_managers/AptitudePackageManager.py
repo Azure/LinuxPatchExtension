@@ -489,7 +489,7 @@ class AptitudePackageManager(PackageManager):
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
 
-    def meets_azgps_coordinated_requirements(self):
+    def try_meet_azgps_coordinated_requirements(self):
         # type: () -> bool
         return True
     # endregion

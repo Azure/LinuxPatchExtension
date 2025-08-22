@@ -967,7 +967,7 @@ class TestTdnfPackageManager(unittest.TestCase):
 
         self.runtime.env_layer.run_command_output = self.backup_run_command_output
 
-    def test_meets_azgps_coordinated_requirements(self):
+    def test_try_meet_azgps_coordinated_requirements(self):
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager is not None)
 
@@ -999,7 +999,7 @@ class TestTdnfPackageManager(unittest.TestCase):
             self.runtime.env_layer.run_command_output = row[3]
 
             # run test case
-            result = package_manager.meets_azgps_coordinated_requirements()
+            result = package_manager.try_meet_azgps_coordinated_requirements()
             self.assertEqual(result, row[4])
 
         # restore original methods

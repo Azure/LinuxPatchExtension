@@ -80,7 +80,7 @@ class PatchInstaller(object):
         if self.execution_config.max_patch_publish_date != str():
             self.package_manager.set_max_patch_publish_date(self.execution_config.max_patch_publish_date)
 
-        if self.package_manager.max_patch_publish_date != str() and self.package_manager.meets_azgps_coordinated_requirements():
+        if self.package_manager.max_patch_publish_date != str() and self.package_manager.try_meet_azgps_coordinated_requirements():
             """ Strict SDP with the package manager that supports it """
             installed_update_count, update_run_successful, maintenance_window_exceeded = self.install_updates_azgps_coordinated(maintenance_window, package_manager, simulate)
             package_manager.set_package_manager_setting(Constants.PACKAGE_MGR_SETTING_REPEAT_PATCH_OPERATION, bool(not update_run_successful))

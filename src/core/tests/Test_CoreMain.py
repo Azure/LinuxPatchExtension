@@ -24,10 +24,10 @@ import uuid
 
 from core.src.CoreMain import CoreMain
 from core.src.bootstrap.Constants import Constants
+from core.src.external_dependencies import distro
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.LegacyEnvLayerExtensions import LegacyEnvLayerExtensions
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
-from core.src.external_dependencies import distro
 
 
 class TestCoreMain(unittest.TestCase):

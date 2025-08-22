@@ -348,7 +348,7 @@ class PackageManager(object):
         pass
 
     @abstractmethod
-    def meets_azgps_coordinated_requirements(self):
+    def try_meet_azgps_coordinated_requirements(self):
         # type: () -> bool
         """ Returns true if the package manager meets the requirements for azgps coordinated security updates """
         return False

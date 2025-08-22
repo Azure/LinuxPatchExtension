@@ -96,12 +96,12 @@ class TdnfPackageManager(PackageManager):
 
     # region Strict SDP using SnapshotTime
     @staticmethod
-    def __generate_command_with_snapshotposixtime_if_specified(command_template, snapshotposixtime=str()):
+    def __generate_command_with_snapshotposixtime_if_specified(command_template, snapshot_posix_time=str()):
         # type: (str, str) -> str
-        if snapshotposixtime == str():
+        if snapshot_posix_time == str():
             return command_template.replace('<SNAPSHOTTIME>', str())
         else:
-            return command_template.replace('<SNAPSHOTTIME>', ('--snapshottime={0}'.format(str(snapshotposixtime))))
+            return command_template.replace('<SNAPSHOTTIME>', ('--snapshottime={0}'.format(str(snapshot_posix_time))))
     # endregion
 
     # region Get Available Updates
@@ -230,7 +230,7 @@ class TdnfPackageManager(PackageManager):
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
 
-    def meets_azgps_coordinated_requirements(self):
+    def try_meet_azgps_coordinated_requirements(self):
         # type: () -> bool
         """ Check if the system meets the requirements for Azure Linux strict safe deployment and attempt to update TDNF if necessary """
         self.composite_logger.log_debug("[TDNF] Checking if system meets Azure Linux security updates requirements...")
@@ -829,7 +829,7 @@ class TdnfPackageManager(PackageManager):
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
 
-    # region - AzLinux specilizations
+    # region - AzLinux specializations
     class AzL3TdnfPackageManager(object):
         """AzLinux Package Manager class for TDNF package manager."""
         def __init__(self):

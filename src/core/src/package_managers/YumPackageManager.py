@@ -267,7 +267,7 @@ class YumPackageManager(PackageManager):
     def install_security_updates_azgps_coordinated(self):
         pass
 
-    def meets_azgps_coordinated_requirements(self):
+    def try_meet_azgps_coordinated_requirements(self):
         # type: () -> bool
         return False
     # endregion
