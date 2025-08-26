@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 
 from __future__ import print_function
+
 import datetime
 import glob
 import os
@@ -45,6 +46,15 @@ class EnvLayer(object):
     @staticmethod
     def is_distro_azure_linux(distro_name):
         return any(x in distro_name for x in Constants.AZURE_LINUX)
+
+    def is_distro_azure_linux_3_or_beyond(self):
+        # type: () -> bool
+        """ Checks if the current distro is Azure Linux 3 """
+        if self.is_distro_azure_linux(self.platform.linux_distribution()):
+            version = distro.os_release_attr('version')
+            major = version.split('.')[0] if version else None
+            return major is not None and int(major) >= 3
+        return False
 
     def get_package_manager(self):
         # type: () -> str
@@ -242,6 +252,7 @@ class EnvLayer(object):
         @staticmethod
         def vm_name():     # machine name
             return platform.node()
+
 # endregion - Platform extensions
 
 # region - File system extensions
@@ -396,4 +407,18 @@ class EnvLayer(object):
         def standard_datetime_to_utc(std_datetime):
             """ Converts datetime object to string of format '"%Y-%m-%dT%H:%M:%SZ"' """
             return std_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        @staticmethod
+        def datetime_string_to_posix_time(datetime_string, format_string):
+            # type: (str, str) -> int
+            """ Converts string of given format to posix datetime string. """
+            # eg: Input: datetime_string: 20241220T000000Z (str), format_string: '%Y%m%dT%H%M%SZ' -> Output: 1734681600 (str)
+
+            # Parse the datetime string
+            dt = datetime.datetime.strptime(datetime_string, format_string)
+
+            # Convert to POSIX time assuming UTC
+            epoch = datetime.datetime(1970, 1, 1)
+            return int((dt - epoch).total_seconds())
+
 # endregion - DateTime emulator and extensions

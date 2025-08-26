@@ -488,6 +488,10 @@ class AptitudePackageManager(PackageManager):
         command = self.__generate_command_with_custom_sources(self.install_security_updates_azgps_coordinated_cmd, source_parts=source_parts, source_list=source_list)
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
+
+    def try_meet_azgps_coordinated_requirements(self):
+        # type: () -> bool
+        return True
     # endregion
 
     # region Package Information
