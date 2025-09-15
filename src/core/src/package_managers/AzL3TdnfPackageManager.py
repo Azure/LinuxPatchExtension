@@ -24,11 +24,11 @@ from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
 
-class TdnfPackageManager(PackageManager):
+class AzL3TdnfPackageManager(PackageManager):
     """Implementation of Azure Linux package management operations"""
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
-        super(TdnfPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
+        super(AzL3TdnfPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         self.cmd_clean_cache = "sudo tdnf clean expire-cache"
         self.cmd_repo_refresh = "sudo tdnf -q list updates"
@@ -71,8 +71,8 @@ class TdnfPackageManager(PackageManager):
         # commands for DNF Automatic updates service
         self.__init_constants_for_dnf_automatic()
 
-        # AzLinux3 Package Manager.
-        self.azl3_tdnf_packagemanager = self.AzL3TdnfPackageManager()
+        # Strict SDP specializations
+        self.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP = "3.5.8-3.azl3"  # minimum version of tdnf required to support Strict SDP in Azure Linux
 
         # Miscellaneous
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.TDNF)
@@ -257,16 +257,16 @@ class TdnfPackageManager(PackageManager):
         """Check if  at least the minimum required version of TDNF is installed"""
         self.composite_logger.log_debug("[TDNF] Checking if minimum TDNF version required for strict safe deployment is installed...")
         tdnf_version = self.get_tdnf_version()
-        minimum_tdnf_version_for_strict_sdp = self.azl3_tdnf_packagemanager.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP
+        minimum_tdnf_version_for_strict_sdp = self.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP
         distro_from_minimum_tdnf_version_for_strict_sdp = re.match(r".*-\d+\.([a-zA-Z0-9]+)$", minimum_tdnf_version_for_strict_sdp).group(1)
         if tdnf_version is None:
             self.composite_logger.log_error("[TDNF] Failed to get TDNF version. Cannot proceed with strict safe deployment. Defaulting to regular upgrades.")
             return False
         elif re.match(r".*-\d+\.([a-zA-Z0-9]+)$", tdnf_version).group(1) != distro_from_minimum_tdnf_version_for_strict_sdp:
-            self.composite_logger.log_warning("[TDNF] TDNF version installed is not from the same Azure Linux distribution as the minimum required version for strict SDP. [InstalledVersion={0}][MinimumRequiredVersion={1}]".format(tdnf_version, self.azl3_tdnf_packagemanager.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP))
+            self.composite_logger.log_warning("[TDNF] TDNF version installed is not from the same Azure Linux distribution as the minimum required version for strict SDP. [InstalledVersion={0}][MinimumRequiredVersion={1}]".format(tdnf_version, self.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP))
             return False
         elif not self.version_comparator.compare_versions(tdnf_version, minimum_tdnf_version_for_strict_sdp) >= 0:
-            self.composite_logger.log_warning("[TDNF] TDNF version installed is less than the minimum required version for strict SDP. [InstalledVersion={0}][MinimumRequiredVersion={1}]".format(tdnf_version, self.azl3_tdnf_packagemanager.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP))
+            self.composite_logger.log_warning("[TDNF] TDNF version installed is less than the minimum required version for strict SDP. [InstalledVersion={0}][MinimumRequiredVersion={1}]".format(tdnf_version, self.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP))
             return False
         return True
 
@@ -289,7 +289,7 @@ class TdnfPackageManager(PackageManager):
         # type: () -> bool
         """Attempt to update TDNF to meet the minimum version required for strict SDP"""
         self.composite_logger.log_debug("[TDNF] Attempting to update TDNF to meet strict safe deployment requirements...")
-        cmd = "sudo tdnf -y install tdnf-" + self.azl3_tdnf_packagemanager.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP
+        cmd = "sudo tdnf -y install tdnf-" + self.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP
         code, output = self.env_layer.run_command_output(cmd, no_output=True, chk_err=False)
         if code == 0:
             self.composite_logger.log_debug("[TDNF] Successfully updated TDNF for Strict SDP. [Command={0}][Code={1}]".format(cmd, code))
@@ -828,10 +828,4 @@ class TdnfPackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
-
-    # region - AzLinux specializations
-    class AzL3TdnfPackageManager(object):
-        """AzLinux Package Manager class for TDNF package manager."""
-        def __init__(self):
-            self.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP = "3.5.8-3.azl3"  # minimum version of tdnf required to support Strict SDP in Azure Linux
 
