@@ -30,7 +30,7 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 from core.src.external_dependencies import distro
 
 
-class TestTdnfPackageManager(unittest.TestCase):
+class TestAzL3TdnfPackageManager(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
