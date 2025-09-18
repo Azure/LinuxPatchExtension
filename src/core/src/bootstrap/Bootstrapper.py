@@ -122,7 +122,7 @@ class Bootstrapper(object):
         return lifecycle_manager, status_handler
 
     def bootstrap_splash_text(self):
-        self.composite_logger.log("\n\n[%exec_name%] \t -- \t Copyright (c) Microsoft Corporation. All rights reserved. \nApplication version: 3.0.[%exec_sub_ver%]\n\n")
+        self.composite_logger.log("\n\n[%exec_name%] \t -- \t Copyright (c) Microsoft Corporation. All rights reserved. \nBuild Date: [%exec_build_date%]\n\n")
 
     def basic_environment_health_check(self):
         self.composite_logger.log("Python version: " + " ".join(sys.version.splitlines()))
