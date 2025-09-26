@@ -19,7 +19,7 @@ import json
 import os
 import re
 
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.bootstrap.Constants import Constants
 from core.src.package_managers.PackageManager import PackageManager
@@ -716,13 +716,33 @@ class TdnfPackageManager(PackageManager):
         return False
     # endregion
 
-    @abstractmethod
+    def get_tdnf_version(self):
+        # type: () -> any
+        """Get the version of TDNF installed on the system"""
+        self.composite_logger.log_debug("[TDNF] Getting tdnf version...")
+        cmd = "rpm -q tdnf | sed -E 's/^tdnf-([0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+\\.[a-zA-Z0-9]+).*/\\1/'"
+        code, output = self.env_layer.run_command_output(cmd, False, False)
+        if code == 0:
+            # Sample output: 3.5.8-3-azl3
+            version = output.split()[0] if output else None
+            self.composite_logger.log_debug("[TDNF] TDNF version detected. [Version={0}]".format(version))
+            return version
+        else:
+            self.composite_logger.log_error("[TDNF] Failed to get TDNF version. [Command={0}][Code={1}][Output={2}]".format(cmd, code, output))
+            return None
+
     def set_security_esm_package_status(self, operation, packages):
+        """ Set the security-ESM classification for the esm packages. Only needed for apt. No-op for tdnf, yum and zypper."""
         pass
 
-    @abstractmethod
     def separate_out_esm_packages(self, packages, package_versions):
-        pass
+        """Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
+        Only needed for apt. No-op for tdnf, yum and zypper"""
+        esm_packages = []
+        esm_package_versions = []
+        esm_packages_found = False
+
+        return packages, package_versions, esm_packages, esm_package_versions, esm_packages_found
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds

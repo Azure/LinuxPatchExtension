@@ -145,21 +145,6 @@ class AzL3TdnfPackageManager(TdnfPackageManager):
             return False
         return True
 
-    def get_tdnf_version(self):
-        # type: () -> any
-        """Get the version of TDNF installed on the system"""
-        self.composite_logger.log_debug("[AzL3TDNF] Getting tdnf version...")
-        cmd = "rpm -q tdnf | sed -E 's/^tdnf-([0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+\\.[a-zA-Z0-9]+).*/\\1/'"
-        code, output = self.env_layer.run_command_output(cmd, False, False)
-        if code == 0:
-            # Sample output: 3.5.8-3-azl3
-            version = output.split()[0] if output else None
-            self.composite_logger.log_debug("[AzL3TDNF] TDNF version detected. [Version={0}]".format(version))
-            return version
-        else:
-            self.composite_logger.log_error("[AzL3TDNF] Failed to get TDNF version. [Command={0}][Code={1}][Output={2}]".format(cmd, code, output))
-            return None
-
     def try_tdnf_update_to_meet_strict_sdp_requirements(self):
         # type: () -> bool
         """Attempt to update TDNF to meet the minimum version required for strict SDP"""
@@ -173,17 +158,4 @@ class AzL3TdnfPackageManager(TdnfPackageManager):
             self.composite_logger.log_error("[AzL3TDNF] Failed to update TDNF for Strict SDP. [Command={0}][Code={1}][Output={2}]".format(cmd, code, output))
             return False
     # endregion
-
-    def set_security_esm_package_status(self, operation, packages):
-        """ Set the security-ESM classification for the esm packages. Only needed for apt. No-op for tdnf, yum and zypper."""
-        pass
-
-    def separate_out_esm_packages(self, packages, package_versions):
-        """Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
-        Only needed for apt. No-op for tdnf, yum and zypper"""
-        esm_packages = []
-        esm_package_versions = []
-        esm_packages_found = False
-
-        return packages, package_versions, esm_packages, esm_package_versions, esm_packages_found
 
