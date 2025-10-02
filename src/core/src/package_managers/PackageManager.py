@@ -349,9 +349,8 @@ class PackageManager(object):
 
     @abstractmethod
     def try_meet_azgps_coordinated_requirements(self):
-        # type: () -> bool
         """ Returns true if the package manager meets the requirements for azgps coordinated security updates """
-        return False
+        pass
     # endregion
 
     # region Package Information
