@@ -47,33 +47,13 @@ class AzL3TdnfPackageManager(TdnfPackageManager):
             self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on Azure Linux machines")
             execution_config.included_classifications_list = [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER]
 
-    # region Strict SDP using SnapshotTime
-    def _Base__add_additional_parameters_as_required_to_cmd(self, cmd):
-        if self.max_patch_publish_date == str():
-            return cmd
-        else:
-            return cmd + ' --snapshottime={0}'.format(str(self.max_patch_publish_date))
-
     # region Get Available Updates
     # region Classification-based (incl. All) update check
-    def get_all_updates(self, cached=False):
-        """Get all missing updates"""
-        self.composite_logger.log_verbose("[AzL3TDNF] Discovering all packages...")
-        if cached and not len(self.all_updates_cached) == 0:
-            self.composite_logger.log_debug("[AzL3TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
-            return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
-
-        out = self.invoke_package_manager(self._Base__add_additional_parameters_as_required_to_cmd(self.tdnf_check))
-        self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
-        self.composite_logger.log_debug("[AzL3TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
-        return self.all_updates_cached, self.all_update_versions_cached
-
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         """Set the max patch publish date in POSIX time for strict SDP"""
         self.max_patch_publish_date = str(self.env_layer.datetime.datetime_string_to_posix_time(max_patch_publish_date, '%Y%m%dT%H%M%SZ')) if max_patch_publish_date != str() else max_patch_publish_date
         self.composite_logger.log_debug("[AzL3TDNF] Set max patch publish date in posix time for Strict SDP. [MaxPatchPublishDate={0}][MaxPatchPublishDatePosixTime={1}]".format(str(max_patch_publish_date), str(self.max_patch_publish_date)))
     # endregion
-
     # endregion
 
     # region Install Updates
@@ -82,7 +62,7 @@ class AzL3TdnfPackageManager(TdnfPackageManager):
 
     def install_security_updates_azgps_coordinated(self):
         """Install security updates in Azure Linux following strict SDP"""
-        command = self._Base__add_additional_parameters_as_required_to_cmd(self.install_security_updates_azgps_coordinated_cmd)
+        command = self.add_additional_parameters_as_required_to_cmd(self.install_security_updates_azgps_coordinated_cmd)
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
 

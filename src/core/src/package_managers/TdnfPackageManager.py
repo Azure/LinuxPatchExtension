@@ -112,7 +112,7 @@ class TdnfPackageManager(PackageManager):
             self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
-        out = self.invoke_package_manager(self.__add_additional_parameters_as_required_to_cmd(self.tdnf_check))
+        out = self.invoke_package_manager(self.add_additional_parameters_as_required_to_cmd(self.tdnf_check))
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
         self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
         return self.all_updates_cached, self.all_update_versions_cached
@@ -129,12 +129,15 @@ class TdnfPackageManager(PackageManager):
         self.composite_logger.log_verbose("[TDNF] Discovering 'other' packages...")
         return [], []
 
+    @abstractmethod
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
-        self.composite_logger.log_debug("[TDNF] Setting max patch publish date. [Date={0}]".format(str()))
-        self.max_patch_publish_date = str()
+        pass
 
-    def __add_additional_parameters_as_required_to_cmd(self, cmd):
-        return cmd
+    def add_additional_parameters_as_required_to_cmd(self, cmd):
+        if self.max_patch_publish_date == str():
+            return cmd
+        else:
+            return cmd + ' --snapshottime={0}'.format(str(self.max_patch_publish_date))
     # endregion
 
     # region Output Parser(s)
