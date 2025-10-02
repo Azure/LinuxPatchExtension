@@ -29,11 +29,8 @@ class AzL3TdnfPackageManager(TdnfPackageManager):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         super(AzL3TdnfPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
 
-        # Support to get updates and their dependencies
-        self.tdnf_check = 'sudo tdnf -q list updates <SNAPSHOTTIME>'
-
         # Install update
-        self.install_security_updates_azgps_coordinated_cmd = 'sudo tdnf -y upgrade --skip-broken <SNAPSHOTTIME>'
+        self.install_security_updates_azgps_coordinated_cmd = 'sudo tdnf -y upgrade --skip-broken'
 
         # Strict SDP specializations
         self.TDNF_MINIMUM_VERSION_FOR_STRICT_SDP = "3.5.8-3.azl3"  # minimum version of tdnf required to support Strict SDP in Azure Linux
@@ -51,14 +48,11 @@ class AzL3TdnfPackageManager(TdnfPackageManager):
             execution_config.included_classifications_list = [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER]
 
     # region Strict SDP using SnapshotTime
-    @staticmethod
-    def __generate_command_with_snapshotposixtime_if_specified(command_template, snapshot_posix_time=str()):
-        # type: (str, str) -> str
-        if snapshot_posix_time == str():
-            return command_template.replace('<SNAPSHOTTIME>', str())
+    def _Base__add_additional_parameters_as_required_to_cmd(self, cmd):
+        if self.max_patch_publish_date == str():
+            return cmd
         else:
-            return command_template.replace('<SNAPSHOTTIME>', ('--snapshottime={0}'.format(str(snapshot_posix_time))))
-    # endregion
+            return cmd + ' --snapshottime={0}'.format(str(self.max_patch_publish_date))
 
     # region Get Available Updates
     # region Classification-based (incl. All) update check
@@ -69,28 +63,15 @@ class AzL3TdnfPackageManager(TdnfPackageManager):
             self.composite_logger.log_debug("[AzL3TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
-        out = self.invoke_package_manager(self.__generate_command_with_snapshotposixtime_if_specified(self.tdnf_check, self.max_patch_publish_date))
+        out = self.invoke_package_manager(self._Base__add_additional_parameters_as_required_to_cmd(self.tdnf_check))
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
         self.composite_logger.log_debug("[AzL3TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
         return self.all_updates_cached, self.all_update_versions_cached
 
-    def get_security_updates(self):
-        """Get missing security updates. NOTE: Classification based categorization of patches is not available in Azure Linux as of now"""
-        self.composite_logger.log_verbose("[AzL3TDNF] Discovering all packages as 'security' packages, since TDNF does not support package classification...")
-        security_packages, security_package_versions = self.get_all_updates(cached=False)
-        self.composite_logger.log_debug("[AzL3TDNF] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
-        return security_packages, security_package_versions
-
-    def get_other_updates(self):
-        """Get missing other updates."""
-        self.composite_logger.log_verbose("[AzL3TDNF] Discovering 'other' packages...")
-        return [], []
-
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         """Set the max patch publish date in POSIX time for strict SDP"""
-        self.composite_logger.log_debug("[AzL3TDNF] Setting max patch publish date. [MaxPatchPublishDate={0}]".format(str(max_patch_publish_date)))
         self.max_patch_publish_date = str(self.env_layer.datetime.datetime_string_to_posix_time(max_patch_publish_date, '%Y%m%dT%H%M%SZ')) if max_patch_publish_date != str() else max_patch_publish_date
-        self.composite_logger.log_debug("[AzL3TDNF] Set max patch publish date. [MaxPatchPublishDatePosixTime={0}]".format(str(self.max_patch_publish_date)))
+        self.composite_logger.log_debug("[AzL3TDNF] Set max patch publish date in posix time for Strict SDP. [MaxPatchPublishDate={0}][MaxPatchPublishDatePosixTime={1}]".format(str(max_patch_publish_date), str(self.max_patch_publish_date)))
     # endregion
 
     # endregion
@@ -101,7 +82,7 @@ class AzL3TdnfPackageManager(TdnfPackageManager):
 
     def install_security_updates_azgps_coordinated(self):
         """Install security updates in Azure Linux following strict SDP"""
-        command = self.__generate_command_with_snapshotposixtime_if_specified(self.install_security_updates_azgps_coordinated_cmd, self.max_patch_publish_date)
+        command = self._Base__add_additional_parameters_as_required_to_cmd(self.install_security_updates_azgps_coordinated_cmd)
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         return code, out
 

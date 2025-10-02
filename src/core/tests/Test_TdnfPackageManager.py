@@ -28,7 +28,7 @@ from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
-class TestAzL3TdnfPackageManager(unittest.TestCase):
+class TestTdnfPackageManager(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.TDNF)
         self.container = self.runtime.container
@@ -42,6 +42,14 @@ class TestAzL3TdnfPackageManager(unittest.TestCase):
 
     def mock_write_with_retry_raise_exception(self, file_path_or_handle, data, mode='a+'):
         raise Exception
+
+    def mock_run_command_output_return_tdnf_3(self, cmd, no_output=False, chk_err=True):
+        """ Mock for run_command_output to return tdnf 3 """
+        return 0, "3.5.8-3\n"
+
+    def mock_run_command_output_return_1(self, cmd, no_output=False, chk_err=True):
+        """ Mock for run_command_output to return None """
+        return 1, "No output available\n"
     # endregion
 
     # region Utility Functions
@@ -449,6 +457,23 @@ class TestAzL3TdnfPackageManager(unittest.TestCase):
                 self.__assert_std_io(captured_output=captured_output, expected_output=testcase["stdio"]["expected_output"])
             self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(testcase["assertions"]["config_exists"]), config_value_expected=testcase["assertions"]["config_value_expected"])
 
+    def test_get_tdnf_version(self):
+        """Unit test for tdnf package manager get_tdnf_version method"""
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+        self.backup_run_command_output = self.runtime.env_layer.run_command_output
+
+        test_input_output_table = [
+            [self.mock_run_command_output_return_tdnf_3, "3.5.8-3"],
+            [self.mock_run_command_output_return_1, None],
+        ]
+
+        for row in test_input_output_table:
+            self.runtime.env_layer.run_command_output = row[0]
+            version = package_manager.get_tdnf_version()
+            self.assertEqual(version, row[1])
+
+        self.runtime.env_layer.run_command_output = self.backup_run_command_output
 
     def test_package_manager_no_updates(self):
         """Unit test for tdnf package manager with no updates"""

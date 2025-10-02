@@ -19,7 +19,7 @@ import json
 import os
 import re
 
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.bootstrap.Constants import Constants
 from core.src.package_managers.PackageManager import PackageManager
@@ -35,6 +35,7 @@ class TdnfPackageManager(PackageManager):
         self.cmd_repo_refresh = "sudo tdnf -q list updates"
 
         # Support to get updates and their dependencies
+        self.tdnf_check = 'sudo tdnf -q list updates'
         self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME> '
         self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME> '
         self.single_package_upgrade_simulation_cmd = 'sudo tdnf install --assumeno --skip-broken '
@@ -77,6 +78,8 @@ class TdnfPackageManager(PackageManager):
 
         self.package_install_expected_avg_time_in_seconds = 90  # Setting a default value of 90 seconds as the avg time to install a package using tdnf, might be changed later if needed.
 
+    __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
+
     def refresh_repo(self):
         self.composite_logger.log("[TDNF] Refreshing local repo...")
         self.invoke_package_manager(self.cmd_clean_cache)
@@ -102,23 +105,36 @@ class TdnfPackageManager(PackageManager):
         return out, code
 
     # region Classification-based (incl. All) update check
-    @abstractmethod
     def get_all_updates(self, cached=False):
-        """Same behavior as get_available_updates, but higher performance with no filters"""
-        pass
-        return [], []  # only here to suppress a static syntax validation problem
+        """Get all missing updates"""
+        self.composite_logger.log_verbose("[TDNF] Discovering all packages...")
+        if cached and not len(self.all_updates_cached) == 0:
+            self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
+            return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
-    @abstractmethod
+        out = self.invoke_package_manager(self.__add_additional_parameters_as_required_to_cmd(self.tdnf_check))
+        self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
+        self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
+        return self.all_updates_cached, self.all_update_versions_cached
+
     def get_security_updates(self):
-        pass
+        """Get missing security updates. NOTE: Classification based categorization of patches is not available in Azure Linux as of now"""
+        self.composite_logger.log_verbose("[TDNF] Discovering all packages as 'security' packages, since TDNF does not support package classification...")
+        security_packages, security_package_versions = self.get_all_updates(cached=False)
+        self.composite_logger.log_debug("[TDNF] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
+        return security_packages, security_package_versions
 
-    @abstractmethod
     def get_other_updates(self):
-        pass
+        """Get missing other updates."""
+        self.composite_logger.log_verbose("[TDNF] Discovering 'other' packages...")
+        return [], []
 
-    @abstractmethod
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
-        pass
+        self.composite_logger.log_debug("[TDNF] Setting max patch publish date. [Date={0}]".format(str()))
+        self.max_patch_publish_date = str()
+
+    def __add_additional_parameters_as_required_to_cmd(self, cmd):
+        return cmd
     # endregion
 
     # region Output Parser(s)
@@ -195,7 +211,6 @@ class TdnfPackageManager(PackageManager):
     def install_security_updates_azgps_coordinated(self):
         pass
 
-    @abstractmethod
     def try_meet_azgps_coordinated_requirements(self):
         # type: () -> bool
         """ Returns true if the package manager meets the requirements for azgps coordinated security updates """

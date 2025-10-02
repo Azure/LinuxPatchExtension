@@ -44,10 +44,6 @@ class TestAzL3TdnfPackageManager(unittest.TestCase):
     def mock_linux_distribution_to_return_azure_linux_2(self):
         return ['Common Base Linux Mariner', '2.0', '']
 
-    def mock_run_command_output_return_tdnf_3(self, cmd, no_output=False, chk_err=True):
-        """ Mock for run_command_output to return tdnf 3 """
-        return 0, "3.5.8-3\n"
-
     def mock_run_command_output_return_1(self, cmd, no_output=False, chk_err=True):
         """ Mock for run_command_output to return None """
         return 1, "No output available\n"
@@ -118,24 +114,6 @@ class TestAzL3TdnfPackageManager(unittest.TestCase):
 
         # posix time computation throws an exception if the date is not in the correct format
         self.assertRaises(ValueError, package_manager.set_max_patch_publish_date, "2024-07-02T00:00:00Z")
-
-    def test_get_tdnf_version(self):
-        """Unit test for tdnf package manager get_tdnf_version method"""
-        package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
-        self.backup_run_command_output = self.runtime.env_layer.run_command_output
-
-        test_input_output_table = [
-            [self.mock_run_command_output_return_tdnf_3, "3.5.8-3"],
-            [self.mock_run_command_output_return_1, None],
-        ]
-
-        for row in test_input_output_table:
-            self.runtime.env_layer.run_command_output = row[0]
-            version = package_manager.get_tdnf_version()
-            self.assertEqual(version, row[1])
-
-        self.runtime.env_layer.run_command_output = self.backup_run_command_output
 
     def test_is_mininum_tdnf_version_for_strict_sdp_installed(self):
         """Unit test for tdnf package manager is_minimum_tdnf_version method"""
