@@ -99,8 +99,8 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
         # Checks swapping and caching: All -> Security -> All -> All
         for i in range(3):
             # All
-            expected_debstyle_entry_count = 2 if include_source_parts_debstyle else 0   # 2 entries in the debstyle mock
-            expected_sources_list_entry_count = (4 if include_sources_list else 0) + (5 if include_source_parts_list else 0)    # 4 in regular file, 3 in mock folder
+            expected_debstyle_entry_count = 3 if include_source_parts_debstyle else 0   # 3 entries in the debstyle mock (incl. fips-updates)
+            expected_sources_list_entry_count = (4 if include_sources_list else 0) + (6 if include_source_parts_list else 0)    # 4 in regular file, 6 in mock folder (incl. fips-updates)
             sources_dir, sources_list = package_manager._AptitudePackageManager__get_custom_sources_to_spec(include_max_patch_publish_date)
             self.__check_custom_sources(sources_dir, sources_list,
                                         sources_debstyle_expected=include_source_parts_debstyle,
@@ -115,8 +115,8 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
                 continue
 
             # Security
-            expected_debstyle_entry_count = 1 if include_source_parts_debstyle else 0   # 1 security entry in the debstyle mock
-            expected_sources_list_entry_count = (1 if include_sources_list else 0) + (1 if include_source_parts_list else 0)    # 1 security entry in regular file, 1 security entry in mock folder
+            expected_debstyle_entry_count = 2 if include_source_parts_debstyle else 0   # 2 security entries in the debstyle mock (security + fips-updates)
+            expected_sources_list_entry_count = (1 if include_sources_list else 0) + (2 if include_source_parts_list else 0)    # 1 security entry in regular file, 2 security entries in mock folder (security + fips-updates)
             sources_dir, sources_list = package_manager._AptitudePackageManager__get_custom_sources_to_spec(include_max_patch_publish_date, "Security")
             self.__check_custom_sources(sources_dir, sources_list,
                                         sources_debstyle_expected=include_source_parts_debstyle,
@@ -146,8 +146,8 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
                 self.assertEqual(len(data), sources_debstyle_entry_count)
                 for entry in data:
                     if security_only:
-                        self.assertTrue("security" in entry)
-                    if max_patch_publish_date != str():
+                        self.assertTrue("security" in entry or "fips-updates" in entry)
+                    if max_patch_publish_date != str() and "fips-updates" not in entry:  # exception for unsupported repo
                         self.assertTrue(max_patch_publish_date in entry)
         else:
             self.assertFalse(os.path.isdir(sources_dir))
@@ -159,8 +159,8 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
                 self.assertEqual(len(data), sources_list_entry_count)
                 for entry in data:
                     if security_only:
-                        self.assertTrue("security" in entry)
-                    if max_patch_publish_date != str() and "ppa" not in entry:  # exception for unsupported repo
+                        self.assertTrue("security" in entry or "fips-updates" in entry)
+                    if max_patch_publish_date != str() and "ppa" not in entry and "fips-updates" not in entry:  # exception for unsupported repo
                         self.assertTrue(max_patch_publish_date in entry)
 
     # region - Mock sources preparation and clean up
@@ -212,7 +212,8 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
                 "deb http://ppa.launchpad.net/upubuntu-com/web/ubuntu focal main\n" + \
                 "deb http://azure.archive.ubuntu.com/ubuntu/ focal-security universe\n" + \
                 "deb http://in.archive.ubuntu.com/ubuntu/ focal multiverse\n" + \
-                "deb http://cn.archive.ubuntu.com/ubuntu/ focal main\n"
+                "deb http://cn.archive.ubuntu.com/ubuntu/ focal main\n" + \
+                "deb https://esm.ubuntu.com/fips-updates/ubuntu jammy-updates main\n"
 
     @staticmethod
     def __get_sources_data_debstyle():
@@ -229,7 +230,13 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
                 "URIs: http://azure.archive.ubuntu.com/ubuntu/ \n" + \
                 "Suites: noble-security \n" + \
                 "Components: main universe restricted multiverse \n" + \
-                "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg \n"
+                "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg \n" + \
+                "\n" + \
+                "Types: deb \n" + \
+                "URIs: https://esm.ubuntu.com/fips-updates/ubuntu \n" + \
+                "Suites: jammy-updates \n" + \
+                "Components: main \n" + \
+                "Signed-By: /usr/share/keyrings/ubuntu-pro-fips-updates.gpg \n"
     # endregion
 
 if __name__ == '__main__':
