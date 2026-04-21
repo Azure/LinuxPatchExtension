@@ -23,6 +23,7 @@ import tempfile
 import time
 
 from core.src.bootstrap.Constants import Constants
+from extension.src.Utility import Utility
 
 
 class TelemetryWriter(object):
@@ -127,12 +128,17 @@ class TelemetryWriter(object):
         return events_folder_path is not None and os.path.exists(events_folder_path)
 
     def __new_event_json(self, event_level, message, task_name):
+        # Step 1: Apply message restrictions (formatting, truncation)
+        restricted_message = self.__ensure_message_restriction_compliance(message)
+        # Step 2: Sanitize credentials from URIs
+        sanitized_message = Utility.sanitize_credentials_from_uri(restricted_message)
+
         return {
             "Version": Constants.EXT_VERSION,
             "Timestamp": str(datetime.datetime.utcnow()),
             "TaskName": task_name,
             "EventLevel": event_level,
-            "Message": self.__ensure_message_restriction_compliance(message),
+            "Message": sanitized_message,
             "EventPid": "",
             "EventTid": "",
             "OperationId": self.__operation_id  # activity id from from config settings
@@ -160,6 +166,7 @@ class TelemetryWriter(object):
         except Exception as e:
             self.composite_logger.log_telemetry_module_error("Error occurred while formatting message for a telemetry event. [Error={0}]".format(repr(e)))
             raise
+
 
     def write_event_with_buffer(self, message, event_level, buffer_msg):
         if buffer_msg == Constants.BufferMessage.TRUE and (event_level == self.last_telemetry_event_level or self.last_telemetry_event_level is None):

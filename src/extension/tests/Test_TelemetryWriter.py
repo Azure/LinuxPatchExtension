@@ -158,10 +158,59 @@ class TestTelemetryWriter(unittest.TestCase):
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         os.listdir = backup_os_listdir
 
+    # ==================== Common Helper Method for Loading Event Files ====================
+    def _load_sanitized_event(self, message):
+        """
+        Common helper method to write event to telemetry and load the sanitized message.
+        The regex sanitization happens automatically in TelemetryWriter.
+
+        Args:
+            message: The message to write to telemetry
+
+        Returns:
+            The sanitized message from the event
+        """
+        if self.runtime.is_github_runner:
+            return None
+
+        # Write event to telemetry
+        self.telemetry_writer.write_event(message)
+
+        # Load the event file
+        event_files = os.listdir(self.telemetry_writer.events_folder_path)
+        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
+            events = json.load(f)
+            sanitized_message = events[0]["Message"]
+            f.close()
+            return sanitized_message
+
+    # ==================== Test cases for credential sanitization in telemetry messages ====================
+    def test_sanitize_credentials_multiple_repos(self):
+        """Test 2: Failed repo sync with multiple repo URLs containing different credentials"""
+        message = "Failed repo sync: https://user1:token1@repo1.example.com https://user2:token2@repo2.example.com/path"
+
+        sanitized_message = self._load_sanitized_event(message)
+        expected_message = "Failed repo sync: https://user1@repo1.example.com https://user2@repo2.example.com/path"
+        self.assertEqual(sanitized_message, expected_message)
+
+    def test_sanitize_credentials_username_only_no_password(self):
+        """Test 3: Using mirror with username only (no password)"""
+        message = "Using mirror https://testuser@repo.example.com/path"
+
+        sanitized_message = self._load_sanitized_event(message)
+        self.assertIn("testuser@repo.example.com", sanitized_message)
+
+    def test_sanitize_credentials_special_characters_in_password(self):
+        """Test 4: Downloading from repo with special characters in password"""
+        message = "Downloading from https://svc-user:AbC_123-.$%!@repo.contoso.com/rpm"
+
+        sanitized_message = self._load_sanitized_event(message)
+        self.assertNotIn("AbC_123-.$%!", sanitized_message)
+        self.assertIn("svc-user@repo.contoso.com", sanitized_message)
 
 if __name__ == '__main__':
-    SUITE = unittest.TestLoader().loadTestsFromTestCase(TestTelemetryWriter)
-    unittest.TextTestRunner(verbosity=2).run(SUITE)
+     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestTelemetryWriter)
+     unittest.TextTestRunner(verbosity=2).run(SUITE)
 
 
 

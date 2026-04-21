@@ -311,5 +311,44 @@ class TestTelemetryWriter(unittest.TestCase):
             f.close()
             self.assertTrue(text_found.string.startswith("Message 1"))
 
+    def test_sanitize_credentials_from_uri_in_telemetry(self):
+        """Test credential sanitization in telemetry events - credentials should be removed from URLs"""
+        message = "Error connecting to https://testuser:TESTTOKEN123456@invalid.repo.example/rpm/repodata/repomd.xml"
+        self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Sanitize")
+
+        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                             re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r') as f:
+            events = json.load(f)
+            telemetry_message = events[-1]["Message"]
+
+            # Token should be removed
+            self.assertFalse("TESTTOKEN123456" in telemetry_message, "Token should not be in telemetry message")
+            # Username should be preserved
+            self.assertTrue("testuser@invalid.repo.example" in telemetry_message, "Username should be preserved in telemetry")
+            # URL structure should be preserved
+            self.assertTrue("https://testuser@invalid.repo.example/rpm/repodata/repomd.xml" in telemetry_message,
+                          "Sanitized URL should be present in telemetry")
+            f.close()
+
+    def test_sanitize_multiple_credentials_in_telemetry(self):
+        """Test sanitization with multiple URLs containing credentials"""
+        message = "Failed fetching from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data"
+        self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Multiple")
+
+        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                             re.search('^[0-9]+.json$', pos_json)][-1]
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r') as f:
+            events = json.load(f)
+            telemetry_message = events[-1]["Message"]
+
+            # All passwords should be removed
+            self.assertFalse("pass1" in telemetry_message)
+            self.assertFalse("pass2" in telemetry_message)
+            # Usernames should be preserved
+            self.assertTrue("user1@host1.com" in telemetry_message)
+            self.assertTrue("user2@host2.com" in telemetry_message)
+            f.close()
+
 if __name__ == '__main__':
     unittest.main()

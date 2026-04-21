@@ -23,6 +23,7 @@ import tempfile
 import time
 
 from extension.src.Constants import Constants
+from extension.src.Utility import Utility
 
 
 class TelemetryWriter(object):
@@ -39,12 +40,17 @@ class TelemetryWriter(object):
         self.__task_name = Constants.TELEMETRY_TASK_NAME + self.__task_name_watermark
 
     def __new_event_json(self, event_level, message, task_name):
+        # Step 1: Apply message restrictions (formatting, truncation)
+        restricted_message = self.__ensure_message_restriction_compliance(message)
+        # Step 2: Sanitize credentials from URIs
+        sanitized_message = Utility.sanitize_credentials_from_uri(restricted_message)
+
         return {
             "Version": Constants.EXT_VERSION,
             "Timestamp": str(datetime.datetime.utcnow()),
             "TaskName": task_name,
             "EventLevel": event_level,
-            "Message": self.__ensure_message_restriction_compliance(message),
+            "Message": sanitized_message,
             "EventPid": "",
             "EventTid": "",
             "OperationId": self.__operation_id  # This should have activity id from from config settings, but since we only read settings file for enable command, enable command will have activity id set here and all non-enable commands will have this as a timestamp
@@ -67,6 +73,8 @@ class TelemetryWriter(object):
         except Exception as e:
             self.logger.log_telemetry_module_error("Error occurred while formatting message for a telemetry event. [Error={0}]".format(repr(e)))
             raise
+
+    # ...existing code...
 
     def __get_agent_supports_telemetry_from_env_var(self):
         """ Returns True if the env var AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES has a key of

@@ -16,6 +16,7 @@
 
 import datetime
 import os
+import re
 import time
 from extension.src.Constants import Constants
 from extension.src.local_loggers.FileLogger import FileLogger
@@ -67,4 +68,33 @@ class Utility(object):
     @staticmethod
     def get_str_from_datetime(date):
         return date.strftime(Constants.UTC_DATETIME_FORMAT)
+
+    @staticmethod
+    def sanitize_credentials_from_uri(message):
+        """ Sanitizes credential-like values from URIs.
+            Removes password/token from URI userinfo while preserving other details.
+            Example: https://user:token@host → https://user@host
+
+            Args:
+                message: The message string potentially containing URIs with credentials
+
+            Returns:
+                The message with credentials removed from URIs
+        """
+        try:
+            # Pattern matches: scheme://user:password@host  →  scheme://user@host
+            # Handles credentials containing special characters including @
+            # Groups:
+            # (1) scheme: https://, http://, or ftp://
+            # (2) username: one or more non-whitespace, non-slash, non-colon, non-@ characters
+            # (3) password: zero or more non-whitespace, non-slash, non-@ characters
+            sanitized_message = re.sub(
+                r'(https?://|ftp://)([^:/@\s]+):([^@/\s]*)@',
+                r'\1\2@',
+                message
+            )
+            return sanitized_message
+        except Exception as e:
+            # Return original message if sanitization fails
+            return message
 
