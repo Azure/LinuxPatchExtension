@@ -58,13 +58,21 @@ class PatchInstaller(object):
         self.raise_if_telemetry_unsupported()
         self.raise_if_min_python_version_not_met()
 
-        self.composite_logger.log("\nStarting patch installation... [MachineId: " + self.env_layer.platform.vm_name() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time + "][MaintenanceWindowDuration: " + self.execution_config.duration + "]")
-
-        self.stopwatch.start()
-
         maintenance_window = self.maintenance_window
         package_manager = self.package_manager
         reboot_manager = self.reboot_manager
+
+        # todo: Livepatching code
+        # check if livepatching is enabled,
+        # if yes, check if pro is attached
+        # set configdate, and launch livepatch client.
+        # fetch response and set it in patch installation status
+        if self.execution_config.livepatching_enabled:
+            package_manager.start_livepatching()
+
+        self.composite_logger.log("\nStarting patch installation... [MachineId: " + self.env_layer.platform.vm_name() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time + "][MaintenanceWindowDuration: " + self.execution_config.duration + "]")
+
+        self.stopwatch.start()
 
         # Early reboot if reboot is allowed by settings and required by the machine
         reboot_pending = self.package_manager.is_reboot_pending()

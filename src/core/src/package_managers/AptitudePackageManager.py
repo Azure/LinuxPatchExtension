@@ -91,6 +91,11 @@ class AptitudePackageManager(PackageManager):
         
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
+        # Livepatching service
+        self.set_cutoff_date_in_livepatch_config_cmd = "canonical-livepatch config cutoff-date=" + execution_config.max_patch_publish_date
+        self.launch_livepatch_client_cmd = "sudo systemctl restart snap.canonical-livepatch.canonical-livepatchd"
+        self.get_livepatch_status_cmd = "canonical-livepatch status --verbose --format json"
+
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
         # type: (str, str) -> (str, str)
@@ -838,6 +843,117 @@ class AptitudePackageManager(PackageManager):
         """ Fulfilling base class contract """
         return False
     # endregion Reboot Management
+
+    #region Livepatching
+    def start_livepatching(self):
+        """ Applies livepatches on the machine, if it's pre-req are met"""
+        if self.are_livepatching_prereq_met():
+            self.start_livepatching_on_machine()
+        else:
+            self.composite_logger.log_warning("[APM] Livepatching is not applied since the pre-requisites were not met")
+
+    def are_livepatching_prereq_met(self):
+        """ Validates whether livepatching prereqs are met.
+        Pre-reqs: Machine should be attached to a pro subscription and livepatching service should be enabled on the VM. """
+        self.composite_logger.log_debug("[APM] Checking if the machine is eligible to receive livepatches. NOTE: Livepatching is only available on Ubuntu LTS pro VMs and has to be in enabled state")
+        if not self.ubuntu_pro_client.is_livepatching_applicable_for_machine():
+            self.composite_logger.log_warning("[APM] Livepatching is not applicable for this machine, hence no livepatches will be installed")
+            return False
+
+        if not self.ubuntu_pro_client.is_livepatching_enabled_on_machine():
+            self.composite_logger.log_warning("[APM] Livepatching is not enabled for this machine, hence no livepatches will be installed."
+                " Please enable livepatching if you want AzGPS to apply livepatches on this machine")
+            return False
+
+        self.composite_logger.log_debug("[APM] All Livepatching pre-reqs are met. VM is eligible to receive livepatches")
+        return True
+
+    def start_livepatching_on_machine(self):
+        """Starts livepatching on the machine according to the configurations set in AzGPS and updates livepatch status in status blob"""
+        self.composite_logger.log_debug("[APM] Starting livepatching on the machine...")
+        if self.try_set_livepatch_cutoff_date_in_config():
+            self.launch_livepatch_client()
+
+        self.fetch_and_update_livepatch_status_in_status_blob()
+
+    def try_set_livepatch_cutoff_date_in_config(self):
+        self.composite_logger.log_debug("[APM] Attempting to set livepatch cutoff date in livepatch config")
+        try:
+            code, output = self.env_layer.run_command_output(self.set_cutoff_date_in_livepatch_config_cmd, False, False)
+            if code == 0:
+                self.composite_logger.log_debug("[APM] Successfully set cutoff date in livepatch config. [ConfigSet={0}]".format(str(output)))
+                return True
+        except Exception as error:
+            livepatch_config_update_exception = repr(error)
+            self.composite_logger.log_debug("[APM] Livepatch config update Exception: [Exception={0}]".format(livepatch_config_update_exception))
+        return False
+
+    def launch_livepatch_client(self):
+        """ Launch livepatch client manually as a best case effort to ensure livepatches are applied in a timely manner. If this fails, livepatches will still be applied but it will be up to the machine's cron to trigger it"""
+        self.composite_logger.log("[APM] Launching livepatch client...")
+        try:
+            code, output = self.env_layer.run_command_output(self.launch_livepatch_client_cmd, False, False)
+            if code == 0:
+                self.composite_logger.log_debug("[APM] Successfully launched livepatch client. [Output={0}]".format(str(output)))
+            else:
+                self.composite_logger.log_warning("[APM] Failed to launch livepatch client. [Output={0}]".format(str(output)))
+        except Exception as error:
+            livepatch_launch_exception = repr(error)
+            self.composite_logger.log_warning("[APM] Exception while launching livepatch client. [Exception={0}]".format(livepatch_launch_exception))
+
+    def fetch_and_update_livepatch_status_in_status_blob(self):
+        """Fetches livepatch status and if a livepatch/es is/are applied, updates it as a new patch entry in PatchInstallationSummary"""
+        livepatch_status = self.try_get_livepatch_status()
+        if livepatch_status is not {}:
+            self.update_livepatch_status_in_patch_installation_summary(livepatch_status)
+
+    def try_get_livepatch_status(self):
+        """ Attempts to fetch livepatch status and return it in json format """
+        self.composite_logger.log_debug("[APM] Fetching livepatch status...")
+        livepatch_status = {}
+        try:
+            code, output = self.env_layer.run_command_output(self.get_livepatch_status_cmd, False, False)
+            if code == 0:
+                livepatch_status = json.loads(output)
+                self.composite_logger.log_debug("[APM] Successfully fetched livepatch status. [Status={0}]".format(str(livepatch_status)))
+            else:
+                self.composite_logger.log_warning("[APM] Failed to fetch livepatch status. [Code={0}][Output={1}]".format(str(code), str(output)))
+        except Exception as error:
+            livepatch_status_fetch_exception = repr(error) # todo: applies everywhere, see if this should be logged as error in status blob. If not, refactor code
+            self.composite_logger.log_warning("[APM] Exception while fetching livepatch status. [Exception={0}]".format(livepatch_status_fetch_exception))
+        return livepatch_status
+
+    def update_livepatch_status_in_patch_installation_summary(self, livepatch_status):
+        """ Updates livepatch status in patch installation summary as a new patch record """
+        self.composite_logger.log_debug("[APM] Updating patch installation summary with livepatch status. [LivepatchStatus={0}]".format(str(livepatch_status)))
+        extracted_livepatch_fields = self.extract_livepatch_fields(livepatch_status)
+        check_state = extracted_livepatch_fields[0]["CheckState"]
+        state = extracted_livepatch_fields[0]["State"]
+        patch_name = "livepatch_" + check_state + "_" + state
+        patch_version = extracted_livepatch_fields[0]["PatchVersion"]
+
+        patch_status = Constants.NOT_SELECTED
+        if state.lower() == "applied":
+            patch_status = Constants.INSTALLED
+        self.status_handler.set_package_install_status(patch_name, patch_version, patch_status)
+
+    def extract_livepatch_fields(self, livepatch_status):
+        """ Returns CheckState, State, Version.
+        """
+        extracted = [] # todo: use a different datatype
+
+        for status_item in livepatch_status.get("Status", []):
+            if status_item.get("Running", False) == True and status_item.get("Supported", "unsupported").lower() == "supported":
+                livepatch = status_item.get("Livepatch", {})
+                extracted.append({
+                    "CheckState": livepatch.get("CheckState", ""),
+                    "State": livepatch.get("State", ""),
+                    "Version": livepatch.get("Version", "")
+                })
+                break
+
+        return extracted
+    # endregion Livepatching
 
     def is_reboot_pending(self):
         """ Checks if there is a pending reboot on the machine. """

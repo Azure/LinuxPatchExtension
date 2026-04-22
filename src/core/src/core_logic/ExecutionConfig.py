@@ -92,6 +92,11 @@ class ExecutionConfig(object):
         # EULA config
         self.accept_package_eula = self.__is_eula_accepted_for_all_patches()
 
+        # LivePatching config
+        self.livepatching_config_settings = self.__get_livepatching_config_in_json()
+        self.livepatching_enabled = self.__is_livepatching_enabled(self.livepatching_config_settings)
+        self.livepatch_only = self.__is_livepatch_only_enabled(self.livepatching_config_settings)
+
     def __transform_execution_config_for_auto_assessment(self):
         self.activity_id = str(uuid.uuid4())
         self.included_classifications_list = self.included_package_name_mask_list = self.excluded_package_name_mask_list = []
@@ -246,9 +251,9 @@ class ExecutionConfig(object):
         try:
             if os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS):
                 eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.EULA_SETTINGS) or 'null')
-                accept_eula_for_all_patches = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES)
-                accepted_by = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPTED_BY)
-                last_modified = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
+                accept_eula_for_all_patches = self.__fetch_specific_setting(eula_settings, Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES)
+                accepted_by = self.__fetch_specific_setting(eula_settings, Constants.EulaSettings.ACCEPTED_BY)
+                last_modified = self.__fetch_specific_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
                 if accept_eula_for_all_patches is not None and accept_eula_for_all_patches in [True, 'True', 'true', '1', 1]:
                     is_eula_accepted = True
                 self.composite_logger.log_debug("EULA config values from disk: [AcceptEULAForAllPatches={0}] [AcceptedBy={1}] [LastModified={2}]. Computed value of [IsEULAAccepted={3}]"
@@ -260,9 +265,48 @@ class ExecutionConfig(object):
 
         return is_eula_accepted
 
+    def __get_livepatching_config_in_json(self):
+        """ Reads customer provided config on live patching from disk and returns a dict with the config values.""
+            NOTE: This is a temporary solution and will be deprecated soon """
+        livepatching_config = dict()
+        try:
+            if os.path.exists(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS):
+                livepatching_config = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS) or 'null') or dict()
+                self.composite_logger.log_debug("Live patching config values from disk: [Config={0}]".format(str(livepatching_config)))
+            else:
+                self.composite_logger.log_debug("No live patching config found on the VM. Returning empty config.")
+        except Exception as error:
+            self.composite_logger.log_debug("Error occurred while reading and parsing live patching config. Returning empty config. Error=[{0}]".format(repr(error)))
+
+        return livepatching_config
+
+    def __is_livepatching_enabled(self, livepatching_settings):
+        """ Determines if livepatching is enabled or disabled. """
+        is_livepatching_enabled = False
+
+        enable_livepatching = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.ENABLE_LIVEPATCHING)
+        enabled_by = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.ENABLED_BY)
+        last_modified = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.LAST_MODIFIED)
+        if enable_livepatching is not None and enable_livepatching in [True, 'True', 'true', '1', 1]:
+            is_livepatching_enabled = True
+            self.composite_logger.log_debug("Livepatching config values from disk: [EnableLivePatching={0}] [EnabledBy={1}] [LastModified={2}]. Computed value of [IsLivePatchingEnabled={3}]"
+                                            .format(str(enable_livepatching), str(enabled_by), str(last_modified), str(is_livepatching_enabled)))
+        else:
+            self.composite_logger.log_debug("LivePatching is not enabled for the VM. Computed value of [IsLivePatchingEnabled={0}]".format(str(is_livepatching_enabled)))
+
+        return is_livepatching_enabled
+
+    def __is_livepatch_only_enabled(self, livepatching_settings):
+        """ Determines if customer has set config to only livepatch i.e. no cold patch. """
+        is_livepatch_only_enabled = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.LIVEPATCH_ONLY) in [True, 'True', 'true', '1', 1]
+        self.composite_logger.log_debug("Livepatch only config values from disk: [EnableLivePatchOnly={0}]. Computed value of [IsLivePatchOnlyEnabled={1}]"
+                                        .format(str(self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.LIVEPATCH_ONLY)),
+                                                str(is_livepatch_only_enabled)))
+        return is_livepatch_only_enabled
+
     @staticmethod
-    def __fetch_specific_eula_setting(settings_source, setting_to_fetch):
-        """ Returns the specific setting value from eula_settings_source or None if not found """
+    def __fetch_specific_setting(settings_source, setting_to_fetch):
+        """ Returns the specific setting value from the given settings_source or None if not found """
         if settings_source is not None and setting_to_fetch is not None and setting_to_fetch in settings_source:
             return settings_source[setting_to_fetch]
         return None

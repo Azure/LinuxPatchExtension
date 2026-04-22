@@ -58,6 +58,7 @@ class Constants(object):
 
     class AzGPSPaths(EnumBackport):
         EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
+        LIVEPATCHING_SETTINGS = "/var/lib/azure/linuxpatchextension/livepatching.settings"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -85,6 +86,12 @@ class Constants(object):
     class EulaSettings(EnumBackport):
         ACCEPT_EULA_FOR_ALL_PATCHES = 'AcceptEULAForAllPatches'
         ACCEPTED_BY = 'AcceptedBy'
+        LAST_MODIFIED = 'LastModified'
+
+    class LivePatchingSettings(EnumBackport):
+        ENABLE_LIVEPATCHING = 'EnableLivePatching'
+        LIVEPATCH_ONLY = 'LivePatchOnly'
+        ENABLED_BY = 'EnabledBy'
         LAST_MODIFIED = 'LastModified'
 
     TEMP_FOLDER_DIR_NAME = "tmp"
