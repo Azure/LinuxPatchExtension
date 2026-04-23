@@ -23,7 +23,7 @@ import tempfile
 import time
 
 from core.src.bootstrap.Constants import Constants
-from extension.src.Utility import Utility
+from core.src.Utility import Utility
 
 
 class TelemetryWriter(object):

@@ -23,7 +23,7 @@ import tempfile
 import time
 
 from extension.src.Constants import Constants
-from extension.src.Utility import Utility
+from core.src.Utility import Utility
 
 
 class TelemetryWriter(object):
@@ -74,7 +74,6 @@ class TelemetryWriter(object):
             self.logger.log_telemetry_module_error("Error occurred while formatting message for a telemetry event. [Error={0}]".format(repr(e)))
             raise
 
-    # ...existing code...
 
     def __get_agent_supports_telemetry_from_env_var(self):
         """ Returns True if the env var AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES has a key of
