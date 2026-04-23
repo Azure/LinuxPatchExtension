@@ -176,7 +176,7 @@ class UbuntuProClient:
 
     # region Livepatching
     def is_livepatching_applicable_for_machine(self):
-        """ Verifies if livepotching is applicable for the machine by checking if the machine is an Ubuntu LTS Pro VM """
+        """ Verifies if livepatching is applicable for the machine by checking if the machine is an Ubuntu LTS Pro VM """
         if not self.is_ubuntu_pro_client_attached:
             self.composite_logger.log_warning("[APM][Pro] Livepatching is not applicable for the machine since it is not an Ubuntu Pro VM.")
             return False
@@ -185,6 +185,7 @@ class UbuntuProClient:
 
     def is_livepatching_enabled_on_machine(self):
         """ Verifies if livepatching is enabled for this machine """
+        livepatching_enabled = False
         try:
             code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_status_cmd, False, False)
             if code == 0:
@@ -194,14 +195,13 @@ class UbuntuProClient:
                 livepatch_status = livepatch_service.get("status", "unknown") if livepatch_service is not None else "unknown"
                 if livepatch_status.lower() == 'enabled' or livepatch_status.lower() == 'warning':
                     self.composite_logger.log_info("[APM][Pro] Livepatching is enabled for the machine.")
-                    return True
+                    livepatching_enabled = True
                 else:
                     self.composite_logger.log_warning("[APM][Pro] Livepatching is NOT enabled for the machine.")
-                    return False
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
             self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client status Exception: [Exception={0}]".format(ubuntu_pro_client_exception))
             self.composite_logger.log_warning("[APM][Pro] Failed to determine if livepatching is enabled for the machine due to error while querying Ubuntu Pro Client status.")
-            return False
+        return livepatching_enabled
     # endregion Livepatching
 

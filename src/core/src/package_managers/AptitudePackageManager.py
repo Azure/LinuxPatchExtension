@@ -20,6 +20,7 @@ import os
 import re
 import shutil
 import sys
+from datetime import datetime
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
@@ -92,7 +93,7 @@ class AptitudePackageManager(PackageManager):
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
         # Livepatching service
-        self.set_cutoff_date_in_livepatch_config_cmd = "canonical-livepatch config cutoff-date=" + execution_config.max_patch_publish_date
+        self.set_cutoff_date_in_livepatch_config_cmd = "canonical-livepatch config cutoff-date=" + self.__reformat_date_for_livepatch(execution_config.max_patch_publish_date)
         self.launch_livepatch_client_cmd = "sudo systemctl restart snap.canonical-livepatch.canonical-livepatchd"
         self.get_livepatch_status_cmd = "canonical-livepatch status --verbose --format json"
 
@@ -847,6 +848,7 @@ class AptitudePackageManager(PackageManager):
     #region Livepatching
     def start_livepatching(self):
         """ Applies livepatches on the machine, if it's pre-req are met"""
+        # todo: is simulation (simulate) needed? Should be clearer in UTs
         if self.are_livepatching_prereq_met():
             self.start_livepatching_on_machine()
         else:
@@ -904,7 +906,7 @@ class AptitudePackageManager(PackageManager):
     def fetch_and_update_livepatch_status_in_status_blob(self):
         """Fetches livepatch status and if a livepatch/es is/are applied, updates it as a new patch entry in PatchInstallationSummary"""
         livepatch_status = self.try_get_livepatch_status()
-        if livepatch_status is not {}:
+        if livepatch_status:
             self.update_livepatch_status_in_patch_installation_summary(livepatch_status)
 
     def try_get_livepatch_status(self):
@@ -927,10 +929,15 @@ class AptitudePackageManager(PackageManager):
         """ Updates livepatch status in patch installation summary as a new patch record """
         self.composite_logger.log_debug("[APM] Updating patch installation summary with livepatch status. [LivepatchStatus={0}]".format(str(livepatch_status)))
         extracted_livepatch_fields = self.extract_livepatch_fields(livepatch_status)
-        check_state = extracted_livepatch_fields[0]["CheckState"]
-        state = extracted_livepatch_fields[0]["State"]
+        if len(extracted_livepatch_fields) == 0:
+            self.composite_logger.log_warning("[APM] No supported running livepatch entry found in livepatch status. Nothing to update in patch installation summary")
+            return
+
+        livepatch_fields = extracted_livepatch_fields[0]
+        check_state = livepatch_fields["CheckState"]
+        state = livepatch_fields["State"]
         patch_name = "livepatch_" + check_state + "_" + state
-        patch_version = extracted_livepatch_fields[0]["PatchVersion"]
+        patch_version = livepatch_fields["Version"]
 
         patch_status = Constants.NOT_SELECTED
         if state.lower() == "applied":
@@ -953,6 +960,14 @@ class AptitudePackageManager(PackageManager):
                 break
 
         return extracted
+
+    @staticmethod
+    def __reformat_date_for_livepatch(date_str):
+        """Converts AzGPS date format (20240401T000000Z) to ISO 8601 date string (2024-04-01T00:00:00Z)."""
+        try:
+            return datetime.strptime(date_str, "%Y%m%dT%H%M%SZ").strftime("%Y-%m-%dT%H:%M:%SZ")
+        except (ValueError, TypeError):
+            return date_str
     # endregion Livepatching
 
     def is_reboot_pending(self):

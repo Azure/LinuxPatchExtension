@@ -734,6 +734,12 @@ class TdnfPackageManager(PackageManager):
         return False
     # endregion
 
+    # region Livepatching
+    def start_livepatching(self):
+        """ Starts livepatching if supported by the distro and all pre-reqs are met"""
+        pass
+    # endregion
+
     def get_tdnf_version(self):
         # type: () -> any
         """Get the version of TDNF installed on the system"""

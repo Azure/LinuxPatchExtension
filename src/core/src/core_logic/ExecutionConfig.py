@@ -266,7 +266,7 @@ class ExecutionConfig(object):
         return is_eula_accepted
 
     def __get_livepatching_config_in_json(self):
-        """ Reads customer provided config on live patching from disk and returns a dict with the config values.""
+        """ Reads customer provided config on live patching from disk and returns a dict with the config values.
             NOTE: This is a temporary solution and will be deprecated soon """
         livepatching_config = dict()
         try:
