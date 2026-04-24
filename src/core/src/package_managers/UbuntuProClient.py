@@ -194,7 +194,7 @@ class UbuntuProClient:
                 self.composite_logger.log_debug("[APM][Pro] Livepatch service status from Ubuntu Pro Client: [LivepatchService={0}]".format(str(livepatch_service)))
                 livepatch_status = livepatch_service.get("status", "unknown") if livepatch_service is not None else "unknown"
                 if livepatch_status.lower() == 'enabled' or livepatch_status.lower() == 'warning':
-                    self.composite_logger.log_info("[APM][Pro] Livepatching is enabled for the machine.")
+                    self.composite_logger.log_debug("[APM][Pro] Livepatching is enabled for the machine.")
                     livepatching_enabled = True
                 else:
                     self.composite_logger.log_warning("[APM][Pro] Livepatching is NOT enabled for the machine.")

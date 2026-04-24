@@ -272,9 +272,9 @@ class ExecutionConfig(object):
         try:
             if os.path.exists(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS):
                 livepatching_config = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS) or 'null') or dict()
-                self.composite_logger.log_debug("Live patching config values from disk: [Config={0}]".format(str(livepatching_config)))
+                self.composite_logger.log_debug("Livepatching config values from disk: [Config={0}]".format(str(livepatching_config)))
             else:
-                self.composite_logger.log_debug("No live patching config found on the VM. Returning empty config.")
+                self.composite_logger.log_debug("No livepatching config found on the VM. Returning empty config.")
         except Exception as error:
             self.composite_logger.log_debug("Error occurred while reading and parsing live patching config. Returning empty config. Error=[{0}]".format(repr(error)))
 
@@ -289,7 +289,7 @@ class ExecutionConfig(object):
         last_modified = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.LAST_MODIFIED)
         if enable_livepatching is not None and enable_livepatching in [True, 'True', 'true', '1', 1]:
             is_livepatching_enabled = True
-            self.composite_logger.log_debug("Livepatching config values from disk: [EnableLivePatching={0}] [EnabledBy={1}] [LastModified={2}]. Computed value of [IsLivePatchingEnabled={3}]"
+            self.composite_logger.log_debug("Livepatching config values read from disk: [EnableLivePatching={0}] [EnabledBy={1}] [LastModified={2}]. Computed value of [IsLivePatchingEnabled={3}]"
                                             .format(str(enable_livepatching), str(enabled_by), str(last_modified), str(is_livepatching_enabled)))
         else:
             self.composite_logger.log_debug("LivePatching is not enabled for the VM. Computed value of [IsLivePatchingEnabled={0}]".format(str(is_livepatching_enabled)))
@@ -298,6 +298,7 @@ class ExecutionConfig(object):
 
     def __is_livepatch_only_enabled(self, livepatching_settings):
         """ Determines if customer has set config to only livepatch i.e. no cold patch. """
+        """ NOTE: This is not in use currently but can be added in MVP if needed"""
         is_livepatch_only_enabled = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.LIVEPATCH_ONLY) in [True, 'True', 'true', '1', 1]
         self.composite_logger.log_debug("Livepatch only config values from disk: [EnableLivePatchOnly={0}]. Computed value of [IsLivePatchOnlyEnabled={1}]"
                                         .format(str(self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.LIVEPATCH_ONLY)),

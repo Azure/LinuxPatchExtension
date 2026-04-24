@@ -62,11 +62,6 @@ class PatchInstaller(object):
         package_manager = self.package_manager
         reboot_manager = self.reboot_manager
 
-        # todo: Livepatching code
-        # check if livepatching is enabled,
-        # if yes, check if pro is attached
-        # set configdate, and launch livepatch client.
-        # fetch response and set it in patch installation status
         if self.execution_config.livepatching_enabled:
             package_manager.start_livepatching()
 
