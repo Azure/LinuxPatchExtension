@@ -19,7 +19,10 @@ import os
 import re
 import time
 import unittest
+from unittest.mock import Mock
 from core.src.bootstrap.Constants import Constants
+from core.src.service_interfaces.CredentialSanitizer import CredentialSanitizer
+from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
@@ -311,44 +314,121 @@ class TestTelemetryWriter(unittest.TestCase):
             f.close()
             self.assertTrue(text_found.string.startswith("Message 1"))
 
-    def test_sanitize_credentials_from_uri_in_telemetry(self):
-        """Test credential sanitization in telemetry events - credentials should be removed from URLs"""
+    # ==================== Unit Tests for Credential Sanitization ====================
+    def test_sanitize_credentials_from_uri_https(self):
+        """ Test sanitization of HTTPS URIs with credentials """
         message = "Error connecting to https://testuser:TESTTOKEN123456@invalid.repo.example/rpm/repodata/repomd.xml"
-        self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Sanitize")
+        sanitized = CredentialSanitizer.sanitize(message)
+        expected_message = "Error connecting to https://testuser@invalid.repo.example/rpm/repodata/repomd.xml"
+        self.assertEqual(sanitized, expected_message)
 
-        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
-                             re.search('^[0-9]+.json$', pos_json)][-1]
-        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r') as f:
-            events = json.load(f)
-            telemetry_message = events[-1]["Message"]
+    def test_sanitize_credentials_from_uri_http(self):
+        """ Test sanitization of HTTP URIs with credentials """
+        message = "Connection failed to http://user123:password123@example.com/path"
+        sanitized = CredentialSanitizer.sanitize(message)
+        # Password should be removed
+        self.assertNotIn("password123", sanitized)
+        # Username should be preserved
+        self.assertIn("user123@example.com", sanitized)
 
-            # Token should be removed
-            self.assertFalse("TESTTOKEN123456" in telemetry_message, "Token should not be in telemetry message")
-            # Username should be preserved
-            self.assertTrue("testuser@invalid.repo.example" in telemetry_message, "Username should be preserved in telemetry")
-            # URL structure should be preserved
-            self.assertTrue("https://testuser@invalid.repo.example/rpm/repodata/repomd.xml" in telemetry_message,
-                          "Sanitized URL should be present in telemetry")
-            f.close()
+    def test_sanitize_credentials_multiple_urls(self):
+        """ Test sanitization with multiple URLs containing credentials """
+        message = "Failed to fetch from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data"
+        sanitized = CredentialSanitizer.sanitize(message)
+        # Passwords should be removed
+        self.assertNotIn("pass1", sanitized)
+        self.assertNotIn("pass2", sanitized)
+        # Usernames should be preserved
+        self.assertIn("user1@host1.com", sanitized)
+        self.assertIn("user2@host2.com", sanitized)
 
-    def test_sanitize_multiple_credentials_in_telemetry(self):
-        """Test sanitization with multiple URLs containing credentials"""
-        message = "Failed fetching from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data"
-        self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Multiple")
+    def test_sanitize_credentials_jfrog_repo_error(self):
+        """  ERROR with 401 status code from jfrog.io """
+        message = "ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml"
+        sanitized = CredentialSanitizer.sanitize(message)
+        expected_message = "ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml"
+        self.assertEqual(sanitized, expected_message)
 
-        latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
-                             re.search('^[0-9]+.json$', pos_json)][-1]
-        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r') as f:
-            events = json.load(f)
-            telemetry_message = events[-1]["Message"]
+    def test_sanitize_credentials_curl_error_buildbot_token(self):
+        """  Curl error with buildbot:BuildBotToken credentials """
+        message = ("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
+                   "retrieve mirrorlist https://buildbot:BuildBotToken@mirror.example.com/repodata/repomd.xml")
+        sanitized = CredentialSanitizer.sanitize(message)
+        expected_message = ("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
+                           "retrieve mirrorlist https://buildbot@mirror.example.com/repodata/repomd.xml")
+        self.assertEqual(sanitized, expected_message)
 
-            # All passwords should be removed
-            self.assertFalse("pass1" in telemetry_message)
-            self.assertFalse("pass2" in telemetry_message)
-            # Usernames should be preserved
-            self.assertTrue("user1@host1.com" in telemetry_message)
-            self.assertTrue("user2@host2.com" in telemetry_message)
-            f.close()
+    def test_sanitize_credentials_expired_ssl_certs_error(self):
+        """ ERROR with expired SSL certs and TESTTOKEN123456 """
+        message = ("ERROR: Customer environment error (expired SSL certs): "
+                   "Command=sudo yum update -y --disablerepo='*' "
+                   "--enablerepo='microsoft' !!Code=11 Out- Updating "
+                   "Subscription Management repositories. "
+                   "Unable to read consumer identity This system is not registered "
+                   "with an entitlement server. Status code: 401 "
+                   "for https://testuser:TESTTOKEN123456@packages-microsoft-com-prod/CENTRAL.rpm "
+                   "Error: Failed to download metadata for repo 'packages-microsoft-com-prod': "
+                   "Cannot download repomd.xml: All mirrors were tried")
+        sanitized = CredentialSanitizer.sanitize(message)
+        expected_message = ("ERROR: Customer environment error (expired SSL certs): "
+                           "Command=sudo yum update -y --disablerepo='*' "
+                           "--enablerepo='microsoft' !!Code=11 Out- Updating "
+                           "Subscription Management repositories. "
+                           "Unable to read consumer identity This system is not registered "
+                           "with an entitlement server. Status code: 401 "
+                           "for https://testuser@packages-microsoft-com-prod/CENTRAL.rpm "
+                           "Error: Failed to download metadata for repo 'packages-microsoft-com-prod': "
+                           "Cannot download repomd.xml: All mirrors were tried")
+        self.assertEqual(sanitized, expected_message)
+
+    def test_sanitize_credentials_exception_handling(self):
+        """ Test exception handling: passing None should return the input unchanged """
+        result = CredentialSanitizer.sanitize(None)
+        self.assertIsNone(result)
+
+    def test_inject_fake_sanitizer_and_verify_invocation(self):
+        """ Integration Test: Can inject a fake sanitizer and verify it was invoked during write_event """
+        # Create a mock sanitizer
+        mock_sanitizer = Mock()
+        mock_sanitizer.sanitize = Mock(return_value="sanitized_message [TC=1]")
+
+        # Create TelemetryWriter with injected mock sanitizer
+        env_layer = self.runtime.env_layer
+        composite_logger = self.runtime.composite_logger
+        writer = TelemetryWriter(env_layer, composite_logger, events_folder_path=None,
+                                telemetry_supported=False, credential_sanitizer=mock_sanitizer)
+
+        # Set up a temporary events folder for testing
+        import tempfile
+        import shutil
+        temp_folder = tempfile.mkdtemp()
+        writer.events_folder_path = temp_folder
+        writer._TelemetryWriter__is_telemetry_supported = True
+
+        try:
+            # Write an event
+            original_message = "https://user:password@example.com/error"
+            writer.write_event(original_message, Constants.TelemetryEventLevel.Error, "Test Task")
+
+            # Verify mock sanitizer was called
+            self.assertTrue(mock_sanitizer.sanitize.called, "Sanitizer should have been invoked")
+            self.assertEqual(mock_sanitizer.sanitize.call_count, 1, "Sanitizer should be called exactly once")
+
+            # Verify the call was made with a message containing the original error info
+            call_args = mock_sanitizer.sanitize.call_args[0][0]
+            self.assertIn("example.com", call_args, "Sanitizer should be called with message containing URL")
+
+            # Verify telemetry event was written with the mock-sanitized message
+            event_files = os.listdir(writer.events_folder_path)
+            self.assertTrue(len(event_files) > 0, "Event file should be created")
+
+            with open(os.path.join(writer.events_folder_path, event_files[0]), 'r') as f:
+                events = json.load(f)
+                # The message should be the one returned by our mock
+                self.assertIn("sanitized_message", events[-1]["Message"])
+                f.close()
+        finally:
+            shutil.rmtree(temp_folder)
 
 if __name__ == '__main__':
     unittest.main()

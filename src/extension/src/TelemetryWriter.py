@@ -23,13 +23,13 @@ import tempfile
 import time
 
 from extension.src.Constants import Constants
-from core.src.Utility import Utility
+from extension.src.CredentialSanitizer import CredentialSanitizer
 
 
 class TelemetryWriter(object):
     """Class for writing telemetry data to events"""
 
-    def __init__(self, logger, env_layer):
+    def __init__(self, logger, env_layer, credential_sanitizer=None):
         self.logger = logger
         self.env_layer = env_layer
         self.events_folder_path = None
@@ -38,12 +38,13 @@ class TelemetryWriter(object):
         self.__agent_is_compatible = self.__get_agent_supports_telemetry_from_env_var()
         self.__task_name_watermark = "." + str(datetime.datetime.utcnow().hour) + "." + str(datetime.datetime.utcnow().minute) + "." + str(datetime.datetime.utcnow().second) + "." + str(os.getpid())
         self.__task_name = Constants.TELEMETRY_TASK_NAME + self.__task_name_watermark
+        self.credential_sanitizer = credential_sanitizer or CredentialSanitizer
 
     def __new_event_json(self, event_level, message, task_name):
         # Step 1: Apply message restrictions (formatting, truncation)
         restricted_message = self.__ensure_message_restriction_compliance(message)
         # Step 2: Sanitize credentials from URIs
-        sanitized_message = Utility.sanitize_credentials_from_uri(restricted_message)
+        sanitized_message = self.credential_sanitizer.sanitize(restricted_message)
 
         return {
             "Version": Constants.EXT_VERSION,

@@ -23,7 +23,7 @@ import tempfile
 import time
 
 from core.src.bootstrap.Constants import Constants
-from core.src.Utility import Utility
+from core.src.service_interfaces.CredentialSanitizer import CredentialSanitizer
 
 
 class TelemetryWriter(object):
@@ -31,7 +31,7 @@ class TelemetryWriter(object):
 
     TELEMETRY_BUFFER_DELIMETER= "\n|\t"
 
-    def __init__(self, env_layer, composite_logger, events_folder_path, telemetry_supported):
+    def __init__(self, env_layer, composite_logger, events_folder_path, telemetry_supported, credential_sanitizer=None):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.__operation_id = str(datetime.datetime.utcnow())
@@ -39,6 +39,7 @@ class TelemetryWriter(object):
         self.__task_name = Constants.TelemetryTaskName.STARTUP + self.__task_name_watermark
         self.events_folder_path = None
         self.__telemetry_event_counter = 1  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
+        self.credential_sanitizer = credential_sanitizer or CredentialSanitizer
         self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
         self.event_count = 1
 
@@ -131,7 +132,7 @@ class TelemetryWriter(object):
         # Step 1: Apply message restrictions (formatting, truncation)
         restricted_message = self.__ensure_message_restriction_compliance(message)
         # Step 2: Sanitize credentials from URIs
-        sanitized_message = Utility.sanitize_credentials_from_uri(restricted_message)
+        sanitized_message = self.credential_sanitizer.sanitize(restricted_message)
 
         return {
             "Version": Constants.EXT_VERSION,

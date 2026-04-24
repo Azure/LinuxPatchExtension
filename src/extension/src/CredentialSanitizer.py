@@ -17,17 +17,17 @@
 import re
 
 
-class Utility(object):
-    """Core utility functions shared across core and extension packages"""
+class CredentialSanitizer(object):
+    """Sanitizes credential-like values from URIs. Removes password/token from URI userinfo."""
 
     @staticmethod
-    def sanitize_credentials_from_uri(message):
+    def sanitize(message):
         """Sanitizes credential-like values from URIs.
-        Removes password/token from URI userinfo while preserving other details.
-        Example: https://user:token@host → https://user@host
+
+        Removes password/token from URI userinfo.
 
         Args:
-            message: The message string potentially containing URIs with credentials
+            message: The message to sanitize
 
         Returns:
             The message with credentials removed from URIs
@@ -45,8 +45,6 @@ class Utility(object):
                 message
             )
             return sanitized_message
-        except Exception as e:
-            # Return original message if sanitization fails
+        except Exception:
             return message
-
 
