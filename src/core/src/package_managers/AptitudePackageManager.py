@@ -848,7 +848,6 @@ class AptitudePackageManager(PackageManager):
     #region Livepatching
     def start_livepatching(self):
         """ Applies livepatches on the machine, if it's pre-req are met"""
-        # todo: is simulation (simulate) needed? Should be clearer in UTs
         if self.are_livepatching_prereq_met():
             self.start_livepatching_on_machine()
         else:
@@ -861,11 +860,13 @@ class AptitudePackageManager(PackageManager):
         if not self.ubuntu_pro_client.is_livepatching_applicable_for_machine():
             self.composite_logger.log_warning("[APM] Livepatching is not applicable for this machine, hence no livepatches will be installed")
             return False
+            # todo: add to error?
 
         if not self.ubuntu_pro_client.is_livepatching_enabled_on_machine():
             self.composite_logger.log_warning("[APM] Livepatching is not enabled for this machine, hence no livepatches will be installed."
                 " Please enable livepatching if you want AzGPS to apply livepatches on this machine")
             return False
+            # todo: add to error?
 
         self.composite_logger.log_debug("[APM] All Livepatching pre-reqs are met. VM is eligible to receive livepatches")
         return True
@@ -951,10 +952,10 @@ class AptitudePackageManager(PackageManager):
             return
 
         livepatch_fields = extracted_livepatch_fields[0]
-        check_state = livepatch_fields["CheckState"]
-        state = livepatch_fields["State"]
+        check_state = str(livepatch_fields["CheckState"])
+        state = str(livepatch_fields["State"])
         patch_name = "livepatch_" + check_state + "_" + state
-        patch_version = livepatch_fields["Version"]
+        patch_version = str(livepatch_fields["Version"])
 
         patch_status = Constants.NOT_SELECTED
         if state.lower() == "applied":
@@ -977,13 +978,14 @@ class AptitudePackageManager(PackageManager):
 
         return extracted
 
-    @staticmethod
-    def __reformat_date_for_livepatch(date_str):
+    def __reformat_date_for_livepatch(self, date_str):
         """Converts AzGPS date format (20240401T000000Z) to ISO 8601 date string (2024-04-01T00:00:00Z)."""
         try:
             return datetime.datetime.strptime(date_str, "%Y%m%dT%H%M%SZ").strftime("%Y-%m-%dT%H:%M:%SZ")
-        except (ValueError, TypeError):
-            return date_str
+        except Exception as error:
+            self.composite_logger.log_error("Invalid date string received, could not format it to a livepatch config acceptable format. [DateStr={0}][Exception={1}]"
+                                            .format(str(date_str), repr(error)))
+            return ""
     # endregion Livepatching
 
     def is_reboot_pending(self):

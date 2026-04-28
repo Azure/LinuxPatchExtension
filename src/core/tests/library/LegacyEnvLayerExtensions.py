@@ -539,6 +539,28 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('pro security-status --format=json') > -1:
                         code = 0
                         output = "{\"summary\":{\"ua\":{\"attached\":true}}}"
+                    elif cmd.find('pro status --all --format=json') > -1:
+                        code = 0
+                        output = ("{\"services\":["
+                                  "{\"available\":\"no\", \"blocked_by\":[],\"description\":\"Management and administration tool for Ubuntu\",\"description_override\": null,"
+                                        "\"entitled\":\"yes\", \"name\":\"landscape\", \"status\":\"n/a\",\"status_details\":\"\",\"warning\": null},"
+                                  "{\"available\":\"yes\",\"blocked_by\":[],\"description\":\"Canonical Livepatch service\",\"description_override\":null,"
+                                        "\"entitled\":\"yes\",\"name\":\"livepatch\", \"status\":\"enabled\", \"status_details\": \"\",\"warning\":null}]}")
+                    elif cmd.find('canonical-livepatch config cutoff-date') > -1:
+                        code = 0
+                        output = 'cutoff-date: "2025-10-01T12:00:00Z"'
+                    elif cmd.find('sudo systemctl restart snap.canonical-livepatch.canonical-livepatchd') > -1:
+                        code = 0
+                        output = ''
+                    elif cmd.find('sudo canonical-livepatch status --verbose --format json') > -1:
+                        code = 0
+                        output = ("{\"Status\":["
+                                        "{\"Kernel\":\"123\","
+                                            "\"Running\":true,"
+                                            "\"Livepatch\": {\"CheckState\": \"checked\",\"State\": \"nothing-to-apply\",\"Version\": \"\"},"
+                                            "\"Supported\": \"supported\","
+                                            "\"UpgradeRequiredDate\": \"2027-04-13\"}],"
+                                  "\"tier\":\"stable\",\"Using-Cutoff-Date\":true}")
                 elif self.legacy_package_manager_name is Constants.TDNF:
                     if cmd.find("--security list updates") > -1:
                         code = 0
@@ -657,6 +679,22 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('pro security-status --format=json') > -1:
                         code = 0
                         output = "{\"summary\":{\"ua\":{\"attached\":false}}}"
+                    elif cmd.find('pro status --all --format=json') > -1:
+                        code = 0
+                        output = ("{\"services\":["
+                                  "{\"available\":\"no\", \"blocked_by\":[],\"description\":\"Management and administration tool for Ubuntu\",\"description_override\": null,"
+                                  "\"entitled\":\"yes\", \"name\":\"landscape\", \"status\":\"n/a\",\"status_details\":\"\",\"warning\": null},"
+                                  "{\"available\":\"yes\",\"blocked_by\":[],\"description\":\"Canonical Livepatch service\",\"description_override\":null,"
+                                  "\"entitled\":\"yes\",\"name\":\"livepatch\", \"status\":\"disabled\", \"status_details\": \"\",\"warning\":null}]}")
+                    elif cmd.find('canonical-livepatch config cutoff-date') > -1:
+                        code = -1
+                        output = 'config update aborted: cutoff-date: this configuration option is only available to paid Ubuntu Pro users.'
+                    elif cmd.find('sudo systemctl restart snap.canonical-livepatch.canonical-livepatchd') > -1:
+                        code = -1
+                        output = 'Failure to restart snap.canonical-livepatch.canonical-livepatchd'
+                    elif cmd.find('sudo canonical-livepatch status --verbose --format json') > -1:
+                        code = -1
+                        output = "Failure to get status of canonical-livepatch"
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("microcode_ctl") > -1:
                         code = 1
@@ -706,6 +744,9 @@ class LegacyEnvLayerExtensions():
                 elif self.legacy_package_manager_name is Constants.APT:
                     code = 100
                     output = ''
+                    if cmd.find('pro status --all --format=json') > -1:
+                        code = 0
+                        output = "{\"attached\":true}"
                 elif self.legacy_package_manager_name is Constants.YUM:
                     code = 100
                     output = 'NetworkManager-config-server.x86_64       1:1.4.0-20.el7_3     \n' + \
@@ -762,6 +803,12 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("systemctl is-enabled ") > -1:
                         code = 0
                         output = 'enabled'
+                if self.legacy_package_manager_name is Constants.APT:
+                    if cmd.find('pro status --all --format=json') > -1:
+                        code = 0
+                        output = ("{\"services\":["
+                                  "{\"available\":\"yes\", \"blocked_by\":[],\"description\":\"Management and administration tool for Ubuntu\",\"description_override\": null,"
+                                  "\"entitled\":\"yes\", \"name\":\"landscape\", \"status\":\"active\",\"status_details\":\"\",\"warning\": null}]}")
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
