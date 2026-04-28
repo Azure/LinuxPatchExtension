@@ -90,9 +90,10 @@ class RuntimeCompositor(object):
         self.container = self.bootstrapper.build_out_container()
         self.file_logger = self.bootstrapper.file_logger
         self.composite_logger = self.bootstrapper.composite_logger
+        self.credential_sanitizer = self.bootstrapper.credential_sanitizer
 
         # re-initializing telemetry_writer, outside of Bootstrapper, to correctly set the env_layer configured for tests
-        self.telemetry_writer = TelemetryWriter(self.env_layer, self.composite_logger, self.bootstrapper.telemetry_writer.events_folder_path, self.bootstrapper.telemetry_supported)
+        self.telemetry_writer = TelemetryWriter(self.env_layer, self.composite_logger, self.bootstrapper.telemetry_writer.events_folder_path, self.bootstrapper.telemetry_supported, self.credential_sanitizer)
         self.bootstrapper.telemetry_writer = self.telemetry_writer
         self.bootstrapper.composite_logger.telemetry_writer = self.telemetry_writer
 

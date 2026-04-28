@@ -1,4 +1,4 @@
-# Copyright 2020 Microsoft Corporation
+# Copyright 2026 Microsoft Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ class TelemetryWriter(object):
         self.__task_name = Constants.TelemetryTaskName.STARTUP + self.__task_name_watermark
         self.events_folder_path = None
         self.__telemetry_event_counter = 1  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
-        self.credential_sanitizer = credential_sanitizer or CredentialSanitizer
+        self.credential_sanitizer = credential_sanitizer or CredentialSanitizer()
         self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
         self.event_count = 1
 
@@ -167,7 +167,6 @@ class TelemetryWriter(object):
         except Exception as e:
             self.composite_logger.log_telemetry_module_error("Error occurred while formatting message for a telemetry event. [Error={0}]".format(repr(e)))
             raise
-
 
     def write_event_with_buffer(self, message, event_level, buffer_msg):
         if buffer_msg == Constants.BufferMessage.TRUE and (event_level == self.last_telemetry_event_level or self.last_telemetry_event_level is None):

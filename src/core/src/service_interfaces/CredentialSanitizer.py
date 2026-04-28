@@ -1,4 +1,4 @@
-# Copyright 2020 Microsoft Corporation
+# Copyright 2026 Microsoft Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,23 +14,22 @@
 #
 # Requires Python 2.7+
 
+import logging
 import re
 
 
 class CredentialSanitizer(object):
-    """Sanitizes credential-like values from URIs. Removes password/token from URI userinfo."""
+    """Service that sanitizes credential-like values from URIs by removing password/token from URI userinfo."""
+
+    def __init__(self):
+        pass
 
     @staticmethod
     def sanitize(message):
-        """Sanitizes credential-like values from URIs.
-
-        Removes password/token from URI userinfo.
-
+        """Removes password/token from URI credentials in the given message.
         Args:
             message: The message to sanitize
-
-        Returns:
-            The message with credentials removed from URIs
+        Returns: The message with credentials removed from URIs
         """
         try:
             # Pattern matches: scheme://user:password@host  →  scheme://user@host
@@ -45,6 +44,6 @@ class CredentialSanitizer(object):
                 message
             )
             return sanitized_message
-        except Exception:
+        except Exception as error:
+            logging.error("Error occurred while sanitizing credentials from message: %s", repr(error))
             return message
-
