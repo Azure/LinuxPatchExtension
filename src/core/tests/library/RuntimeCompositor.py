@@ -93,7 +93,7 @@ class RuntimeCompositor(object):
         self.credential_sanitizer = self.bootstrapper.credential_sanitizer
 
         # re-initializing telemetry_writer, outside of Bootstrapper, to correctly set the env_layer configured for tests
-        self.telemetry_writer = TelemetryWriter(self.env_layer, self.composite_logger, self.bootstrapper.telemetry_writer.events_folder_path, self.bootstrapper.telemetry_supported, self.credential_sanitizer)
+        self.telemetry_writer = TelemetryWriter(self.env_layer, self.composite_logger, self.credential_sanitizer, self.bootstrapper.telemetry_writer.events_folder_path, self.bootstrapper.telemetry_supported)
         self.bootstrapper.telemetry_writer = self.telemetry_writer
         self.bootstrapper.composite_logger.telemetry_writer = self.telemetry_writer
 

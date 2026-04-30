@@ -14,18 +14,16 @@
 #
 # Requires Python 2.7+
 
-import logging
 import re
 
 
 class CredentialSanitizer(object):
     """Service that sanitizes credential-like values from URIs by removing password/token from URI userinfo."""
 
-    def __init__(self):
-        pass
+    def __init__(self, logger):
+        self.logger = logger
 
-    @staticmethod
-    def sanitize(message):
+    def sanitize(self, message):
         """Removes password/token from URI credentials in the given message.
         Args:
             message: The message to sanitize
@@ -39,11 +37,11 @@ class CredentialSanitizer(object):
             # (2) username: one or more non-whitespace, non-slash, non-colon, non-@ characters
             # (3) password: zero or more non-whitespace, non-slash, non-@ characters
             sanitized_message = re.sub(
-                r'(https?://|ftp://)([^:/@\s]+):([^@/\s]*)@',
-                r'\1\2@',
-                message
-            )
+                r'(https?://|ftp://)([^:/@\s]+):([^@/\s]*)@',r'\1\2@',message)
+            self.logger.log_verbose(
+                "Message was sanitized to remove sensitive information. [InputMessage={0}][SanitizedMessage={1}]".format(str(message), str(sanitized_message)))
             return sanitized_message
         except Exception as error:
-            logging.error("Error occurred while sanitizing credentials from message: %s", repr(error))
+            self.logger.log_error("Error occurred while sanitizing credentials from message: {0}".format(repr(error)))
             return message
+

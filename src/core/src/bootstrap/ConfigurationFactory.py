@@ -40,8 +40,8 @@ from core.src.package_managers.AptitudePackageManager import AptitudePackageMana
 from core.src.package_managers.AzL3TdnfPackageManager import AzL3TdnfPackageManager
 from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
-
 from core.src.service_interfaces.CredentialSanitizer import CredentialSanitizer
+
 from core.src.service_interfaces.LifecycleManager import LifecycleManager
 from core.src.service_interfaces.LifecycleManagerAzure import LifecycleManagerAzure
 from core.src.service_interfaces.LifecycleManagerArc import LifecycleManagerArc                                                      
@@ -154,7 +154,7 @@ class ConfigurationFactory(object):
             },
             'credential_sanitizer': {
                 'component': CredentialSanitizer,
-                'component_args': [],
+                'component_args': ['composite_logger'],
                 'component_kwargs': {}
             },
             'telemetry_writer': {

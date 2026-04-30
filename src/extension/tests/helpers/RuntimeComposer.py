@@ -22,7 +22,7 @@ class RuntimeComposer(object):
         self.json_file_handler = JsonFileHandler(self.logger)
         self.env_layer = EnvLayer()
         self.env_health_manager = EnvHealthManager(self.env_layer)
-        self.credential_sanitizer = CredentialSanitizer()
+        self.credential_sanitizer = CredentialSanitizer(self.logger)
         self.telemetry_writer = TelemetryWriter(self.logger, self.env_layer, self.credential_sanitizer)
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required

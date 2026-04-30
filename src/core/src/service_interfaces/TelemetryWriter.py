@@ -1,4 +1,4 @@
-# Copyright 2026 Microsoft Corporation
+# Copyright 2020 Microsoft Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import tempfile
 import time
 
 from core.src.bootstrap.Constants import Constants
-from core.src.service_interfaces.CredentialSanitizer import CredentialSanitizer
 
 
 class TelemetryWriter(object):
@@ -31,7 +30,7 @@ class TelemetryWriter(object):
 
     TELEMETRY_BUFFER_DELIMETER= "\n|\t"
 
-    def __init__(self, env_layer, composite_logger, events_folder_path, telemetry_supported, credential_sanitizer=None):
+    def __init__(self, env_layer, composite_logger, credential_sanitizer, events_folder_path, telemetry_supported):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.__operation_id = str(datetime.datetime.utcnow())
@@ -39,7 +38,7 @@ class TelemetryWriter(object):
         self.__task_name = Constants.TelemetryTaskName.STARTUP + self.__task_name_watermark
         self.events_folder_path = None
         self.__telemetry_event_counter = 1  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
-        self.credential_sanitizer = credential_sanitizer or CredentialSanitizer()
+        self.credential_sanitizer = credential_sanitizer
         self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
         self.event_count = 1
 

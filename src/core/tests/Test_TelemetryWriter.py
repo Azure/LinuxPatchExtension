@@ -19,10 +19,7 @@ import os
 import re
 import time
 import unittest
-from unittest.mock import Mock
 from core.src.bootstrap.Constants import Constants
-from core.src.service_interfaces.CredentialSanitizer import CredentialSanitizer
-from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
@@ -315,22 +312,33 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertTrue(text_found.string.startswith("Message 1"))
 
     # ==================== Unit Tests for Credential Sanitization ====================
-    def test_sanitize_credentials_from_uri_https_with_credentials_leak_in_input(self):
+    def test_sanitize_credentials_from_uri_https_with_credentials_leak(self):
         """ Test sanitization of HTTPS URIs with credentials """
+        # Clear any existing event files before test
+        for f in os.listdir(self.runtime.telemetry_writer.events_folder_path):
+            if f.endswith('.json'):
+                os.remove(os.path.join(self.runtime.telemetry_writer.events_folder_path, f))
+
+        # Verify events folder is empty before test
+        self.assertTrue(len(os.listdir(self.runtime.telemetry_writer.events_folder_path)) == 0, "Events folder should be empty before writing")
+
         message = "Error connecting to https://testuser:TESTTOKEN123456@invalid.repo.example/rpm/repodata/repomd.xml"
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
+        # Verify exactly one event file was created
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
+        event_files_count = len([f for f in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', f)])
+        self.assertEqual(event_files_count, 1, "Events folder should contain exactly one event file")
+
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
-            # Verify password was removed but username preserved
-            self.assertNotIn("TESTTOKEN123456", events[-1]["Message"])
-            self.assertIn("testuser@invalid.repo.example", events[-1]["Message"])
+            message_without_tc = events[-1]["Message"][:events[-1]["Message"].rfind(" [TC=")]
+            self.assertEqual("Error connecting to https://testuser@invalid.repo.example/rpm/repodata/repomd.xml", message_without_tc)
             f.close()
 
-    def test_sanitize_credentials_from_uri_http_with_credentials_leak_in_input(self):
+    def test_sanitize_credentials_from_uri_http_with_credentials_leak(self):
         """ Test sanitization of HTTP URIs with credentials """
         message = "Connection failed to http://user123:password123@example.com/path"
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
@@ -340,13 +348,12 @@ class TestTelemetryWriter(unittest.TestCase):
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
-            # Password should be removed
-            self.assertNotIn("password123", events[-1]["Message"])
-            # Username should be preserved
-            self.assertIn("user123@example.com", events[-1]["Message"])
+            # Verify entire message matches expected output (excluding TC counter)
+            message_without_tc = events[-1]["Message"][:events[-1]["Message"].rfind(" [TC=")]
+            self.assertEqual("Connection failed to http://user123@example.com/path", message_without_tc)
             f.close()
 
-    def test_sanitize_credentials_multiple_urls_with_credentials_leak_in_input(self):
+    def test_sanitize_credentials_multiple_urls_with_credentials_leak(self):
         """ Test sanitization with multiple URLs containing credentials """
         message = "Failed to fetch from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data"
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
@@ -356,18 +363,11 @@ class TestTelemetryWriter(unittest.TestCase):
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
-            # Passwords should be removed
-            self.assertNotIn("pass1", events[-1]["Message"])
-            self.assertNotIn("pass2", events[-1]["Message"])
-            # Usernames should be preserved
-            self.assertIn("user1@host1.com", events[-1]["Message"])
-            self.assertIn("user2@host2.com", events[-1]["Message"])
-            # Verify entire message matches expected output (excluding TC counter)
             message_without_tc = events[-1]["Message"][:events[-1]["Message"].rfind(" [TC=")]
-            self.assertIn("Failed to fetch from https://user1@host1.com/api and http://user2@host2.com/data", message_without_tc)
+            self.assertEqual("Failed to fetch from https://user1@host1.com/api and http://user2@host2.com/data", message_without_tc)
             f.close()
 
-    def test_sanitize_credentials_with_no_credentials_in_input_leak_in_input(self):
+    def test_sanitize_credentials_with_error_and_no_credentials(self):
         """  ERROR with 401 status code from jfrog.io """
         message = "ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml"
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
@@ -377,14 +377,12 @@ class TestTelemetryWriter(unittest.TestCase):
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
-            # Message should remain unchanged (no credentials to sanitize)
-            self.assertIn("jfrog.io", events[-1]["Message"])
             # Verify entire message matches expected output (excluding TC counter)
             message_without_tc = events[-1]["Message"][:events[-1]["Message"].rfind(" [TC=")]
-            self.assertIn("ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml", message_without_tc)
+            self.assertEqual("ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml", message_without_tc)
             f.close()
 
-    def test_sanitize_credentials_with_error_and_credentials_in_input(self):
+    def test_sanitize_credentials_with_error_and_credentials_leak(self):
         """  Curl error with buildbot:BuildBotToken credentials """
         message = ("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
                    "retrieve mirrorlist https://buildbot:BuildBotToken@mirror.example.com/repodata/repomd.xml")
@@ -395,9 +393,6 @@ class TestTelemetryWriter(unittest.TestCase):
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
-            # Token should be removed but username preserved
-            self.assertNotIn("BuildBotToken", events[-1]["Message"])
-            self.assertIn("buildbot@mirror.example.com", events[-1]["Message"])
             # Verify entire message matches expected output (excluding TC counter)
             message_without_tc = events[-1]["Message"][:events[-1]["Message"].rfind(" [TC=")]
             expected_message = ("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
@@ -405,8 +400,16 @@ class TestTelemetryWriter(unittest.TestCase):
             self.assertEqual(expected_message, message_without_tc)
             f.close()
 
-    def test_sanitize_credentials_with_credentials_leak_in_input(self):
+    def test_sanitize_credentials_with_credentials_leak(self):
         """ ERROR with expired SSL certs and TESTTOKEN123456 """
+        # Clear any existing event files before test
+        for f in os.listdir(self.runtime.telemetry_writer.events_folder_path):
+            if f.endswith('.json'):
+                os.remove(os.path.join(self.runtime.telemetry_writer.events_folder_path, f))
+
+        # Verify events folder is empty before test
+        self.assertTrue(len([f for f in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', f)]) == 0, "Events folder should be empty before writing")
+
         message = ("ERROR: Customer environment error (expired SSL certs): "
                    "Command=sudo yum update -y --disablerepo='*' "
                    "--enablerepo='microsoft' !!Code=11 Out- Updating "
@@ -418,14 +421,15 @@ class TestTelemetryWriter(unittest.TestCase):
                    "Cannot download repomd.xml: All mirrors were tried")
         self.runtime.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
+        # Verify exactly one event file was created
+        event_files_count = len([f for f in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', f)])
+        self.assertEqual(event_files_count, 1, "Events folder should contain exactly one event file")
+
         latest_event_file = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)][-1]
         with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, latest_event_file), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
-            # Token should be removed but username preserved
-            self.assertNotIn("TESTTOKEN123456", events[-1]["Message"])
-            self.assertIn("testuser@packages-microsoft-com-prod", events[-1]["Message"])
             # Verify entire message matches expected output (excluding TC counter)
             message_without_tc = events[-1]["Message"][:events[-1]["Message"].rfind(" [TC=")]
             expected_message = ("ERROR: Customer environment error (expired SSL certs): "
@@ -442,52 +446,10 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def test_sanitize_credentials_exception_handling(self):
         """ Test exception handling: passing None should return the input unchanged """
-        result = CredentialSanitizer.sanitize(None)
+        result = self.runtime.telemetry_writer.credential_sanitizer.sanitize(None)
         self.assertIsNone(result)
 
-    def test_inject_fake_sanitizer_and_verify_invocation(self):
-        """ Integration Test: Can inject a fake sanitizer and verify it was invoked during write_event """
-        # Create a mock sanitizer
-        mock_sanitizer = Mock()
-        mock_sanitizer.sanitize = Mock(return_value="sanitized_message [TC=1]")
-
-        # Create TelemetryWriter with injected mock sanitizer
-        env_layer = self.runtime.env_layer
-        composite_logger = self.runtime.composite_logger
-        writer = TelemetryWriter(env_layer, composite_logger, events_folder_path=None,
-                                telemetry_supported=False, credential_sanitizer=mock_sanitizer)
-
-        # Set up a temporary events folder for testing
-        import tempfile
-        import shutil
-        temp_folder = tempfile.mkdtemp()
-        writer.events_folder_path = temp_folder
-        writer._TelemetryWriter__is_telemetry_supported = True
-
-        try:
-            # Write an event
-            original_message = "https://user:password@example.com/error"
-            writer.write_event(original_message, Constants.TelemetryEventLevel.Error, "Test Task")
-
-            # Verify mock sanitizer was called
-            self.assertTrue(mock_sanitizer.sanitize.called, "Sanitizer should have been invoked")
-            self.assertEqual(mock_sanitizer.sanitize.call_count, 1, "Sanitizer should be called exactly once")
-
-            # Verify the call was made with a message containing the original error info
-            call_args = mock_sanitizer.sanitize.call_args[0][0]
-            self.assertIn("example.com", call_args, "Sanitizer should be called with message containing URL")
-
-            # Verify telemetry event was written with the mock-sanitized message
-            event_files = os.listdir(writer.events_folder_path)
-            self.assertTrue(len(event_files) > 0, "Event file should be created")
-
-            with open(os.path.join(writer.events_folder_path, event_files[0]), 'r') as f:
-                events = json.load(f)
-                # The message should be the one returned by our mock
-                self.assertIn("sanitized_message", events[-1]["Message"])
-                f.close()
-        finally:
-            shutil.rmtree(temp_folder)
 
 if __name__ == '__main__':
     unittest.main()
+

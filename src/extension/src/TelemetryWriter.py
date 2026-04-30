@@ -1,4 +1,4 @@
-# Copyright 2026 Microsoft Corporation
+# Copyright 2020 Microsoft Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,13 +23,12 @@ import tempfile
 import time
 
 from extension.src.Constants import Constants
-from extension.src.CredentialSanitizer import CredentialSanitizer
 
 
 class TelemetryWriter(object):
     """Class for writing telemetry data to events"""
 
-    def __init__(self, logger, env_layer, credential_sanitizer=None):
+    def __init__(self, logger, env_layer, credential_sanitizer):
         self.logger = logger
         self.env_layer = env_layer
         self.events_folder_path = None
@@ -38,7 +37,7 @@ class TelemetryWriter(object):
         self.__agent_is_compatible = self.__get_agent_supports_telemetry_from_env_var()
         self.__task_name_watermark = "." + str(datetime.datetime.utcnow().hour) + "." + str(datetime.datetime.utcnow().minute) + "." + str(datetime.datetime.utcnow().second) + "." + str(os.getpid())
         self.__task_name = Constants.TELEMETRY_TASK_NAME + self.__task_name_watermark
-        self.credential_sanitizer = credential_sanitizer or CredentialSanitizer()
+        self.credential_sanitizer = credential_sanitizer
 
     def __new_event_json(self, event_level, message, task_name):
         # Step 1: Apply message restrictions (formatting, truncation)
