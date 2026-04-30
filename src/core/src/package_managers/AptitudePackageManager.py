@@ -858,15 +858,17 @@ class AptitudePackageManager(PackageManager):
         These pre-reqs are: Machine should be attached to a pro subscription and livepatch service should be enabled on the VM. """
         self.composite_logger.log_debug("[APM] Checking if all the pre-reqs to receive livepatches are met. NOTE: Livepatches is only available on Ubuntu LTS paid pro VMs and has to be in enabled state")
         if not self.ubuntu_pro_client.is_livepatching_applicable_for_machine():
-            self.composite_logger.log_warning("[APM] Livepatching is not applicable for this machine, hence no livepatches will be installed")
+            error_message = "[APM] Livepatching is not applicable for this machine, hence no livepatches will be installed"
+            self.composite_logger.log_error(error_message)
+            self.status_handler.add_error_to_status(error_message, Constants.PatchOperationErrorCodes.LIVEPATCH_ERROR)
             return False
-            # todo: add to error?
 
         if not self.ubuntu_pro_client.is_livepatch_service_enabled_on_machine():
-            self.composite_logger.log_warning("[APM] Livepatch service is not enabled on this machine, hence no livepatches will be installed."
-                " Please enable livepatch service if you want AzGPS to apply livepatches on this machine")
+            error_message = ("[APM] Livepatch service is not enabled on this machine, hence no livepatches will be installed."
+                             " Please enable livepatch service if you want AzGPS to apply livepatches on this machine")
+            self.composite_logger.log_error(error_message)
+            self.status_handler.add_error_to_status(error_message, Constants.PatchOperationErrorCodes.LIVEPATCH_ERROR)
             return False
-            # todo: add to error?
 
         self.composite_logger.log_debug("[APM] All Livepatch pre-reqs are met. VM is eligible to receive livepatches")
         return True
@@ -937,11 +939,13 @@ class AptitudePackageManager(PackageManager):
                 livepatch_status = json.loads(output)
                 self.composite_logger.log_debug("[APM] Successfully fetched livepatch status. [Status={0}]".format(str(livepatch_status)))
             else:
-                self.composite_logger.log_warning("[APM] Failed to fetch livepatch status. [Cmd={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(output)))
-                # todo: add to error object?
+                error_msg = "[APM] Failed to fetch livepatch status. [Cmd={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(output))
+                self.composite_logger.log_error(error_msg)
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.LIVEPATCH_ERROR)
         except Exception as error:
-            livepatch_status_fetch_exception = repr(error) # todo: applies everywhere, see if this should be logged as error in status blob. If not, refactor code
-            self.composite_logger.log_warning("[APM] Exception while fetching livepatch status. [Cmd={0}][Exception={1}]".format(str(cmd), livepatch_status_fetch_exception))
+            error_msg = "[APM] Exception while fetching livepatch status. [Cmd={0}][Exception={1}]".format(str(cmd), repr(error))
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.LIVEPATCH_ERROR)
         return livepatch_status
 
     def update_livepatch_status_in_patch_installation_summary(self, livepatch_status):

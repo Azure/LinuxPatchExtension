@@ -1085,15 +1085,24 @@ class TestAptitudePackageManager(unittest.TestCase):
     def test_are_livepatch_prereq_met_failure(self):
         package_manager = self.__setup_package_manager()
         self.assertIsNotNone(package_manager)
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
         # VM is not attached
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = False
         self.assertFalse(package_manager.are_livepatch_prereq_met())
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        errors = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(errors, None)
+        self.assertTrue("Livepatching is not applicable for this machine" in str(errors))
 
         #VM is attached but livepatch service not enabled
         package_manager = self.__setup_package_manager(legacy_type='SadPath')
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
         self.assertFalse(package_manager.are_livepatch_prereq_met())
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        updated_errors = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(updated_errors, None)
+        self.assertTrue("Livepatch service is not enabled on this machine" in str(updated_errors))
 
     def test_try_set_livepatch_cutoff_date_in_config_success(self):
         package_manager = self.__setup_package_manager()
@@ -1141,13 +1150,23 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def test_try_get_livepatch_status_failure(self):
         package_manager = self.__setup_package_manager(legacy_type='SadPath')
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
         self.assertEqual(package_manager.try_get_livepatch_status(), {})
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        errors = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(errors, None)
+        self.assertTrue("Failed to fetch livepatch status." in str(errors))
 
     def test_try_get_livepatch_status_exception_path(self):
         package_manager = self.__setup_package_manager()
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
         backup_run_command_output = package_manager.env_layer.run_command_output
         package_manager.env_layer.run_command_output = self.mock_run_command_output_raise_exception
         self.assertEqual(package_manager.try_get_livepatch_status(), {})
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        errors = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(errors, None)
+        self.assertTrue("Exception while fetching livepatch status" in str(errors))
         package_manager.env_layer.run_command_output = backup_run_command_output
 
     def test_update_livepatch_status_in_patch_installation_summary_success(self):
@@ -1240,7 +1259,10 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         package_manager.start_livepatch()
         substatus_file_data = self.__get_substatus_from_status_file()
-        self.assertEqual(len(substatus_file_data), 0)
+        self.assertEqual(len(substatus_file_data), 1)
+        errors = json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(errors, None)
+        self.assertTrue("Livepatch service is not enabled on this machine" in str(errors))
 
     def test_start_livepatch_when_livepatch_config_date_not_set(self):
         # cmd to set config date in livepatch service failed. So livepatch client is not launched and status not updated with livepatch data
