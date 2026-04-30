@@ -1082,9 +1082,9 @@ class YumPackageManager(PackageManager):
         return process_count != 0  # True if there were any
     # endregion Reboot Management
 
-    # region Livepatching
-    def start_livepatching(self):
-        """ Starts livepatching if supported by the distro and all pre-reqs are met"""
+    # region Livepatch
+    def start_livepatch(self):
+        """ Applies livepatches on the machine, if supported by the distro and all pre-reqs are met"""
         pass
     # endregion
 

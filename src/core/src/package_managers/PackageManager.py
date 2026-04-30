@@ -450,9 +450,9 @@ class PackageManager(object):
         return True
     # endregion
 
-    # region Livepatching
-    def start_livepatching(self):
-        """ Starts livepatching if supported by the distro and all pre-reqs are met"""
+    # region Livepatch
+    def start_livepatch(self):
+        """ Applies livepatches on the machine, if supported by the distro and all pre-reqs are met"""
         pass
     # endregion
 

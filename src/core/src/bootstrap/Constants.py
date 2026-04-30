@@ -58,7 +58,7 @@ class Constants(object):
 
     class AzGPSPaths(EnumBackport):
         EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
-        LIVEPATCHING_SETTINGS = "/var/lib/azure/linuxpatchextension/livepatching.settings"
+        LIVEPATCH_CUSTOMER_SETTINGS = "/var/lib/azure/linuxpatchextension/livepatching.settings"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -88,9 +88,9 @@ class Constants(object):
         ACCEPTED_BY = 'AcceptedBy'
         LAST_MODIFIED = 'LastModified'
 
-    class LivePatchingSettings(EnumBackport):
-        ENABLE_LIVEPATCHING = 'EnableLivePatching'
-        LIVEPATCH_ONLY = 'LivePatchOnly'
+    class LivePatchSettings(EnumBackport):
+        ENABLE_LIVEPATCH = 'EnableLivePatch' # boolean config that if set to true indicates customer's ask on AzGPS to apply livepatches on their VM
+        LIVEPATCH_ONLY = 'LivePatchOnly' # boolean config that indicates if the customer is requesting only livepatches i.e. no cold patch or regular patching with reboots
         ENABLED_BY = 'EnabledBy'
         LAST_MODIFIED = 'LastModified'
 

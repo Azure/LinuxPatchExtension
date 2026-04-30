@@ -421,4 +421,9 @@ class EnvLayer(object):
             epoch = datetime.datetime(1970, 1, 1)
             return int((dt - epoch).total_seconds())
 
+        @staticmethod
+        def datetime_iso_basic_string_to_extended_string(datetime_string):
+            """Converts ISO 8601 basic date format (20240401T000000Z) to extended format (2024-04-01T00:00:00Z)."""
+            return datetime.datetime.strptime(datetime_string, "%Y%m%dT%H%M%SZ").strftime("%Y-%m-%dT%H:%M:%SZ")
+
 # endregion - DateTime emulator and extensions

@@ -62,8 +62,8 @@ class PatchInstaller(object):
         package_manager = self.package_manager
         reboot_manager = self.reboot_manager
 
-        if self.execution_config.livepatching_enabled:
-            package_manager.start_livepatching()
+        if self.execution_config.is_livepatch_requested:
+            package_manager.start_livepatch()
 
         self.composite_logger.log("\nStarting patch installation... [MachineId: " + self.env_layer.platform.vm_name() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time + "][MaintenanceWindowDuration: " + self.execution_config.duration + "]")
 

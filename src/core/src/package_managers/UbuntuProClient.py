@@ -174,7 +174,7 @@ class UbuntuProClient:
         self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client Reboot Required: [UbuntuProClientSuccess={0}][RebootRequiredFlag={1}][Error={2}]".format(ubuntu_pro_client_api_success, ubuntu_pro_client_reboot_required, ubuntu_pro_client_exception))
         return ubuntu_pro_client_api_success, ubuntu_pro_client_reboot_required
 
-    # region Livepatching
+    # region Livepatch
     def is_livepatching_applicable_for_machine(self):
         """ Verifies if livepatching is applicable for the machine by checking if the machine is an Ubuntu LTS Pro VM """
         if not self.is_ubuntu_pro_client_attached:
@@ -183,9 +183,9 @@ class UbuntuProClient:
 
         return True
 
-    def is_livepatching_enabled_on_machine(self):
-        """ Verifies if livepatching is enabled for this machine """
-        livepatching_enabled = False
+    def is_livepatch_service_enabled_on_machine(self):
+        """ Verifies if livepatch service is enabled on the machine """
+        livepatch_service_enabled = False
         try:
             code, output = self.env_layer.run_command_output(self.ubuntu_pro_client_status_cmd, False, False)
             if code == 0:
@@ -194,14 +194,14 @@ class UbuntuProClient:
                 self.composite_logger.log_debug("[APM][Pro] Livepatch service status from Ubuntu Pro Client: [LivepatchService={0}]".format(str(livepatch_service)))
                 livepatch_status = livepatch_service.get("status", "unknown") if livepatch_service is not None else "unknown"
                 if livepatch_status.lower() == 'enabled' or livepatch_status.lower() == 'warning':
-                    self.composite_logger.log_debug("[APM][Pro] Livepatching is enabled for the machine.")
-                    livepatching_enabled = True
+                    self.composite_logger.log_debug("[APM][Pro] Livepatch service is enabled on the machine.")
+                    livepatch_service_enabled = True
                 else:
-                    self.composite_logger.log_warning("[APM][Pro] Livepatching is NOT enabled for the machine.")
+                    self.composite_logger.log_warning("[APM][Pro] Livepatch service is NOT enabled on the machine.")
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
             self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client status Exception: [Exception={0}]".format(ubuntu_pro_client_exception))
-            self.composite_logger.log_warning("[APM][Pro] Failed to determine if livepatching is enabled for the machine due to error while querying Ubuntu Pro Client status.")
-        return livepatching_enabled
-    # endregion Livepatching
+            self.composite_logger.log_warning("[APM][Pro] Failed to determine if livepatch service is enabled on the machine due to error while querying Ubuntu Pro Client status.")
+        return livepatch_service_enabled
+    # endregion Livepatch
 

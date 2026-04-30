@@ -52,177 +52,177 @@ class TestExecutionConfig(unittest.TestCase):
             self.assertEqual(runtime.execution_config._ExecutionConfig__get_max_patch_publish_date(row[0]), row[1])
         self.__teardown(runtime)
 
-    def test_livepatching_config_when_file_does_not_exist(self):
-        # livepatching InVM customer config does not exist
+    def test_livepatch_config_when_file_does_not_exist(self):
+        # livepatch in-VM customer config does not exist
         runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=False)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=dict(),
-                                           expected_livepatching_enabled=False, expected_livepatching_only=False, expected_file_exists=False)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=dict(),
+                                        expected_livepatch_requested=False, expected_livepatch_only_requested=False, expected_file_exists=False)
         self.__teardown(runtime)
 
-    def test_livepatching_config_when_no_data_found_in_file(self):
-        # livepatching config file exists but the file has no data
-        livepatching_settings = None
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=dict(),
-                                           expected_livepatching_enabled=False, expected_livepatching_only=False, expected_file_exists=True)
+    def test_livepatch_config_when_no_data_found_in_file(self):
+        # livepatch in-VM customer config file exists but the file has no data
+        livepatch_settings = None
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=dict(),
+                                        expected_livepatch_requested=False, expected_livepatch_only_requested=False, expected_file_exists=True)
         self.__teardown(runtime)
 
-    def test_livepatching_config_when_enable_livepatching_not_in_config(self):
-        # EnableLivePatching not set in config
-        livepatching_settings = {
+    def test_livepatch_config_when_enable_livepatch_not_in_config(self):
+        # EnableLivePatch not set in config
+        livepatch_settings = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21"
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=False, expected_livepatching_only=False, expected_file_exists=True)
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=False, expected_livepatch_only_requested=False, expected_file_exists=True)
         self.__teardown(runtime)
 
-    def test_livepatching_config_when_enable_livepatching_not_set_as_boolean(self):
-        livepatching_settings = {
+    def test_livepatch_config_when_enable_livepatch_not_set_as_boolean(self):
+        livepatch_settings = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
-            "EnableLivePatching": "test",
+            "EnableLivePatch": "test",
             "LivePatchOnly": "test"
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=False, expected_livepatching_only=False, expected_file_exists=True)
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=False, expected_livepatch_only_requested=False, expected_file_exists=True)
         self.__teardown(runtime)
 
-    def test_livepatching_config_with_illformed_livepatching_config(self):
-        livepatching_settings = ["test unexpected config value"]
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=False, expected_livepatching_only=False, expected_file_exists=True)
+    def test_livepatch_config_with_illformed_config(self):
+        livepatch_settings = ["test unexpected config value"]
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=False, expected_livepatch_only_requested=False, expected_file_exists=True)
         self.__teardown(runtime)
 
-    def test_livepatching_config_when_file_read_raises_exception(self):
-        livepatching_settings = {
+    def test_livepatch_config_when_file_read_raises_exception(self):
+        livepatch_settings = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
-            "EnableLivePatching": "test",
+            "EnableLivePatch": "test",
             "LivePatchOnly": "test"
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
         self.backup_read_with_retry = runtime.env_layer.file_system.read_with_retry
         runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
         exec_config = ExecutionConfig(runtime.env_layer, runtime.composite_logger, str(runtime.argv))
-        self.__assert_livepatching_configs(execution_config=exec_config, expected_livepatching_config_settings=dict(),
-                                           expected_livepatching_enabled=False, expected_livepatching_only=False, expected_file_exists=True)
+        self.__assert_livepatch_configs(execution_config=exec_config, expected_livepatch_config_settings=dict(),
+                                        expected_livepatch_requested=False, expected_livepatch_only_requested=False, expected_file_exists=True)
         runtime.env_layer.file_system.read_with_retry = self.backup_read_with_retry
         self.__teardown(runtime)
 
-    def test_livepatching_config_file_with_livepatching_enabled_set_to_false(self):
-        # Tests livepatching enabled with different non-true values
+    def test_livepatch_config_file_with_livepatch_enabled_set_to_false(self):
+        # Tests livepatch enable set with different non-true values
 
         # Value set to boolean False
-        livepatching_settings = {
+        livepatch_settings = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
-            "EnableLivePatching": False,
+            "EnableLivePatch": False,
             "LivePatchOnly": False
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=False, expected_livepatching_only=False, expected_file_exists=True)
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=False, expected_livepatch_only_requested=False, expected_file_exists=True)
         self.__teardown(runtime)
 
         # Value set to random string
-        livepatching_settings = {
+        livepatch_settings = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
-            "EnableLivePatching": "3",
+            "EnableLivePatch": "3",
             "LivePatchOnly": "test"
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=False, expected_livepatching_only=False, expected_file_exists=True)
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=False, expected_livepatch_only_requested=False, expected_file_exists=True)
         self.__teardown(runtime)
 
         # LivepatchOnly set to true
-        livepatching_settings = {
+        livepatch_settings = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
-            "EnableLivePatching": False,
+            "EnableLivePatch": False,
             "LivePatchOnly": True
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=False, expected_livepatching_only=True, expected_file_exists=True)
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=False, expected_livepatch_only_requested=True, expected_file_exists=True)
         self.__teardown(runtime)
 
-    def test_livepatching_config_file_with_livepatching_enabled_set_to_true(self):
-        # Tests livepatching enabled with all acceptable values of true
+    def test_livepatch_config_file_with_livepatch_enable_set_to_true(self):
+        # Tests EnableLivePatch with all acceptable values of true
 
         # Value set to boolean True
-        livepatching_settings = {
+        livepatch_settings = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
-            "EnableLivePatching": True,
+            "EnableLivePatch": True,
             "LivePatchOnly": False
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=True, expected_livepatching_only=False, expected_file_exists=True)
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=True, expected_livepatch_only_requested=False, expected_file_exists=True)
         self.__teardown(runtime)
 
         # Value set to string "True"
-        livepatching_settings["EnableLivePatching"] = "True"
-        livepatching_settings["LivePatchOnly"] = "True"
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=True, expected_livepatching_only=True, expected_file_exists=True)
+        livepatch_settings["EnableLivePatch"] = "True"
+        livepatch_settings["LivePatchOnly"] = "True"
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=True, expected_livepatch_only_requested=True, expected_file_exists=True)
         self.__teardown(runtime)
 
         # Value set to string "true"
-        livepatching_settings["EnableLivePatching"] = "true"
-        livepatching_settings["LivePatchOnly"] = "true"
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=True, expected_livepatching_only=True, expected_file_exists=True)
+        livepatch_settings["EnableLivePatch"] = "true"
+        livepatch_settings["LivePatchOnly"] = "true"
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=True, expected_livepatch_only_requested=True, expected_file_exists=True)
         self.__teardown(runtime)
 
         # Value set to string "1"
-        livepatching_settings["EnableLivePatching"] = "1"
-        livepatching_settings["LivePatchOnly"] = "1"
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=True, expected_livepatching_only=True, expected_file_exists=True)
+        livepatch_settings["EnableLivePatch"] = "1"
+        livepatch_settings["LivePatchOnly"] = "1"
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=True, expected_livepatch_only_requested=True, expected_file_exists=True)
         self.__teardown(runtime)
 
         # Value set to 1
-        livepatching_settings["EnableLivePatching"] = 1
-        livepatching_settings["LivePatchOnly"] = 1
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatching_settings=livepatching_settings)
-        self.__assert_livepatching_configs(execution_config=execution_config, expected_livepatching_config_settings=livepatching_settings,
-                                           expected_livepatching_enabled=True, expected_livepatching_only=True, expected_file_exists=True)
+        livepatch_settings["EnableLivePatch"] = 1
+        livepatch_settings["LivePatchOnly"] = 1
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, livepatch_settings=livepatch_settings)
+        self.__assert_livepatch_configs(execution_config=execution_config, expected_livepatch_config_settings=livepatch_settings,
+                                        expected_livepatch_requested=True, expected_livepatch_only_requested=True, expected_file_exists=True)
         self.__teardown(runtime)
 
-    def __write_livepatching_settings_to_file(self, livepatching_settings):
-        f = open(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS, "w+")
-        f.write(json.dumps(livepatching_settings))
+    def __write_livepatch_settings_to_file(self, livepatch_settings):
+        f = open(Constants.AzGPSPaths.LIVEPATCH_CUSTOMER_SETTINGS, "w+")
+        f.write(json.dumps(livepatch_settings))
         f.close()
 
-    def __setup_and_init_execution_config(self, write_to_file=False, livepatching_settings= None):
+    def __setup_and_init_execution_config(self, write_to_file=False, livepatch_settings= None):
         argument_composer = ArgumentComposer()
         if write_to_file:
-            self.__write_livepatching_settings_to_file(livepatching_settings)
+            self.__write_livepatch_settings_to_file(livepatch_settings)
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, package_manager_name=Constants.APT)
         container = runtime.container
         execution_config = container.get('execution_config')
         return runtime, execution_config
 
-    def __assert_livepatching_configs(self, execution_config, expected_livepatching_config_settings, expected_livepatching_enabled, expected_livepatching_only, expected_file_exists):
-        self.assertEqual(execution_config.livepatching_config_settings, expected_livepatching_config_settings)
-        self.assertEqual(execution_config.livepatching_enabled, expected_livepatching_enabled)
-        self.assertEqual(execution_config.livepatch_only, expected_livepatching_only)
-        self.assertEqual(os.path.exists(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS), expected_file_exists)
+    def __assert_livepatch_configs(self, execution_config, expected_livepatch_config_settings, expected_livepatch_requested, expected_livepatch_only_requested, expected_file_exists):
+        self.assertEqual(execution_config.livepatch_customer_config_settings, expected_livepatch_config_settings)
+        self.assertEqual(execution_config.is_livepatch_requested, expected_livepatch_requested)
+        self.assertEqual(execution_config.is_livepatch_only_requested, expected_livepatch_only_requested)
+        self.assertEqual(os.path.exists(Constants.AzGPSPaths.LIVEPATCH_CUSTOMER_SETTINGS), expected_file_exists)
 
     def __teardown(self, runtime):
-        # remove the livepatching settings file if it exists after the test
-        if os.path.exists(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS):
-            os.remove(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS)
+        # remove the livepatch settings file if it exists after the test
+        if os.path.exists(Constants.AzGPSPaths.LIVEPATCH_CUSTOMER_SETTINGS):
+            os.remove(Constants.AzGPSPaths.LIVEPATCH_CUSTOMER_SETTINGS)
         runtime.stop()
 
 

@@ -78,7 +78,7 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_launch_livepatch_client_failed(self):
         return False
 
-    def mock_ubuntu_pro_client_is_livepatching_enabled_on_machine_returns_true(self):
+    def mock_ubuntu_pro_client_is_livepatch_service_enabled_on_machine_returns_true(self):
         return True
     # endregion Mocks
 
@@ -1076,24 +1076,24 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertEqual(exec_config.accept_package_eula, False)
         runtime.stop()
 
-    def test_are_livepatching_prereq_met_success(self):
+    def test_are_livepatch_prereq_met_success(self):
         package_manager = self.__setup_package_manager()
         self.assertIsNotNone(package_manager)
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
-        self.assertTrue(package_manager.are_livepatching_prereq_met())
+        self.assertTrue(package_manager.are_livepatch_prereq_met())
 
-    def test_are_livepatching_prereq_met_failure(self):
+    def test_are_livepatch_prereq_met_failure(self):
         package_manager = self.__setup_package_manager()
         self.assertIsNotNone(package_manager)
 
         # VM is not attached
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = False
-        self.assertFalse(package_manager.are_livepatching_prereq_met())
+        self.assertFalse(package_manager.are_livepatch_prereq_met())
 
         #VM is attached but livepatch service not enabled
         package_manager = self.__setup_package_manager(legacy_type='SadPath')
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
-        self.assertFalse(package_manager.are_livepatching_prereq_met())
+        self.assertFalse(package_manager.are_livepatch_prereq_met())
 
     def test_try_set_livepatch_cutoff_date_in_config_success(self):
         package_manager = self.__setup_package_manager()
@@ -1218,11 +1218,11 @@ class TestAptitudePackageManager(unittest.TestCase):
                                                                                  self.runtime.telemetry_writer, self.runtime.status_handler)
         self.assertEqual(package_manager_for_test.set_cutoff_date_in_livepatch_config_cmd, "canonical-livepatch config cutoff-date=")
 
-    def test_start_livepatching_success(self):
+    def test_start_livepatch_success(self):
         package_manager = self.__setup_package_manager()
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        package_manager.start_livepatching()
+        package_manager.start_livepatch()
 
         substatus_file_data = self.__get_substatus_from_status_file()[0]
         self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
@@ -1233,32 +1233,32 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertEqual(patch["patchInstallationState"], Constants.NOT_SELECTED)
         self.assertEqual(patch["version"], "")
 
-    def test_start_livepatching_when_pre_req_not_met(self):
+    def test_start_livepatch_when_pre_req_not_met(self):
         package_manager = self.__setup_package_manager(legacy_type='SadPath')
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
 
-        package_manager.start_livepatching()
+        package_manager.start_livepatch()
         substatus_file_data = self.__get_substatus_from_status_file()
         self.assertEqual(len(substatus_file_data), 0)
 
-    def test_start_livepatching_when_livepatch_config_date_not_set(self):
+    def test_start_livepatch_when_livepatch_config_date_not_set(self):
         # cmd to set config date in livepatch service failed. So livepatch client is not launched and status not updated with livepatch data
         package_manager = self.__setup_package_manager(legacy_type='SadPath')
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
         self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
-        backup_ubuntu_pro_client_is_livepatching_enabled_on_machine = package_manager.ubuntu_pro_client.is_livepatching_enabled_on_machine
-        package_manager.ubuntu_pro_client.is_livepatching_enabled_on_machine = self.mock_ubuntu_pro_client_is_livepatching_enabled_on_machine_returns_true
+        backup_ubuntu_pro_client_is_livepatch_service_enabled_on_machine = package_manager.ubuntu_pro_client.is_livepatch_service_enabled_on_machine
+        package_manager.ubuntu_pro_client.is_livepatch_service_enabled_on_machine = self.mock_ubuntu_pro_client_is_livepatch_service_enabled_on_machine_returns_true
 
-        package_manager.start_livepatching()
+        package_manager.start_livepatch()
         substatus_file_data = self.__get_substatus_from_status_file()[0]
         self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
         patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
         self.assertEqual(len(patches), 0)
-        package_manager.ubuntu_pro_client.is_livepatching_enabled_on_machine = backup_ubuntu_pro_client_is_livepatching_enabled_on_machine
+        package_manager.ubuntu_pro_client.is_livepatch_service_enabled_on_machine = backup_ubuntu_pro_client_is_livepatch_service_enabled_on_machine
 
-    def test_start_livepatching_when_launch_livepatch_client_failed(self):
+    def test_start_livepatch_when_launch_livepatch_client_failed(self):
         # livepatch client is not launched, status is still updated with stale livepatch config
         package_manager = self.__setup_package_manager()
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
@@ -1266,7 +1266,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         backup_launch_livepatch_client = package_manager.launch_livepatch_client
         package_manager.launch_livepatch_client = self.mock_launch_livepatch_client_failed
 
-        package_manager.start_livepatching()
+        package_manager.start_livepatch()
         substatus_file_data = self.__get_substatus_from_status_file()[0]
         self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
         self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)

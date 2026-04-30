@@ -415,32 +415,32 @@ class TestUbuntuProClient(unittest.TestCase):
         package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = False
         self.assertFalse(package_manager.ubuntu_pro_client.is_livepatching_applicable_for_machine())
 
-    def test_is_livepatching_enabled_on_machine_returns_true(self):
+    def test_is_livepatch_service_enabled_on_machine_returns_true(self):
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.ubuntu_pro_client.is_livepatching_enabled_on_machine())
+        self.assertTrue(package_manager.ubuntu_pro_client.is_livepatch_service_enabled_on_machine())
 
-    def test_is_livepatching_enabled_on_machine_returns_false(self):
+    def test_is_livepatch_service_enabled_on_machine_returns_false(self):
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
-        self.assertFalse(package_manager.ubuntu_pro_client.is_livepatching_enabled_on_machine())
+        self.assertFalse(package_manager.ubuntu_pro_client.is_livepatch_service_enabled_on_machine())
 
-    def test_is_livepatching_enabled_on_machine_exception_path(self):
+    def test_is_livepatch_service_enabled_on_machine_exception_path(self):
         package_manager = self.container.get('package_manager')
         backup_run_command_output = package_manager.env_layer.run_command_output
         package_manager.env_layer.run_command_output = self.mock_run_command_output_raise_exception
-        self.assertFalse(package_manager.ubuntu_pro_client.is_livepatching_enabled_on_machine())
+        self.assertFalse(package_manager.ubuntu_pro_client.is_livepatch_service_enabled_on_machine())
         package_manager.env_layer.run_command_output = backup_run_command_output
 
-    def test_is_livepatching_enabled_on_machine_returns_false_when_no_data_on_livepatch_found(self):
+    def test_is_livepatch_service_enabled_on_machine_returns_false_when_no_data_on_livepatch_found(self):
         # Test scenario: No data for livepatch service returned
         self.runtime.set_legacy_test_type('AnotherSadPath')
         package_manager = self.container.get('package_manager')
-        self.assertFalse(package_manager.ubuntu_pro_client.is_livepatching_enabled_on_machine())
+        self.assertFalse(package_manager.ubuntu_pro_client.is_livepatch_service_enabled_on_machine())
 
         # Test scenario: No service data returned
         self.runtime.set_legacy_test_type('UnalignedPath')
         package_manager = self.container.get('package_manager')
-        self.assertFalse(package_manager.ubuntu_pro_client.is_livepatching_enabled_on_machine())
+        self.assertFalse(package_manager.ubuntu_pro_client.is_livepatch_service_enabled_on_machine())
 
 
 if __name__ == '__main__':

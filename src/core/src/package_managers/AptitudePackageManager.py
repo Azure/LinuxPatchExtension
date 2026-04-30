@@ -92,7 +92,7 @@ class AptitudePackageManager(PackageManager):
         
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
-        # Livepatching service
+        # Livepatch service
         self.set_cutoff_date_in_livepatch_config_cmd = "canonical-livepatch config cutoff-date=" + self.__reformat_date_for_livepatch(execution_config.max_patch_publish_date)
         self.launch_livepatch_client_cmd = "sudo systemctl restart snap.canonical-livepatch.canonical-livepatchd"
         self.get_livepatch_status_cmd = "sudo canonical-livepatch status --verbose --format json"
@@ -845,30 +845,30 @@ class AptitudePackageManager(PackageManager):
         return False
     # endregion Reboot Management
 
-    #region Livepatching
-    def start_livepatching(self):
-        """ Applies livepatches on the machine, if it's pre-req are met"""
-        if self.are_livepatching_prereq_met():
+    #region Livepatch
+    def start_livepatch(self):
+        """ Applies livepatches on the machine, if its pre-req are met"""
+        if self.are_livepatch_prereq_met():
             self.start_livepatching_on_machine()
         else:
-            self.composite_logger.log_warning("[APM] Livepatching is not applied since the pre-requisites were not met")
+            self.composite_logger.log_warning("[APM] Livepatches are not applied since the pre-requisites were not met")
 
-    def are_livepatching_prereq_met(self):
-        """ Validates whether livepatching prereqs are met.
-        Pre-reqs: Machine should be attached to a pro subscription and livepatching service should be enabled on the VM. """
-        self.composite_logger.log_debug("[APM] Checking if all the pre-reqs to receive livepatches are met. NOTE: Livepatching is only available on Ubuntu LTS paid pro VMs and has to be in enabled state")
+    def are_livepatch_prereq_met(self):
+        """ Validates whether livepatch prereqs are met.
+        These pre-reqs are: Machine should be attached to a pro subscription and livepatch service should be enabled on the VM. """
+        self.composite_logger.log_debug("[APM] Checking if all the pre-reqs to receive livepatches are met. NOTE: Livepatches is only available on Ubuntu LTS paid pro VMs and has to be in enabled state")
         if not self.ubuntu_pro_client.is_livepatching_applicable_for_machine():
             self.composite_logger.log_warning("[APM] Livepatching is not applicable for this machine, hence no livepatches will be installed")
             return False
             # todo: add to error?
 
-        if not self.ubuntu_pro_client.is_livepatching_enabled_on_machine():
-            self.composite_logger.log_warning("[APM] Livepatching is not enabled for this machine, hence no livepatches will be installed."
-                " Please enable livepatching if you want AzGPS to apply livepatches on this machine")
+        if not self.ubuntu_pro_client.is_livepatch_service_enabled_on_machine():
+            self.composite_logger.log_warning("[APM] Livepatch service is not enabled on this machine, hence no livepatches will be installed."
+                " Please enable livepatch service if you want AzGPS to apply livepatches on this machine")
             return False
             # todo: add to error?
 
-        self.composite_logger.log_debug("[APM] All Livepatching pre-reqs are met. VM is eligible to receive livepatches")
+        self.composite_logger.log_debug("[APM] All Livepatch pre-reqs are met. VM is eligible to receive livepatches")
         return True
 
     def start_livepatching_on_machine(self):
@@ -904,7 +904,8 @@ class AptitudePackageManager(PackageManager):
         return False
 
     def launch_livepatch_client(self):
-        """ Launch livepatch client manually as best case effort to ensure livepatches are applied in a timely manner. If this fails, livepatches will still be applied but it will be up to the machine's cron to trigger it"""
+        """ Launch livepatch client manually as best case effort to ensure livepatches are applied in a timely manner.
+        If this fails, livepatches will still be applied but it will be up to the machine's cron to trigger it"""
         launch_successful = False
         self.composite_logger.log("[APM] Launching livepatch client...")
         try:
@@ -926,7 +927,7 @@ class AptitudePackageManager(PackageManager):
             self.update_livepatch_status_in_patch_installation_summary(livepatch_status)
 
     def try_get_livepatch_status(self):
-        """ Attempts to fetch livepatch status and return it in json format """
+        """ Attempts to fetch livepatch status and return it in json format. If it fails, returns an empty json"""
         self.composite_logger.log_debug("[APM] Fetching livepatch status...")
         livepatch_status = {}
         cmd = self.get_livepatch_status_cmd
@@ -963,7 +964,49 @@ class AptitudePackageManager(PackageManager):
         self.status_handler.set_package_install_status(patch_name, patch_version, patch_status)
 
     def extract_livepatch_fields(self, livepatch_status):
-        """ Returns CheckState, State, Version."""
+        """ Extracts and returns following fields from livepatch status: Status.Livepatch.CheckState, Status.Livepatch.State, Status.Livepatch.Version.
+        This is a sample of livepatch status output for reference:
+        {
+            "Client-Version": "<>",
+            "Machine-Id": "<>",
+            "Architecture": "<>",
+            "CPU-Model": "<>",
+            "Last-Check": "<>",
+            "Boot-Time": "<>",
+            "Uptime": "<>",
+            "Status": [
+            {
+                "Kernel": "<>",
+                "Running": true,
+                "Livepatch": {
+                    "CheckState": "checked",
+                    "State": "<>", // "nothing-to-apply" or "applied"
+                    "Version": "" // "" or a version such as "1.0",
+                    "Fixes": // empty if no livepatches available or a list of CVEs installed
+                    [{
+                        "Name": "<>", //cve identifier such as CVE-000-0000
+                        "Description": "<>", // description of the livepatch fix
+                        "Bug": "",
+                        "Patched": <bool> // boolean value indicating status
+                    }]
+                },
+                "Supported": "<>", // "supported" or a quick text on what is needed such as "kernel-upgrade-required"
+                "UpgradeRequiredDate": "<>" // date
+            }],
+            "tier": "updates",
+            "Excluded-LSNs": [], // List of excluded LSNs
+            "Fixed-CVEs": {
+                "Timestamp": "",
+                "Kernel-Package-Fixes": [], // list of all kernel packages fixed
+                "Installed-Kernels": [],
+                "Patched-CVEs": [], // list of patched CVEs identifiers
+                "Digest": ""
+            },
+            "Blocking-Options": [ // List of configs blocking livepatch, if any. For eg: cutoff-date set for livepatch client
+                "cutoff-date"
+            ],
+            "Using-Cutoff-Date": <bool> // boolean value indicating whether livepatch client is using cutoff-date config or not
+        } """
         extracted = []
 
         for status_item in livepatch_status.get("Status", []):
@@ -979,14 +1022,14 @@ class AptitudePackageManager(PackageManager):
         return extracted
 
     def __reformat_date_for_livepatch(self, date_str):
-        """Converts AzGPS date format (20240401T000000Z) to ISO 8601 date string (2024-04-01T00:00:00Z)."""
+        """Converts ISO 8601 date format from basic (20240401T000000Z) to extended (2024-04-01T00:00:00Z)."""
         try:
-            return datetime.datetime.strptime(date_str, "%Y%m%dT%H%M%SZ").strftime("%Y-%m-%dT%H:%M:%SZ")
+            return str(self.env_layer.datetime.datetime_iso_basic_string_to_extended_string(date_str))
         except Exception as error:
             self.composite_logger.log_error("Invalid date string received, could not format it to a livepatch config acceptable format. [DateStr={0}][Exception={1}]"
                                             .format(str(date_str), repr(error)))
             return ""
-    # endregion Livepatching
+    # endregion Livepatch
 
     def is_reboot_pending(self):
         """ Checks if there is a pending reboot on the machine. """

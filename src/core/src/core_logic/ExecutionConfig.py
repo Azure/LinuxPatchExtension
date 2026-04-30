@@ -92,10 +92,10 @@ class ExecutionConfig(object):
         # EULA config
         self.accept_package_eula = self.__is_eula_accepted_for_all_patches()
 
-        # LivePatching config
-        self.livepatching_config_settings = self.__get_livepatching_config_in_json()
-        self.livepatching_enabled = self.__is_livepatching_enabled(self.livepatching_config_settings)
-        self.livepatch_only = self.__is_livepatch_only_enabled(self.livepatching_config_settings)
+        # LivePatch config
+        self.livepatch_customer_config_settings = self.__get_livepatch_customer_config_in_json()
+        self.is_livepatch_requested = self.__is_livepatch_requested(self.livepatch_customer_config_settings)
+        self.is_livepatch_only_requested = self.__is_livepatch_only_requested(self.livepatch_customer_config_settings)
 
     def __transform_execution_config_for_auto_assessment(self):
         self.activity_id = str(uuid.uuid4())
@@ -254,7 +254,7 @@ class ExecutionConfig(object):
                 accept_eula_for_all_patches = self.__fetch_specific_setting(eula_settings, Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES)
                 accepted_by = self.__fetch_specific_setting(eula_settings, Constants.EulaSettings.ACCEPTED_BY)
                 last_modified = self.__fetch_specific_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
-                if accept_eula_for_all_patches is not None and accept_eula_for_all_patches in [True, 'True', 'true', '1', 1]:
+                if self.__is_truthy(accept_eula_for_all_patches):
                     is_eula_accepted = True
                 self.composite_logger.log_debug("EULA config values from disk: [AcceptEULAForAllPatches={0}] [AcceptedBy={1}] [LastModified={2}]. Computed value of [IsEULAAccepted={3}]"
                                                 .format(str(accept_eula_for_all_patches), str(accepted_by), str(last_modified), str(is_eula_accepted)))
@@ -265,45 +265,47 @@ class ExecutionConfig(object):
 
         return is_eula_accepted
 
-    def __get_livepatching_config_in_json(self):
-        """ Reads customer provided config on live patching from disk and returns a dict with the config values.
+    def __get_livepatch_customer_config_in_json(self):
+        """ Reads customer provided config on livepatch from disk and returns a dict with the config values.
             NOTE: This is a temporary solution and will be deprecated soon """
-        livepatching_config = dict()
+        livepatch_customer_config = dict()
         try:
-            if os.path.exists(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS):
-                livepatching_config = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.LIVEPATCHING_SETTINGS) or 'null') or dict()
-                self.composite_logger.log_debug("Livepatching config values from disk: [Config={0}]".format(str(livepatching_config)))
+            if os.path.exists(Constants.AzGPSPaths.LIVEPATCH_CUSTOMER_SETTINGS):
+                livepatch_customer_config = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.LIVEPATCH_CUSTOMER_SETTINGS) or 'null') or dict()
+                self.composite_logger.log_debug("Livepatch customer config values from disk: [Config={0}]".format(str(livepatch_customer_config)))
             else:
-                self.composite_logger.log_debug("No livepatching config found on the VM. Returning empty config.")
+                self.composite_logger.log_debug("No livepatch customer config found on the VM. Returning empty config.")
         except Exception as error:
-            self.composite_logger.log_debug("Error occurred while reading and parsing live patching config. Returning empty config. Error=[{0}]".format(repr(error)))
+            self.composite_logger.log_debug("Error occurred while reading and parsing livepatch customer config. Returning empty config. Error=[{0}]".format(repr(error)))
 
-        return livepatching_config
+        return livepatch_customer_config
 
-    def __is_livepatching_enabled(self, livepatching_settings):
-        """ Determines if livepatching is enabled or disabled. """
-        is_livepatching_enabled = False
+    def __is_livepatch_requested(self, livepatch_settings):
+        """ Determines if livepatch is requested in config settings. Returns a boolean."""
+        livepatch_requested = False
 
-        enable_livepatching = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.ENABLE_LIVEPATCHING)
-        enabled_by = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.ENABLED_BY)
-        last_modified = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.LAST_MODIFIED)
-        if enable_livepatching is not None and enable_livepatching in [True, 'True', 'true', '1', 1]:
-            is_livepatching_enabled = True
-            self.composite_logger.log_debug("Livepatching config values read from disk: [EnableLivePatching={0}] [EnabledBy={1}] [LastModified={2}]. Computed value of [IsLivePatchingEnabled={3}]"
-                                            .format(str(enable_livepatching), str(enabled_by), str(last_modified), str(is_livepatching_enabled)))
+        enable_livepatch = self.__fetch_specific_setting(livepatch_settings, Constants.LivePatchSettings.ENABLE_LIVEPATCH)
+        enabled_by = self.__fetch_specific_setting(livepatch_settings, Constants.LivePatchSettings.ENABLED_BY)
+        last_modified = self.__fetch_specific_setting(livepatch_settings, Constants.LivePatchSettings.LAST_MODIFIED)
+        if self.__is_truthy(enable_livepatch):
+            livepatch_requested = True
+            self.composite_logger.log_debug("Livepatch config values read from disk: [EnableLivePatch={0}] [EnabledBy={1}] [LastModified={2}]. Computed value of [LivePatchRequested={3}]"
+                                            .format(str(enable_livepatch), str(enabled_by), str(last_modified), str(livepatch_requested)))
         else:
-            self.composite_logger.log_debug("LivePatching is not enabled for the VM. Computed value of [IsLivePatchingEnabled={0}]".format(str(is_livepatching_enabled)))
+            self.composite_logger.log_debug("LivePatch is not requested for the VM. [EnableLivePatchValueFromConfig={0}]. Computed value of [LivePatchRequested={1}]"
+                                            .format(str(enable_livepatch),str(livepatch_requested)))
 
-        return is_livepatching_enabled
+        return livepatch_requested
 
-    def __is_livepatch_only_enabled(self, livepatching_settings):
-        """ Determines if customer has set config to only livepatch i.e. no cold patch. """
+    def __is_livepatch_only_requested(self, livepatch_settings):
+        """ Determines if livepatch only, i.e. no cold patch, is requested in config settings. Returns a boolean."""
         """ NOTE: This is not in use currently but can be added in MVP if needed"""
-        is_livepatch_only_enabled = self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.LIVEPATCH_ONLY) in [True, 'True', 'true', '1', 1]
-        self.composite_logger.log_debug("Livepatch only config values from disk: [EnableLivePatchOnly={0}]. Computed value of [IsLivePatchOnlyEnabled={1}]"
-                                        .format(str(self.__fetch_specific_setting(livepatching_settings, Constants.LivePatchingSettings.LIVEPATCH_ONLY)),
-                                                str(is_livepatch_only_enabled)))
-        return is_livepatch_only_enabled
+        livepatch_only_config = self.__fetch_specific_setting(livepatch_settings, Constants.LivePatchSettings.LIVEPATCH_ONLY)
+        livepatch_only_requested = self.__is_truthy(livepatch_only_config)
+        self.composite_logger.log_debug("Livepatch only config values from disk: [LivePatchOnly={0}]. Computed value of [LivePatchOnlyRequested={1}]"
+                                        .format(str(self.__fetch_specific_setting(livepatch_settings, Constants.LivePatchSettings.LIVEPATCH_ONLY)),
+                                                str(livepatch_only_requested)))
+        return livepatch_only_requested
 
     @staticmethod
     def __fetch_specific_setting(settings_source, setting_to_fetch):
@@ -311,4 +313,20 @@ class ExecutionConfig(object):
         if settings_source is not None and setting_to_fetch is not None and setting_to_fetch in settings_source:
             return settings_source[setting_to_fetch]
         return None
+
+    @staticmethod
+    def __is_truthy(value):
+        """Case-insensitive truthy evaluator for config values."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value == 1
+
+        # Cross-version text types:
+        # py2 -> (str, unicode)
+        # py3 -> (str, str)
+        text_types = (str, type(u""))
+        if isinstance(value, text_types):
+            return value.strip().lower() in ("true", "1")
+        return False
 
