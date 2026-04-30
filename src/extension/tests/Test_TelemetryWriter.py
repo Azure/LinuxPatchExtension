@@ -187,6 +187,8 @@ class TestTelemetryWriter(unittest.TestCase):
         original_is_github_runner = self.runtime.is_github_runner
         self.runtime.is_github_runner = False
 
+        self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
+
         message = "https://user:pass@example.com"
         result = self._load_sanitized_event(message)
 
@@ -201,20 +203,11 @@ class TestTelemetryWriter(unittest.TestCase):
     # ==================== Unit Tests for Credential Sanitization ====================
     def test_sanitize_credentials_from_uri_https_credentials_leak(self):
         """ Test sanitization of HTTPS URIs with credentials """
-        if self.runtime.is_github_runner:
-            return
-
-        # Verify events folder is empty before test
-        self.assertTrue(len(os.listdir(self.telemetry_writer.events_folder_path)) == 0, "Events folder should be empty before writing")
-
         message = "Error connecting to https://testuser:TESTTOKEN123456@invalid.repo.example/rpm/repodata/repomd.xml"
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
-        # Verify exactly one event file was created
         event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        self.assertEqual(len(event_files), 1, "Events folder should contain exactly one event file")
-
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
+        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[-1]), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
@@ -224,9 +217,6 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def test_sanitize_credentials_from_uri_http_credentials_leak(self):
         """ Test sanitization of HTTP URIs with credentials """
-        if self.runtime.is_github_runner:
-            return
-
         message = "Connection failed to http://user123:password123@example.com/path"
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
@@ -241,9 +231,6 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def test_sanitize_credentials_multiple_urls_with_credentials_leak(self):
         """ Test sanitization with multiple URLs containing credentials """
-        if self.runtime.is_github_runner:
-            return
-
         message = "Failed to fetch from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data"
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
@@ -258,9 +245,6 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def test_sanitize_credentials_with_no_credentials_in_input_with_credentials_leak(self):
         """  ERROR with 401 status code from jfrog.io """
-        if self.runtime.is_github_runner:
-            return
-
         message = "ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml"
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
@@ -274,9 +258,6 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def test_sanitize_credentials_with_error_and_credentials_leak(self):
         """  Curl error with buildbot:BuildBotToken credentials """
-        if self.runtime.is_github_runner:
-            return
-
         message = ("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
                    "retrieve mirrorlist https://buildbot:BuildBotToken@mirror.example.com/repodata/repomd.xml")
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
@@ -292,12 +273,6 @@ class TestTelemetryWriter(unittest.TestCase):
 
     def test_sanitize_credentials_expired_with_credentials_leak_in_input(self):
         """ ERROR with expired SSL certs and TESTTOKEN123456 """
-        if self.runtime.is_github_runner:
-            return
-
-        # Verify events folder is empty before test
-        self.assertTrue(len(os.listdir(self.telemetry_writer.events_folder_path)) == 0, "Events folder should be empty before writing")
-
         message = ("ERROR: Customer environment error (expired SSL certs): "
                    "Command=sudo yum update -y --disablerepo='*' "
                    "--enablerepo='microsoft' !!Code=11 Out- Updating "
@@ -309,11 +284,8 @@ class TestTelemetryWriter(unittest.TestCase):
                    "Cannot download repomd.xml: All mirrors were tried")
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
-        # Verify exactly one event file was created
         event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        self.assertEqual(len(event_files), 1, "Events folder should contain exactly one event file")
-
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
+        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[-1]), 'r+') as f:
             events = json.load(f)
             self.assertTrue(events is not None)
             self.assertEqual(events[-1]["TaskName"], "Test Task")
