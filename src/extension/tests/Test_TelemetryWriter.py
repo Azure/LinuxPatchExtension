@@ -187,8 +187,6 @@ class TestTelemetryWriter(unittest.TestCase):
         original_is_github_runner = self.runtime.is_github_runner
         self.runtime.is_github_runner = False
 
-        self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
-
         message = "https://user:pass@example.com"
         result = self._load_sanitized_event(message)
 
@@ -201,34 +199,6 @@ class TestTelemetryWriter(unittest.TestCase):
         self.runtime.is_github_runner = original_is_github_runner
 
     # ==================== Unit Tests for Credential Sanitization ====================
-    def test_sanitize_credentials_from_uri_https_credentials_leak(self):
-        """ Test sanitization of HTTPS URIs with credentials """
-        message = "Error connecting to https://testuser:TESTTOKEN123456@invalid.repo.example/rpm/repodata/repomd.xml"
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
-
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[-1]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEqual(events[-1]["TaskName"], "Test Task")
-            expected_message = ("Error connecting to https://testuser@invalid.repo.example/rpm/repodata/repomd.xml")
-            self.assertEqual(expected_message, events[-1]["Message"])
-            f.close()
-
-    def test_sanitize_credentials_from_uri_http_credentials_leak(self):
-        """ Test sanitization of HTTP URIs with credentials """
-        message = "Connection failed to http://user123:password123@example.com/path"
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
-
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEqual(events[-1]["TaskName"], "Test Task")
-            expected_message = ("Connection failed to http://user123@example.com/path")
-            self.assertEqual(expected_message, events[-1]["Message"])
-            f.close()
-
     def test_sanitize_credentials_multiple_urls_with_credentials_leak(self):
         """ Test sanitization with multiple URLs containing credentials """
         message = "Failed to fetch from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data"
