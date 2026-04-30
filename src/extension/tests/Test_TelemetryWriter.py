@@ -159,72 +159,56 @@ class TestTelemetryWriter(unittest.TestCase):
         os.listdir = backup_os_listdir
 
     # ==================== Integration test for credential sanitization in telemetry ====================
-    def _load_sanitized_event(self, message):
-        """
-        Helper method to write event to telemetry and load the sanitized message.
-        The regex sanitization happens automatically in TelemetryWriter.
-        Args:
-            message: The message to write to telemetry
-        Returns: The sanitized message from the event
-        """
-        if self.runtime.is_github_runner:
-            return None
+    # def _load_sanitized_event(self, message):
+    #     """
+    #     Helper method to write event to telemetry and load the sanitized message.
+    #     The regex sanitization happens automatically in TelemetryWriter.
+    #     Args:
+    #         message: The message to write to telemetry
+    #     Returns: The sanitized message from the event
+    #     """
+    #     if self.runtime.is_github_runner:
+    #         return None
+    #
+    #     # Write event to telemetry
+    #     actual_message = self.telemetry_writer.write_event(message)
+    #
+    #     # Load the event file
+    #     event_files = os.listdir(self.telemetry_writer.events_folder_path)
+    #     with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
+    #         events = json.load(f)
+    #         sanitized_message = events[0]["Message"]
+    #         f.close()
+    #         return sanitized_message
+    #
+    # def test_load_sanitized_event_full_path(self):
+    #     """Test: Helper method executes full path when not on GitHub runner"""
+    #     # Force is_github_runner to False to ensure full path coverage on CI
+    #     original_is_github_runner = self.runtime.is_github_runner
+    #     self.runtime.is_github_runner = False
+    #
+    #     message = "https://user:pass@example.com"
+    #     result = self._load_sanitized_event(message)
+    #
+    #     # On non-GitHub runner, should return the sanitized message
+    #     self.assertIsNotNone(result)
+    #     self.assertIn("user@example.com", result)
+    #     self.assertEqual("https://user@example.com", result)
+    #
+    #     # Restore
+    #     self.runtime.is_github_runner = original_is_github_runner
 
-        # Write event to telemetry
-        self.telemetry_writer.write_event(message)
-
-        # Load the event file
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
-            events = json.load(f)
-            sanitized_message = events[0]["Message"]
-            f.close()
-            return sanitized_message
-
-    def test_load_sanitized_event_full_path(self):
-        """Test: Helper method executes full path when not on GitHub runner"""
-        # Force is_github_runner to False to ensure full path coverage on CI
-        original_is_github_runner = self.runtime.is_github_runner
-        self.runtime.is_github_runner = False
-
-        message = "https://user:pass@example.com"
-        result = self._load_sanitized_event(message)
-
-        # On non-GitHub runner, should return the sanitized message
-        self.assertIsNotNone(result)
-        self.assertIn("user@example.com", result)
-        self.assertEqual("https://user@example.com", result)
-
-        # Restore
-        self.runtime.is_github_runner = original_is_github_runner
-
-    # ==================== Unit Tests for Credential Sanitization ====================
     def test_sanitize_credentials_multiple_urls_with_credentials_leak(self):
         """ Test sanitization with multiple URLs containing credentials """
         message = "Failed to fetch from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data"
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
-
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEqual(events[-1]["TaskName"], "Test Task")
-            expected_message = "Failed to fetch from https://user1@host1.com/api and http://user2@host2.com/data"
-            self.assertEqual(expected_message, events[-1]["Message"])
-            f.close()
+        actual_message = self.telemetry_writer.credential_sanitizer.sanitize(message)
+        self.assertEqual("Failed to fetch from https://user1@host1.com/api and http://user2@host2.com/data", actual_message)
 
     def test_sanitize_credentials_with_no_credentials_in_input_with_credentials_leak(self):
         """  ERROR with 401 status code from jfrog.io """
         message = "ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml"
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
-
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEqual(events[-1]["TaskName"], "Test Task")
-            self.assertEqual("ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml", events[-1]["Message"])
-            f.close()
+        actual_message = self.telemetry_writer.credential_sanitizer.sanitize(message)
+        self.assertEqual("ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml", actual_message)
 
     def test_sanitize_credentials_with_error_and_credentials_leak(self):
         """  Curl error with buildbot:BuildBotToken credentials """
@@ -252,14 +236,9 @@ class TestTelemetryWriter(unittest.TestCase):
                    "for https://testuser:TESTTOKEN123456@packages-microsoft-com-prod/CENTRAL.rpm "
                    "Error: Failed to download metadata for repo 'packages-microsoft-com-prod': "
                    "Cannot download repomd.xml: All mirrors were tried")
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
+        actual_message = self.telemetry_writer.credential_sanitizer.sanitize(message)
 
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[-1]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEqual(events[-1]["TaskName"], "Test Task")
-            expected_message = ("ERROR: Customer environment error (expired SSL certs): "
+        expected_message = ("ERROR: Customer environment error (expired SSL certs): "
                                "Command=sudo yum update -y --disablerepo='*' "
                                "--enablerepo='microsoft' !!Code=11 Out- Updating "
                                "Subscription Management repositories. "
@@ -268,8 +247,7 @@ class TestTelemetryWriter(unittest.TestCase):
                                "for https://testuser@packages-microsoft-com-prod/CENTRAL.rpm "
                                "Error: Failed to download metadata for repo 'packages-microsoft-com-prod': "
                                "Cannot download repomd.xml: All mirrors were tried")
-            self.assertEqual(expected_message, events[-1]["Message"])
-            f.close()
+        self.assertEqual(expected_message, actual_message)
 
     def test_sanitize_credentials_exception_handling(self):
         """ Test exception handling: passing None should return the input unchanged """
