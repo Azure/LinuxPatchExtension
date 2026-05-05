@@ -5,8 +5,8 @@ import tempfile
 import time
 import unittest
 from extension.src.Constants import Constants
-from extension.tests.helpers.RuntimeComposer import RuntimeComposer
 from extension.tests.helpers.VirtualTerminal import VirtualTerminal
+from extension.tests.helpers.RuntimeComposer import RuntimeComposer
 
 
 class TestTelemetryWriter(unittest.TestCase):
@@ -158,7 +158,65 @@ class TestTelemetryWriter(unittest.TestCase):
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         os.listdir = backup_os_listdir
 
-    # ==================== Integration test for credential sanitization in telemetry ====================
+    # ==================== Unit tests for credential sanitization in telemetry ====================
+    def _clear_events_folder(self):
+        """
+        Helper method to clear the events folder for sanitization test setup.
+        """
+        shutil.rmtree(self.telemetry_writer.events_folder_path)
+        self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
+
+    def _read_event_from_file(self, file_index=None, event_index=-1):
+        """
+        Helper method to open and read an event from an event file in the events folder.
+        Args:
+            file_index: Index of the event file to read. If None, uses latest file (default: None for latest file)
+            event_index: Index of the event within the file (default: -1 for last event)
+        Returns: The parsed event dictionary from the JSON file
+        """
+        event_files = sorted(os.listdir(self.telemetry_writer.events_folder_path))
+        if not event_files:
+            raise Exception("No event files found in events folder")
+
+        if file_index is None:
+            event_file_path = os.path.join(self.telemetry_writer.events_folder_path, event_files[-1])
+        else:
+            event_file_path = os.path.join(self.telemetry_writer.events_folder_path, event_files[file_index])
+
+        with open(event_file_path, 'r+') as f:
+            events = json.load(f)
+            f.close()
+            if not events:
+                raise Exception("No events found in event file")
+            return events[event_index]
+
+    def _get_message_without_tc(self, event):
+        """
+        Helper method to extract the message without the TC (telemetry counter) portion.
+        Args:
+            event: The event dictionary
+        Returns: The message from the event
+        """
+        return event["Message"]
+
+    def _validate_sanitized_event(self, expected_message, task_name=None, event_index=-1, file_index=None):
+        """
+        Helper method to validate an event's message and task name against expected values.
+        This internally calls _read_event_from_file to retrieve the event.
+        Args:
+            expected_message: The expected sanitized message
+            task_name: The expected task name (optional validation)
+            event_index: Index of the event within the file (default: -1 for last event)
+            file_index: Index of the event file (default: None for latest file)
+        """
+        event = self._read_event_from_file(file_index=file_index, event_index=event_index)
+
+        self.assertIsNotNone(event)
+        message = self._get_message_without_tc(event)
+        self.assertEqual(expected_message, message)
+        if task_name is not None:
+            self.assertEqual(task_name, event["TaskName"])
+
     def _load_sanitized_event(self, message):
         """
         Helper method to write event to telemetry and load the sanitized message.
@@ -167,19 +225,12 @@ class TestTelemetryWriter(unittest.TestCase):
             message: The message to write to telemetry
         Returns: The sanitized message from the event
         """
-        if self.runtime.is_github_runner:
-            return None
-
         # Write event to telemetry
         actual_message = self.telemetry_writer.write_event(message)
 
-        # Load the event file
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
-            events = json.load(f)
-            sanitized_message = events[0]["Message"]
-            f.close()
-            return sanitized_message
+        # Load the event file using helper method (gets first event from latest file)
+        event = self._read_event_from_file(file_index=None, event_index=0)
+        return event["Message"]
 
     def test_load_sanitized_event_full_path(self):
         """Test: Helper method executes full path when not on GitHub runner"""
@@ -198,52 +249,36 @@ class TestTelemetryWriter(unittest.TestCase):
         # Restore
         self.runtime.is_github_runner = original_is_github_runner
 
-    def test_sanitize_credentials_multiple_urls_with_credentials_leak_in_input(self):
+    def test_sanitize_credentials_multiple_urls_with_credentials_leak(self):
         """ Test sanitization with multiple URLs containing credentials """
         message = "Failed to fetch from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data"
+        expected_message = "Failed to fetch from https://user1@host1.com/api and http://user2@host2.com/data"
+
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEqual(events[-1]["TaskName"], "Test Task")
-            self.assertEqual("Failed to fetch from https://user1@host1.com/api and http://user2@host2.com/data",
-                             events[-1]["Message"])
-            f.close()
+        self._validate_sanitized_event(expected_message, task_name="Test Task", event_index=-1)
 
     def test_sanitize_credentials_with_no_credentials_in_input_with_credentials_leak(self):
         """  ERROR with 401 status code from jfrog.io """
         message = "ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml"
+        expected_message = "ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml"
+
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEqual(events[-1]["TaskName"], "Test Task")
-            self.assertEqual("ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml", events[-1]["Message"])
-            f.close()
+        self._validate_sanitized_event(expected_message, task_name="Test Task", event_index=-1)
 
     def test_sanitize_credentials_with_error_and_credentials_leak(self):
         """  Curl error with buildbot:BuildBotToken credentials """
         message = ("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
                    "retrieve mirrorlist https://buildbot:BuildBotToken@mirror.example.com/repodata/repomd.xml")
+        expected_message = ("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
+                           "retrieve mirrorlist https://buildbot@mirror.example.com/repodata/repomd.xml")
+
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEqual(events[-1]["TaskName"], "Test Task")
-            # Token should be removed but username preserved
-            self.assertNotIn("BuildBotToken", events[-1]["Message"])
-            self.assertIn("buildbot@mirror.example.com", events[-1]["Message"])
-            self.assertEqual(("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
-                             "retrieve mirrorlist https://buildbot@mirror.example.com/repodata/repomd.xml"), events[-1]["Message"])
-            f.close()
+        self._validate_sanitized_event(expected_message, task_name="Test Task", event_index=-1)
 
-    def test_sanitize_credentials_expired_with_credentials_leak_in_input(self):
+    def test_sanitize_credentials_expired_with_credentials_leak(self):
         """ ERROR with expired SSL certs and TESTTOKEN123456 """
         message = ("ERROR: Customer environment error (expired SSL certs): "
                    "Command=sudo yum update -y --disablerepo='*' "
@@ -254,27 +289,19 @@ class TestTelemetryWriter(unittest.TestCase):
                    "for https://testuser:TESTTOKEN123456@packages-microsoft-com-prod/CENTRAL.rpm "
                    "Error: Failed to download metadata for repo 'packages-microsoft-com-prod': "
                    "Cannot download repomd.xml: All mirrors were tried")
+        expected_message = ("ERROR: Customer environment error (expired SSL certs): "
+                           "Command=sudo yum update -y --disablerepo='*' "
+                           "--enablerepo='microsoft' !!Code=11 Out- Updating "
+                           "Subscription Management repositories. "
+                           "Unable to read consumer identity This system is not registered "
+                           "with an entitlement server. Status code: 401 "
+                           "for https://testuser@packages-microsoft-com-prod/CENTRAL.rpm "
+                           "Error: Failed to download metadata for repo 'packages-microsoft-com-prod': "
+                           "Cannot download repomd.xml: All mirrors were tried")
+
         self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
 
-        event_files = os.listdir(self.telemetry_writer.events_folder_path)
-        with open(os.path.join(self.telemetry_writer.events_folder_path, event_files[0]), 'r+') as f:
-            events = json.load(f)
-            self.assertTrue(events is not None)
-            self.assertEqual(events[-1]["TaskName"], "Test Task")
-            # Token should be removed but username preserved
-            self.assertNotIn("TESTTOKEN123456", events[-1]["Message"])
-            self.assertIn("testuser@packages-microsoft-com-prod", events[-1]["Message"])
-            expected_message = ("ERROR: Customer environment error (expired SSL certs): "
-                               "Command=sudo yum update -y --disablerepo='*' "
-                               "--enablerepo='microsoft' !!Code=11 Out- Updating "
-                               "Subscription Management repositories. "
-                               "Unable to read consumer identity This system is not registered "
-                               "with an entitlement server. Status code: 401 "
-                               "for https://testuser@packages-microsoft-com-prod/CENTRAL.rpm "
-                               "Error: Failed to download metadata for repo 'packages-microsoft-com-prod': "
-                               "Cannot download repomd.xml: All mirrors were tried")
-            self.assertEqual(expected_message, events[-1]["Message"])
-            f.close()
+        self._validate_sanitized_event(expected_message, task_name="Test Task", event_index=-1)
 
     def test_sanitize_credentials_exception_handling(self):
         """ Test exception handling: passing None should return the input unchanged """

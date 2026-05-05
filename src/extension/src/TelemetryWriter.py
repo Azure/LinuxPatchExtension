@@ -74,7 +74,6 @@ class TelemetryWriter(object):
             self.logger.log_telemetry_module_error("Error occurred while formatting message for a telemetry event. [Error={0}]".format(repr(e)))
             raise
 
-
     def __get_agent_supports_telemetry_from_env_var(self):
         """ Returns True if the env var AZURE_GUEST_AGENT_EXTENSION_SUPPORTED_FEATURES has a key of
             ExtensionTelemetryPipeline in the list. Value of the env var looks like this:

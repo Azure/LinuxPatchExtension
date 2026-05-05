@@ -36,12 +36,10 @@ class CredentialSanitizer(object):
             # (1) scheme: https://, http://, or ftp://
             # (2) username: one or more non-whitespace, non-slash, non-colon, non-@ characters
             # (3) password: zero or more non-whitespace, non-slash, non-@ characters
-            sanitized_message = re.sub(
-                r'(https?://|ftp://)([^:/@\s]+):([^@/\s]*)@',r'\1\2@',message)
-            self.logger.log_verbose(
-                "Message was sanitized to remove sensitive information. [InputMessage={0}][SanitizedMessage={1}]".format(str(message), str(sanitized_message)))
+            sanitized_message = re.sub(r'(https?://|ftp://)([^:/@\s]+):([^@/\s]*)@',r'\1\2@',message)
+            self.logger.log_verbose("Message was sanitized to remove sensitive information. [InputMessage={0}][SanitizedMessage={1}]".format(str(message), str(sanitized_message)))
             return sanitized_message
         except Exception as error:
-            self.logger.log_error("Error occurred while sanitizing credentials from message: {0}".format(repr(error)))
+            self.logger.log_error("Error occurred while sanitizing credentials from message: [Error={0}]".format(repr(error)))
             return message
 
