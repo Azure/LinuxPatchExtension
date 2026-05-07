@@ -64,7 +64,7 @@ class EnableCommandHandler(object):
                 self.ext_output_status_handler.write_status_file(operation, self.seq_no, status=Constants.Status.Error.lower(), message="Requested operation {0} is not supported by the extension".format(str(operation)), code=Constants.ExitCode.OperationNotSupported)
                 exit(Constants.ExitCode.OperationNotSupported)
 
-            prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.ENABLE_MAX_RUNTIME)
+            prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.ENABLE_MAX_RUNTIME_MINUTES)
             self.ext_state_handler.create_file(self.seq_no, operation, prev_patch_max_end_time)
             core_state_content = self.core_state_handler.read_file()
 
@@ -153,4 +153,3 @@ class EnableCommandHandler(object):
             else:
                 self.ext_output_status_handler.add_error_to_status("Error executing NoOperation due to last reported error.", Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             self.ext_output_status_handler.set_nooperation_substatus_json(operation, activity_id, start_time, seq_no=self.seq_no, status=Constants.Status.Error)
-

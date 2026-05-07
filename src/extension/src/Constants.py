@@ -28,7 +28,9 @@ class Constants(object):
                         yield item
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.64"
+    # Keep a single in-class source of truth; retain EXT_VERSION as a compatibility alias.
+    EXTENSION_VERSION = "1.6.64"
+    EXT_VERSION = EXTENSION_VERSION
 
     # Runtime environments
     TEST = 'Test'
@@ -56,8 +58,8 @@ class Constants(object):
     EXTENSION_MODULE = "Extension"
 
     # Max runtime for specific commands in minutes
-    ENABLE_MAX_RUNTIME = 3
-    DISABLE_MAX_RUNTIME = 13
+    ENABLE_MAX_RUNTIME_MINUTES = 3
+    DISABLE_MAX_RUNTIME_MINUTES = 13
 
     # Telemetry Settings
     # Note: these limits are based on number of characters as confirmed with agent team
@@ -118,6 +120,7 @@ class Constants(object):
     class PatchOperationTopLevelErrorCode(EnumBackport):
         SUCCESS = 0
         ERROR = 1
+        WARNING = 2
 
     class PatchOperationErrorCodes(EnumBackport):
         # todo: finalize these error codes

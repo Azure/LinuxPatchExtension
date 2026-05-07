@@ -336,7 +336,7 @@ class ActionHandler(object):
     def disable(self):
         try:
             self.setup(action=Constants.DISABLE, log_message="Disable triggered on extension")
-            prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.DISABLE_MAX_RUNTIME)
+            prev_patch_max_end_time = self.cmd_exec_start_time + datetime.timedelta(hours=0, minutes=Constants.DISABLE_MAX_RUNTIME_MINUTES)
             self.runtime_context_handler.process_previous_patch_operation(self.core_state_handler, self.process_handler, prev_patch_max_end_time, core_state_content=None)
 
             # For the Linux Patch Extension lifecycle, disable comes in as a temporary part of the extension update flow. (Uninstall, with no further action, is not part of this extension's lifecycle)
@@ -390,4 +390,3 @@ class ActionHandler(object):
             return Constants.ExitCode.HandlerFailed
         finally:
             self.tear_down()
-
