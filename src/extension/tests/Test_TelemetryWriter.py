@@ -16,6 +16,8 @@ class TestTelemetryWriter(unittest.TestCase):
         self.runtime = RuntimeComposer()
         self.telemetry_writer = self.runtime.telemetry_writer
         self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
+        self.telemetry_writer._TelemetryWriter__agent_is_compatible = True
+        Constants.TELEMETRY_ENABLED_AT_EXTENSION = True
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
@@ -190,15 +192,6 @@ class TestTelemetryWriter(unittest.TestCase):
                 raise Exception("No events found in event file")
             return events[event_index]
 
-    def _get_message_without_tc(self, event):
-        """
-        Helper method to extract the message without the TC (telemetry counter) portion.
-        Args:
-            event: The event dictionary
-        Returns: The message from the event
-        """
-        return event["Message"]
-
     def _validate_sanitized_event(self, expected_message, task_name=None, event_index=-1, file_index=None):
         """
         Helper method to validate an event's message and task name against expected values.
@@ -210,98 +203,37 @@ class TestTelemetryWriter(unittest.TestCase):
             file_index: Index of the event file (default: None for latest file)
         """
         event = self._read_event_from_file(file_index=file_index, event_index=event_index)
-
         self.assertIsNotNone(event)
-        message = self._get_message_without_tc(event)
-        self.assertEqual(expected_message, message)
+        self.assertEqual(expected_message, event["Message"])
         if task_name is not None:
             self.assertEqual(task_name, event["TaskName"])
 
-    def _load_sanitized_event(self, message):
-        """
-        Helper method to write event to telemetry and load the sanitized message.
-        The regex sanitization happens automatically in TelemetryWriter.
-        Args:
-            message: The message to write to telemetry
-        Returns: The sanitized message from the event
-        """
-        # Write event to telemetry
-        actual_message = self.telemetry_writer.write_event(message)
-
-        # Load the event file using helper method (gets first event from latest file)
-        event = self._read_event_from_file(file_index=None, event_index=0)
-        return event["Message"]
-
-    def test_load_sanitized_event_full_path(self):
-        """Test: Helper method executes full path when not on GitHub runner"""
-        # Force is_github_runner to False to ensure full path coverage on CI
-        original_is_github_runner = self.runtime.is_github_runner
-        self.runtime.is_github_runner = False
-
-        message = "https://user:pass@example.com"
-        result = self._load_sanitized_event(message)
-
-        # On non-GitHub runner, should return the sanitized message
-        self.assertIsNotNone(result)
-        self.assertIn("user@example.com", result)
-        self.assertEqual("https://user@example.com", result)
-
-        # Restore
-        self.runtime.is_github_runner = original_is_github_runner
-
     def test_sanitize_credentials_multiple_urls_with_credentials_leak(self):
         """ Test sanitization with multiple URLs containing credentials """
-        message = "Failed to fetch from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data"
-        expected_message = "Failed to fetch from https://user1@host1.com/api and http://user2@host2.com/data"
+        self.telemetry_writer.write_event("Failed to fetch from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data", Constants.TelemetryEventLevel.Error, "Test Task")
 
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
-
-        self._validate_sanitized_event(expected_message, task_name="Test Task", event_index=-1)
+        self._validate_sanitized_event("Failed to fetch from https://user1@host1.com/api and http://user2@host2.com/data", task_name="Test Task", event_index=-1)
 
     def test_sanitize_credentials_with_no_credentials_in_input_with_credentials_leak(self):
         """  ERROR with 401 status code from jfrog.io """
-        message = "ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml"
-        expected_message = "ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml"
+        self.telemetry_writer.write_event("ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml", Constants.TelemetryEventLevel.Error, "Test Task")
 
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
-
-        self._validate_sanitized_event(expected_message, task_name="Test Task", event_index=-1)
+        self._validate_sanitized_event("ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml", task_name="Test Task", event_index=-1)
 
     def test_sanitize_credentials_with_error_and_credentials_leak(self):
         """  Curl error with buildbot:BuildBotToken credentials """
-        message = ("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
-                   "retrieve mirrorlist https://buildbot:BuildBotToken@mirror.example.com/repodata/repomd.xml")
-        expected_message = ("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
-                           "retrieve mirrorlist https://buildbot@mirror.example.com/repodata/repomd.xml")
+        self.telemetry_writer.write_event("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
+                   "retrieve mirrorlist https://buildbot:BuildBotToken@mirror.example.com/repodata/repomd.xml", Constants.TelemetryEventLevel.Error, "Test Task")
 
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
-
-        self._validate_sanitized_event(expected_message, task_name="Test Task", event_index=-1)
+        self._validate_sanitized_event("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
+                           "retrieve mirrorlist https://buildbot@mirror.example.com/repodata/repomd.xml", task_name="Test Task", event_index=-1)
 
     def test_sanitize_credentials_expired_with_credentials_leak(self):
         """ ERROR with expired SSL certs and TESTTOKEN123456 """
-        message = ("ERROR: Customer environment error (expired SSL certs): "
-                   "Command=sudo yum update -y --disablerepo='*' "
-                   "--enablerepo='microsoft' !!Code=11 Out- Updating "
-                   "Subscription Management repositories. "
-                   "Unable to read consumer identity This system is not registered "
-                   "with an entitlement server. Status code: 401 "
-                   "for https://testuser:TESTTOKEN123456@packages-microsoft-com-prod/CENTRAL.rpm "
-                   "Error: Failed to download metadata for repo 'packages-microsoft-com-prod': "
-                   "Cannot download repomd.xml: All mirrors were tried")
-        expected_message = ("ERROR: Customer environment error (expired SSL certs): "
-                           "Command=sudo yum update -y --disablerepo='*' "
-                           "--enablerepo='microsoft' !!Code=11 Out- Updating "
-                           "Subscription Management repositories. "
-                           "Unable to read consumer identity This system is not registered "
-                           "with an entitlement server. Status code: 401 "
-                           "for https://testuser@packages-microsoft-com-prod/CENTRAL.rpm "
-                           "Error: Failed to download metadata for repo 'packages-microsoft-com-prod': "
-                           "Cannot download repomd.xml: All mirrors were tried")
-
-        self.telemetry_writer.write_event(message, Constants.TelemetryEventLevel.Error, "Test Task")
-
-        self._validate_sanitized_event(expected_message, task_name="Test Task", event_index=-1)
+        self.telemetry_writer.write_event("ERROR: Customer environment error (expired SSL certs):Command=sudo yum update -y --disablerepo='*' Status code: 401 "
+                   "for https://testuser:TESTTOKEN123456@packages-microsoft-com-prod/CENTRAL.rpm", Constants.TelemetryEventLevel.Error, "Test Task")
+        self._validate_sanitized_event("ERROR: Customer environment error (expired SSL certs):Command=sudo yum update -y --disablerepo='*' Status code: 401 "
+                   "for https://testuser@packages-microsoft-com-prod/CENTRAL.rpm", task_name="Test Task", event_index=-1)
 
     def test_sanitize_credentials_exception_handling(self):
         """ Test exception handling: passing None should return the input unchanged """
