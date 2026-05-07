@@ -1,0 +1,1 @@
+[{"version": 1.0, "timestampUTC": "2026-05-05T15:33:34Z", "status": {"name": "Azure Patch Management", "operation": "Installation", "status": "success", "code": 0, "formattedMessage": {"lang": "en-US", "message": ""}, "substatus": []}}]
