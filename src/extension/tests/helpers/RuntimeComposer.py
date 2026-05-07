@@ -30,9 +30,12 @@ class RuntimeComposer(object):
         self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
 
         if self.is_github_runner:
-            def mkdtemp_runner():
-                temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
-                os.mkdir(temp_path)
+            def mkdtemp_runner(suffix=None, prefix=None, dir=None):
+                base_dir = os.getenv('RUNNER_TEMP')
+                if dir:
+                    base_dir = dir
+                temp_path = os.path.join(base_dir, str(uuid.uuid4()))
+                os.makedirs(temp_path, exist_ok=True)
                 return temp_path
             tempfile.mkdtemp = mkdtemp_runner
 
