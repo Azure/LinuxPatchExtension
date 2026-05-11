@@ -71,7 +71,7 @@ class EnvLayer(object):
             if major is not None and int(major) >= 4:
                 code, out = self.run_command_output('which dnf', False, False)
                 if code == 0:
-                    return 'dnf'
+                    return Constants.DNF
                 else:
                     print("Error: Expected package manager dnf not found on this Azure Linux 4 VM.")
                     return str()

@@ -37,7 +37,7 @@ class AzL4DnfPackageManager(PackageManager):
         - sudo dnf clean expire-cache (cleans expired cache entries)
         - sudo dnf -q check-update (checks for available updates)
         """
-        pass
+        raise NotImplementedError("DNF: refresh_repo not implemented yet")
 
     # AssessPatch method
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
@@ -48,7 +48,7 @@ class AzL4DnfPackageManager(PackageManager):
         Returns:
         - Tuple of (output, return_code) from the command execution
         """
-        pass
+        raise NotImplementedError("DNF: invoke_package_manager_advanced not implemented yet")
 
     # AssessPatch method
     def get_all_updates(self, cached=False):
@@ -62,7 +62,7 @@ class AzL4DnfPackageManager(PackageManager):
         2. Execute command, parse output, cache results
         3. Return all_updates_cached and all_update_versions_cached
         """
-        return [], []
+        raise NotImplementedError("DNF: get_all_updates not implemented yet")
 
      # AssessPatch method
     def get_security_updates(self):
@@ -73,7 +73,7 @@ class AzL4DnfPackageManager(PackageManager):
         - List of security package names
         - List of corresponding security package versions
         """
-        pass
+        raise NotImplementedError("DNF: get_security_updates not implemented yet")
 
     # AssessPatch method
     def get_other_updates(self):
@@ -82,7 +82,7 @@ class AzL4DnfPackageManager(PackageManager):
         return [], []
 
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
-        pass
+        raise NotImplementedError("DNF: set_max_patch_publish_date not implemented yet")
 
     # Install Patch method
     def get_composite_package_identifier(self, package_name, package_version):
@@ -93,10 +93,10 @@ class AzL4DnfPackageManager(PackageManager):
         Returns:
         - String: Composite package identifier (e.g., "package-1.0.0.x86_64")
         """
-        pass
+        raise NotImplementedError("DNF: get_composite_package_identifier not implemented yet")
 
     def install_updates_fail_safe(self, excluded_packages):
-        pass
+        raise NotImplementedError("DNF: install_updates_fail_safe not implemented yet")
 
     # AssessPatch method
     def get_all_available_versions_of_package(self, package_name):
@@ -108,7 +108,7 @@ class AzL4DnfPackageManager(PackageManager):
         Returns:
         - List of all available package versions
         """
-        return []
+        raise NotImplementedError("DNF: get_all_available_versions_of_package not implemented yet")
 
     # AssessPatch method
     def is_package_version_installed(self, package_name, package_version):
@@ -121,7 +121,7 @@ class AzL4DnfPackageManager(PackageManager):
         Returns:
         - Boolean: True if the specific package version is installed, False otherwise
         """
-        pass
+        raise NotImplementedError("DNF: is_package_version_installed not implemented yet")
 
 
     def get_dependent_list(self, packages):
@@ -132,10 +132,10 @@ class AzL4DnfPackageManager(PackageManager):
         - sudo dnf install --assumeno --skip-broken <packages> (simulates installation to find dependencies without actually installing)
         Returns: List of dependency package names required for the input packages
         """
-        pass
+        raise NotImplementedError("DNF: get_dependent_list not implemented yet")
 
     def get_product_name(self, package_name):
-        pass
+        raise NotImplementedError("DNF: get_product_name not implemented yet")
 
     def get_package_size(self, output):
         """Retrieves package size from installation output string
@@ -144,7 +144,7 @@ class AzL4DnfPackageManager(PackageManager):
         Returns:
         - String: Package size (e.g., "15 M") or UNKNOWN_PACKAGE_SIZE if not found
         """
-        pass
+        raise NotImplementedError("DNF: get_package_size not implemented yet")
 
     # Install Patch method
     def install_security_updates_azgps_coordinated(self):
@@ -154,18 +154,18 @@ class AzL4DnfPackageManager(PackageManager):
         Returns:
         - Tuple of (return code, output) from the command execution
         """
-        pass
+        raise NotImplementedError("DNF: install_security_updates_azgps_coordinated not implemented yet")
 
     def try_meet_azgps_coordinated_requirements(self):
         """
-        Do we need this for dnf5?
+        Do we need this for dnf?
         """
-        return False
+        raise NotImplementedError("DNF: try_meet_azgps_coordinated_requirements not implemented yet")
 
     # ConfigurePatch Method
     def get_current_auto_os_patch_state(self):
         """ Gets the current auto OS update patch state on the machine """
-        pass
+        raise NotImplementedError("DNF: get_current_auto_os_patch_state not implemented yet")
 
     # ConfigurePatch Method
     def disable_auto_os_update(self):
@@ -174,19 +174,19 @@ class AzL4DnfPackageManager(PackageManager):
         Comments from yashna : The current VM with AzLinux4 installed doesnt have dnf automatic/auto OS updates installed.
         Will we have this installed in other machines which leads to my question on whether we need this or not ?
         """
-        pass
+        raise NotImplementedError("DNF: disable_auto_os_update not implemented yet")
 
     def backup_image_default_patch_configuration_if_not_exists(self):
         """
         This method saves the original auto-update configuration so it can be restored later.
         """
-        pass
+        raise NotImplementedError("DNF: backup_image_default_patch_configuration_if_not_exists not implemented yet")
 
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
-        pass
+        raise NotImplementedError("DNF: is_image_default_patch_configuration_backup_valid not implemented yet")
 
     def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value, patch_configuration_sub_setting_pattern_to_match):
-        pass
+        raise NotImplementedError("DNF: update_os_patch_configuration_sub_setting not implemented yet")
 
     # Post Install method/ Install Patch
     def is_reboot_pending(self):
@@ -194,7 +194,7 @@ class AzL4DnfPackageManager(PackageManager):
         Returns:
         - Boolean: True if reboot is pending, False otherwise
         """
-        pass
+        raise NotImplementedError("DNF: is_reboot_pending not implemented yet")
 
     # Post Install method / Install Patch
     def do_processes_require_restart(self):
@@ -205,28 +205,28 @@ class AzL4DnfPackageManager(PackageManager):
         Returns:
         - Boolean: True if processes require restart, False otherwise
         """
-        pass
+        raise NotImplementedError("DNF: do_processes_require_restart not implemented yet")
 
     def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
          Unnecessary for DNF because the package manager already handles multi-architecture dependencies automatically
          Command Used to confirm above: sudo dnf -y install jq
         """
-        pass
+        return
 
     def set_security_esm_package_status(self, operation, packages):
         """No-op for dnf, tdnf, yum and zypper """
-        pass
+        return
 
     def separate_out_esm_packages(self, packages, package_versions):
         """No-op for dnf, tdnf, yum and zypper """
-        pass
+        return
 
     def get_package_install_expected_avg_time_in_seconds(self):
-        pass
+        raise NotImplementedError("DNF: get_package_install_expected_avg_time_in_seconds not implemented yet")
 
     # ConfigurePatch method
     def revert_auto_os_update_to_system_default(self):
         """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
-        pass
+        raise NotImplementedError("DNF: revert_auto_os_update_to_system_default not implemented yet")
 
