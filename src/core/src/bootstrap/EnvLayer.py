@@ -49,7 +49,7 @@ class EnvLayer(object):
 
     def is_distro_azure_linux_3_or_beyond(self):
         # type: () -> bool
-        """ Checks if the current distro is Azure Linux 3 """
+        """ Checks if the current distro is Azure Linux 3 or greater"""
         if self.is_distro_azure_linux(self.platform.linux_distribution()):
             version = distro.os_release_attr('version')
             major = version.split('.')[0] if version else None
@@ -63,12 +63,26 @@ class EnvLayer(object):
             return Constants.APT
 
         if self.is_distro_azure_linux(str(self.platform.linux_distribution())):
-            code, out = self.run_command_output('which tdnf', False, False)
-            if code == 0:
-                return Constants.TDNF
+            # Determine package manager based on Azure Linux version
+            version = distro.os_release_attr('version')
+            major = version.split('.')[0] if version else None
+
+            # Azure Linux 4 uses DNF
+            if major is not None and int(major) >= 4:
+                code, out = self.run_command_output('which dnf', False, False)
+                if code == 0:
+                    return 'dnf'
+                else:
+                    print("Error: Expected package manager dnf not found on this Azure Linux 4 VM.")
+                    return str()
+            # Azure Linux 3 uses TDNF
             else:
-                print("Error: Expected package manager tdnf not found on this Azure Linux VM.")
-                return str()
+                code, out = self.run_command_output('which tdnf', False, False)
+                if code == 0:
+                    return Constants.TDNF
+                else:
+                    print("Error: Expected package manager tdnf not found on this Azure Linux VM.")
+                    return str()
 
         # choose default package manager
         package_manager_map = (('apt-get', Constants.APT),
