@@ -93,7 +93,7 @@ class AptitudePackageManager(PackageManager):
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
         # Livepatch service
-        self.set_cutoff_date_in_livepatch_config_cmd = "canonical-livepatch config cutoff-date=" + self.__reformat_date_for_livepatch(execution_config.max_patch_publish_date)
+        self.set_cutoff_date_in_livepatch_config_cmd = "sudo canonical-livepatch config cutoff-date=" + self.__try_reformat_date_for_livepatch(execution_config.max_patch_publish_date)
         self.launch_livepatch_client_cmd = "sudo systemctl restart snap.canonical-livepatch.canonical-livepatchd"
         self.get_livepatch_status_cmd = "sudo canonical-livepatch status --verbose --format json"
 
@@ -847,6 +847,7 @@ class AptitudePackageManager(PackageManager):
 
     #region Livepatch
     def start_livepatch(self):
+        # type: () -> ()
         """ Applies livepatches on the machine, if its pre-req are met"""
         if self.are_livepatch_prereq_met():
             self.start_livepatching_on_machine()
@@ -854,18 +855,18 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_warning("[APM] Livepatches are not applied since the pre-requisites were not met")
 
     def are_livepatch_prereq_met(self):
+        # type: () -> bool
         """ Validates whether livepatch prereqs are met.
         These pre-reqs are: Machine should be attached to a pro subscription and livepatch service should be enabled on the VM. """
-        self.composite_logger.log_debug("[APM] Checking if all the pre-reqs to receive livepatches are met. NOTE: Livepatches is only available on Ubuntu LTS paid pro VMs and has to be in enabled state")
-        if not self.ubuntu_pro_client.is_livepatching_applicable_for_machine():
-            error_message = "[APM] Livepatching is not applicable for this machine, hence no livepatches will be installed"
+        self.composite_logger.log_debug("[APM] Checking if all the pre-reqs to receive livepatches are met. NOTE: Livepatch service is only available on Ubuntu LTS paid pro VMs and has to be in enabled state")
+        if not self.ubuntu_pro_client.pro_client_attached_for_livepatching():
+            error_message = "[APM] Livepatches will NOT be applied since the VM is not attached to a pro subscription."
             self.composite_logger.log_error(error_message)
             self.status_handler.add_error_to_status(error_message, Constants.PatchOperationErrorCodes.LIVEPATCH_ERROR)
             return False
 
-        if not self.ubuntu_pro_client.is_livepatch_service_enabled_on_machine():
-            error_message = ("[APM] Livepatch service is not enabled on this machine, hence no livepatches will be installed."
-                             " Please enable livepatch service if you want AzGPS to apply livepatches on this machine")
+        if not self.ubuntu_pro_client.livepatch_service_enabled_on_machine():
+            error_message = ("[APM] The Ubuntu Pro client reported that the Livepatch service is not enabled. Please enable it for Livepatching to succeed.")
             self.composite_logger.log_error(error_message)
             self.status_handler.add_error_to_status(error_message, Constants.PatchOperationErrorCodes.LIVEPATCH_ERROR)
             return False
@@ -874,6 +875,7 @@ class AptitudePackageManager(PackageManager):
         return True
 
     def start_livepatching_on_machine(self):
+        # type: () -> ()
         """Starts livepatching on the machine according to the configurations set in AzGPS and updates livepatch status in status blob"""
         self.composite_logger.log_debug("[APM] Starting livepatching on the machine...")
         if self.try_set_livepatch_cutoff_date_in_config():
@@ -886,6 +888,7 @@ class AptitudePackageManager(PackageManager):
                                             "Please check previous logs for more details on why it failed and fix the issue before trying to apply livepatches again")
 
     def try_set_livepatch_cutoff_date_in_config(self):
+        # type: () -> bool
         cmd = self.set_cutoff_date_in_livepatch_config_cmd
         self.composite_logger.log_debug("[APM] Attempting to set livepatch cutoff date in livepatch config using [cmd={0}]".format(str(cmd)))
         try:
@@ -906,6 +909,7 @@ class AptitudePackageManager(PackageManager):
         return False
 
     def launch_livepatch_client(self):
+        # type: () -> bool
         """ Launch livepatch client manually as best case effort to ensure livepatches are applied in a timely manner.
         If this fails, livepatches will still be applied but it will be up to the machine's cron to trigger it"""
         launch_successful = False
@@ -923,12 +927,14 @@ class AptitudePackageManager(PackageManager):
         return launch_successful
 
     def fetch_and_update_livepatch_status_in_status_blob(self):
+        # type: () -> ()
         """Fetches livepatch status and if a livepatch/es is/are applied, updates it as a new patch entry in PatchInstallationSummary"""
         livepatch_status = self.try_get_livepatch_status()
         if livepatch_status:
             self.update_livepatch_status_in_patch_installation_summary(livepatch_status)
 
     def try_get_livepatch_status(self):
+        # type: () -> dict
         """ Attempts to fetch livepatch status and return it in json format. If it fails, returns an empty json"""
         self.composite_logger.log_debug("[APM] Fetching livepatch status...")
         livepatch_status = {}
@@ -940,8 +946,7 @@ class AptitudePackageManager(PackageManager):
                 self.composite_logger.log_debug("[APM] Successfully fetched livepatch status. [Status={0}]".format(str(livepatch_status)))
             else:
                 error_msg = "[APM] Failed to fetch livepatch status. [Cmd={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(output))
-                self.composite_logger.log_error(error_msg)
-                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.LIVEPATCH_ERROR)
+                raise Exception(error_msg)
         except Exception as error:
             error_msg = "[APM] Exception while fetching livepatch status. [Cmd={0}][Exception={1}]".format(str(cmd), repr(error))
             self.composite_logger.log_error(error_msg)
@@ -949,6 +954,7 @@ class AptitudePackageManager(PackageManager):
         return livepatch_status
 
     def update_livepatch_status_in_patch_installation_summary(self, livepatch_status):
+        # type: (dict) -> ()
         """ Updates livepatch status in patch installation summary as a new patch record """
         self.composite_logger.log_debug("[APM] Updating patch installation summary with livepatch status. [LivepatchStatus={0}]".format(str(livepatch_status)))
         extracted_livepatch_fields = self.extract_livepatch_fields(livepatch_status)
@@ -968,53 +974,13 @@ class AptitudePackageManager(PackageManager):
         self.status_handler.set_package_install_status(patch_name, patch_version, patch_status)
 
     def extract_livepatch_fields(self, livepatch_status):
+        # type: (dict) -> list
         """ Extracts and returns following fields from livepatch status: Status.Livepatch.CheckState, Status.Livepatch.State, Status.Livepatch.Version.
-        This is a sample of livepatch status output for reference:
-        {
-            "Client-Version": "<>",
-            "Machine-Id": "<>",
-            "Architecture": "<>",
-            "CPU-Model": "<>",
-            "Last-Check": "<>",
-            "Boot-Time": "<>",
-            "Uptime": "<>",
-            "Status": [
-            {
-                "Kernel": "<>",
-                "Running": true,
-                "Livepatch": {
-                    "CheckState": "checked",
-                    "State": "<>", // "nothing-to-apply" or "applied"
-                    "Version": "" // "" or a version such as "1.0",
-                    "Fixes": // empty if no livepatches available or a list of CVEs installed
-                    [{
-                        "Name": "<>", //cve identifier such as CVE-000-0000
-                        "Description": "<>", // description of the livepatch fix
-                        "Bug": "",
-                        "Patched": <bool> // boolean value indicating status
-                    }]
-                },
-                "Supported": "<>", // "supported" or a quick text on what is needed such as "kernel-upgrade-required"
-                "UpgradeRequiredDate": "<>" // date
-            }],
-            "tier": "updates",
-            "Excluded-LSNs": [], // List of excluded LSNs
-            "Fixed-CVEs": {
-                "Timestamp": "",
-                "Kernel-Package-Fixes": [], // list of all kernel packages fixed
-                "Installed-Kernels": [],
-                "Patched-CVEs": [], // list of patched CVEs identifiers
-                "Digest": ""
-            },
-            "Blocking-Options": [ // List of configs blocking livepatch, if any. For eg: cutoff-date set for livepatch client
-                "cutoff-date"
-            ],
-            "Using-Cutoff-Date": <bool> // boolean value indicating whether livepatch client is using cutoff-date config or not
-        } """
+         Refer the expected output format at: \src\tools\references\canonical-livepatch_status_cmd_expected_output_format.txt"""
         extracted = []
 
         for status_item in livepatch_status.get("Status", []):
-            if status_item.get("Running", False) == True and status_item.get("Supported", "unsupported").lower() == "supported":
+            if status_item.get("Running", False) == True and status_item.get("Supported").lower() != "unsupported":
                 livepatch = status_item.get("Livepatch", {})
                 extracted.append({
                     "CheckState": livepatch.get("CheckState", ""),
@@ -1025,7 +991,8 @@ class AptitudePackageManager(PackageManager):
 
         return extracted
 
-    def __reformat_date_for_livepatch(self, date_str):
+    def __try_reformat_date_for_livepatch(self, date_str):
+        # type: (str) -> str
         """Converts ISO 8601 date format from basic (20240401T000000Z) to extended (2024-04-01T00:00:00Z)."""
         try:
             return str(self.env_layer.datetime.datetime_iso_basic_string_to_extended_string(date_str))

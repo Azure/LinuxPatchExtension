@@ -175,15 +175,17 @@ class UbuntuProClient:
         return ubuntu_pro_client_api_success, ubuntu_pro_client_reboot_required
 
     # region Livepatch
-    def is_livepatching_applicable_for_machine(self):
-        """ Verifies if livepatching is applicable for the machine by checking if the machine is an Ubuntu LTS Pro VM """
+    def pro_client_attached_for_livepatching(self):
+        # type: () -> bool
+        """ Checks if the machine is an Ubuntu LTS Pro VM since livepatching is only supported on those"""
         if not self.is_ubuntu_pro_client_attached:
-            self.composite_logger.log_warning("[APM][Pro] Livepatching is not applicable for the machine since it is not an Ubuntu Pro VM.")
+            self.composite_logger.log_warning("[APM][Pro] Ubuntu Pro Client is not attached")
             return False
 
         return True
 
-    def is_livepatch_service_enabled_on_machine(self):
+    def livepatch_service_enabled_on_machine(self):
+        # type: () -> bool
         """ Verifies if livepatch service is enabled on the machine """
         livepatch_service_enabled = False
         try:
@@ -201,7 +203,7 @@ class UbuntuProClient:
         except Exception as error:
             ubuntu_pro_client_exception = repr(error)
             self.composite_logger.log_debug("[APM][Pro] Ubuntu Pro Client status Exception: [Exception={0}]".format(ubuntu_pro_client_exception))
-            self.composite_logger.log_warning("[APM][Pro] Failed to determine if livepatch service is enabled on the machine due to error while querying Ubuntu Pro Client status.")
+            self.composite_logger.log_warning("[APM][Pro] Failed to determine if livepatch service is enabled on the machine due to error while querying Ubuntu Pro Client status. AzGPS will consider the service to be disabled.")
         return livepatch_service_enabled
     # endregion Livepatch
 

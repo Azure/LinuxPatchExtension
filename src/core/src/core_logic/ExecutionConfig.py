@@ -266,6 +266,7 @@ class ExecutionConfig(object):
         return is_eula_accepted
 
     def __get_livepatch_customer_config_in_json(self):
+        # type: () -> dict
         """ Reads customer provided config on livepatch from disk and returns a dict with the config values.
             NOTE: This is a temporary solution and will be deprecated soon """
         livepatch_customer_config = dict()
@@ -281,6 +282,7 @@ class ExecutionConfig(object):
         return livepatch_customer_config
 
     def __is_livepatch_requested(self, livepatch_settings):
+        # type: (dict) -> bool
         """ Determines if livepatch is requested in config settings. Returns a boolean."""
         livepatch_requested = False
 
@@ -298,17 +300,18 @@ class ExecutionConfig(object):
         return livepatch_requested
 
     def __is_livepatch_only_requested(self, livepatch_settings):
+        # type: (dict) -> bool
         """ Determines if livepatch only, i.e. no cold patch, is requested in config settings. Returns a boolean."""
         """ NOTE: This is not in use currently but can be added in MVP if needed"""
         livepatch_only_config = self.__fetch_specific_setting(livepatch_settings, Constants.LivePatchSettings.LIVEPATCH_ONLY)
         livepatch_only_requested = self.__is_truthy(livepatch_only_config)
         self.composite_logger.log_debug("Livepatch only config values from disk: [LivePatchOnly={0}]. Computed value of [LivePatchOnlyRequested={1}]"
-                                        .format(str(self.__fetch_specific_setting(livepatch_settings, Constants.LivePatchSettings.LIVEPATCH_ONLY)),
-                                                str(livepatch_only_requested)))
+                                        .format(str(livepatch_only_config), str(livepatch_only_requested)))
         return livepatch_only_requested
 
     @staticmethod
     def __fetch_specific_setting(settings_source, setting_to_fetch):
+        # type: (dict, str) -> str or None
         """ Returns the specific setting value from the given settings_source or None if not found """
         if settings_source is not None and setting_to_fetch is not None and setting_to_fetch in settings_source:
             return settings_source[setting_to_fetch]
@@ -316,6 +319,7 @@ class ExecutionConfig(object):
 
     @staticmethod
     def __is_truthy(value):
+        # type: (any) -> bool
         """Case-insensitive truthy evaluator for config values."""
         if isinstance(value, bool):
             return value
