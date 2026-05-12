@@ -884,8 +884,8 @@ class AptitudePackageManager(PackageManager):
                 self.composite_logger.log_warning("[APM] A stale livepatch status may be reported since a manual launch/restart of the livepatch client failed")
             self.fetch_and_update_livepatch_status_in_status_blob()
         else:
-            self.composite_logger.log_warning("[APM] AzGPS will not apply livepatch on the VM since the livepatch cutoff date was not set. "
-                                            "Please check previous logs for more details on why it failed and fix the issue before trying to apply livepatches again")
+            self.composite_logger.log_warning("[APM] AzGPS's attempt to set livepatch cutoff config date failed. Any livepatch applied by the livepatch client will not honor a cutoff date. "
+                                            "Please check previous logs for more details on why it failed and fix the issue.")
 
     def try_set_livepatch_cutoff_date_in_config(self):
         # type: () -> bool
