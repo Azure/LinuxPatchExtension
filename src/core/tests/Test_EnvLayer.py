@@ -91,28 +91,32 @@ class TestExecutionConfig(unittest.TestCase):
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.envlayer.platform.linux_distribution = self.mock_linux_distribution
         self.backup_run_command_output = self.envlayer.run_command_output
+        self.backup_distro_os_release_attr = distro.os_release_attr
 
         test_input_output_table = [
-            [self.mock_run_command_for_apt, self.mock_linux_distribution, Constants.APT],
-            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_3, Constants.TDNF],
-            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, str()],  # check for Azure Linux machine which does not have tdnf
-            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, Constants.TDNF],
-            [self.mock_run_command_for_yum, self.mock_linux_distribution, Constants.YUM],
-            [self.mock_run_command_for_zypper, self.mock_linux_distribution, Constants.ZYPPER],
-            [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, str()],    # no matches for any package manager
+            [self.mock_run_command_for_apt, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, Constants.APT],
+            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_azure_linux_3, Constants.TDNF],
+            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_azure_linux_3, str()],  # check for Azure Linux machine which does not have tdnf
+            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, self.mock_distro_os_release_attr_return_azure_linux_2, Constants.TDNF],
+            [self.mock_run_command_for_yum, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, Constants.YUM],
+            [self.mock_run_command_for_zypper, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, Constants.ZYPPER],
+            [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, str()],    # no matches for any package manager
         ]
 
         for row in test_input_output_table:
             self.envlayer.run_command_output = row[0]
             self.envlayer.platform.linux_distribution = row[1]
+            distro.os_release_attr = row[2]
             package_manager = self.envlayer.get_package_manager()
-            self.assertTrue(package_manager is row[2])
+            self.assertTrue(package_manager is row[3])
 
         # test for Windows
         platform.system = self.mock_platform_system_windows
+        distro.os_release_attr = self.mock_distro_os_release_attr_return_none
         self.assertEqual(self.envlayer.get_package_manager(), Constants.APT)
 
         # restore original methods
+        distro.os_release_attr = self.backup_distro_os_release_attr
         self.envlayer.run_command_output = self.backup_run_command_output
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
         platform.system = self.backup_platform_system
@@ -153,6 +157,7 @@ class TestExecutionConfig(unittest.TestCase):
 
     def test_get_package_manager_azure_linux_4_not_supported(self):
         """Test that Azure Linux 4 raises an exception"""
+        self.backup_platform_system = platform.system
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.backup_distro_os_release_attr = distro.os_release_attr
 
@@ -167,9 +172,11 @@ class TestExecutionConfig(unittest.TestCase):
         # restore
         distro.os_release_attr = self.backup_distro_os_release_attr
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
+        platform.system = self.backup_platform_system
 
     def test_get_package_manager_rhel_10_not_supported(self):
         """Test that RHEL 10 raises an exception"""
+        self.backup_platform_system = platform.system
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.backup_distro_os_release_attr = distro.os_release_attr
         self.backup_distro_id = distro.id
@@ -187,6 +194,7 @@ class TestExecutionConfig(unittest.TestCase):
         distro.id = self.backup_distro_id
         distro.os_release_attr = self.backup_distro_os_release_attr
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
+        platform.system = self.backup_platform_system
 
 
 if __name__ == '__main__':

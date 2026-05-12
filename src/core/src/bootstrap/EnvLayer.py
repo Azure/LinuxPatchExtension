@@ -49,7 +49,7 @@ class EnvLayer(object):
 
     def is_distro_azure_linux_3_or_beyond(self):
         # type: () -> bool
-        """ Checks if the current distro is Azure Linux 3 or beyond """
+        """ Checks if the current distro is Azure Linux 3 """
         if self.is_distro_azure_linux(self.platform.linux_distribution()):
             version = distro.os_release_attr('version')
             major = version.split('.')[0] if version else None
@@ -69,7 +69,7 @@ class EnvLayer(object):
         # Check for Azure Linux
         if self.is_distro_azure_linux(str(self.platform.linux_distribution())):
             # Azure Linux 4 not yet supported
-            if major is not None and int(major) >= 4:
+            if major is not None and int(major) == 4:
                 error_msg = "Azure Linux 4 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information."
                 print("Error: {0}".format(error_msg))
                 raise Exception(error_msg)
@@ -83,7 +83,7 @@ class EnvLayer(object):
                 return str()
 
         # Check for RHEL 10 (not yet supported)
-        if os_id == "rhel" and major is not None and int(major) >= 10:
+        if os_id == "rhel" and major is not None and int(major) == 10:
             error_msg = "RHEL 10 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information."
             print("Error: {0}".format(error_msg))
             raise Exception(error_msg)
