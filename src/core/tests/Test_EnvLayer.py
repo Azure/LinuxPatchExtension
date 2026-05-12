@@ -71,6 +71,18 @@ class TestExecutionConfig(unittest.TestCase):
 
     def mock_distro_os_release_attr_return_none(self, attribute):
         return None
+
+    def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
+        return '4.0.2'
+
+    def mock_distro_os_release_attr_return_rhel_10(self, attribute):
+        return '10.0'
+
+    def mock_linux_distribution_to_return_azure_linux_4(self):
+        return ['Microsoft Azure Linux', '4.0', '']
+
+    def mock_distro_id_return_rhel(self):
+        return 'rhel'
     # endregion
 
     def test_get_package_manager(self):
@@ -138,6 +150,43 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.os_type()
         self.envlayer.platform.cpu_arch()
         self.envlayer.platform.vm_name()
+
+    def test_get_package_manager_azure_linux_4_not_supported(self):
+        """Test that Azure Linux 4 raises an exception"""
+        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
+        self.backup_distro_os_release_attr = distro.os_release_attr
+
+        platform.system = self.mock_platform_system
+        self.envlayer.platform.linux_distribution = self.mock_linux_distribution_to_return_azure_linux_4
+        distro.os_release_attr = self.mock_distro_os_release_attr_return_azure_linux_4
+
+        with self.assertRaises(Exception) as context:
+            self.envlayer.get_package_manager()
+        self.assertEqual(str(context.exception), "Azure Linux 4 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information.")
+
+        # restore
+        distro.os_release_attr = self.backup_distro_os_release_attr
+        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
+
+    def test_get_package_manager_rhel_10_not_supported(self):
+        """Test that RHEL 10 raises an exception"""
+        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
+        self.backup_distro_os_release_attr = distro.os_release_attr
+        self.backup_distro_id = distro.id
+
+        platform.system = self.mock_platform_system
+        self.envlayer.platform.linux_distribution = self.mock_linux_distribution
+        distro.os_release_attr = self.mock_distro_os_release_attr_return_rhel_10
+        distro.id = self.mock_distro_id_return_rhel
+
+        with self.assertRaises(Exception) as context:
+            self.envlayer.get_package_manager()
+        self.assertEqual(str(context.exception), "RHEL 10 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information.")
+
+        # restore
+        distro.id = self.backup_distro_id
+        distro.os_release_attr = self.backup_distro_os_release_attr
+        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
 
 
 if __name__ == '__main__':

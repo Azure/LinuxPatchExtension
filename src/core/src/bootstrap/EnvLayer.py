@@ -49,7 +49,7 @@ class EnvLayer(object):
 
     def is_distro_azure_linux_3_or_beyond(self):
         # type: () -> bool
-        """ Checks if the current distro is Azure Linux 3 """
+        """ Checks if the current distro is Azure Linux 3 or beyond """
         if self.is_distro_azure_linux(self.platform.linux_distribution()):
             version = distro.os_release_attr('version')
             major = version.split('.')[0] if version else None
@@ -62,7 +62,19 @@ class EnvLayer(object):
         if platform.system() == 'Windows':
             return Constants.APT
 
+        version = distro.os_release_attr('version')
+        major = version.split('.')[0] if version else None
+        os_id = distro.id()
+
+        # Check for Azure Linux
         if self.is_distro_azure_linux(str(self.platform.linux_distribution())):
+            # Azure Linux 4 not yet supported
+            if major is not None and int(major) >= 4:
+                error_msg = "Azure Linux 4 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information."
+                print("Error: {0}".format(error_msg))
+                raise Exception(error_msg)
+
+            # Azure Linux 3 and below use TDNF
             code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
                 return Constants.TDNF
@@ -70,7 +82,13 @@ class EnvLayer(object):
                 print("Error: Expected package manager tdnf not found on this Azure Linux VM.")
                 return str()
 
-        # choose default package manager
+        # Check for RHEL 10 (not yet supported)
+        if os_id == "rhel" and major is not None and int(major) >= 10:
+            error_msg = "RHEL 10 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information."
+            print("Error: {0}".format(error_msg))
+            raise Exception(error_msg)
+
+        # Choose default package manager
         package_manager_map = (('apt-get', Constants.APT),
                                ('yum', Constants.YUM),
                                ('zypper', Constants.ZYPPER))
