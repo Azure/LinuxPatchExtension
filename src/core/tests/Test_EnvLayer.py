@@ -13,7 +13,9 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import io
 import platform
+import sys
 import unittest
 from core.src.bootstrap.EnvLayer import EnvLayer
 from core.src.bootstrap.Constants import Constants
@@ -156,7 +158,7 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.vm_name()
 
     def test_get_package_manager_azure_linux_4_not_supported(self):
-        """Test that Azure Linux 4 raises an exception"""
+        """Test that Azure Linux 4 logs unsupported message"""
         self.backup_platform_system = platform.system
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.backup_distro_os_release_attr = distro.os_release_attr
@@ -165,9 +167,20 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.linux_distribution = self.mock_linux_distribution_to_return_azure_linux_4
         distro.os_release_attr = self.mock_distro_os_release_attr_return_azure_linux_4
 
-        with self.assertRaises(Exception) as context:
-            self.envlayer.get_package_manager()
-        self.assertEqual(str(context.exception), "Azure Linux 4 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information.")
+        # Capture stdout to check for log message
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        result = self.envlayer.get_package_manager()
+
+        sys.stdout = sys.__stdout__
+        output = captured_output.getvalue()
+
+        # Verify exact error message is logged
+        expected_msg = "Error: Azure Linux 4 is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information."
+        self.assertEqual(expected_msg in output, True)
+        # Verify empty string is returned
+        self.assertEqual(result, "")
 
         # restore
         distro.os_release_attr = self.backup_distro_os_release_attr
@@ -175,7 +188,7 @@ class TestExecutionConfig(unittest.TestCase):
         platform.system = self.backup_platform_system
 
     def test_get_package_manager_rhel_10_not_supported(self):
-        """Test that RHEL 10 raises an exception"""
+        """Test that RHEL 10 logs unsupported message"""
         self.backup_platform_system = platform.system
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.backup_distro_os_release_attr = distro.os_release_attr
@@ -186,9 +199,20 @@ class TestExecutionConfig(unittest.TestCase):
         distro.os_release_attr = self.mock_distro_os_release_attr_return_rhel_10
         distro.id = self.mock_distro_id_return_rhel
 
-        with self.assertRaises(Exception) as context:
-            self.envlayer.get_package_manager()
-        self.assertEqual(str(context.exception), "RHEL 10 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information.")
+        # Capture stdout to check for log message
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        result = self.envlayer.get_package_manager()
+
+        sys.stdout = sys.__stdout__
+        output = captured_output.getvalue()
+
+        # Verify exact error message is logged
+        expected_msg = "Error: RHEL 10 is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information."
+        self.assertEqual(expected_msg in output, True)
+        # Verify empty string is returned
+        self.assertEqual(result, "")
 
         # restore
         distro.id = self.backup_distro_id

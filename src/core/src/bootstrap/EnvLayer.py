@@ -47,13 +47,21 @@ class EnvLayer(object):
     def is_distro_azure_linux(distro_name):
         return any(x in distro_name for x in Constants.AZURE_LINUX)
 
+    @staticmethod
+    def _get_major_version():
+        # type: () -> str
+        """ Extracts major version from distro.os_release_attr('version').
+        Returns major version as string or None if not available. """
+        version = distro.os_release_attr('version')
+        major = version.split('.')[0] if version else None
+        return major
+
     def is_distro_azure_linux_3_or_beyond(self):
         # type: () -> bool
         """ Checks if the current distro is Azure Linux 3 """
         if self.is_distro_azure_linux(self.platform.linux_distribution()):
-            version = distro.os_release_attr('version')
-            major = version.split('.')[0] if version else None
-            return major is not None and int(major) >= 3
+            major = self._get_major_version()
+            return major is not None and int(major) == 3
         return False
 
     def get_package_manager(self):
@@ -62,31 +70,20 @@ class EnvLayer(object):
         if platform.system() == 'Windows':
             return Constants.APT
 
-        version = distro.os_release_attr('version')
-        major = version.split('.')[0] if version else None
+        major = self._get_major_version()
         os_id = distro.id()
 
         # Check for Azure Linux
         if self.is_distro_azure_linux(str(self.platform.linux_distribution())):
-            # Azure Linux 4 not yet supported
-            if major is not None and int(major) == 4:
-                error_msg = "Azure Linux 4 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information."
-                print("Error: {0}".format(error_msg))
-                raise Exception(error_msg)
+            return self._get_azure_linux_package_manager(major)
 
-            # Azure Linux 3 and below use TDNF
-            code, out = self.run_command_output('which tdnf', False, False)
-            if code == 0:
-                return Constants.TDNF
-            else:
-                print("Error: Expected package manager tdnf not found on this Azure Linux VM.")
-                return str()
-
-        # Check for RHEL 10 (not yet supported)
-        if os_id == "rhel" and major is not None and int(major) == 10:
-            error_msg = "RHEL 10 is not yet supported in your region. Please review aka.ms/LinuxPatchExtension for more information."
-            print("Error: {0}".format(error_msg))
-            raise Exception(error_msg)
+        # Check for RHEL
+        if os_id == "rhel":
+            package_manager = self._get_rhel_package_manager(major)
+            # Helper will raise exception for unsupported versions (e.g., RHEL 10).
+            # If it returns a value, use it; otherwise fall through to default detect
+            if package_manager is not None:
+                return package_manager
 
         # Choose default package manager
         package_manager_map = (('apt-get', Constants.APT),
@@ -98,6 +95,38 @@ class EnvLayer(object):
                 return entry[1]
 
         return str()
+
+    def _get_azure_linux_package_manager(self, major):
+        # type: (str) -> str
+        """ Determines the package manager for Azure Linux based on version.
+        Azure Linux 3 and below use TDNF. Azure Linux 4 use DNF (not yet supported).
+        Logs error message if version is unsupported. """
+        # Azure Linux 4 not yet supported
+        if major is not None and int(major) == 4:
+            error_msg = "Azure Linux 4 is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information."
+            print("Error: {0}".format(error_msg))
+            return str()
+
+        # Azure Linux 3 and below use TDNF
+        code, out = self.run_command_output('which tdnf', False, False)
+        if code == 0:
+            return Constants.TDNF
+        else:
+            print("Error: Expected package manager tdnf not found on this Azure Linux VM.")
+            return str()
+
+    def _get_rhel_package_manager(self, major):
+        # type: (str) -> str
+        """ Determines the package manager for RHEL based on version.
+        Returns DNF when RHEL 10+ is supported. Logs error message if unsupported. """
+        # RHEL 10 not yet supported
+        if major is not None and int(major) == 10:
+            error_msg = "RHEL 10 is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information."
+            print("Error: {0}".format(error_msg))
+            return str()
+
+        # return None to allow default package manager detection
+        return None
 
     def set_env_var(self, var_name, var_value=str(), raise_if_not_success=False):
         # type: (str, str, bool) -> None
