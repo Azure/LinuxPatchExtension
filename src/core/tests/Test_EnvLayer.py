@@ -74,17 +74,17 @@ class TestExecutionConfig(unittest.TestCase):
     def mock_distro_os_release_attr_return_none(self, attribute):
         return None
 
-    def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
-        return '4.0.2'
-
-    def mock_distro_os_release_attr_return_rhel_10(self, attribute):
-        return '10.0'
-
     def mock_linux_distribution_to_return_azure_linux_4(self):
         return ['Microsoft Azure Linux', '4.0', '']
 
-    def mock_distro_id_return_rhel(self):
-        return 'rhel'
+    def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
+        return '4.0.2'
+
+    def mock_linux_distribution_to_return_rhel_10(self):
+        return ['Red Hat', '10.0', '']
+
+    def mock_distro_os_release_attr_return_rhel_10(self, attribute):
+        return '10.0'
     # endregion
 
     def test_get_package_manager(self):
@@ -96,29 +96,26 @@ class TestExecutionConfig(unittest.TestCase):
         self.backup_distro_os_release_attr = distro.os_release_attr
 
         test_input_output_table = [
-            [self.mock_run_command_for_apt, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, Constants.APT],
-            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_azure_linux_3, Constants.TDNF],
-            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_azure_linux_3, str()],  # check for Azure Linux machine which does not have tdnf
-            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, self.mock_distro_os_release_attr_return_azure_linux_2, Constants.TDNF],
-            [self.mock_run_command_for_yum, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, Constants.YUM],
-            [self.mock_run_command_for_zypper, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, Constants.ZYPPER],
-            [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, str()],    # no matches for any package manager
+            [self.mock_run_command_for_apt, self.mock_linux_distribution, Constants.APT],
+            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_3, Constants.TDNF],
+            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, str()],  # check for Azure Linux machine which does not have tdnf
+            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, Constants.TDNF],
+            [self.mock_run_command_for_yum, self.mock_linux_distribution, Constants.YUM],
+            [self.mock_run_command_for_zypper, self.mock_linux_distribution, Constants.ZYPPER],
+            [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, str()],    # no matches for any package manager
         ]
 
         for row in test_input_output_table:
             self.envlayer.run_command_output = row[0]
             self.envlayer.platform.linux_distribution = row[1]
-            distro.os_release_attr = row[2]
             package_manager = self.envlayer.get_package_manager()
-            self.assertTrue(package_manager is row[3])
+            self.assertTrue(package_manager is row[2])
 
         # test for Windows
         platform.system = self.mock_platform_system_windows
-        distro.os_release_attr = self.mock_distro_os_release_attr_return_none
         self.assertEqual(self.envlayer.get_package_manager(), Constants.APT)
 
         # restore original methods
-        distro.os_release_attr = self.backup_distro_os_release_attr
         self.envlayer.run_command_output = self.backup_run_command_output
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
         platform.system = self.backup_platform_system
@@ -128,20 +125,19 @@ class TestExecutionConfig(unittest.TestCase):
         self.backup_envlayer_distro_os_release_attr = distro.os_release_attr
 
         test_input_output_table = [
-            [self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_azure_linux_3, True],
-            [self.mock_linux_distribution_to_return_azure_linux_2, self.mock_distro_os_release_attr_return_azure_linux_2, False],
-            [self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_none, False]
+            [self.mock_linux_distribution_to_return_azure_linux_3(), self.mock_distro_os_release_attr_return_azure_linux_3, True],
+            [self.mock_linux_distribution_to_return_azure_linux_2(), self.mock_distro_os_release_attr_return_azure_linux_2, False],
+            [self.mock_linux_distribution_to_return_azure_linux_3(), self.mock_distro_os_release_attr_return_none, False]
         ]
 
         for row in test_input_output_table:
-            self.envlayer.platform.linux_distribution = row[0]
+            distro_name = row[0][0]  # Extract distro name from tuple (first element)
             distro.os_release_attr = row[1]
-            result = self.envlayer.is_distro_azure_linux_3_or_beyond()
+            result = self.envlayer.is_distro_azure_linux_3(distro_name)
             self.assertEqual(result, row[2])
 
         # restore original methods
         distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
-        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
 
     def test_filesystem(self):
         # only validates if these invocable without exceptions
@@ -177,27 +173,23 @@ class TestExecutionConfig(unittest.TestCase):
         output = captured_output.getvalue()
 
         # Verify exact error message is logged
-        expected_msg = "Error: Azure Linux 4 is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information."
-        self.assertEqual(expected_msg in output, True)
+        expected_msg = "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Microsoft Azure Linux]"
+        self.assertIn(expected_msg, output)
         # Verify empty string is returned
         self.assertEqual(result, "")
 
         # restore
-        distro.os_release_attr = self.backup_distro_os_release_attr
-        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
-        platform.system = self.backup_platform_system
+        self._restore_mocks()
 
     def test_get_package_manager_rhel_10_not_supported(self):
         """Test that RHEL 10 logs unsupported message"""
         self.backup_platform_system = platform.system
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.backup_distro_os_release_attr = distro.os_release_attr
-        self.backup_distro_id = distro.id
 
         platform.system = self.mock_platform_system
-        self.envlayer.platform.linux_distribution = self.mock_linux_distribution
+        self.envlayer.platform.linux_distribution = self.mock_linux_distribution_to_return_rhel_10
         distro.os_release_attr = self.mock_distro_os_release_attr_return_rhel_10
-        distro.id = self.mock_distro_id_return_rhel
 
         # Capture stdout to check for log message
         captured_output = io.StringIO()
@@ -209,13 +201,16 @@ class TestExecutionConfig(unittest.TestCase):
         output = captured_output.getvalue()
 
         # Verify exact error message is logged
-        expected_msg = "Error: RHEL 10 is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information."
-        self.assertEqual(expected_msg in output, True)
+        expected_msg = "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Red Hat]"
+        self.assertIn(expected_msg, output)
         # Verify empty string is returned
         self.assertEqual(result, "")
 
         # restore
-        distro.id = self.backup_distro_id
+        self._restore_mocks()
+
+    def _restore_mocks(self):
+        """Restore backed up mocks to their original state"""
         distro.os_release_attr = self.backup_distro_os_release_attr
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
         platform.system = self.backup_platform_system
