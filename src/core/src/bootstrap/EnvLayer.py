@@ -93,7 +93,7 @@ class EnvLayer(object):
 
         # Check for unsupported distros
         if self.is_distro_azure_linux_4(os_name) or self.is_distro_rhel_10(os_name):
-            error_msg = "This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro={0}]".format(str(os_name))
+            error_msg = "This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro={0}][Version={1}][Code={2}]".format(str(os_name), os_version, os_code)
             print("Error: {0}".format(error_msg))
             return str()
 

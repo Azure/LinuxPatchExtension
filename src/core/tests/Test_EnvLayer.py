@@ -81,7 +81,7 @@ class TestExecutionConfig(unittest.TestCase):
         return '4.0.2'
 
     def mock_linux_distribution_to_return_rhel_10(self):
-        return ['Red Hat', '10.0', '']
+        return ['Red Hat', '10.0', 'abc']
 
     def mock_distro_os_release_attr_return_rhel_10(self, attribute):
         return '10.0'
@@ -160,8 +160,8 @@ class TestExecutionConfig(unittest.TestCase):
 
         platform.system = self.mock_platform_system
         test_input_output_table = [
-            [self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Microsoft Azure Linux]"],
-            [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_rhel_10, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Red Hat]"],
+            [self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Microsoft Azure Linux][Version=4.0][Code=]\n"],
+            [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_rhel_10, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Red Hat][Version=10.0][Code=abc]\n"],
         ]
 
         for row in test_input_output_table:
@@ -172,6 +172,7 @@ class TestExecutionConfig(unittest.TestCase):
             sys.stdout = captured_output
             result = self.envlayer.get_package_manager()
             sys.stdout = sys.__stdout__
+            self.assertEqual(row[2], captured_output.getvalue())
             self.assertEqual(result, "")
 
         # restore
