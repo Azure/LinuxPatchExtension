@@ -50,12 +50,10 @@ class EnvLayer(object):
     @staticmethod
     def __try_get_major_version():
         # type: () -> str or None
-        """ Attempts to get major version from distro.os_release_attr('version').
-        Returns major version as string or None if not available. """
+        """ Attempts to get major version from distro.os_release_attr('version').Returns major version as string or None if not available. """
         version = distro.os_release_attr('version')
         major = version.split('.')[0] if version else None
         return major
-
 
     def __is_matching_distro_and_version(self, distro_name, distro_to_match, version_to_match):
         # type: (str, str, int) -> bool
@@ -108,8 +106,7 @@ class EnvLayer(object):
                 print("Error: Expected package manager tdnf not found on this Azure Linux VM.")
                 return str()
 
-
-        # Choose default package manager
+        # choose default package manager
         package_manager_map = (('apt-get', Constants.APT),
                                ('yum', Constants.YUM),
                                ('zypper', Constants.ZYPPER))
