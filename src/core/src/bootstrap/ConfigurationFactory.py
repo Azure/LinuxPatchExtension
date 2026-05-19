@@ -38,7 +38,7 @@ from core.src.local_loggers.CompositeLogger import CompositeLogger
 
 from core.src.package_managers.AptitudePackageManager import AptitudePackageManager
 from core.src.package_managers.AzL3TdnfPackageManager import AzL3TdnfPackageManager
-from core.src.package_managers.AzL4DnfPackageManager import AzL4DnfPackageManager
+from core.src.package_managers.DnfPackageManager import DnfPackageManager
 from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
 
@@ -71,19 +71,19 @@ class ConfigurationFactory(object):
 
         self.configurations = {
             'apt_prod_config':    self.new_prod_configuration(Constants.APT, AptitudePackageManager),
-            'dnf_prod_config':    self.new_prod_configuration(Constants.DNF, AzL4DnfPackageManager),
+            'dnf_prod_config':    self.new_prod_configuration(Constants.DNF, DnfPackageManager),
             'tdnf_prod_config': self.new_prod_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_prod_config':    self.new_prod_configuration(Constants.YUM, YumPackageManager),
             'zypper_prod_config': self.new_prod_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_dev_config':     self.new_dev_configuration(Constants.APT, AptitudePackageManager),
-            'dnf_dev_config':     self.new_dev_configuration(Constants.DNF, AzL4DnfPackageManager),
+            'dnf_dev_config':     self.new_dev_configuration(Constants.DNF, DnfPackageManager),
             'tdnf_dev_config': self.new_dev_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_dev_config':     self.new_dev_configuration(Constants.YUM, YumPackageManager),
             'zypper_dev_config':  self.new_dev_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_test_config':    self.new_test_configuration(Constants.APT, AptitudePackageManager),
-            'dnf_test_config':    self.new_test_configuration(Constants.DNF, AzL4DnfPackageManager),
+            'dnf_test_config':    self.new_test_configuration(Constants.DNF, DnfPackageManager),
             'tdnf_test_config': self.new_test_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
             'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)

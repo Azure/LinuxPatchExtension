@@ -14,18 +14,18 @@
 #
 # Requires Python 2.7+
 
-"""AzL4DnfPackageManager for Azure Linux L4"""
+"""DnfPackageManager for Azure Linux L4 and RHEL 10"""
 from abc import ABCMeta
 from core.src.bootstrap.Constants import Constants
 from core.src.package_managers.PackageManager import PackageManager
 
 
-class AzL4DnfPackageManager(PackageManager):
-    """Implementation of Azure Linux L4 DNF package management operations"""
+class DnfPackageManager(PackageManager):
+    """Implementation of Azure Linux L4/RHEL 10 DNF package management operations"""
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
-        super(AzL4DnfPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
-        # TODO: Add AzL4 DNF specific initialization
+        super(DnfPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
+        # TODO: Add AzL4/Red hat 10 DNF specific initialization
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, 'dnf')
 
     __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
