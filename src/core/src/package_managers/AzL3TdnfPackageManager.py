@@ -71,7 +71,8 @@ class AzL3TdnfPackageManager(TdnfPackageManager):
         """ Check if the system meets the requirements for Azure Linux strict safe deployment and attempt to update TDNF if necessary """
         self.composite_logger.log_debug("[AzL3TDNF] Checking if system meets Azure Linux security updates requirements...")
         # Check if the system is Azure Linux 3.0 or beyond
-        if not self.env_layer.is_distro_azure_linux_3_or_beyond():
+        distro_name = str(self.env_layer.platform.linux_distribution()[0])
+        if not self.env_layer.is_distro_azure_linux_3(distro_name):
             self.composite_logger.log_error("[AzL3TDNF] The system does not meet minimum Azure Linux requirement of 3.0 or above for strict safe deployment. Defaulting to regular upgrades.")
             self.set_max_patch_publish_date()  # fall-back
             return False

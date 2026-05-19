@@ -13,7 +13,9 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import io
 import platform
+import sys
 import unittest
 from core.src.bootstrap.EnvLayer import EnvLayer
 from core.src.bootstrap.Constants import Constants
@@ -71,6 +73,18 @@ class TestExecutionConfig(unittest.TestCase):
 
     def mock_distro_os_release_attr_return_none(self, attribute):
         return None
+
+    def mock_linux_distribution_to_return_azure_linux_4(self):
+        return ['Microsoft Azure Linux', '4.0', '']
+
+    def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
+        return '4.0.2'
+
+    def mock_linux_distribution_to_return_rhel_10(self):
+        return ['Red Hat', '10.0', 'abc']
+
+    def mock_distro_os_release_attr_return_rhel_10(self, attribute):
+        return '10.0'
     # endregion
 
     def test_get_package_manager(self):
@@ -79,6 +93,7 @@ class TestExecutionConfig(unittest.TestCase):
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.envlayer.platform.linux_distribution = self.mock_linux_distribution
         self.backup_run_command_output = self.envlayer.run_command_output
+        self.backup_distro_os_release_attr = distro.os_release_attr
 
         test_input_output_table = [
             [self.mock_run_command_for_apt, self.mock_linux_distribution, Constants.APT],
@@ -105,8 +120,7 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
         platform.system = self.backup_platform_system
 
-    def test_is_distro_azure_linux_3_or_beyond(self):
-        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
+    def test_is_distro_azure_linux_3(self):
         self.backup_envlayer_distro_os_release_attr = distro.os_release_attr
 
         test_input_output_table = [
@@ -116,14 +130,13 @@ class TestExecutionConfig(unittest.TestCase):
         ]
 
         for row in test_input_output_table:
-            self.envlayer.platform.linux_distribution = row[0]
+            distro_name = row[0]()[0]  # Extract distro name from tuple (first element)
             distro.os_release_attr = row[1]
-            result = self.envlayer.is_distro_azure_linux_3_or_beyond()
+            result = self.envlayer.is_distro_azure_linux_3(distro_name)
             self.assertEqual(result, row[2])
 
         # restore original methods
         distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
-        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
 
     def test_filesystem(self):
         # only validates if these invocable without exceptions
@@ -139,6 +152,37 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.cpu_arch()
         self.envlayer.platform.vm_name()
 
+    def test_get_package_manager_azure_linux_4_and_rhel10_not_supported(self):
+        """Test that Azure Linux 4 and RHEL 10 log unsupported message"""
+        self.backup_platform_system = platform.system
+        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
+        self.backup_distro_os_release_attr = distro.os_release_attr
+
+        platform.system = self.mock_platform_system
+        test_input_output_table = [
+            [self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Microsoft Azure Linux][Version=4.0][Code=]\n"],
+            [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_rhel_10, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Red Hat][Version=10.0][Code=abc]\n"],
+        ]
+
+        for row in test_input_output_table:
+            self.envlayer.platform.linux_distribution = row[0]
+            distro.os_release_attr = row[1]
+
+            captured_output = io.StringIO()
+            sys.stdout = captured_output
+            result = self.envlayer.get_package_manager()
+            sys.stdout = sys.__stdout__
+            self.assertEqual(row[2], captured_output.getvalue())
+            self.assertEqual(result, "")
+
+        # restore
+        self.__restore_mocks()
+
+    def __restore_mocks(self):
+        """Restore backed up mocks to their original state"""
+        distro.os_release_attr = self.backup_distro_os_release_attr
+        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
+        platform.system = self.backup_platform_system
 
 if __name__ == '__main__':
     unittest.main()
