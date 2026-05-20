@@ -28,8 +28,16 @@ class DnfPackageManager(PackageManager):
         # TODO: Add AzL4/Red hat 10 DNF specific initialization
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, 'dnf')
 
+        # auto OS updates
+        self.current_auto_os_update_service = None
+        self.enable_on_reboot_identifier_text = ""
+        self.enable_on_reboot_check_cmd = ''
+        self.enable_on_reboot_cmd = ''
+        self.installation_state_identifier_text = ""
+        self.install_check_cmd = ""
+
         # commands for DNF Automatic updates service
-        self.__init_constants_for_dnf_automatic()
+        self.__init_constants_for_dnf5_automatic()
 
     __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
 
@@ -168,16 +176,79 @@ class DnfPackageManager(PackageManager):
     # ConfigurePatch Method
     def get_current_auto_os_patch_state(self):
         """ Gets the current auto OS update patch state on the machine """
-        raise NotImplementedError("DNF: get_current_auto_os_patch_state not implemented yet")
+        self.composite_logger.log("[DNF] Fetching the current automatic OS patch state on the machine...")
+
+        current_auto_os_patch_state_for_dnf5_automatic = self.__get_current_auto_os_patch_state_for_dnf5_automatic()
+
+        self.composite_logger.log("[DNF] OS patch state per auto OS update service: [dnf5-automatic={0}]".format(str(current_auto_os_patch_state_for_dnf5_automatic)))
+
+        if current_auto_os_patch_state_for_dnf5_automatic == Constants.AutomaticOSPatchStates.ENABLED:
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.ENABLED
+        elif current_auto_os_patch_state_for_dnf5_automatic == Constants.AutomaticOSPatchStates.DISABLED:
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.DISABLED
+        else:
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
+
+        self.composite_logger.log_debug("[DNF] Overall Auto OS Patch State based on all auto OS update service states [OverallAutoOSPatchState={0}]".format(str(current_auto_os_patch_state)))
+        return current_auto_os_patch_state
+       # raise NotImplementedError("DNF: get_current_auto_os_patch_state not implemented yet")
+
+    def __get_current_auto_os_patch_state_for_dnf5_automatic(self):
+        """ Gets current auto OS update patch state for dnf5-automatic """
+        self.composite_logger.log_debug("[DNF] Fetching current automatic OS patch state in dnf5-automatic service. This includes checks on whether the service is installed, current auto patch enable state and whether it is set to enable on reboot")
+        self.__init_auto_update_for_dnf5_automatic()
+
+        is_service_installed = self.is_auto_update_service_installed(self.install_check_cmd)
+        enable_on_reboot_value = False
+
+        if is_service_installed:
+            enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
+
+        if enable_on_reboot_value:
+            return Constants.AutomaticOSPatchStates.ENABLED
+        else:
+            return Constants.AutomaticOSPatchStates.DISABLED
 
     # ConfigurePatch Method
     def disable_auto_os_update(self):
-        """
-        Disables auto OS updates on the machine only if they are enabled
-        Comments from yashna : The current VM with AzLinux4 installed doesnt have dnf automatic/auto OS updates installed.
-        Will we have this installed in other machines which leads to my question on whether we need this or not ?
-        """
-        raise NotImplementedError("DNF: disable_auto_os_update not implemented yet")
+        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        try:
+            self.composite_logger.log_verbose("[DNF] Disabling auto OS updates in all identified services...")
+            self.__disable_auto_os_update_for_dnf5_automatic()
+            self.composite_logger.log_debug("[DNF] Successfully disabled auto OS updates")
+
+        except Exception as error:
+            self.composite_logger.log_error("[DNF] Could not disable auto OS updates. [Error={0}]".format(repr(error)))
+            raise
+
+    def __disable_auto_os_update_for_dnf5_automatic(self):
+        """ Disables auto OS updates, using dnf5-automatic service, and logs the default settings the machine comes with """
+        self.composite_logger.log_verbose("[DNF] Disabling auto OS updates using dnf5-automatic")
+        self.__init_auto_update_for_dnf5_automatic()
+
+        #self.backup_image_default_patch_configuration_if_not_exists() - Will uncomment for later iterations
+
+        if not self.is_auto_update_service_installed(self.dnf5_automatic_install_check_cmd):
+            self.composite_logger.log_debug("[DNF] Cannot disable as dnf5-automatic is not installed on the machine")
+            return
+
+        self.composite_logger.log_verbose("[DNF] Preemptively disabling auto OS updates using dnf5-automatic")
+        self.disable_auto_update_on_reboot(self.dnf5_automatic_disable_on_reboot_cmd)
+
+        self.composite_logger.log_debug("[DNF] Successfully disabled auto OS updates using dnf5-automatic")
+
+    def disable_auto_update_on_reboot(self, command):
+        """ Disables auto update on reboot by executing systemctl command """
+        self.composite_logger.log_verbose("[DNF] Disabling auto update on reboot. [Command={0}] ".format(command))
+        code, out = self.env_layer.run_command_output(command, False, False)
+
+        if code != 0:
+            self.composite_logger.log_error("[DNF][ERROR] Error disabling auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
+            error_msg = 'Unexpected return code (' + str(code) + ') on command: ' + command
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+        else:
+            self.composite_logger.log_debug("[DNF] Disabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
 
     def backup_image_default_patch_configuration_if_not_exists(self):
         """
@@ -235,15 +306,57 @@ class DnfPackageManager(PackageManager):
 
     # region auto OS updates
     def __init_constants_for_dnf5_automatic(self):
-        self.dnf5_automatic_configuration_file_path = None
         self.dnf5_automatic_install_check_cmd = 'rpm -qa | grep dnf5-plugin-automatic'
         self.dnf5_automatic_enable_on_reboot_check_cmd = 'systemctl is-enabled dnf5-automatic.timer'
         self.dnf5_automatic_disable_on_reboot_cmd = 'systemctl disable --now dnf5-automatic.timer'
         self.dnf5_automatic_enable_on_reboot_cmd = 'systemctl enable --now dnf5-automatic.timer'
-        self.dnf5_automatic_config_pattern_match_text = None
-        # Detect them from ExecStart flags instead of a file:
-        self.dnf5_automatic_download_updates_identifier_text = '--downloadupdates'
-        self.dnf5_automatic_apply_updates_identifier_text = '--installupdates'
         self.dnf5_automatic_enable_on_reboot_identifier_text = "enable_on_reboot"
         self.dnf5_automatic_installation_state_identifier_text = "installation_state"
         self.dnf5_auto_os_update_service = "dnf5-automatic"
+
+    def __init_auto_update_for_dnf5_automatic(self):
+        """ Initializes all generic auto OS update variables with the config values for dnf5 automatic service """
+        self.enable_on_reboot_identifier_text = self.dnf5_automatic_enable_on_reboot_identifier_text
+        self.installation_state_identifier_text = self.dnf5_automatic_installation_state_identifier_text
+        self.enable_on_reboot_check_cmd = self.dnf5_automatic_enable_on_reboot_check_cmd
+        self.enable_on_reboot_cmd = self.dnf5_automatic_enable_on_reboot_cmd
+        self.install_check_cmd = self.dnf5_automatic_install_check_cmd
+        self.current_auto_os_update_service = self.dnf5_auto_os_update_service
+
+    def is_auto_update_service_installed(self, install_check_cmd):
+        """ Checks if the auto update service is installed on the VM """
+        code, out = self.env_layer.run_command_output(install_check_cmd, False, False)
+        self.composite_logger.log_debug("[DNF] Checked if auto update service is installed. [Command={0}][Code={1}][Output={2}]".format(install_check_cmd, str(code), out))
+        if len(out.strip()) > 0 and code == 0:
+            self.composite_logger.log_debug("[DNF] > Auto OS update service is installed on the machine")
+            return True
+        else:
+            self.composite_logger.log_debug("[DNF] > Auto OS update service is NOT installed on the machine")
+            return False
+
+    def is_service_set_to_enable_on_reboot(self, command):
+        """ Checking if auto update is set to enable on reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot """
+        code, out = self.env_layer.run_command_output(command, False, False)
+        self.composite_logger.log_debug("[DNF] Checked if auto update service is set to enable on reboot. [Code={0}][Out={1}]".format(str(code), out))
+        if len(out.strip()) > 0 and code == 0 and 'enabled' in out:
+            self.composite_logger.log_debug("[DNF] > Auto OS update service will enable on reboot")
+            return True
+        self.composite_logger.log_debug("[DNF] > Auto OS update service will NOT enable on reboot")
+        return False
+
+    def enable_auto_update_on_reboot(self):
+        """ Enables machine default auto update on reboot """
+        # type () -> None
+        command = self.enable_on_reboot_cmd
+        self.composite_logger.log_verbose("[DNF] Enabling auto update on reboot. [Command={0}] ".format(command))
+        code, out = self.env_layer.run_command_output(command, False, False)
+
+        if code != 0:
+            self.composite_logger.log_error("[DNF][ERROR] Error enabling auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
+            error_msg = 'Unexpected return code (' + str(code) + ') on command: ' + command
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+        else:
+            self.composite_logger.log_debug("[DNF] Enabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
+
+    # endregion
