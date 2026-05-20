@@ -28,6 +28,9 @@ class DnfPackageManager(PackageManager):
         # TODO: Add AzL4/Red hat 10 DNF specific initialization
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, 'dnf')
 
+        # commands for DNF Automatic updates service
+        self.__init_constants_for_dnf_automatic()
+
     __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
 
     # ConfigurePatch Method
@@ -230,3 +233,17 @@ class DnfPackageManager(PackageManager):
         """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
         raise NotImplementedError("DNF: revert_auto_os_update_to_system_default not implemented yet")
 
+    # region auto OS updates
+    def __init_constants_for_dnf5_automatic(self):
+        self.dnf5_automatic_configuration_file_path = None
+        self.dnf5_automatic_install_check_cmd = 'rpm -qa | grep dnf5-plugin-automatic'
+        self.dnf5_automatic_enable_on_reboot_check_cmd = 'systemctl is-enabled dnf5-automatic.timer'
+        self.dnf5_automatic_disable_on_reboot_cmd = 'systemctl disable --now dnf5-automatic.timer'
+        self.dnf5_automatic_enable_on_reboot_cmd = 'systemctl enable --now dnf5-automatic.timer'
+        self.dnf5_automatic_config_pattern_match_text = None
+        # Detect them from ExecStart flags instead of a file:
+        self.dnf5_automatic_download_updates_identifier_text = '--downloadupdates'
+        self.dnf5_automatic_apply_updates_identifier_text = '--installupdates'
+        self.dnf5_automatic_enable_on_reboot_identifier_text = "enable_on_reboot"
+        self.dnf5_automatic_installation_state_identifier_text = "installation_state"
+        self.dnf5_auto_os_update_service = "dnf5-automatic"
