@@ -20,6 +20,7 @@ import os
 import re
 import shutil
 import sys
+from abc import abstractmethod
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
@@ -90,6 +91,28 @@ class AptitudePackageManager(PackageManager):
         self.ubuntu_pro_client_all_updates_versions_cached = []
         
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
+
+        # Update certificates in factory defaults
+        # self.check_mokutil_exists_cmd = "command -v mokutil"
+        self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
+        self.proposed_repo_file_path = "/etc/apt/sources.list.d/proposed.list"
+        self.proposed_pin_file_path = "/etc/apt/preferences.d/proposed"
+        self.add_proposed_repo_cmd = (
+            "bash -c 'echo \"deb http://archive.ubuntu.com/ubuntu/ "
+            "$( . /etc/os-release && echo $VERSION_CODENAME )-proposed restricted main multiverse universe\" "
+            "| sudo tee {0}'").format(self.proposed_repo_file_path)
+        self.create_proposed_pin_cmd = (
+            "bash -c 'cat << EOF | sudo tee {0}\n"
+            "Package: *\n"
+            "Pin: release a=$( . /etc/os-release && echo $VERSION_CODENAME )-proposed\n"
+            "Pin-Priority: 100\n"
+            "EOF'").format(self.proposed_pin_file_path)
+        self.remove_proposed_repo_cmd = "sudo rm -f {0}".format(self.proposed_repo_file_path)
+        self.remove_proposed_pin_cmd = "sudo rm -f {0}".format(self.proposed_pin_file_path)
+        self.apt_update_cmd = "sudo apt-get -q update"
+        self.install_fwupd_from_proposed_cmd = "bash -c 'sudo apt-get install -y -t $( . /etc/os-release && echo $VERSION_CODENAME )-proposed fwupd'"
+        self.fwupd_refresh_cmd = "sudo fwupdmgr refresh" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
+        self.fwupd_update_cmd = "sudo fwupdmgr update -y"
 
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
@@ -943,4 +966,107 @@ class AptitudePackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
+
+    # region Update certificates in factory defaults
+    @abstractmethod
+    def try_install_mokutil(self):
+        # type: () -> bool
+        """ Attempts to install mokutil """
+        cmd = self.install_mokutil_cmd
+        self.composite_logger.log_verbose('[APM] Invoking install mokutil command [Command={0}]'.format(cmd))
+        out, code = self.invoke_package_manager_advanced(cmd, raise_on_exception=False)
+        self.composite_logger.log_debug('[APM] Invoked install mokutil exists. [Command={0}][Code={1}][Output={2}]'.format(cmd, str(code), str(out)))
+        return code == 0
+
+    @abstractmethod
+    def fetch_current_certs(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
+        # """ Fetches the status of the certificates on the machine """
+        pass
+
+    @abstractmethod
+    def is_latest_cert_installed(self, status_code, status_output):
+        """ Checks if the latest certs are already installed on the machine based on mokutil output """
+        pass
+
+    def try_update_certs(self):
+        """ Attempts to update certificate status """
+        self.composite_logger.log("[APM][Certs] Starting cert update flow.")
+        if self.are_latest_certs_present():
+            self.composite_logger.log("[APM][Certs] Latest certs already present. Skipping.")
+            return True
+
+        success = False
+        try:
+            # shell/file steps
+            self.__run_cert_shell_command(self.add_proposed_repo_cmd, "AddProposedRepo", raise_on_error=True)
+            self.__run_cert_shell_command(self.create_proposed_pin_cmd, "CreateAptPin", raise_on_error=True)
+
+            # apt/package-manager steps
+            self.__run_cert_apt_command(self.apt_update_cmd, "AptUpdateAfterRepo", raise_on_error=True)
+            self.__run_cert_apt_command(self.install_fwupd_from_proposed_cmd, "InstallFwupdFromProposed", raise_on_error=True)
+
+            # shell fwupd steps
+            self.__run_cert_shell_command(self.fwupd_refresh_cmd, "FwupdRefresh", raise_on_error=True)
+            self.__run_cert_shell_command(self.fwupd_update_cmd, "FwupdUpdate", raise_on_error=True)
+
+            if self.are_latest_certs_present():
+                self.composite_logger.log("[APM][Certs] Cert update completed and verified.")
+                success = True
+            else:
+                msg = "[APM][Certs] Cert update commands completed but latest certs not detected."
+                self.composite_logger.log_error(msg)
+                self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+
+        except Exception as error:
+            self.composite_logger.log_error(
+                "[APM][Certs] Exception during cert update flow. [Error={0}]".format(repr(error)))
+
+        finally:
+            # best-effort cleanup
+            self.__run_cert_shell_command(self.remove_proposed_pin_cmd, "CleanupAptPin", raise_on_error=False)
+            self.__run_cert_shell_command(self.remove_proposed_repo_cmd, "CleanupProposedRepo", raise_on_error=False)
+            self.__run_cert_apt_command(self.apt_update_cmd, "AptUpdateAfterCleanup", raise_on_error=False)
+
+        if success:
+            self.status_handler.set_reboot_pending(self.is_reboot_pending())
+
+        return success
+
+    @abstractmethod
+    def are_latest_certs_present(self):
+        pass
+
+    def __run_cert_apt_command(self, command, step_name, raise_on_error=False):
+        """Run apt/dpkg commands through package-manager wrapper."""
+        out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
+        if code != self.apt_exitcode_ok:
+            msg = "[APM][UpdateCerts] Apt step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(
+                step_name, str(command), str(code), str(out))
+            self.composite_logger.log_error(msg)
+            self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            if raise_on_error:
+                raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            return False, out
+
+        self.composite_logger.log_debug(
+            "[APM][UpdateCerts] Apt step succeeded. [Step={0}][Output={1}]".format(step_name, str(out)))
+        return True, out
+
+    def __run_cert_shell_command(self, command, step_name, raise_on_error=False):
+        """Run non-apt utility commands directly."""
+        code, out = self.env_layer.run_command_output(command, False, False)
+        if code != 0:
+            msg = "[APM][UpdateCerts] Shell step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(
+                step_name, str(command), str(code), str(out))
+            self.composite_logger.log_error(msg)
+            self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            if raise_on_error:
+                raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            return False, out
+
+        self.composite_logger.log_debug(
+            "[APM][UpdateCerts] Shell step succeeded. [Step={0}][Output={1}]".format(step_name, str(out)))
+        return True, out
+
+    # endregion
 

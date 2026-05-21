@@ -765,3 +765,33 @@ class TdnfPackageManager(PackageManager):
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
 
+    # region Update certificates in factory defaults
+    @abstractmethod
+    def update_certs(self):
+        pass
+
+    @abstractmethod
+    def try_install_mokutil(self):
+        """ Attempts to install mokutil """
+        pass
+
+    @abstractmethod
+    def fetch_current_certs(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
+        # """ Fetches the status of the certificates on the machine """
+        pass
+
+    @abstractmethod
+    def is_latest_cert_installed(self, status_code, status_output):
+        """ Checks if the latest certs are already installed on the machine based on mokutil output """
+        pass
+
+    @abstractmethod
+    def try_update_certs(self):
+        """ Attempts to update certificate status """
+        pass
+
+    @abstractmethod
+    def are_latest_certs_present(self):
+        pass
+    # endregion
+

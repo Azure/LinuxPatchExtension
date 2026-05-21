@@ -77,6 +77,9 @@ class PatchInstaller(object):
                 self.composite_logger.log_debug("Attempting to reboot the machine prior to patch installation as there is a reboot pending...")
                 reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
 
+        # Update certs if available
+        self.package_manager.update_certs()
+
         if self.execution_config.max_patch_publish_date != str():
             self.package_manager.set_max_patch_publish_date(self.execution_config.max_patch_publish_date)
 

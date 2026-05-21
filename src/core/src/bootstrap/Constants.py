@@ -299,6 +299,13 @@ class Constants(object):
     STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128
     STATUS_ERROR_LIMIT = 5
 
+    # Boot Certificates to update
+    class Certificates(EnumBackport):
+        KEK = "KEK"
+        DB = "DB"
+
+    LATEST_CERTIFICATE_TIMESTAMP = "2023"
+
     class PatchOperationTopLevelErrorCode(EnumBackport):
         SUCCESS = 0
         ERROR = 1
@@ -312,6 +319,7 @@ class Constants(object):
         NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
         UA_ESM_REQUIRED = "UA_ESM_REQUIRED"
         TRUNCATION = "PACKAGE_LIST_TRUNCATED"
+        CERTIFICATE_UPDATE = "CERTIFICATE_UPDATE"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
