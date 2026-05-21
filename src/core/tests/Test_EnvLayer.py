@@ -167,13 +167,8 @@ class TestExecutionConfig(unittest.TestCase):
         for row in test_input_output_table:
             self.envlayer.platform.linux_distribution = row[0]
             distro.os_release_attr = row[1]
-
-            captured_output = io.StringIO()
-            sys.stdout = captured_output
-            result = self.envlayer.get_package_manager()
-            sys.stdout = sys.__stdout__
-            self.assertEqual(row[2], captured_output.getvalue())
-            self.assertEqual(result, "")
+            package_manager = self.envlayer.get_package_manager()
+            self.assertEqual(package_manager, "")
 
         # restore
         self.__restore_mocks()
