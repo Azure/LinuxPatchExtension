@@ -11,7 +11,7 @@ and resiliency standards are met.
 
 # Reference Guide
 
-## 1. Extension Configuration
+## 1. Extension Configuration_test
 
 Configurations expected in the request:
 
