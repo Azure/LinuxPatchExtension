@@ -968,7 +968,6 @@ class AptitudePackageManager(PackageManager):
         return self.package_install_expected_avg_time_in_seconds
 
     # region Update certificates in factory defaults
-    @abstractmethod
     def try_install_mokutil(self):
         # type: () -> bool
         """ Attempts to install mokutil """
@@ -977,16 +976,6 @@ class AptitudePackageManager(PackageManager):
         out, code = self.invoke_package_manager_advanced(cmd, raise_on_exception=False)
         self.composite_logger.log_debug('[APM] Invoked install mokutil exists. [Command={0}][Code={1}][Output={2}]'.format(cmd, str(code), str(out)))
         return code == 0
-
-    @abstractmethod
-    def fetch_current_certs(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
-        # """ Fetches the status of the certificates on the machine """
-        pass
-
-    @abstractmethod
-    def is_latest_cert_installed(self, status_code, status_output):
-        """ Checks if the latest certs are already installed on the machine based on mokutil output """
-        pass
 
     def try_update_certs(self):
         """ Attempts to update certificate status """
@@ -1032,10 +1021,6 @@ class AptitudePackageManager(PackageManager):
 
         return success
 
-    @abstractmethod
-    def are_latest_certs_present(self):
-        pass
-
     def __run_cert_apt_command(self, command, step_name, raise_on_error=False):
         """Run apt/dpkg commands through package-manager wrapper."""
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
@@ -1067,6 +1052,5 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log_debug(
             "[APM][UpdateCerts] Shell step succeeded. [Step={0}][Output={1}]".format(step_name, str(out)))
         return True, out
-
     # endregion
 
