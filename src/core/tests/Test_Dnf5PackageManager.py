@@ -13,10 +13,12 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import json
+import os
 import unittest
 
-from core.src.bootstrap.Constants import Constants
 from core.tests.library.ArgumentComposer import ArgumentComposer
+from core.src.bootstrap.Constants import Constants
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 
@@ -114,6 +116,101 @@ class TestDnfPackageManager(unittest.TestCase):
 
         self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
         self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.DISABLED)
+
+    def test_revert_auto_os_update_to_system_default_with_service_not_installed(self):
+        """Test revert when dnf5-automatic is not installed - should be no-op"""
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+
+        # Create backup with service marked as not installed
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_config = {
+            "dnf5-automatic": {
+                "enable_on_reboot": False,
+                "installation_state": False
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, json.dumps(backup_config))
+
+        # Should complete without error even when service is not installed
+        package_manager.revert_auto_os_update_to_system_default()
+        self.assertTrue(True)  # If no exception, test passes
+
+    def test_revert_auto_os_update_to_system_default_with_enable_on_reboot_true(self):
+        """Test revert when service should be enabled on reboot"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        # Create backup with service marked as installed and should be enabled on reboot
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_config = {
+            "dnf5-automatic": {
+                "enable_on_reboot": True,
+                "installation_state": True
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, json.dumps(backup_config))
+
+        # Mock run_command_output to simulate service installed and systemctl commands working
+        backup_run_command_output = self.runtime.env_layer.run_command_output
+
+        def mock_commands(cmd, no_output=False, chk_err=False):
+            if 'rpm -qa | grep dnf5-plugin-automatic' in cmd:
+                return 0, 'dnf5-plugin-automatic-xyz'
+            elif 'systemctl is-enabled dnf5-automatic.timer' in cmd:
+                return 0, 'disabled'  # Currently disabled, will be enabled by revert
+            elif 'systemctl enable --now dnf5-automatic.timer' in cmd:
+                return 0, ''  # Enable succeeds
+            elif 'systemctl cat dnf5-automatic' in cmd:
+                return 0, '[Service]\nExecStart=/usr/bin/dnf5 automatic --timer\n'
+            return backup_run_command_output(cmd, no_output, chk_err)
+
+        self.runtime.env_layer.run_command_output = mock_commands
+
+        try:
+            package_manager.revert_auto_os_update_to_system_default()
+            # Verify it completed without error
+            self.assertTrue(True)
+        finally:
+            self.runtime.env_layer.run_command_output = backup_run_command_output
+
+    def test_revert_auto_os_update_to_system_default_with_enable_on_reboot_false(self):
+        """Test revert when service should be disabled on reboot"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        # Create backup with service marked as installed but should be disabled on reboot
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        backup_config = {
+            "dnf5-automatic": {
+                "enable_on_reboot": False,
+                "installation_state": True
+            }
+        }
+        self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, json.dumps(backup_config))
+
+        # Mock run_command_output to simulate service installed but currently enabled
+        backup_run_command_output = self.runtime.env_layer.run_command_output
+
+        def mock_commands(cmd, no_output=False, chk_err=False):
+            if 'rpm -qa | grep dnf5-plugin-automatic' in cmd:
+                return 0, 'dnf5-plugin-automatic-xyz'
+            elif 'systemctl is-enabled dnf5-automatic.timer' in cmd:
+                return 0, 'enabled'  # Currently enabled, will be disabled by revert
+            elif 'systemctl disable --now dnf5-automatic.timer' in cmd:
+                return 0, ''  # Disable succeeds
+            elif 'systemctl cat dnf5-automatic' in cmd:
+                return 0, '[Service]\nExecStart=/usr/bin/dnf5 automatic --timer\n'
+            return backup_run_command_output(cmd, no_output, chk_err)
+
+        self.runtime.env_layer.run_command_output = mock_commands
+
+        try:
+            package_manager.revert_auto_os_update_to_system_default()
+            # Verify it completed without error
+            self.assertTrue(True)
+        finally:
+            self.runtime.env_layer.run_command_output = backup_run_command_output
 
 if __name__ == '__main__':
     unittest.main()

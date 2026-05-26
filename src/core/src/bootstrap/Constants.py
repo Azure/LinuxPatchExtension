@@ -201,7 +201,7 @@ class Constants(object):
 
     # Package Managers
     APT = 'apt'
-    DNF = 'dnf'
+    DNF = 'dnf5'
     TDNF = 'tdnf'
     YUM = 'yum'
     ZYPPER = 'zypper'
