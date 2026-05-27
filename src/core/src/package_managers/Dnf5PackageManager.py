@@ -30,7 +30,7 @@ class Dnf5PackageManager(PackageManager):
         super(Dnf5PackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
         # Repo refresh
         self.cmd_clean_cache = "sudo dnf5 -q clean expire-cache"
-        self.cmd_repo_refresh = "sudo dnf5 -q check-update "
+        self.cmd_repo_refresh = "sudo dnf5 -q check-update"
 
         #  Get updates and dependencies. dnf5 'list available <pkg>' returns BOTH installed and available versions.
         # This command is used for both version lookup and installed-state checks.
@@ -40,7 +40,7 @@ class Dnf5PackageManager(PackageManager):
         # Install update
         # dnf5 does not support --skip-broken for upgrade; uses full system upgrade
         # --allowerasing enables safe dependency resolution instead of skipping package
-        self.single_package_upgrade_cmd = ' sudo dnf5 -y upgrade --allowerasing'
+        self.single_package_upgrade_cmd = 'sudo dnf5 -y upgrade --allowerasing'
 
         # Support to check if reboot is required
         # dnf-utils not required (needs-restarting is built into dnf5)
@@ -61,6 +61,7 @@ class Dnf5PackageManager(PackageManager):
         self.dnf5_dependency_exit_text = "Transaction Summary"
         self.dnf5_dependency_skip_text = "Package"
 
+        self.dnf5_skip_unnecessary_text = ["Updating and loading repositories:", "Repositories loaded.", "Available packages", "Installed packages", "No matching packages"]
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.DNF)
 
         # Caching for updates
@@ -126,19 +127,24 @@ class Dnf5PackageManager(PackageManager):
         lines = output.strip().split('\n')
 
         for line_index in range(0, len(lines)):
+
+            line = lines[line_index].strip()
             # Do not install Obsoleting Packages. The obsoleting packages list comes towards end in the output.
-            if lines[line_index].strip().startswith("Obsoleting"):
+            if line.startswith("Obsoleting"):
                 break
 
-            line = re.split(r'\s+', lines[line_index].strip())
+            if not line or any(line.startswith(prefix) for prefix in self.dnf5_skip_unnecessary_text):
+                continue
+
+            filtered_line = re.split(r'\s+', lines[line_index].strip())
 
             # DNF check-update returns 3-column format: package.arch version repo
             #Sample output : rubygem-json.x86_64    2.13.2-2.azl4~20260501      azurelinux-base
-            if len(line) == 3 and self.__is_package(line[0]):
-                packages.append(self.get_product_name(line[0]))
-                versions.append(line[1])
+            if len(filtered_line) == 3 and self.__is_package(filtered_line[0]):
+                packages.append(self.get_product_name(filtered_line[0]))
+                versions.append(filtered_line[1])
             else:
-                self.composite_logger.log_verbose("[DNF5] > Inapplicable line (" + str(line_index) + "): " + lines[line_index])
+                self.composite_logger.log_verbose("[DNF5] > Inapplicable line ({0}): {1}".format(line_index, lines[line_index]))
 
         return packages, versions
 
@@ -694,6 +700,8 @@ class Dnf5PackageManager(PackageManager):
                         break
 
                 return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
+
+            return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
 
         except Exception as error:
             raise Exception("[DNF5] Error occurred in fetching current auto OS update settings from the machine (dnf5). [Exception={0}]".format(
