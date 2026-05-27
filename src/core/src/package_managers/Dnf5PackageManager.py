@@ -14,7 +14,7 @@
 #
 # Requires Python 2.7+
 
-"""DnfPackageManager for Azure Linux and RHEL"""
+"""Dnf5PackageManager for Azure Linux and RHEL"""
 import json
 import re
 
@@ -53,7 +53,14 @@ class Dnf5PackageManager(PackageManager):
         self.commands_allowing_100_exitcode = [
             "check-update"
         ]
-        # TODO: Add AzL4/Red hat 10 DNF5 specific initialization
+
+        # DNF5 valid exit codes for simulation commands
+        self.dnf5_simulation_valid_exit_codes = [0, 1]
+        self.dnf5_dependency_failure_text = ["Skipping packages with broken dependencies", "Nothing to do."]
+        self.dnf5_dependency_success_text = "Installing dependencies:"
+        self.dnf5_dependency_exit_text = "Transaction Summary"
+        self.dnf5_dependency_skip_text = "Package"
+
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.DNF)
 
         # Caching for updates
@@ -261,7 +268,7 @@ class Dnf5PackageManager(PackageManager):
         - sudo dnf install --assumeno --skip-broken <packages> (simulates installation to find dependencies without actually installing)
         Returns: List of dependency package names required for the input packages
 
-        Sample output format:
+        Sample output format: ( Failure case : Dependency Fails and exit code : 0 ) - Raise Exception
         # Updating and loading repositories:
         # Repositories loaded.
         # Problem: package perl-Getopt-Long-1:2.58-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Usage) >= 1.14, but none of the providers can be installed
@@ -284,21 +291,36 @@ class Dnf5PackageManager(PackageManager):
         cmd = self.single_package_upgrade_simulation_cmd + package_names
         code, output = self.env_layer.run_command_output(cmd, False, False)
         self.composite_logger.log_verbose("[DNF5] Dependency simulation. [Command={0}][Code={1}]".format(cmd, str(code)))
-        if code not in [0, 1]:
-            self.composite_logger.log_error("[DNF5] Unexpected failure. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output)
-            )
+        if code not in self.dnf5_simulation_valid_exit_codes:
+            self.composite_logger.log_error("[DNF5] Unexpected failure. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output))
             raise Exception("DNF dependency simulation failed")
 
-        if "Skipping packages with broken dependencies" in output and "Nothing to do." in output:
+        if all(text in output for text in self.dnf5_dependency_failure_text):
             self.composite_logger.log_error("[DNF5] All packages skipped due to broken dependencies. [Command={0}]".format(cmd))
             raise Exception("Dependency resolution failed: all packages skipped")
 
+        # Only go here for success case
         dependencies = self.extract_dependencies(output, packages)
         self.composite_logger.log_verbose("[DNF5] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd), str(packages), len(dependencies)))
         return dependencies
 
     def extract_dependencies(self, output, packages):
-        """Extracts dependent packages from dnf5 output."""
+        # Sample output format (Success case with dependencies , exit code : 1)
+        # Command :  sudo dnf5 install --assumeno --skip-broken jq
+        # Updating and loading repositories:
+        # Repositories loaded.
+        # Package                                                                                                       Arch                   Version                                                                                                       Repository                                                           Size
+        # Installing:
+        #  jq                                                                                                           x86_64                 1.8.1-3.azl4~20260501                                                                                         azurelinux-base                                                 457.7 KiB
+        # Installing dependencies:
+        #  oniguruma                                                                                                    x86_64                 6.9.10-3.azl4~20260501                                                                                        azurelinux-base                                                 763.1 KiB
+        #
+        # Transaction Summary:
+        #  Installing:         2 packages
+        #
+        # Total size of inbound packages is 428 KiB. Need to download 428 KiB.
+        # After this operation, 1 MiB extra will be used (install 1 MiB, remove 0 B).
+        # Operation aborted by the user.
         dependencies = []
         package_arch_to_look_for = ["x86_64", "noarch", "i686", "aarch64"]
 
@@ -309,25 +331,19 @@ class Dnf5PackageManager(PackageManager):
             line_str = lines[line_index].strip()
 
             # Detect start of dependency section
-            if line_str.startswith("Installing dependencies"):
+            if line_str.startswith(self.dnf5_dependency_success_text):
                 in_dependency_section = True
                 continue
 
             #  Detect exit of dependency section
-            if line_str.startswith("Transaction Summary") or \
-                    line_str.startswith("Installing:") or \
-                    line_str.startswith("Skipping packages with broken dependencies") or \
-                    line_str.startswith("Problem:") or \
-                    line_str.startswith("Total size"):
-                in_dependency_section = False
-                continue
+            if in_dependency_section and line_str.startswith(self.dnf5_dependency_exit_text):
+                break
 
-            # Only parse dependency section
             if not in_dependency_section:
                 continue
 
             # Skip empty/header lines
-            if not line_str or line_str.startswith("Package"):
+            if not line_str or line_str.startswith(self.dnf5_dependency_skip_text):
                 self.composite_logger.log_verbose("[DNF5] > Skipping header/empty line: " + line_str)
                 continue
 
@@ -341,13 +357,9 @@ class Dnf5PackageManager(PackageManager):
                 continue
 
             #  Remove input packages (support both pkg and pkg.arch)
-            base_pkg = dependent_package_name.rsplit('.', 1)[
-                0] if '.' in dependent_package_name else dependent_package_name
+            base_pkg = dependent_package_name.rsplit('.', 1)[0] if '.' in dependent_package_name else dependent_package_name
 
-            if len(dependent_package_name) != 0 and \
-                    dependent_package_name not in packages and \
-                    base_pkg not in packages and \
-                    dependent_package_name not in dependencies:
+            if len(dependent_package_name) != 0 and dependent_package_name not in packages and base_pkg not in packages and dependent_package_name not in dependencies:
                 self.composite_logger.log_verbose("[DNF5] > Dependency detected: " + dependent_package_name)
                 dependencies.append(dependent_package_name)
 
@@ -402,7 +414,6 @@ class Dnf5PackageManager(PackageManager):
         - DNF5 does not support security classification.
         - This installs all available updates instead.
         """
-        self.composite_logger.log_verbose("[DNF5] Invoking package manager. [Command={0}]".format(self.single_package_upgrade_cmd))
         out, code = self.invoke_package_manager_advanced(self.single_package_upgrade_cmd,raise_on_exception=False)
         if code != 0:
             self.composite_logger.log_warning("[DNF5] Install failed. [Code={0}][Output={1}]".format(code, out))
@@ -564,14 +575,7 @@ class Dnf5PackageManager(PackageManager):
 
     # Post Install method / Install Patch
     def do_processes_require_restart(self):
-        """Checks if processes require a restart due to updates
-        Commands used:
-        - sudo dnf -y install dnf-utils (installs dnf-utils if not already present)
-        - sudo LANG=en_US.UTF8 needs-restarting -r (checks if processes require restart)
-        Returns:
-        - Boolean: True if processes require restart, False otherwise
-        """
-        raise NotImplementedError("DNF: do_processes_require_restart not implemented yet")
+        raise NotImplementedError("DNF5 uses `needs-restarting` directly via is_reboot_pending(); separate implementation is not required.")
 
     def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
