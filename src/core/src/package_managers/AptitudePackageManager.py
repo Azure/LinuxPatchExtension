@@ -20,7 +20,6 @@ import os
 import re
 import shutil
 import sys
-from abc import abstractmethod
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
@@ -986,15 +985,12 @@ class AptitudePackageManager(PackageManager):
 
         success = False
         try:
-            # shell/file steps
             self.__run_cert_shell_command(self.add_proposed_repo_cmd, "AddProposedRepo", raise_on_error=True)
-            self.__run_cert_shell_command(self.create_proposed_pin_cmd, "CreateAptPin", raise_on_error=True)
-
-            # apt/package-manager steps
             self.__run_cert_apt_command(self.apt_update_cmd, "AptUpdateAfterRepo", raise_on_error=True)
+            self.__run_cert_shell_command(self.create_proposed_pin_cmd, "CreateAptPin", raise_on_error=True)
             self.__run_cert_apt_command(self.install_fwupd_from_proposed_cmd, "InstallFwupdFromProposed", raise_on_error=True)
 
-            # shell fwupd steps
+            # shell fwupd commands to update certificates
             self.__run_cert_shell_command(self.fwupd_refresh_cmd, "FwupdRefresh", raise_on_error=True)
             self.__run_cert_shell_command(self.fwupd_update_cmd, "FwupdUpdate", raise_on_error=True)
 
@@ -1007,8 +1003,7 @@ class AptitudePackageManager(PackageManager):
                 self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
 
         except Exception as error:
-            self.composite_logger.log_error(
-                "[APM][Certs] Exception during cert update flow. [Error={0}]".format(repr(error)))
+            self.composite_logger.log_error("[APM][Certs] Exception during cert update flow. [Error={0}]".format(repr(error)))
 
         finally:
             # best-effort cleanup
@@ -1017,6 +1012,8 @@ class AptitudePackageManager(PackageManager):
             self.__run_cert_apt_command(self.apt_update_cmd, "AptUpdateAfterCleanup", raise_on_error=False)
 
         if success:
+            # Not explicitly rebooting the VM to honor the customer's reboot preference and to avoid unexpected reboots.
+            # Reboot will only be performed if it is required by the VM after cert update and if the customer has set reboot setting in patch configuration to 'Reboot if required'.
             self.status_handler.set_reboot_pending(self.is_reboot_pending())
 
         return success
@@ -1025,32 +1022,28 @@ class AptitudePackageManager(PackageManager):
         """Run apt/dpkg commands through package-manager wrapper."""
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
         if code != self.apt_exitcode_ok:
-            msg = "[APM][UpdateCerts] Apt step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(
-                step_name, str(command), str(code), str(out))
+            msg = "[APM][UpdateCerts] Apt step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out))
             self.composite_logger.log_error(msg)
             self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
             if raise_on_error:
                 raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             return False, out
 
-        self.composite_logger.log_debug(
-            "[APM][UpdateCerts] Apt step succeeded. [Step={0}][Output={1}]".format(step_name, str(out)))
+        self.composite_logger.log_debug("[APM][UpdateCerts] Apt step succeeded. [Step={0}][Output={1}]".format(step_name, str(out)))
         return True, out
 
     def __run_cert_shell_command(self, command, step_name, raise_on_error=False):
         """Run non-apt utility commands directly."""
         code, out = self.env_layer.run_command_output(command, False, False)
         if code != 0:
-            msg = "[APM][UpdateCerts] Shell step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(
-                step_name, str(command), str(code), str(out))
+            msg = "[APM][UpdateCerts] Shell step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out))
             self.composite_logger.log_error(msg)
             self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
             if raise_on_error:
                 raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             return False, out
 
-        self.composite_logger.log_debug(
-            "[APM][UpdateCerts] Shell step succeeded. [Step={0}][Output={1}]".format(step_name, str(out)))
+        self.composite_logger.log_debug("[APM][UpdateCerts] Shell step succeeded. [Step={0}][Output={1}]".format(step_name, str(out)))
         return True, out
     # endregion
 

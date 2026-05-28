@@ -500,11 +500,11 @@ class PackageManager(object):
     # region Update certificates in factory defaults
     def update_certs(self):
         # 1. Fetch and Log current certs on the VM NOTE: Common across distros
-        # ensure mokutil exists
-        # if not, install mokutil
-        # If success, fetch cert detail
-        # If not, throw exception and stop
-        # log output
+            # ensure mokutil exists
+            # if not, install mokutil
+            # If success, fetch cert detail
+            # If not, throw exception and stop
+            # log output
         # 2. If 2023 certs already exists, do nothing
         # 3. If not, perform all the steps to update certs
         # 4. Validate and log new certs were installed
@@ -518,10 +518,9 @@ class PackageManager(object):
         if is_mokutil_installed or try_install_mokutil_status:
             self.try_update_certs()
         else:
-            error_msg = "[PM][UpdateCerts] Mokutil is not installed or could not be installed. Cannot fetch current certs."
+            error_msg = "[PM][UpdateCerts] Mokutil is not installed and could not be installed. Cannot fetch current certs."
             self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(error_msg,
-                                                    Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
     def is_mokutil_installed(self):
@@ -562,7 +561,7 @@ class PackageManager(object):
 
     def is_latest_cert_installed(self, status_code, status_output):
         # type: (int, str) -> bool
-        """ Checks if the latest certs are already installed on the machine based on mokutil output """
+        """ Checks if the latest certs (i.e. 2023 certs) are already installed on the machine based on mokutil output """
         if status_code != self.mokutil_success_exit_code:
             return False
 
