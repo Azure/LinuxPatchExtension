@@ -58,6 +58,7 @@ class Constants(object):
 
     class AzGPSPaths(EnumBackport):
         EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
+        UEFI_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.uefi.settings"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -85,6 +86,11 @@ class Constants(object):
     class EulaSettings(EnumBackport):
         ACCEPT_EULA_FOR_ALL_PATCHES = 'AcceptEULAForAllPatches'
         ACCEPTED_BY = 'AcceptedBy'
+        LAST_MODIFIED = 'LastModified'
+
+    class UEFISettings(EnumBackport):
+        ENABLE_UEFI_CERT_UPDATE = 'EnableUEFICertUpdate'
+        ENABLED_By = 'EnabledBy'
         LAST_MODIFIED = 'LastModified'
 
     TEMP_FOLDER_DIR_NAME = "tmp"

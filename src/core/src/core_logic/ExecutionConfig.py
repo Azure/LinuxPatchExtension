@@ -92,6 +92,9 @@ class ExecutionConfig(object):
         # EULA config
         self.accept_package_eula = self.__is_eula_accepted_for_all_patches()
 
+        # UEFI config
+        self.enable_uefi_cert_update = self.__is_uefi_cert_update_enabled()
+
     def __transform_execution_config_for_auto_assessment(self):
         self.activity_id = str(uuid.uuid4())
         self.included_classifications_list = self.included_package_name_mask_list = self.excluded_package_name_mask_list = []
@@ -266,4 +269,43 @@ class ExecutionConfig(object):
         if settings_source is not None and setting_to_fetch is not None and setting_to_fetch in settings_source:
             return settings_source[setting_to_fetch]
         return None
+
+    def __is_uefi_cert_update_enabled(self):
+        # type: () -> bool
+        """ Reads customer provided config on UEFI cert update from disk and returns a boolean.
+        NOTE: This is a temporary solution implemented expressly for validating cert updates with partners and will be deprecated soon """
+        is_uefi_cert_update_enabled = False
+        try:
+            if os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS):
+                uefi_cert_update_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.UEFI_CERT_UPDATE_SETTINGS) or 'null')
+                enable_uefi_cert_update = self.__fetch_specific_uefi_cert_update_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE)
+                enabled_by = self.__fetch_specific_uefi_cert_update_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLED_BY)
+                last_modified = self.__fetch_specific_uefi_cert_update_setting(uefi_cert_update_settings, Constants.UEFISettings.LAST_MODIFIED)
+                if enable_uefi_cert_update is not None and self.__is_truthy(enable_uefi_cert_update):
+                    is_uefi_cert_update_enabled = True
+                self.composite_logger.log_debug("UEFI cert update config values from disk: [EnableUefiCertUpdate={0}] [EnabledBy={1}] [LastModified={2}]. Computed value of [IsUefiCertUpdateEnabled={3}]"
+                                                .format(str(enable_uefi_cert_update), str(enabled_by), str(last_modified), str(is_uefi_cert_update_enabled)))
+            else:
+                self.composite_logger.log_debug("No UEFI cert update settings found on the VM. Computed value of [IsUefiCertUpdateEnabled={0}]".format(str(is_uefi_cert_update_enabled)))
+        except Exception as error:
+            self.composite_logger.log_debug("Error occurred while reading and parsing UEFI cert update settings. Not enabling UEFI cert update. Error=[{0}]".format(repr(error)))
+
+        return is_uefi_cert_update_enabled
+
+    @staticmethod
+    def __is_truthy(value):
+        # type: (any) -> bool
+        """Case-insensitive truthy evaluator for config values."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value == 1
+
+        # Cross-version text types:
+        # py2 -> (str, unicode)
+        # py3 -> (str, str)
+        text_types = (str, type(u""))
+        if isinstance(value, text_types):
+            return value.strip().lower() in ("true", "1")
+        return False
 
