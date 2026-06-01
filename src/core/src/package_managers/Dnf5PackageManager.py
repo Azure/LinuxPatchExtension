@@ -594,11 +594,7 @@ class Dnf5PackageManager(PackageManager):
                 apply_bool = new_val
 
             self.composite_logger.log_debug("[DNF5] Applying ExecStart override ""[download_updates={0}][apply_updates={1}]".format(download_bool, apply_bool))
-
-            if download_bool is None and apply_bool is None:
-                self.__remove_dnf5_automatic_execstart_override()
-            else:
-                self.__set_dnf5_automatic_execstart_flags(download_updates=download_bool,apply_updates=apply_bool)
+            self.__set_dnf5_automatic_execstart_flags(download_updates=download_bool,apply_updates=apply_bool)
 
         except Exception as error:
             error_msg = "[DNF5] Error applying ExecStart override via update_os_patch_configuration_sub_setting. [Error={0}]".format(repr(error))
@@ -811,7 +807,6 @@ class Dnf5PackageManager(PackageManager):
                 elif self.dnf5_automatic_download_updates_flag in service_text:
                     download_updates_value = "yes"
 
-
             if download_updates_value == "":
                 self.composite_logger.log_debug("[DNF5] No explicit value set for [{0}] in ExecStart".format(self.download_updates_identifier_text))
             else:
@@ -851,7 +846,7 @@ class Dnf5PackageManager(PackageManager):
     def __set_dnf5_automatic_execstart_flags(self, download_updates=None, apply_updates=None):
         try:
             if download_updates is None and apply_updates is None:
-                self.remove_dnf5_automatic_execstart_override()
+                self.__remove_dnf5_automatic_execstart_override()
                 return
 
             flags = ["/usr/bin/dnf5", "automatic", "--timer"]
@@ -884,9 +879,7 @@ class Dnf5PackageManager(PackageManager):
         except Exception as error:
             error_msg = "[DNF5] Error writing override. [Exception={0}]".format(repr(error))
             self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(
-                error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR
-            )
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
     def __remove_dnf5_automatic_execstart_override(self):

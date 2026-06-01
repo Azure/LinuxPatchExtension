@@ -786,7 +786,7 @@ class LegacyEnvLayerExtensions():
                 elif self.legacy_package_manager_name is Constants.DNF:
                     if cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
-                        output = ""
+                        output = "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates --no-installupdates"
                     elif cmd.find("systemctl list-unit-files --type=service | grep dnf5-automatic.service") > -1:
                         code = 1
                         output = 'Auto update service is not installed'
@@ -848,6 +848,9 @@ class LegacyEnvLayerExtensions():
                              "libseccomp.x86_64 2.5.4-1.azl4~20260501 azurelinux-base\n" + \
                              "libxml2.x86_64 2.11.5-1.azl4~20260501 azurelinux-base\n" + \
                              "dracut.x86_64 102-7.azl4~20260501 azurelinux-base\n"
+                    if "systemctl cat dnf5-automatic.service" in cmd:
+                        code = 0
+                        output = "ExecStart=/usr/bin/dnf5 automatic --timer"
             elif self.legacy_test_type == 'NonexistentErrorCodePath':
                 if self.legacy_package_manager_name is Constants.ZYPPER:
                     if cmd.find('sudo zypper refresh') > -1:
