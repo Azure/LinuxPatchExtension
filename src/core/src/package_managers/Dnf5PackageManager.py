@@ -50,9 +50,7 @@ class Dnf5PackageManager(PackageManager):
         self.dnf_exitcode_ok = 0
         self.dnf_exitcode_updates_available = 100
         # Commands where 100 is expected
-        self.commands_allowing_100_exitcode = [
-            "check-update"
-        ]
+        self.commands_allowing_100_exitcode = ["check-update"]
 
         # DNF5 valid exit codes for simulation commands
         self.dnf5_simulation_valid_exit_codes = [0, 1]
@@ -70,6 +68,11 @@ class Dnf5PackageManager(PackageManager):
 
         # auto OS updates
         self.current_auto_os_update_service = None
+        self.os_patch_configuration_settings_file_path = ''
+        self.auto_update_service_enabled = False
+        self.auto_update_config_pattern_match_text = ""
+        self.download_updates_identifier_text = ""
+        self.apply_updates_identifier_text = ""
         self.enable_on_reboot_identifier_text = ""
         self.enable_on_reboot_check_cmd = ''
         self.enable_on_reboot_cmd = ''
@@ -85,6 +88,40 @@ class Dnf5PackageManager(PackageManager):
         self.package_install_expected_avg_time_in_seconds = 90
 
     __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
+
+    def __init_constants_for_dnf5_automatic(self):
+        self.dnf5_automatic_configuration_service = 'systemctl cat dnf5-automatic.service'
+        self.dnf5_automatic_install_check_cmd = 'rpm -qa | grep dnf5-plugin-automatic'
+        self.dnf5_automatic_enable_on_reboot_check_cmd = 'systemctl is-enabled dnf5-automatic.timer'
+        self.dnf5_automatic_disable_on_reboot_cmd = 'systemctl disable --now dnf5-automatic.timer'
+        self.dnf5_automatic_enable_on_reboot_cmd = 'systemctl enable --now dnf5-automatic.timer'
+        self.dnf5_automatic_override_dir = '/etc/systemd/system/dnf5-automatic.service.d'
+        self.dnf5_automatic_override_file = '/etc/systemd/system/dnf5-automatic.service.d/override.conf'
+
+        self.dnf5_automatic_download_updates_identifier_text = "download_updates"
+        self.dnf5_automatic_apply_updates_identifier_text = "apply_updates"
+
+        # ExecStart flag identifiers
+        self.dnf5_automatic_download_updates_flag = '--downloadupdates'
+        self.dnf5_automatic_no_download_updates_flag = '--no-downloadupdates'
+        self.dnf5_automatic_apply_updates_flag = '--installupdates'
+        self.dnf5_automatic_no_apply_updates_flag = '--no-installupdates'
+
+        self.dnf5_automatic_enable_on_reboot_identifier_text = "enable_on_reboot"
+        self.dnf5_automatic_installation_state_identifier_text = "installation_state"
+        self.dnf5_auto_os_update_service = "dnf5-automatic"
+
+    def __init_auto_update_for_dnf5_automatic(self):
+        self.dnf5_automatic_configuration_file_path = self.dnf5_automatic_override_file
+        self.os_patch_configuration_settings_read_cmd = self.dnf5_automatic_configuration_service
+        self.download_updates_identifier_text = self.dnf5_automatic_download_updates_identifier_text
+        self.apply_updates_identifier_text = self.dnf5_automatic_apply_updates_identifier_text
+        self.enable_on_reboot_identifier_text = self.dnf5_automatic_enable_on_reboot_identifier_text
+        self.installation_state_identifier_text = self.dnf5_automatic_installation_state_identifier_text
+        self.enable_on_reboot_check_cmd = self.dnf5_automatic_enable_on_reboot_check_cmd
+        self.enable_on_reboot_cmd = self.dnf5_automatic_enable_on_reboot_cmd
+        self.install_check_cmd = self.dnf5_automatic_install_check_cmd
+        self.current_auto_os_update_service = self.dnf5_auto_os_update_service
 
     def refresh_repo(self):
         self.composite_logger.log("[DNF5] Refreshing local repo...")
@@ -120,12 +157,11 @@ class Dnf5PackageManager(PackageManager):
         return packages, versions
 
     def extract_packages_and_versions_including_duplicates(self, output):
-        """Returns packages and versions from given output - DNF format similar to TDNF"""
+        """Returns packages and versions from given output"""
         self.composite_logger.log_verbose("[DNF5] Extracting package and version data...")
         packages, versions = [], []
 
         lines = output.strip().split('\n')
-
         for line_index in range(0, len(lines)):
 
             line = lines[line_index].strip()
@@ -264,7 +300,6 @@ class Dnf5PackageManager(PackageManager):
         # so let's check that the package is still needed before
         self.composite_logger.log_debug("[DNF5] > Installed version match NOT found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
         return False
-
 
     def get_dependent_list(self, packages):
         """Returns dependent list for the list of packages
@@ -429,42 +464,9 @@ class Dnf5PackageManager(PackageManager):
 
     def try_meet_azgps_coordinated_requirements(self):
         """
-        Do we need this for dnf?
+        no-op for now
         """
-        raise NotImplementedError("DNF: try_meet_azgps_coordinated_requirements not implemented yet")
-
-    def get_current_auto_os_patch_state(self):
-        """ Gets the current auto OS update patch state on the machine """
-        self.composite_logger.log("[DNF5] Fetching the current automatic OS patch state on the machine...")
-
-        current_auto_os_patch_state_for_dnf5_automatic = self.__get_current_auto_os_patch_state_for_dnf5_automatic()
-
-        self.composite_logger.log("[DNF5] OS patch state per auto OS update service: [dnf5-automatic={0}]".format(str(current_auto_os_patch_state_for_dnf5_automatic)))
-
-        if current_auto_os_patch_state_for_dnf5_automatic == Constants.AutomaticOSPatchStates.ENABLED:
-            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.ENABLED
-        elif current_auto_os_patch_state_for_dnf5_automatic == Constants.AutomaticOSPatchStates.DISABLED:
-            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.DISABLED
-        else:
-            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
-
-        self.composite_logger.log_debug("[DNF5] Overall Auto OS Patch State based on all auto OS update service states [OverallAutoOSPatchState={0}]".format(str(current_auto_os_patch_state)))
-        return current_auto_os_patch_state
-
-    def __get_current_auto_os_patch_state_for_dnf5_automatic(self):
-        """ Gets current auto OS update patch state for dnf5-automatic """
-        self.composite_logger.log_debug("[DNF5] Fetching current automatic OS patch state in dnf5-automatic service. This includes checks on whether the service is installed, current auto patch enable state and whether it is set to enable on reboot")
-        self.__init_auto_update_for_dnf5_automatic()
-
-        is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
-
-        if not is_service_installed:
-            return Constants.AutomaticOSPatchStates.DISABLED
-
-        if enable_on_reboot_value:
-            return Constants.AutomaticOSPatchStates.ENABLED
-
-        return Constants.AutomaticOSPatchStates.DISABLED
+        pass
 
     def disable_auto_os_update(self):
         """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
@@ -489,9 +491,12 @@ class Dnf5PackageManager(PackageManager):
             return
 
         self.composite_logger.log_verbose("[DNF5] Preemptively disabling auto OS updates using dnf5-automatic")
+        self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "no")
+        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "no")
         self.disable_auto_update_on_reboot(self.dnf5_automatic_disable_on_reboot_cmd)
 
         self.composite_logger.log_debug("[DNF5] Successfully disabled auto OS updates using dnf5-automatic")
+
 
     def disable_auto_update_on_reboot(self, command):
         """ Disables auto update on reboot by executing systemctl command """
@@ -507,32 +512,34 @@ class Dnf5PackageManager(PackageManager):
             self.composite_logger.log_debug("[DNF5] Disabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
 
     def backup_image_default_patch_configuration_if_not_exists(self):
-        """
-        This method saves the original auto-update configuration so it can be restored later.
-        """
+        """ JSON format for backup file:
+                    {
+                        "dnf5-automatic": {
+                            "apply_updates": "yes/no/empty string",
+                            "download_updates": "yes/no/empty string",
+                            "enable_on_reboot": true/false,
+                            "installation_state": true/false
+                        }
+                    } """
         try:
             self.composite_logger.log_debug("[DNF5] Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
 
-            # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
-            image_default_patch_configuration_backup = {}
-            if self.image_default_patch_configuration_backup_exists():
-                try:
-                    image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
-                except Exception as error:
-                    self.composite_logger.log_error("[DNF5] Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
-
+            image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
             # verify if existing backup is valid if not, write to backup
             is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
+
             if is_backup_valid:
-                self.composite_logger.log_debug("[DNF5] Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]"
-                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
+                self.composite_logger.log_debug("[DNF5] Since extension has a valid backup, no need to log the current settings again. ""[Default Auto OS update settings={0}] [File path={1}]".format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
             else:
                 self.composite_logger.log_debug("[DNF5] Since the backup is invalid, will add a new backup with the current auto OS update settings")
                 self.composite_logger.log_debug("[DNF5] Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
+
                 is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
 
                 backup_image_default_patch_configuration_json_to_add = {
                     self.current_auto_os_update_service: {
+                        self.download_updates_identifier_text: download_updates_value,
+                        self.apply_updates_identifier_text: apply_updates_value,
                         self.enable_on_reboot_identifier_text: enable_on_reboot_value,
                         self.installation_state_identifier_text: is_service_installed
                     }
@@ -540,9 +547,9 @@ class Dnf5PackageManager(PackageManager):
 
                 image_default_patch_configuration_backup.update(backup_image_default_patch_configuration_json_to_add)
 
-                self.composite_logger.log_debug("[DNF5] Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
-                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
-                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
+                self.composite_logger.log_debug("[DNF5] Logging default system configuration settings for auto OS updates. ""[Settings={0}] [Log file path={1}]".format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
+                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path,'{0}'.format(json.dumps(image_default_patch_configuration_backup)),mode='w+')
+
         except Exception as error:
             error_message = "[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
             self.composite_logger.log_error(error_message)
@@ -550,22 +557,54 @@ class Dnf5PackageManager(PackageManager):
             raise
 
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
-        # Validate backup JSON for dnf5 automatic service
-        try:
-            if self.dnf5_auto_os_update_service in image_default_patch_configuration_backup \
-                    and self.dnf5_automatic_enable_on_reboot_identifier_text in image_default_patch_configuration_backup[self.dnf5_auto_os_update_service] \
-                    and self.dnf5_automatic_installation_state_identifier_text in image_default_patch_configuration_backup[self.dnf5_auto_os_update_service]:
-                self.composite_logger.log_debug("[DNF5] Extension has a valid backup for default dnf5-automatic configuration settings")
-                return True
-            else:
-                self.composite_logger.log_debug("[DNF5] Extension does not have a valid backup for default dnf5-automatic configuration settings")
-                return False
-        except Exception:
+        """ Verifies if default auto update configurations, for a service under consideration, are saved in backup """
+        return self.is_backup_valid_for_dnf5_automatic(image_default_patch_configuration_backup)
+
+    def is_backup_valid_for_dnf5_automatic(self, image_default_patch_configuration_backup):
+        if self.dnf5_auto_os_update_service in image_default_patch_configuration_backup \
+                and self.dnf5_automatic_download_updates_identifier_text in image_default_patch_configuration_backup[
+            self.dnf5_auto_os_update_service] \
+                and self.dnf5_automatic_apply_updates_identifier_text in image_default_patch_configuration_backup[
+            self.dnf5_auto_os_update_service] \
+                and self.dnf5_automatic_enable_on_reboot_identifier_text in image_default_patch_configuration_backup[
+            self.dnf5_auto_os_update_service] \
+                and self.dnf5_automatic_installation_state_identifier_text in image_default_patch_configuration_backup[
+            self.dnf5_auto_os_update_service]:
+            self.composite_logger.log_debug("[DNF5] Extension has a valid backup for default dnf5-automatic configuration settings")
+            return True
+        else:
+            self.composite_logger.log_debug("[DNF5] Extension does not have a valid backup for default dnf5-automatic configuration settings")
             return False
 
-    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value, patch_configuration_sub_setting_pattern_to_match):
-        # No-op for dnf5 (no config file-based sub-settings)
-        pass
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="no",
+                                                  config_pattern_match_text=""):
+        try:
+            self.__init_auto_update_for_dnf5_automatic()
+            _, _, current_download, current_apply = self.__get_current_auto_os_updates_setting_on_machine()
+
+            download_bool = {"yes": True, "no": False}.get(current_download)
+            apply_bool = {"yes": True, "no": False}.get(current_apply)
+
+            new_val = True if value.lower() == "yes" else False
+
+            if patch_configuration_sub_setting == self.download_updates_identifier_text:
+                download_bool = new_val
+
+            elif patch_configuration_sub_setting == self.apply_updates_identifier_text:
+                apply_bool = new_val
+
+            self.composite_logger.log_debug("[DNF5] Applying ExecStart override ""[download_updates={0}][apply_updates={1}]".format(download_bool, apply_bool))
+
+            if download_bool is None and apply_bool is None:
+                self.__remove_dnf5_automatic_execstart_override()
+            else:
+                self.__set_dnf5_automatic_execstart_flags(download_updates=download_bool,apply_updates=apply_bool)
+
+        except Exception as error:
+            error_msg = "[DNF5] Error applying ExecStart override via update_os_patch_configuration_sub_setting. [Error={0}]".format(repr(error))
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            raise
 
     # Post Install method/ Install Patch
     def is_reboot_pending(self):
@@ -581,7 +620,10 @@ class Dnf5PackageManager(PackageManager):
 
     # Post Install method / Install Patch
     def do_processes_require_restart(self):
-        raise NotImplementedError("DNF5 uses `needs-restarting` directly via is_reboot_pending(); separate implementation is not required.")
+        """
+         DNF5 uses `needs-restarting` directly via is_reboot_pending(); separate implementation is not required.
+        """
+        pass
 
     def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
@@ -601,7 +643,6 @@ class Dnf5PackageManager(PackageManager):
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
 
-    # ConfigurePatch method
     def revert_auto_os_update_to_system_default(self):
         """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
         # type () -> None
@@ -613,120 +654,56 @@ class Dnf5PackageManager(PackageManager):
         """ Reverts the auto OS update patch state on the machine to its system default value for dnf5-automatic service, if applicable """
         # type () -> None
         self.__init_auto_update_for_dnf5_automatic()
+
         self.composite_logger.log("[DNF5] Reverting the current automatic OS patch state on the machine to its system default value for [Service={0}]".format(str(self.current_auto_os_update_service)))
-        is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
+
+        is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = \
+            self.__get_current_auto_os_updates_setting_on_machine()
 
         if not is_service_installed:
             self.composite_logger.log_debug("[DNF5] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service={0}]".format(str(self.current_auto_os_update_service)))
             return
 
-        self.composite_logger.log_debug("[DNF5] Logging current configuration settings for auto OS updates [Service={0}][Is_Service_Installed={1}][Machine_default_update_enable_on_reboot={2}]"
-                                        .format(str(self.current_auto_os_update_service), str(is_service_installed), str(enable_on_reboot_value)))
-
+        self.composite_logger.log_debug("[DNF5] Logging current configuration settings for auto OS updates ""[Service={0}][Is_Service_Installed={1}][Machine_default_update_enable_on_reboot={2}]".format(str(self.current_auto_os_update_service), str(is_service_installed),str(enable_on_reboot_value)))
         image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
+
         self.composite_logger.log_debug("[DNF5] Logging system default configuration settings for auto OS updates. [Settings={0}]".format(str(image_default_patch_configuration_backup)))
+
         is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
 
-        if is_backup_valid:
-            enable_on_reboot_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.enable_on_reboot_identifier_text]
-
-            # For DNF5, we can only revert the systemctl enable/disable state since ExecStart flags are baked into the unit file.
-            # If the backup indicates the service should be enabled on reboot, enable it now.
-            if str(enable_on_reboot_value_from_backup).lower() == 'true':
-                if not enable_on_reboot_value:
-                    self.composite_logger.log_debug("[DNF5] Enabling service to match system default")
-                    self.enable_auto_update_on_reboot()
-                else:
-                    self.composite_logger.log_debug("[DNF5] Service already enabled as per system default")
-            else:
-                # If backup says it should be disabled on reboot, keep current state or disable if needed
-                if enable_on_reboot_value:
-                    # Currently enabled but backup says it should be disabled - disable it
-                    self.disable_auto_update_on_reboot(self.dnf5_automatic_disable_on_reboot_cmd)
-        else:
+        if not is_backup_valid:
             self.composite_logger.log_debug("[DNF5] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]".format(str(self.current_auto_os_update_service)))
+            return
 
-    # region auto OS updates
-    def __init_constants_for_dnf5_automatic(self):
-        self.dnf5_automatic_configuration_service = 'systemctl cat dnf5-automatic.service'
-        self.dnf5_automatic_install_check_cmd = 'rpm -qa | grep dnf5-plugin-automatic'
-        self.dnf5_automatic_enable_on_reboot_check_cmd = 'systemctl is-enabled dnf5-automatic.timer'
-        self.dnf5_automatic_disable_on_reboot_cmd = 'systemctl disable --now dnf5-automatic.timer'
-        self.dnf5_automatic_enable_on_reboot_cmd = 'systemctl enable --now dnf5-automatic.timer'
-        self.dnf5_automatic_config_pattern_match_text = None
-        # Detect them from ExecStart flags instead of a file:
-        self.dnf5_automatic_enable_on_reboot_identifier_text = "enable_on_reboot"
-        self.dnf5_automatic_installation_state_identifier_text = "installation_state"
-        self.dnf5_auto_os_update_service = "dnf5-automatic"
+        backup = image_default_patch_configuration_backup[self.current_auto_os_update_service]
 
-    def __init_auto_update_for_dnf5_automatic(self):
-        """ Initializes all generic auto OS update variables with the config values for dnf5 automatic service """
-        self.os_patch_configuration_settings_read_cmd = self.dnf5_automatic_configuration_service
-        self.enable_on_reboot_identifier_text = self.dnf5_automatic_enable_on_reboot_identifier_text
-        self.installation_state_identifier_text = self.dnf5_automatic_installation_state_identifier_text
-        self.enable_on_reboot_check_cmd = self.dnf5_automatic_enable_on_reboot_check_cmd
-        self.enable_on_reboot_cmd = self.dnf5_automatic_enable_on_reboot_cmd
-        self.install_check_cmd = self.dnf5_automatic_install_check_cmd
-        self.current_auto_os_update_service = self.dnf5_auto_os_update_service
+        download_updates_value_from_backup = backup[self.download_updates_identifier_text]
+        apply_updates_value_from_backup = backup[self.apply_updates_identifier_text]
 
-    def __get_current_auto_os_updates_setting_on_machine(self):
-        """ Gets all the update settings related to auto OS updates via dnf """
-        try:
-            download_updates_value = ""
-            apply_updates_value = ""
-            is_service_installed = False
-            enable_on_reboot_value = False
+        download_bool = None
+        apply_bool = None
 
-            # get install state
-            if not self.is_auto_update_service_installed(self.install_check_cmd):
-                return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
+        if download_updates_value_from_backup == "yes":
+            download_bool = True
+        elif download_updates_value_from_backup == "no":
+            download_bool = False
 
-            is_service_installed = True
-            enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
+        if apply_updates_value_from_backup == "yes":
+            apply_bool = True
+        elif apply_updates_value_from_backup == "no":
+            apply_bool = False
 
-            self.composite_logger.log_debug("[DNF5] Checking if auto updates are currently enabled...")
-
-            # Check systemd service unit file for ExecStart flags to determine current settings
-            # Get the dnf5-automatic.service configuration
-            code, unit_output = self.env_layer.run_command_output(self.os_patch_configuration_settings_read_cmd, False, False)
-
-            if code == 0:
-                self.composite_logger.log_debug("[DNF5] Retrieved dnf5-automatic service unit configuration...")
-
-                # ExecStart line format example: ExecStart=/usr/bin/dnf5 automatic --timer
-                for line in unit_output.split('\n'):
-                    if line.strip().startswith('ExecStart=') and 'dnf5 automatic' in line:
-                        self.composite_logger.log_debug("[DNF5] ExecStart line: {0}".format(line))
-                        break
-
-                return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
-
-            return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
-
-        except Exception as error:
-            raise Exception("[DNF5] Error occurred in fetching current auto OS update settings from the machine (dnf5). [Exception={0}]".format(
-                    repr(error)))
-
-    def is_auto_update_service_installed(self, install_check_cmd):
-        """ Checks if the auto update service is installed on the VM """
-        code, out = self.env_layer.run_command_output(install_check_cmd, False, False)
-        self.composite_logger.log_debug("[DNF5] Checked if auto update service is installed. [Command={0}][Code={1}][Output={2}]".format(install_check_cmd, str(code), out))
-        if len(out.strip()) > 0 and code == 0:
-            self.composite_logger.log_debug("[DNF5] > Auto OS update service is installed on the machine")
-            return True
+        if download_bool is None and apply_bool is None:
+            self.__remove_dnf5_automatic_execstart_override()
         else:
-            self.composite_logger.log_debug("[DNF5] > Auto OS update service is NOT installed on the machine")
-            return False
+            self.__set_dnf5_automatic_execstart_flags(download_updates=download_bool,apply_updates=apply_bool)
 
-    def is_service_set_to_enable_on_reboot(self, command):
-        """ Checking if auto update is set to enable on reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot """
-        code, out = self.env_layer.run_command_output(command, False, False)
-        self.composite_logger.log_debug("[DNF5] Checked if auto update service is set to enable on reboot. [Code={0}][Out={1}]".format(str(code), out))
-        if len(out.strip()) > 0 and code == 0 and 'enabled' in out:
-            self.composite_logger.log_debug("[DNF5] > Auto OS update service will enable on reboot")
-            return True
-        self.composite_logger.log_debug("[DNF5] > Auto OS update service will NOT enable on reboot")
-        return False
+        enable_on_reboot_value_from_backup = backup[self.enable_on_reboot_identifier_text]
+
+        if str(enable_on_reboot_value_from_backup).lower() == 'true':
+            self.enable_auto_update_on_reboot()
+        else:
+            self.disable_auto_update_on_reboot(self.dnf5_automatic_disable_on_reboot_cmd)
 
     def enable_auto_update_on_reboot(self):
         """ Enables machine default auto update on reboot """
@@ -754,5 +731,179 @@ class Dnf5PackageManager(PackageManager):
             except Exception as error:
                 self.composite_logger.log_error("[DNF5] Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
         return image_default_patch_configuration_backup
+
+                ########## AUTO OS METHODS ########
+
+    def get_current_auto_os_patch_state(self):
+        """ Gets the current auto OS update patch state on the machine """
+        self.composite_logger.log("[DNF5] Fetching the current automatic OS patch state on the machine...")
+
+        current_auto_os_patch_state_for_dnf5_automatic = self.__get_current_auto_os_patch_state_for_dnf5_automatic()
+
+        self.composite_logger.log("[DNF5] OS patch state per auto OS update service: [dnf5-automatic={0}]".format(
+            str(current_auto_os_patch_state_for_dnf5_automatic)))
+
+        if current_auto_os_patch_state_for_dnf5_automatic == Constants.AutomaticOSPatchStates.ENABLED:
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.ENABLED
+        elif current_auto_os_patch_state_for_dnf5_automatic == Constants.AutomaticOSPatchStates.DISABLED:
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.DISABLED
+        else:
+            current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
+
+        self.composite_logger.log_debug(
+            "[DNF5] Overall Auto OS Patch State based on all auto OS update service states [OverallAutoOSPatchState={0}]".format(
+                str(current_auto_os_patch_state)))
+        return current_auto_os_patch_state
+
+    def __get_current_auto_os_patch_state_for_dnf5_automatic(self):
+        """Gets current auto OS update patch state for dnf5-automatic"""
+        self.composite_logger.log_debug("[DNF5] Fetching current automatic OS patch state in dnf5-automatic service.")
+        self.__init_auto_update_for_dnf5_automatic()
+        is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
+
+        apply_updates = self.__get_extension_standard_value_for_apply_updates(apply_updates_value)
+
+        if apply_updates == self.apply_updates_enabled or enable_on_reboot_value:
+            return Constants.AutomaticOSPatchStates.ENABLED
+        # OS patch state is considered to be disabled: a) if it was successfully disabled or b) if the service is not installed
+        elif not is_service_installed or (apply_updates == self.apply_updates_disabled and not enable_on_reboot_value):
+            return Constants.AutomaticOSPatchStates.DISABLED
+        else:
+            return Constants.AutomaticOSPatchStates.UNKNOWN
+
+    def __get_extension_standard_value_for_apply_updates(self, apply_updates_value):
+        if apply_updates_value.lower() == 'yes' or apply_updates_value.lower() == 'true':
+            return self.apply_updates_enabled
+        elif apply_updates_value.lower() == 'no' or apply_updates_value.lower() == 'false':
+            return self.apply_updates_disabled
+        else:
+            return self.apply_updates_unknown
+
+    def __get_current_auto_os_updates_setting_on_machine(self):
+        """Gets all auto-OS update settings for dnf5-automatic (DNF5) via config + timer state."""
+        try:
+            download_updates_value = ""
+            apply_updates_value = ""
+            is_service_installed = False
+            enable_on_reboot_value = False
+
+            # install state
+            if not self.is_auto_update_service_installed(self.install_check_cmd):
+                return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
+
+            is_service_installed = True
+            enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
+
+            self.composite_logger.log_debug("[DNF5] Reading dnf5 automatic config values...")
+            service_text = self.invoke_package_manager(self.os_patch_configuration_settings_read_cmd)
+
+            # derive apply_updates
+            if self.dnf5_automatic_no_apply_updates_flag in service_text:
+                apply_updates_value = "no"
+            elif self.dnf5_automatic_apply_updates_flag in service_text:
+                apply_updates_value = "yes"
+                download_updates_value = "yes"
+
+            # derive download_updates
+            if download_updates_value == "":
+                if self.dnf5_automatic_no_download_updates_flag in service_text:
+                    download_updates_value = "no"
+                elif self.dnf5_automatic_download_updates_flag in service_text:
+                    download_updates_value = "yes"
+
+
+            if download_updates_value == "":
+                self.composite_logger.log_debug("[DNF5] No explicit value set for [{0}] in ExecStart".format(self.download_updates_identifier_text))
+            else:
+                self.composite_logger.log_verbose("[DNF5] Current value set for [{0}={1}]".format(self.download_updates_identifier_text,download_updates_value))
+
+            if apply_updates_value == "":
+                self.composite_logger.log_debug("[DNF5] No explicit value set for [{0}] in ExecStart".format(self.apply_updates_identifier_text))
+            else:
+                self.composite_logger.log_verbose("[DNF5] Current value set for [{0}={1}]".format(self.apply_updates_identifier_text,apply_updates_value))
+
+            return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
+
+        except Exception as error:
+            raise Exception("[DNF5] Error fetching current auto OS update settings. [Exception={0}]".format(repr(error)))
+
+    def is_auto_update_service_installed(self, install_check_cmd):
+        """ Checks if the auto update service is installed on the VM """
+        code, out = self.env_layer.run_command_output(install_check_cmd, False, False)
+        self.composite_logger.log_debug("[DNF5] Checked if auto update service is installed. [Command={0}][Code={1}][Output={2}]".format(install_check_cmd, str(code), out))
+        if len(out.strip()) > 0 and code == 0:
+            self.composite_logger.log_debug("[DNF5] > Auto OS update service is installed on the machine")
+            return True
+        else:
+            self.composite_logger.log_debug("[DNF5] > Auto OS update service is NOT installed on the machine")
+            return False
+
+    def is_service_set_to_enable_on_reboot(self, command):
+        """ Checking if auto update is set to enable on reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot """
+        code, out = self.env_layer.run_command_output(command, False, False)
+        self.composite_logger.log_debug("[DNF5] Checked if auto update service is set to enable on reboot. [Code={0}][Out={1}]".format(str(code), out))
+        if len(out.strip()) > 0 and code == 0 and out.strip() == "enabled" :
+            self.composite_logger.log_debug("[DNF5] > Auto OS update service will enable on reboot")
+            return True
+        self.composite_logger.log_debug("[DNF5] > Auto OS update service will NOT enable on reboot")
+        return False
+
+    def __set_dnf5_automatic_execstart_flags(self, download_updates=None, apply_updates=None):
+        try:
+            if download_updates is None and apply_updates is None:
+                self.remove_dnf5_automatic_execstart_override()
+                return
+
+            flags = ["/usr/bin/dnf5", "automatic", "--timer"]
+
+            if apply_updates is True:
+                flags.append("--installupdates")
+
+            elif apply_updates is False:
+                if download_updates is True:
+                    flags.append("--downloadupdates")
+                    flags.append("--no-installupdates")
+                elif download_updates is False:
+                    flags.append("--no-downloadupdates")
+                    flags.append("--no-installupdates")
+                else:
+                    flags.append("--no-installupdates")
+            else:
+                if download_updates is True:
+                    flags.append("--downloadupdates")
+                elif download_updates is False:
+                    flags.append("--no-downloadupdates")
+
+            override_text = "[Service]\nExecStart=\nExecStart={0}\n".format(" ".join(flags))
+
+            self.env_layer.run_command_output("sudo mkdir -p {0}".format(self.dnf5_automatic_override_dir), False, False)
+            self.env_layer.file_system.write_with_retry(self.dnf5_automatic_override_file, override_text, mode='w+')
+            self.env_layer.run_command_output("sudo systemctl daemon-reload", False, False)
+            self.composite_logger.log_debug("[DNF5] Wrote override. [ExecStart={0}]".format(" ".join(flags)))
+
+        except Exception as error:
+            error_msg = "[DNF5] Error writing override. [Exception={0}]".format(repr(error))
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.add_error_to_status(
+                error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR
+            )
+            raise
+
+    def __remove_dnf5_automatic_execstart_override(self):
+        """Removes systemd override file for dnf5-automatic if it exists."""
+        try:
+            try:
+                self.env_layer.file_system.write_with_retry(self.dnf5_automatic_override_file,"",mode='w+')
+            except Exception:
+                pass
+
+            self.env_layer.run_command_output("sudo systemctl daemon-reload",False,False)
+            self.composite_logger.log_debug("[DNF5] Cleared dnf5 automatic override file. [File={0}]".format(self.dnf5_automatic_override_file))
+
+        except Exception as error:
+            error_msg = "[DNF5] Error removing dnf5 automatic override. [Exception={0}]".format(repr(error))
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            raise
 
     # endregion

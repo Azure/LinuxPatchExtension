@@ -647,9 +647,14 @@ class LegacyEnvLayerExtensions():
                 elif self.legacy_package_manager_name is Constants.DNF:
                     if cmd.find("check-update") > -1:
                         code = 100
-                        output = "\n" + \
-                                 "rubygem-json.x86_64 2.13.2-2.azl4~20260501 azurelinux-base\n"
-
+                        output = ("Updating and loading repositories:\n"
+                                     "Repositories loaded.\n"
+                                     "Available packages\n"
+                                     "azurelinux-release.noarch 3.0-16.azl4~20260501 azurelinux-base\n"
+                                     "azurelinux-repos-ms-oss.noarch 3.0-3.azl4~20260501 azurelinux-base\n"
+                                     "libseccomp.x86_64 2.5.4-1.azl4~20260501 azurelinux-base\n"
+                                     "libxml2.x86_64 2.11.5-1.azl4~20260501 azurelinux-base\n"
+                                     "dracut.x86_64 102-7.azl4~20260501 azurelinux-base\n")
                     elif cmd.find("dnf5 -y upgrade") > -1:
                         code = 0
                         output = "Complete!\n"
@@ -709,6 +714,10 @@ class LegacyEnvLayerExtensions():
                             entry = template.replace('<PACKAGE>', package)
                             entry = entry.replace('<VERSION>', version)
                             output += entry
+
+                    elif cmd.find("systemctl cat dnf5-automatic.service") > -1:
+                        code = 0
+                        output = "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates --installupdates"
 
                     elif cmd.find("systemctl list-unit-files --type=service") > -1:
                         code = 0
@@ -775,7 +784,10 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = ''
                 elif self.legacy_package_manager_name is Constants.DNF:
-                    if cmd.find("systemctl list-unit-files --type=service | grep dnf5-automatic.service") > -1:
+                    if cmd.find("systemctl cat dnf5-automatic.service") > -1:
+                        code = 0
+                        output = ""
+                    elif cmd.find("systemctl list-unit-files --type=service | grep dnf5-automatic.service") > -1:
                         code = 1
                         output = 'Auto update service is not installed'
                     else:
@@ -860,12 +872,19 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = 'enabled'
                 elif self.legacy_package_manager_name is Constants.DNF:
-                    if cmd.find("systemctl list-unit-files --type=service") > -1:
+                    if cmd.find("systemctl cat dnf5-automatic.service") > -1:
+                        code = 0
+                        output = "ExecStart=/usr/bin/dnf5 automatic --downloadupdates --no-installupdates"
+                    elif cmd.find("systemctl list-unit-files --type=service") > -1:
                         code = 0
                         output = 'Auto update service installed'
-                    elif cmd.find("systemctl is-enabled ") > -1:
+                    elif "systemctl is-enabled" in cmd:
                         code = 0
                         output = 'enabled'
+                    elif cmd.find("rpm -qa") > -1:
+                        code = 0
+                        output = 'dnf5-plugin-automatic'
+
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
