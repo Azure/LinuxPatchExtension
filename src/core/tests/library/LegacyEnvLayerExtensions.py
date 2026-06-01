@@ -1041,25 +1041,38 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = "Loaded plugin: tdnfrepogpgcheck\n" + \
                                  "hyperv-daemons-license.noarch                     6.6.78.1-1.azl3                     @System\n"
-                    elif self.legacy_package_manager_name is Constants.DNF:
-                        if cmd.find("simulate-install") > -1 or cmd.find("sudo dnf5 install --assumeno --skip-broken hyperv-daemons-license") > -1:
-                            code = 1
-                            output = "Updating and loading repositories:\n" + \
-                                     "Repositories loaded.\n" + \
-                                     "Package Arch Version Repository Size\n" + \
-                                     "Installing:\n" + \
-                                     " hyperv-daemons-license noarch 6.10-3.azl4~20260501 azurelinux-base 18.3 KiB\n\n" + \
-                                     "Transaction Summary:\n" + \
-                                     " Installing:         1 package\n\n" + \
-                                     "Total size of inbound packages is 15 KiB. Need to download 15 KiB.\n" + \
-                                     "After this operation, 18 KiB extra will be used (install 18 KiB, remove 0 B).\n" + \
-                                     "Operation aborted by the user.\n"
-
-                        elif cmd.find("sudo dnf5 list installed hyperv-daemons-license.noarch") > -1:
-                            code = 0
-                            output = "Updating and loading repositories:\n" + \
-                                     "Repositories loaded.\n" + \
-                                     "hyperv-daemons-license.noarch 6.10-3.azl4~20260501 @System\n"
+                elif self.legacy_package_manager_name is Constants.DNF:
+                    if cmd.find("simulate-install") > -1 or cmd.find(
+                            "sudo dnf5 install --assumeno --skip-broken hyperv-daemons.x86_64") > -1:
+                        code = 0
+                        output = "Updating and loading repositories:\n" + \
+                                 "Repositories loaded.\n" + \
+                                 "Package                                Arch      Version                                 Repository                   Size\n" + \
+                                 "Installing:\n" + \
+                                 " hyperv-daemons                        x86_64    6.10-3.azl4~20260501                    azurelinux-base           0.0   B\n" + \
+                                 "Installing dependencies:\n" + \
+                                 " hyperv-daemons-license                noarch    6.10-3.azl4~20260501                    azurelinux-base          18.3 KiB\n" + \
+                                 " hypervfcopyd                          x86_64    6.10-3.azl4~20260501                    azurelinux-base          20.2 KiB\n" + \
+                                 " hypervkvpd                            x86_64    6.10-3.azl4~20260501                    azurelinux-base          36.2 KiB\n" + \
+                                 " hypervvssd                            x86_64    6.10-3.azl4~20260501                    azurelinux-base          20.0 KiB\n\n" + \
+                                 "Transaction Summary:\n" + \
+                                 " Installing:         5 packages\n\n" + \
+                                 "Total size of inbound packages is 79 KiB. Need to download 79 KiB.\n" + \
+                                 "After this operation, 95 KiB extra will be used (install 95 KiB, remove 0 B).\n" + \
+                                 "Operation aborted by the user."
+                    elif cmd.find("sudo dnf5 list installed hyperv-daemons-license.noarch") > -1:
+                        code = 0
+                        output = "Updating and loading repositories:\n" + \
+                                 "Repositories loaded.\n" + \
+                                 "hyperv-daemons-license.noarch 6.10-3.azl4~20260501 @System\n"
+                    elif "dnf5 list available" in cmd and "hyperv-daemons.x86_64" in cmd:
+                        code = 0
+                        output = (
+                            "Updating and loading repositories:\n"
+                            "Repositories loaded.\n"
+                            "Available packages\n"
+                            "hyperv-daemons.x86_64 6.10-3.azl4~20260501 azurelinux-base\n"
+                        )
             elif self.legacy_test_type == 'FailInstallPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0

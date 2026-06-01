@@ -16,6 +16,7 @@
 
 """Dnf5PackageManager for Azure Linux and RHEL"""
 import json
+import os
 import re
 
 from abc import ABCMeta
@@ -886,7 +887,20 @@ class Dnf5PackageManager(PackageManager):
         """Removes systemd override file for dnf5-automatic if it exists."""
         try:
             try:
-                self.env_layer.file_system.write_with_retry(self.dnf5_automatic_override_file,"",mode='w+')
+                # self.env_layer.file_system.write_with_retry(self.dnf5_automatic_override_file,"",mode='w+')
+
+                if os.path.exists(self.dnf5_automatic_override_file):
+                    os.remove(self.dnf5_automatic_override_file)
+                    self.composite_logger.log_debug(
+                        "[DNF5] Removed override file. [File={0}]".format(
+                            self.dnf5_automatic_override_file
+                        )
+                    )
+                else:
+                    self.composite_logger.log_debug(
+                        "[DNF5] Override file not present, nothing to remove."
+                    )
+
             except Exception:
                 pass
 

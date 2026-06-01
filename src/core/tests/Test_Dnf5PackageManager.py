@@ -693,6 +693,17 @@ class TestDnfPackageManager(unittest.TestCase):
         else:
             self.assertFalse(True, "Exception did not occur and test failed.")
 
+    def test_install_package_success(self):
+        """Unit test for install package success"""
+        self.runtime.set_legacy_test_type('SuccessInstallPath')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+        package_filter = self.container.get('package_filter')
+        self.assertTrue(package_filter is not None)
+
+        # test for successfully installing a package
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('hyperv-daemons.x86_64','6.10-3.azl4~20260501',simulate=True),Constants.INSTALLED)
 
     def test_inclusion_type_other(self):
         """Unit test for dnf5 package manager with inclusion and Classification = Other. All packages are considered are 'Security' since TDNF does not have patch classification"""
