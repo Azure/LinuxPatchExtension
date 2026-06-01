@@ -901,8 +901,8 @@ class Dnf5PackageManager(PackageManager):
                         "[DNF5] Override file not present, nothing to remove."
                     )
 
-            except Exception:
-                pass
+            except Exception as error:
+                self.composite_logger.log_debug("[DNF5] Failed to remove override file; continuing with daemon-reload. ""[File={0}] [Exception={1}]".format(self.dnf5_automatic_override_file,repr(error)))
 
             self.env_layer.run_command_output("sudo systemctl daemon-reload",False,False)
             self.composite_logger.log_debug("[DNF5] Cleared dnf5 automatic override file. [File={0}]".format(self.dnf5_automatic_override_file))

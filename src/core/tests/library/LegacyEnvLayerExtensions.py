@@ -790,6 +790,9 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("systemctl list-unit-files --type=service | grep dnf5-automatic.service") > -1:
                         code = 1
                         output = 'Auto update service is not installed'
+                    elif cmd.find("systemctl enable --now dnf5-automatic.timer") > -1:
+                        code = 1
+                        output = ''
                     else:
                         code = 0
                 elif cmd.find("systemctl") > -1:
@@ -874,7 +877,7 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("systemctl is-enabled ") > -1:
                         code = 0
                         output = 'enabled'
-                elif self.legacy_package_manager_name is Constants.DNF:
+                if self.legacy_package_manager_name is Constants.DNF:
                     if cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
                         output = "ExecStart=/usr/bin/dnf5 automatic --downloadupdates --no-installupdates"
@@ -887,7 +890,9 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("rpm -qa") > -1:
                         code = 0
                         output = 'dnf5-plugin-automatic'
-
+                    elif cmd.find("systemctl enable --nows dnf-automatic.timer ") > -1:
+                        code = 1
+                        output = 'systemctl: unrecognized option --nows'
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''

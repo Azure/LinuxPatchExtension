@@ -653,10 +653,6 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertEqual(versions[3], '3.12.3-5.azl4~20260501')
         self.assertEqual(versions[4], '3.12.3-6.azl4~20260501')
 
-        # Test: get_dependent_list
-        dependent_list = package_manager.get_dependent_list(["hyperv-daemons.x86_64"])
-        self.assertTrue(dependent_list is not None)
-
         # Test: install command generation (pure logic, safe to test)
         packages = ['kernel.x86_64', 'selinux-policy-targeted.noarch']
         package_versions = ['2.02.177-4.el7', '3.10.0-862.el7']
@@ -692,6 +688,14 @@ class TestDnfPackageManager(unittest.TestCase):
             self.assertTrue(str(exception))
         else:
             self.assertFalse(True, "Exception did not occur and test failed.")
+
+        self.runtime.set_legacy_test_type('SuccessInstallPath')
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager is not None)
+
+        # Test: get_dependent_list
+        dependent_list = package_manager.get_dependent_list(["hyperv-daemons.x86_64"])
+        self.assertTrue(dependent_list is not None)
 
     def test_install_package_success(self):
         """Unit test for install package success"""
@@ -838,6 +842,28 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertTrue("--no-downloadupdates" not in override_read)
         self.assertTrue("--installupdates" not in override_read)
 
+
+    def test_disable_auto_os_update(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+        command = "systemctl disable --now dnf5-automatic.timer"
+
+        package_manager.disable_auto_update_on_reboot(command)
+        self.assertTrue(True)  # method should NOT throw
+
+        self.runtime.set_legacy_test_type('AnotherSadPath')
+        package_manager = self.container.get('package_manager')
+        command = "systemctl enable --nows dnf-automatic.timer"
+        self.assertRaises(Exception,package_manager.disable_auto_update_on_reboot(command))
+
+    def test_enable_auto_os_update(self):
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        package_manager.enable_on_reboot_cmd = "systemctl enable --now dnf5-automatic.timer"
+        self.assertRaises(Exception, package_manager.enable_auto_update_on_reboot)
 
 if __name__ == '__main__':
     unittest.main()
