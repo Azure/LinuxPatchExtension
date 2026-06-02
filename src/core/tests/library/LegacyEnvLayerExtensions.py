@@ -841,19 +841,6 @@ class LegacyEnvLayerExtensions():
                              "libseccomp.x86_64     2.5.4-1.azl3     azurelinux-official-base\n" + \
                               "libxml2.x86_64 azurelinux-official-base\n" + \
                               "dracut.x86_64                        102-7.azl3                        azurelinux-official-base\n"
-                elif self.legacy_package_manager_name is Constants.DNF:
-                    code = 100
-                    output = "Updating and loading repositories:\n" + \
-                             "Repositories loaded.\n" + \
-                             "Available packages\n" + \
-                             "azurelinux-release.noarch 3.0-16.azl4~20260501 azurelinux-base\n" + \
-                             "azurelinux-repos-ms-oss.noarch 3.0-3.azl4~20260501 azurelinux-base\n" + \
-                             "libseccomp.x86_64 2.5.4-1.azl4~20260501 azurelinux-base\n" + \
-                             "libxml2.x86_64 2.11.5-1.azl4~20260501 azurelinux-base\n" + \
-                             "dracut.x86_64 102-7.azl4~20260501 azurelinux-base\n"
-                    if "systemctl cat dnf5-automatic.service" in cmd:
-                        code = 0
-                        output = "ExecStart=/usr/bin/dnf5 automatic --timer"
             elif self.legacy_test_type == 'NonexistentErrorCodePath':
                 if self.legacy_package_manager_name is Constants.ZYPPER:
                     if cmd.find('sudo zypper refresh') > -1:
@@ -881,16 +868,13 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
                         output = "ExecStart=/usr/bin/dnf5 automatic --downloadupdates --no-installupdates"
-                    elif cmd.find("systemctl list-unit-files --type=service") > -1:
-                        code = 0
-                        output = 'Auto update service installed'
                     elif "systemctl is-enabled" in cmd:
                         code = 0
                         output = 'enabled'
                     elif cmd.find("rpm -qa") > -1:
                         code = 0
                         output = 'dnf5-plugin-automatic'
-                    elif cmd.find("systemctl enable --nows dnf-automatic.timer ") > -1:
+                    elif "systemctl enable --nows dnf-automatic.timer" in cmd:
                         code = 1
                         output = 'systemctl: unrecognized option --nows'
             elif self.legacy_test_type == 'ExceptionPath':
@@ -1065,11 +1049,6 @@ class LegacyEnvLayerExtensions():
                                  "Total size of inbound packages is 79 KiB. Need to download 79 KiB.\n" + \
                                  "After this operation, 95 KiB extra will be used (install 95 KiB, remove 0 B).\n" + \
                                  "Operation aborted by the user."
-                    elif cmd.find("sudo dnf5 list installed hyperv-daemons-license.noarch") > -1:
-                        code = 0
-                        output = "Updating and loading repositories:\n" + \
-                                 "Repositories loaded.\n" + \
-                                 "hyperv-daemons-license.noarch 6.10-3.azl4~20260501 @System\n"
                     elif "dnf5 list available" in cmd and "hyperv-daemons.x86_64" in cmd:
                         code = 0
                         output = (

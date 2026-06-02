@@ -91,7 +91,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_installation_state_identifier_text],True)
 
     def test_disable_auto_os_update_failure(self):
-        # disable with non existing log file
+        self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
 
         package_manager.disable_auto_os_update()
@@ -240,8 +240,8 @@ class TestDnfPackageManager(unittest.TestCase):
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": True,
-                    "apply_updates_value": "yes",
-                    "download_updates_value": "yes",
+                    "apply_updates_value": "",
+                    "download_updates_value": "",
                     "enable_on_reboot_value": True,
                     "installation_state_value": True,
                     "set_installation_state": True
@@ -710,7 +710,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('hyperv-daemons.x86_64','6.10-3.azl4~20260501',simulate=True),Constants.INSTALLED)
 
     def test_inclusion_type_other(self):
-        """Unit test for dnf5 package manager with inclusion and Classification = Other. All packages are considered are 'Security' since TDNF does not have patch classification"""
+        """Unit test for dnf5 package manager with inclusion and Classification = Other. All packages are considered are 'Security' since DNF does not have patch classification"""
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager is not None)
@@ -720,7 +720,7 @@ class TestDnfPackageManager(unittest.TestCase):
         argument_composer.classifications_to_include = [Constants.PackageClassification.OTHER]
         argument_composer.patches_to_include = ["ssh", "tcpdump"]
         argument_composer.patches_to_exclude = ["ssh*", "test"]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.TDNF)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.DNF)
         self.container = self.runtime.container
 
         package_filter = self.container.get('package_filter')
@@ -843,7 +843,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertTrue("--installupdates" not in override_read)
 
 
-    def test_disable_auto_os_update(self):
+    def test_disable_auto_os_update_on_reboot(self):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager)
@@ -855,15 +855,34 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('AnotherSadPath')
         package_manager = self.container.get('package_manager')
         command = "systemctl enable --nows dnf-automatic.timer"
-        self.assertRaises(Exception,package_manager.disable_auto_update_on_reboot(command))
+        self.assertRaises(Exception, package_manager.disable_auto_update_on_reboot, command)
 
-    def test_enable_auto_os_update(self):
+    def test_enable_auto_os_update_on_reboot(self):
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager)
 
         package_manager.enable_on_reboot_cmd = "systemctl enable --now dnf5-automatic.timer"
         self.assertRaises(Exception, package_manager.enable_auto_update_on_reboot)
+
+    def test_get_security_updates(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        security_packages, security_package_versions  = package_manager.get_security_updates()
+        self.assertTrue(5, security_packages)
+        self.assertTrue(5, security_package_versions)
+
+    def test_install_security_updates_azgps_coordinated(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        code, out = package_manager.install_security_updates_azgps_coordinated()
+        self.assertTrue(code == 0)
+        self.assertTrue("Complete!", out)
+
 
 if __name__ == '__main__':
     unittest.main()

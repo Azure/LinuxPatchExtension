@@ -603,7 +603,6 @@ class Dnf5PackageManager(PackageManager):
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
-    # Post Install method/ Install Patch
     def is_reboot_pending(self):
         """Checks reboot requirement for Azure Linux 4 (dnf5)"""
         try:
@@ -888,18 +887,11 @@ class Dnf5PackageManager(PackageManager):
         try:
             try:
                 # self.env_layer.file_system.write_with_retry(self.dnf5_automatic_override_file,"",mode='w+')
-
                 if os.path.exists(self.dnf5_automatic_override_file):
                     os.remove(self.dnf5_automatic_override_file)
-                    self.composite_logger.log_debug(
-                        "[DNF5] Removed override file. [File={0}]".format(
-                            self.dnf5_automatic_override_file
-                        )
-                    )
+                    self.composite_logger.log_debug("[DNF5] Removed override file. [File={0}]".format(self.dnf5_automatic_override_file))
                 else:
-                    self.composite_logger.log_debug(
-                        "[DNF5] Override file not present, nothing to remove."
-                    )
+                    self.composite_logger.log_debug("[DNF5] Override file not present, nothing to remove.")
 
             except Exception as error:
                 self.composite_logger.log_debug("[DNF5] Failed to remove override file; continuing with daemon-reload. ""[File={0}] [Exception={1}]".format(self.dnf5_automatic_override_file,repr(error)))
