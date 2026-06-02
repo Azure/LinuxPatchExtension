@@ -697,32 +697,9 @@ class LegacyEnvLayerExtensions():
                                  " Installing:         1 package\n\n" + \
                                  "Total download size: 135.09k\n" + \
                                  "Operation aborted by the user.\n"
-
-                    elif cmd.find("list installed") > -1:
-                        code = 0
-                        cmd = re.sub(r"--snapshottime=\d+", '', cmd)
-                        package = cmd.replace('sudo dnf5 list installed ', '')
-                        whitelisted_versions = [
-                            '3.0-16.azl4~20260501', '3.0-3.azl4~20260501', '2.5.4-1.azl4~20260501',
-                            '3.12.3-6.azl4~20260501', '2.11.5-1.azl4~20260501',
-                            '102-7.azl4~20260501', '6.10-3.azl4~20260501'
-                        ]
-                        output = "Updating and loading repositories:\n" + \
-                                 "Repositories loaded.\n"
-                        template = "<PACKAGE> <VERSION> @System\n"
-                        for version in whitelisted_versions:
-                            entry = template.replace('<PACKAGE>', package)
-                            entry = entry.replace('<VERSION>', version)
-                            output += entry
-
                     elif cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
                         output = "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates --installupdates"
-
-                    elif cmd.find("systemctl list-unit-files --type=service") > -1:
-                        code = 0
-                        output = 'Auto update service installed'
-
                     elif cmd.find("systemctl is-enabled ") > -1:
                         code = 0
                         output = 'disabled'
@@ -787,9 +764,6 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
                         output = "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates --no-installupdates"
-                    elif cmd.find("systemctl list-unit-files --type=service | grep dnf5-automatic.service") > -1:
-                        code = 1
-                        output = 'Auto update service is not installed'
                     elif cmd.find("systemctl enable --now dnf5-automatic.timer") > -1:
                         code = 1
                         output = ''
