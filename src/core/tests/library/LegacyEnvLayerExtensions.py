@@ -678,14 +678,6 @@ class LegacyEnvLayerExtensions():
                                  "python3.x86_64 3.12.3-4.azl4~20260501 azurelinux-base\n" + \
                                  "python3.x86_64 3.12.3-5.azl4~20260501 azurelinux-base\n" + \
                                  "python3.x86_64 3.12.3-6.azl4~20260501 azurelinux-base\n"
-
-                    elif ("list available" in cmd) and ("hyperv-daemons.x86_64" in cmd):
-                        code = 0
-                        output = "Updating and loading repositories:\n" + \
-                                 "Repositories loaded.\n" + \
-                                 "Available packages\n" + \
-                                 "hyperv-daemons.x86_64 6.10-3.azl4~20260501 azurelinux-base\n"
-
                     elif cmd.find("dnf5 install --assumeno --skip-broken") > -1 and "hyperv-daemons" in cmd:
                         code = 1
                         output = "Updating and loading repositories:\n" + \
@@ -761,10 +753,7 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = ''
                 elif self.legacy_package_manager_name is Constants.DNF:
-                    if cmd.find("systemctl cat dnf5-automatic.service") > -1:
-                        code = 0
-                        output = "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates --no-installupdates"
-                    elif cmd.find("systemctl enable --now dnf5-automatic.timer") > -1:
+                    if cmd.find("systemctl enable --now dnf5-automatic.timer") > -1:
                         code = 1
                         output = ''
                     else:
@@ -854,6 +843,16 @@ class LegacyEnvLayerExtensions():
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
+            elif self.legacy_test_type == 'AnotherHappyPath':
+                if cmd.find("systemctl cat dnf5-automatic.service") > -1:
+                    code = 0
+                    output = "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates"
+                elif cmd.find("rpm -qa") > -1:
+                    code = 0
+                    output = 'dnf5-plugin-automatic'
+                elif "systemctl is-enabled" in cmd:
+                    code = 0
+                    output = "disabled"
             elif self.legacy_test_type == 'SuccessInstallPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -1616,10 +1615,6 @@ class LegacyEnvLayerExtensions():
                         output = 'Auto update service not installed'
                 elif self.legacy_package_manager_name is Constants.TDNF:
                     if cmd.find("systemctl list-unit-files --type=service | grep dnf-automatic.service") > -1:
-                        code = 0
-                        output = 'Auto update service installed'
-                elif self.legacy_package_manager_name is Constants.DNF:
-                    if cmd.find("systemctl list-unit-files --type=service | grep dnf5-automatic.service") > -1:
                         code = 0
                         output = 'Auto update service installed'
             major_version = self.get_python_major_version()

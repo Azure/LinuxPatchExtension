@@ -45,7 +45,7 @@ class Dnf5PackageManager(PackageManager):
 
         # Support to check if reboot is required
         # dnf-utils not required (needs-restarting is built into dnf5)
-        self.needs_restarting_with_flag = 'sudo LANG=en_US.UTF8 dnf5 needs-restarting'
+        self.needs_restarting_with_flag = 'sudo LANG=en_US.UTF8 dnf5 needs-restarting -r'
 
         # DNF5 exit codes
         self.dnf_exitcode_ok = 0
@@ -552,9 +552,8 @@ class Dnf5PackageManager(PackageManager):
                 self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path,'{0}'.format(json.dumps(image_default_patch_configuration_backup)),mode='w+')
 
         except Exception as error:
-            error_message = "[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
-            self.composite_logger.log_error(error_message)
-            self.status_handler.add_error_to_status(error_message, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.composite_logger.log_error( "[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error)))
+            self.status_handler.add_error_to_status( "[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
@@ -845,25 +844,15 @@ class Dnf5PackageManager(PackageManager):
 
     def __set_dnf5_automatic_execstart_flags(self, download_updates=None, apply_updates=None):
         try:
-            if download_updates is None and apply_updates is None:
-                self.__remove_dnf5_automatic_execstart_override()
-                return
-
             flags = ["/usr/bin/dnf5", "automatic", "--timer"]
 
             if apply_updates is True:
                 flags.append("--installupdates")
+                flags.append("--downloadupdates")
+            else:  # apply_updates is False OR None
+                if apply_updates is False:
+                    flags.append("--no-installupdates")
 
-            elif apply_updates is False:
-                if download_updates is True:
-                    flags.append("--downloadupdates")
-                    flags.append("--no-installupdates")
-                elif download_updates is False:
-                    flags.append("--no-downloadupdates")
-                    flags.append("--no-installupdates")
-                else:
-                    flags.append("--no-installupdates")
-            else:
                 if download_updates is True:
                     flags.append("--downloadupdates")
                 elif download_updates is False:
@@ -877,16 +866,14 @@ class Dnf5PackageManager(PackageManager):
             self.composite_logger.log_debug("[DNF5] Wrote override. [ExecStart={0}]".format(" ".join(flags)))
 
         except Exception as error:
-            error_msg = "[DNF5] Error writing override. [Exception={0}]".format(repr(error))
-            self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.composite_logger.log_error("[DNF5] Error writing override. [Exception={0}]".format(repr(error)))
+            self.status_handler.add_error_to_status("[DNF5] Error writing override. [Exception={0}]".format(repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
     def __remove_dnf5_automatic_execstart_override(self):
         """Removes systemd override file for dnf5-automatic if it exists."""
         try:
             try:
-                # self.env_layer.file_system.write_with_retry(self.dnf5_automatic_override_file,"",mode='w+')
                 if os.path.exists(self.dnf5_automatic_override_file):
                     os.remove(self.dnf5_automatic_override_file)
                     self.composite_logger.log_debug("[DNF5] Removed override file. [File={0}]".format(self.dnf5_automatic_override_file))
@@ -900,9 +887,8 @@ class Dnf5PackageManager(PackageManager):
             self.composite_logger.log_debug("[DNF5] Cleared dnf5 automatic override file. [File={0}]".format(self.dnf5_automatic_override_file))
 
         except Exception as error:
-            error_msg = "[DNF5] Error removing dnf5 automatic override. [Exception={0}]".format(repr(error))
-            self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.composite_logger.log_error("[DNF5] Error removing dnf5 automatic override. [Exception={0}]".format(repr(error)))
+            self.status_handler.add_error_to_status("[DNF5] Error removing dnf5 automatic override. [Exception={0}]".format(repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
     # endregion

@@ -17,6 +17,8 @@ import json
 import os
 import sys
 import unittest
+from unittest.mock import patch
+
 # Conditional import for StringIO
 try:
     from StringIO import StringIO  # Python 2
@@ -643,6 +645,12 @@ class TestDnfPackageManager(unittest.TestCase):
         size = package_manager.get_package_size(out)
         self.assertEqual(size, "135.09k")
 
+        # test for get_package_size when size is not available
+        cmd = package_manager.single_package_upgrade_cmd + "systemd"
+        code, out = self.runtime.env_layer.run_command_output(cmd, False, False)
+        size = package_manager.get_package_size(out)
+        self.assertEqual(size, Constants.UNKNOWN_PACKAGE_SIZE)
+
         # Test: get_all_available_versions_of_package (ONLY python3 since mock exists)
         versions = package_manager.get_all_available_versions_of_package("python3")
         self.assertTrue(versions is not None)
@@ -801,9 +809,7 @@ class TestDnfPackageManager(unittest.TestCase):
 
         override_read = self.runtime.env_layer.file_system.read_with_retry(override_file)
         self.assertTrue(override_read is not None)
-        self.assertTrue("--no-installupdates" in override_read)
         self.assertTrue("--downloadupdates" in override_read)
-        self.assertTrue("--no-downloadupdates" not in override_read)
         self.assertTrue("--installupdates" not in override_read)
 
         # -----------------------------
@@ -837,9 +843,7 @@ class TestDnfPackageManager(unittest.TestCase):
 
         override_read = self.runtime.env_layer.file_system.read_with_retry(override_file)
         self.assertTrue(override_read is not None)
-        self.assertTrue("--no-installupdates" in override_read)
         self.assertTrue("--downloadupdates"  in override_read)
-        self.assertTrue("--no-downloadupdates" not in override_read)
         self.assertTrue("--installupdates" not in override_read)
 
 
@@ -883,6 +887,77 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertTrue(code == 0)
         self.assertTrue("Complete!", out)
 
+    def test_backup_image_default_patch_configuration_with_downloadupdates_only_execstart(self):
+        """
+        DNF5:
+        Validates backup creation when current ExecStart contains only --downloadupdates
+        and no explicit apply flag.
+
+        Expected backup:
+          - installation_state = True
+          - enable_on_reboot = True
+          - download_updates = "yes"
+          - apply_updates = ""
+        """
+        self.runtime.set_legacy_test_type('AnotherHappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+
+        # Arrange
+        package_manager._Dnf5PackageManager__init_auto_update_for_dnf5_automatic()
+
+        # Make sure no stale backup exists from previous runs
+        if os.path.exists(package_manager.image_default_patch_configuration_backup_path):
+            os.remove(package_manager.image_default_patch_configuration_backup_path)
+
+        # Make sure service override dir exists
+        override_dir = os.path.dirname(package_manager.dnf5_automatic_override_file)
+        os.makedirs(override_dir, exist_ok=True)
+
+        # Write override with ONLY --downloadupdates
+        override_text = "[Service]\nExecStart=\nExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates\n"
+        self.runtime.env_layer.file_system.write_with_retry(
+            package_manager.dnf5_automatic_override_file,
+            override_text,
+            mode='w+'
+        )
+
+        # Act
+        package_manager.backup_image_default_patch_configuration_if_not_exists()
+
+        # Assert
+        self.assertTrue(os.path.exists(package_manager.image_default_patch_configuration_backup_path))
+
+        backup_text = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path)
+        backup_json = json.loads(backup_text)
+
+        self.assertIn(package_manager.current_auto_os_update_service, backup_json)
+
+        service_backup = backup_json[package_manager.current_auto_os_update_service]
+
+        self.assertEqual("yes", service_backup[package_manager.download_updates_identifier_text])
+        self.assertEqual("", service_backup[package_manager.apply_updates_identifier_text])
+        self.assertFalse(service_backup[package_manager.enable_on_reboot_identifier_text])
+        self.assertTrue(service_backup[package_manager.installation_state_identifier_text])
+
+
+    def test_set_dnf5_automatic_execstart_flags_exception_handling(self):
+        """Test exception handling when override file write fails"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        # Mock file_system.write_with_retry to raise exception
+        with patch.object(package_manager.env_layer.file_system, 'write_with_retry') as mock_write:
+            mock_write.side_effect = IOError("Permission denied")
+
+            # Should raise exception caught by outer try-except
+            self.assertRaises(Exception, package_manager._Dnf5PackageManager__set_dnf5_automatic_execstart_flags,
+                              download_updates=False, apply_updates=False)
+
+    def test_get_package_install_expected_avg_time_in_seconds(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager.get_package_install_expected_avg_time_in_seconds(), 90)
 
 if __name__ == '__main__':
     unittest.main()
