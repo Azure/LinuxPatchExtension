@@ -1029,7 +1029,7 @@ class AptitudePackageManager(PackageManager):
                 raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             return False, out
 
-        self.composite_logger.log_debug("[APM][UpdateCerts] Apt step succeeded. [Step={0}][Output={1}]".format(step_name, str(out)))
+        self.composite_logger.log_debug("[APM][UpdateCerts] Apt step succeeded. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name,  str(command), str(code), str(out)))
         return True, out
 
     def __run_cert_shell_command(self, command, step_name, raise_on_error=False):
@@ -1043,7 +1043,7 @@ class AptitudePackageManager(PackageManager):
                 raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             return False, out
 
-        self.composite_logger.log_debug("[APM][UpdateCerts] Shell step succeeded. [Step={0}][Output={1}]".format(step_name, str(out)))
+        self.composite_logger.log_debug("[APM][UpdateCerts] Shell step succeeded. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out)))
         return True, out
     # endregion
 

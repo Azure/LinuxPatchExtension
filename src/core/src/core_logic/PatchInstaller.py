@@ -816,4 +816,6 @@ class PatchInstaller(object):
     def __is_default_patching(self):
         # type: () -> bool
         """ Returns true if the patching run is a default patching run"""
-        return self.execution_config.health_store_id is not str() and self.execution_config.operation.lower() == Constants.INSTALLATION.lower()
+        return (self.execution_config.health_store_id is not None and
+                self.execution_config.health_store_id is not str() and
+                self.execution_config.operation.lower() == Constants.INSTALLATION.lower())

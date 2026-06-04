@@ -249,9 +249,9 @@ class ExecutionConfig(object):
         try:
             if os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS):
                 eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.EULA_SETTINGS) or 'null')
-                accept_eula_for_all_patches = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES)
-                accepted_by = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPTED_BY)
-                last_modified = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
+                accept_eula_for_all_patches = self.__fetch_specific_azgps_setting(eula_settings, Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES)
+                accepted_by = self.__fetch_specific_azgps_setting(eula_settings, Constants.EulaSettings.ACCEPTED_BY)
+                last_modified = self.__fetch_specific_azgps_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
                 if accept_eula_for_all_patches is not None and accept_eula_for_all_patches in [True, 'True', 'true', '1', 1]:
                     is_eula_accepted = True
                 self.composite_logger.log_debug("EULA config values from disk: [AcceptEULAForAllPatches={0}] [AcceptedBy={1}] [LastModified={2}]. Computed value of [IsEULAAccepted={3}]"
@@ -264,7 +264,7 @@ class ExecutionConfig(object):
         return is_eula_accepted
 
     @staticmethod
-    def __fetch_specific_eula_setting(settings_source, setting_to_fetch):
+    def __fetch_specific_azgps_setting(settings_source, setting_to_fetch):
         """ Returns the specific setting value from eula_settings_source or None if not found """
         if settings_source is not None and setting_to_fetch is not None and setting_to_fetch in settings_source:
             return settings_source[setting_to_fetch]
@@ -277,10 +277,10 @@ class ExecutionConfig(object):
         is_uefi_cert_update_enabled = False
         try:
             if os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS):
-                uefi_cert_update_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.UEFI_CERT_UPDATE_SETTINGS) or 'null')
-                enable_uefi_cert_update = self.__fetch_specific_uefi_cert_update_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE)
-                enabled_by = self.__fetch_specific_uefi_cert_update_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLED_BY)
-                last_modified = self.__fetch_specific_uefi_cert_update_setting(uefi_cert_update_settings, Constants.UEFISettings.LAST_MODIFIED)
+                uefi_cert_update_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.UEFI_SETTINGS) or 'null')
+                enable_uefi_cert_update = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE)
+                enabled_by = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLED_BY)
+                last_modified = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.LAST_MODIFIED)
                 if enable_uefi_cert_update is not None and self.__is_truthy(enable_uefi_cert_update):
                     is_uefi_cert_update_enabled = True
                 self.composite_logger.log_debug("UEFI cert update config values from disk: [EnableUefiCertUpdate={0}] [EnabledBy={1}] [LastModified={2}]. Computed value of [IsUefiCertUpdateEnabled={3}]"

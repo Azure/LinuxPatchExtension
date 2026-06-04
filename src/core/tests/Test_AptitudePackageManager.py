@@ -71,7 +71,6 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def mock_get_security_updates_return_empty_list(self):
         return [], []
-
     # endregion Mocks
 
     # region Utility Functions
@@ -1067,6 +1066,30 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
         self.assertEqual(exec_config.accept_package_eula, False)
         runtime.stop()
+
+    # region Update certs tests
+    def test_try_install_mokutil_success(self):
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager.try_install_mokutil())
+
+    def test_try_install_mokutil_failure(self):
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        self.assertFalse(package_manager.try_install_mokutil())
+
+    def test_try_update_certs_returns_true_when_latest_certs_already_present(self):
+        self.runtime.set_legacy_test_type('SuccessInstallPath')
+        package_manager = self.container.get('package_manager')
+
+        shell_calls = []
+        apt_calls = []
+        package_manager._AptitudePackageManager__run_cert_shell_command = lambda command, step_name, raise_on_error=False: shell_calls.append(step_name)
+        package_manager._AptitudePackageManager__run_cert_apt_command = lambda command, step_name, raise_on_error=False: apt_calls.append(step_name)
+
+        self.assertTrue(package_manager.try_update_certs())
+        self.assertEqual(shell_calls, [])
+        self.assertEqual(apt_calls, [])
+    # endregion
 
 
 if __name__ == '__main__':

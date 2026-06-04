@@ -90,7 +90,7 @@ class Constants(object):
 
     class UEFISettings(EnumBackport):
         ENABLE_UEFI_CERT_UPDATE = 'EnableUEFICertUpdate'
-        ENABLED_By = 'EnabledBy'
+        ENABLED_BY = 'EnabledBy'
         LAST_MODIFIED = 'LastModified'
 
     TEMP_FOLDER_DIR_NAME = "tmp"
