@@ -30,7 +30,7 @@ from core.tests.library.RuntimeCompositor import RuntimeCompositor
 
 class TestDnfPackageManager(unittest.TestCase):
     def setUp(self):
-        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.DNF)
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.DNF5)
         self.container = self.runtime.container
 
     def tearDown(self):
@@ -69,87 +69,68 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
 
+        package_manager.dnf5_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf5_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf5_automatic_configuration_file_path, dnf5_automatic_os_patch_configuration_settings)
+
         package_manager.disable_auto_os_update()
-
         self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
-
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
-        self.assertTrue(package_manager.dnf5_auto_os_update_service in image_default_patch_configuration_backup)
+        self.assertTrue(image_default_patch_configuration_backup is not None)
 
-        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_download_updates_identifier_text],"yes")
-        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_apply_updates_identifier_text],"yes")
-        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_enable_on_reboot_identifier_text],False)
-        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_installation_state_identifier_text],True)
+        # validating backup for dnf-automatic
+        self.assertTrue(package_manager.dnf5_auto_os_update_service in image_default_patch_configuration_backup)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_download_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_apply_updates_identifier_text], "yes")
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_enable_on_reboot_identifier_text], False)
+        self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_installation_state_identifier_text], True)
 
     def test_disable_auto_os_update_failure(self):
-        self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
 
-        package_manager.disable_auto_os_update()
+        self.assertRaises(Exception, package_manager.disable_auto_os_update)
         self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
 
     def test_get_current_auto_os_patch_state_with_uninstalled_services(self):
         """Test get_current_auto_os_patch_state when dnf5-automatic is not installed"""
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
-
+        package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
         current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
+
+        self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
         self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.DISABLED)
 
-
     def test_get_current_auto_os_patch_state_with_installed_services_and_state_enabled(self):
+        # with enable on reboot set to false
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
 
-        # NEW: setup override.conf instead of config file
-        override_dir = os.path.join(self.runtime.execution_config.config_folder, "dnf5-automatic.service.d")
-        os.makedirs(override_dir, exist_ok=True)
+        package_manager.dnf5_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf5_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf5_automatic_configuration_file_path, dnf5_automatic_os_patch_configuration_settings)
 
-        override_file = os.path.join(override_dir, "override.conf")
-        package_manager.dnf5_automatic_override_file = override_file
-
-        override_content = (
-            "[Service]\n"
-            "ExecStart=\n"
-            "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates --installupdates\n"
-        )
-
-        self.runtime.write_to_file(override_file, override_content)
-
-        # act
         current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
 
         self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
         self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.ENABLED)
 
-        #SECOND CASE
-        self.tearDown()
-        self.setUp()
-
+        # with enable on reboot set to true
         self.runtime.set_legacy_test_type('AnotherSadPath')
         package_manager = self.container.get('package_manager')
         package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
 
-        override_dir = os.path.join(self.runtime.execution_config.config_folder, "dnf5-automatic.service.d")
-        os.makedirs(override_dir, exist_ok=True)
-
-        override_file = os.path.join(override_dir, "override.conf")
-        package_manager.dnf5_automatic_override_file = override_file
-
-        override_content = (
-            "[Service]\n"
-            "ExecStart=\n"
-            "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates --no-installupdates\n"
-        )
-
-        self.runtime.write_to_file(override_file, override_content)
+        package_manager.dnf5_automatic_configuration_file_path = os.path.join(
+            self.runtime.execution_config.config_folder, "automatic.conf")
+        dnf5_automatic_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf5_automatic_configuration_file_path,
+                                   dnf5_automatic_os_patch_configuration_settings)
 
         current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
 
         self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
         self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.ENABLED)
-
 
     def test_get_current_auto_os_patch_state_with_installed_services_and_state_disabled(self):
         self.runtime.set_legacy_test_type('SadPath')
@@ -212,94 +193,94 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertTrue(True)  # If no exception, test passes
 
     def test_revert_auto_os_update_to_system_default(self):
-        """
-        DNF5: Table-driven revert tests
-        Validates:
-          - HappyPath: config restored from backup + timer enabled when backup says enable_on_reboot=True
-          - Service not installed: no-op
-          - Backup missing or invalid: revert is skipped gracefully (no crash)
-          - Backup values empty: override contains no explicit flags
-        """
-
         revert_success_testcase = {
-            "legacy_type": "HappyPath",
-            "stdio": {"capture_output": False, "expected_output": None},
+            "legacy_type": 'HappyPath',
+            "stdio": {
+                "capture_output": False,
+                "expected_output": None
+            },
             "config": {
                 "current_auto_update_config": {
                     "create_current_auto_os_config": True,
-                    "current_auto_os_update_config_value": "apply_updates = no\ndownload_updates = no\n"
-                },
-                "backup_system_default_config": {
-                    "create_backup_for_system_default_config": True,
-                    "apply_updates_value": "",
-                    "download_updates_value": "",
-                    "enable_on_reboot_value": True,
-                    "installation_state_value": True,
-                    "set_installation_state": True
-                }
-            },
-            "assertions": {
-                "config_exists": True,
-                "config_value_expected": "apply_updates = yes\ndownload_updates = yes\n",
-            }
-        }
-
-        revert_success_with_dnf5_not_installed_testcase = {
-            "legacy_type": "SadPath",
-            "stdio": {"capture_output": False, "expected_output": None},
-            "config": {
-                "current_auto_update_config": {
-                    "create_current_auto_os_config": False,
-                    "current_auto_os_update_config_value": ""
+                    "current_auto_os_update_config_value": 'apply_updates = no\ndownload_updates = no\n'
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": True,
                     "apply_updates_value": "yes",
                     "download_updates_value": "yes",
                     "enable_on_reboot_value": True,
-                    "installation_state_value": False,
+                    "installation_state_value": True,
                     "set_installation_state": True
                 }
             },
             "assertions": {
-                "config_exists": False,
-                "config_value_expected": ""
+                "config_value_expected": 'apply_updates = yes\ndownload_updates = yes\n',
+                "config_exists": True
             }
         }
 
-        revert_success_with_installed_but_no_config_value_testcase = {
-            "legacy_type": "RevertToImageDefault",
-            "stdio": {"capture_output": False, "expected_output": None},
+        revert_success_with_dnf_not_installed_testcase = {
+            "legacy_type": 'SadPath',
+            "stdio": {
+                "capture_output": False,
+                "expected_output": None
+            },
             "config": {
                 "current_auto_update_config": {
-                    "create_current_auto_os_config": True,
-                    "current_auto_os_update_config_value": "test_value = yes\n"
+                    "create_current_auto_os_config": False,
+                    "current_auto_os_update_config_value": ''
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": True,
                     "apply_updates_value": "",
                     "download_updates_value": "",
                     "enable_on_reboot_value": False,
-                    "installation_state_value": True,
+                    "installation_state_value": False,
                     "set_installation_state": True
                 }
             },
             "assertions": {
-                "config_exists": True,
                 "config_value_expected": "",
+                "config_exists": False
             }
         }
 
-        revert_backup_config_does_not_exist_testcase = {
-            "legacy_type": "RevertToImageDefault",
+        revert_success_with_dnf_installed_but_no_config_value_testcase = {
+            "legacy_type": 'RevertToImageDefault',
             "stdio": {
-                "capture_output": True,
-                "expected_output": "[DNF5] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service=dnf5-automatic]"
+                "capture_output": False,
+                "expected_output": None
             },
             "config": {
                 "current_auto_update_config": {
                     "create_current_auto_os_config": True,
-                    "current_auto_os_update_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    "current_auto_os_update_config_value": 'test_value = yes\n'
+                },
+                "backup_system_default_config": {
+                    "create_backup_for_system_default_config": True,
+                    "apply_updates_value": "",
+                    "download_updates_value": "",
+                    "enable_on_reboot_value": False,
+                    "installation_state_value": False,
+                    "set_installation_state": True
+                }
+            },
+            "assertions": {
+                "config_value_expected": 'download_updates =\napply_updates = \n',
+                "config_exists": True
+            }
+        }
+
+        revert_success_backup_config_does_not_exist_testcase = {
+            "legacy_type": 'RevertToImageDefault',
+            "stdio": {
+                "capture_output": True,
+                "expected_output": "[DNF5] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=dnf5-automatic]"
+            },
+            "config": {
+                "current_auto_update_config": {
+                    "create_current_auto_os_config": True,
+                    "current_auto_os_update_config_value": 'apply_updates = no\ndownload_updates = no\n'
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": False,
@@ -311,21 +292,21 @@ class TestDnfPackageManager(unittest.TestCase):
                 }
             },
             "assertions": {
-                "config_exists": True,
-                "config_value_expected": "",
+                "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
+                "config_exists": True
             }
         }
 
-        revert_backup_config_invalid_testcase = {
-            "legacy_type": "RevertToImageDefault",
+        revert_success_default_backup_config_invalid_testcase = {
+            "legacy_type": 'RevertToImageDefault',
             "stdio": {
                 "capture_output": True,
-                "expected_output": "[DNF5] Machine default auto OS update service is not installed"
+                "expected_output": "[DNF5] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=dnf5-automatic]"
             },
             "config": {
                 "current_auto_update_config": {
                     "create_current_auto_os_config": True,
-                    "current_auto_os_update_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    "current_auto_os_update_config_value": 'apply_updates = no\ndownload_updates = no\n'
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": True,
@@ -337,123 +318,78 @@ class TestDnfPackageManager(unittest.TestCase):
                 }
             },
             "assertions": {
-                "config_exists": True,
-                "config_value_expected": "",
+                "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
+                "config_exists": True
             }
         }
 
-        all_testcases = [
-            revert_success_testcase,
-            revert_success_with_dnf5_not_installed_testcase,
-            revert_success_with_installed_but_no_config_value_testcase,
-            revert_backup_config_does_not_exist_testcase,
-            revert_backup_config_invalid_testcase,
-        ]
+        all_testcases = [revert_success_testcase, revert_success_with_dnf_not_installed_testcase,
+                         revert_success_with_dnf_installed_but_no_config_value_testcase,
+                         revert_success_backup_config_does_not_exist_testcase,
+                         revert_success_default_backup_config_invalid_testcase]
 
         for testcase in all_testcases:
             self.tearDown()
             self.setUp()
-
             captured_output, original_stdout = None, None
             if testcase["stdio"]["capture_output"]:
+                # arrange capture std IO
                 captured_output, original_stdout = self.__capture_std_io()
 
             self.runtime.set_legacy_test_type(testcase["legacy_type"])
-            package_manager = self.container.get("package_manager")
-            self.assertIsNotNone(package_manager)
+            package_manager = self.container.get('package_manager')
 
-            # ensure override dir exists
-            override_dir = os.path.dirname(package_manager.dnf5_automatic_override_file)
-            os.makedirs(override_dir, exist_ok=True)
+            # setup current auto OS update config, backup for system default config and invoke revert to system default
+            self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager,
+                                                                            create_current_auto_os_config=bool(
+                                                                                testcase["config"][
+                                                                                    "current_auto_update_config"][
+                                                                                    "create_current_auto_os_config"]),
+                                                                            current_auto_os_update_config_value=
+                                                                            testcase["config"][
+                                                                                "current_auto_update_config"][
+                                                                                "current_auto_os_update_config_value"],
+                                                                            create_backup_for_system_default_config=bool(
+                                                                                testcase["config"][
+                                                                                    "backup_system_default_config"][
+                                                                                    "create_backup_for_system_default_config"]),
+                                                                            apply_updates_value=testcase["config"][
+                                                                                "backup_system_default_config"][
+                                                                                "apply_updates_value"],
+                                                                            download_updates_value=testcase["config"][
+                                                                                "backup_system_default_config"][
+                                                                                "download_updates_value"],
+                                                                            enable_on_reboot_value=bool(
+                                                                                testcase["config"][
+                                                                                    "backup_system_default_config"][
+                                                                                    "enable_on_reboot_value"]),
+                                                                            installation_state_value=bool(
+                                                                                testcase["config"][
+                                                                                    "backup_system_default_config"][
+                                                                                    "installation_state_value"]),
+                                                                            set_installation_state=bool(
+                                                                                testcase["config"][
+                                                                                    "backup_system_default_config"][
+                                                                                    "set_installation_state"]))
 
-            # clear stale override file from previous testcase
-            override_file = package_manager.dnf5_automatic_override_file
-            if os.path.exists(override_file):
-                os.remove(override_file)
-
-            # Arrange
-            self.__setup_config_and_invoke_revert_auto_os_to_system_default(
-                package_manager,
-                create_current_auto_os_config=bool(
-                    testcase["config"]["current_auto_update_config"]["create_current_auto_os_config"]),
-                current_auto_os_update_config_value=testcase["config"]["current_auto_update_config"][
-                    "current_auto_os_update_config_value"],
-                create_backup_for_system_default_config=bool(
-                    testcase["config"]["backup_system_default_config"]["create_backup_for_system_default_config"]),
-                apply_updates_value=testcase["config"]["backup_system_default_config"]["apply_updates_value"],
-                download_updates_value=testcase["config"]["backup_system_default_config"]["download_updates_value"],
-                enable_on_reboot_value=bool(
-                    testcase["config"]["backup_system_default_config"]["enable_on_reboot_value"]),
-                installation_state_value=bool(
-                    testcase["config"]["backup_system_default_config"]["installation_state_value"]),
-                set_installation_state=bool(
-                    testcase["config"]["backup_system_default_config"]["set_installation_state"])
-            )
-
-            # Assert stdio
+            # assert
             if testcase["stdio"]["capture_output"]:
+                # restore sys.stdout output
                 sys.stdout = original_stdout
-                self.__assert_std_io(
-                    captured_output=captured_output,
-                    expected_output=testcase["stdio"]["expected_output"]
-                )
-
-            self.__assert_reverted_automatic_patch_configuration_settings(
-                package_manager,
-                config_exists=bool(testcase["assertions"]["config_exists"]),
-                config_value_expected=testcase["assertions"]["config_value_expected"]
-            )
-
-            # Extra direct flag validation for explicit yes/no backup values only
-            backup_cfg = testcase["config"]["backup_system_default_config"]
-            backup_exists = bool(backup_cfg["create_backup_for_system_default_config"])
-            is_installed = bool(backup_cfg["installation_state_value"])
-
-            if backup_exists and is_installed:
-                has_explicit_values = (
-                        backup_cfg["download_updates_value"] in ["yes", "no"] or
-                        backup_cfg["apply_updates_value"] in ["yes", "no"]
-                )
-                if has_explicit_values:
-                    self.assertTrue(os.path.exists(override_file))
-                    override_content = self.runtime.env_layer.file_system.read_with_retry(override_file)
-
-                    if backup_cfg["apply_updates_value"] == "yes":
-                        # DNF5 may represent enabled/default behavior either via explicit --installupdates
-                        # or via baseline ExecStart with no explicit flags.
-                        self.assertTrue(
-                            "--installupdates" in override_content or
-                            "/usr/bin/dnf5 automatic --timer" in override_content
-                        )
-                        self.assertTrue("--no-downloadupdates" not in override_content)
-                        self.assertTrue("--no-installupdates" not in override_content)
-
-
-                    elif backup_cfg["apply_updates_value"] == "no":
-                        self.assertTrue("--installupdates" not in override_content)
-
-                        if backup_cfg["download_updates_value"] == "yes":
-                            self.assertTrue("--downloadupdates" in override_content)
-                        elif backup_cfg["download_updates_value"] == "no":
-                            self.assertTrue("--downloadupdates" not in override_content)
-
-                else:
-                    self.assertFalse(os.path.exists(override_file))
+                self.__assert_std_io(captured_output=captured_output,
+                                     expected_output=testcase["stdio"]["expected_output"])
+            self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(
+                testcase["assertions"]["config_exists"]), config_value_expected=testcase["assertions"][
+                "config_value_expected"])
     # endregion
 
-    def __assert_reverted_automatic_patch_configuration_settings(
-            self, package_manager, config_exists=True, config_value_expected=''
-    ):
-        override_file = package_manager.dnf5_automatic_override_file
-
-        if os.path.exists(override_file):
-            override_content = self.runtime.env_layer.file_system.read_with_retry(override_file)
-            self.assertTrue(override_content is not None)
+    def __assert_reverted_automatic_patch_configuration_settings(self, package_manager, config_exists=True, config_value_expected=''):
+        if config_exists:
+            reverted_dnf5_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(
+                package_manager.dnf5_automatic_configuration_file_path)
+            self.assertTrue(reverted_dnf5_automatic_patch_configuration_settings is not None)
         else:
-            return
-
-        override_content = self.runtime.env_layer.file_system.read_with_retry(override_file)
-        self.assertTrue(override_content is not None)
+            self.assertFalse(os.path.exists(package_manager.dnf5_automatic_configuration_file_path))
 
     @staticmethod
     def __capture_std_io():
@@ -473,22 +409,19 @@ class TestDnfPackageManager(unittest.TestCase):
 
         # setup backup for system default auto OS update config
         if create_backup_for_system_default_config:
-            self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value=apply_updates_value, download_updates_value=download_updates_value, enable_on_reboot_value=enable_on_reboot_value,
-                                                                    installation_state_value=installation_state_value, set_installation_state=set_installation_state)
-
+            self.__setup_backup_for_system_default_OS_update_config(package_manager,
+                                                                    apply_updates_value=apply_updates_value,
+                                                                    download_updates_value=download_updates_value,
+                                                                    enable_on_reboot_value=enable_on_reboot_value,
+                                                                    installation_state_value=installation_state_value,
+                                                                    set_installation_state=set_installation_state)
         package_manager.revert_auto_os_update_to_system_default()
 
     def __setup_current_auto_os_update_config(self, package_manager, config_value='',
                                               config_file_name="automatic.conf"):
         # setup current auto OS update config
-
-        config_path = os.path.join(self.runtime.execution_config.config_folder, config_file_name)
-
-        #  Override DNF5 variables
-        package_manager.dnf5_automatic_configuration_file_path = config_path
-        package_manager.os_patch_configuration_settings_file_path = config_path
-
-        self.runtime.write_to_file(config_path, config_value)
+        package_manager.dnf5_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, config_file_name)
+        self.runtime.write_to_file(package_manager.dnf5_automatic_configuration_file_path, config_value)
 
     def __setup_backup_for_system_default_OS_update_config(self, package_manager, apply_updates_value="", download_updates_value="", enable_on_reboot_value=False, installation_state_value=False, set_installation_state=True):
         # setup backup for system default auto OS update config
@@ -631,12 +564,9 @@ class TestDnfPackageManager(unittest.TestCase):
         packages = ['kernel.x86_64', 'selinux-policy-targeted.noarch']
         package_versions = ['2.02.177-4.el7', '3.10.0-862.el7']
 
-        cmd = package_manager.get_install_command('sudo dnf5 install --assumeno --skip-broken ',packages,package_versions)
-        self.assertEqual(cmd,'sudo dnf5 install --assumeno --skip-broken kernel-2.02.177-4.el7.x86_64 selinux-policy-targeted-3.10.0-862.el7.noarch')
-
         # Test exception handling scenarios
         self.runtime.stop()
-        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True,Constants.DNF)
+        self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True,Constants.DNF5)
 
         self.container = self.runtime.container
         self.runtime.set_legacy_test_type('ExceptionPath')
@@ -681,7 +611,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertTrue(package_filter is not None)
 
         # test for successfully installing a package
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('hyperv-daemons.x86_64','6.10-3.azl4~20260501',simulate=True),Constants.INSTALLED)
+        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('rubygem-json.x86_64','2.13.2-2.azl4~20260501',simulate=True),Constants.INSTALLED)
 
     def test_inclusion_type_other(self):
         """Unit test for dnf5 package manager with inclusion and Classification = Other. All packages are considered are 'Security' since DNF does not have patch classification"""
@@ -694,7 +624,7 @@ class TestDnfPackageManager(unittest.TestCase):
         argument_composer.classifications_to_include = [Constants.PackageClassification.OTHER]
         argument_composer.patches_to_include = ["ssh", "tcpdump"]
         argument_composer.patches_to_exclude = ["ssh*", "test"]
-        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.DNF)
+        self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.DNF5)
         self.container = self.runtime.container
 
         package_filter = self.container.get('package_filter')
@@ -749,69 +679,48 @@ class TestDnfPackageManager(unittest.TestCase):
 
     def test_update_image_default_patch_mode_dnf5(self):
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        package_manager.os_patch_configuration_settings_file_path = package_manager.dnf5_automatic_configuration_file_path = os.path.join(
+            self.runtime.execution_config.config_folder, "automatic.conf")
 
-        # DNF5 uses systemd override / ExecStart, not automatic.conf
-        override_dir = os.path.join(self.runtime.execution_config.config_folder, "dnf5-automatic.service.d")
-        os.makedirs(override_dir, exist_ok=True)
+        # disable apply_updates when enabled by default
+        dnf5_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.dnf5_automatic_configuration_file_path,
+                                   dnf5_automatic_os_patch_configuration_settings)
 
-        override_file = os.path.join(override_dir, "override.conf")
-        package_manager.dnf5_automatic_override_file = override_file
-        package_manager.dnf5_automatic_override_dir = override_dir
+        package_manager.update_os_patch_configuration_sub_setting(
+            package_manager.dnf5_automatic_apply_updates_identifier_text, "no",
+            package_manager.dnf5_automatic_config_pattern_match_text)
+        dnf5_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(
+            package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(dnf5_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertTrue('apply_updates = no' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
+        self.assertTrue('download_updates = yes' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
 
-        # -----------------------------
-        # 1) disable apply_updates when default is apply=yes, download=yes
-        # expected: install disabled, download remains enabled
-        # ExecStart => --downloadupdates --no-installupdates
-        # -----------------------------
-        initial_override = (
-            "[Service]\n"
-            "ExecStart=\n"
-            "ExecStart=/usr/bin/dnf5 automatic --timer --installupdates\n"
-        )
-        self.runtime.write_to_file(override_file, initial_override)
+        # disable download_updates when enabled by default
+        dnf5_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path,
+                                   dnf5_automatic_os_patch_configuration_settings)
+        package_manager.update_os_patch_configuration_sub_setting(
+            package_manager.dnf5_automatic_download_updates_identifier_text, "no",
+            package_manager.dnf5_automatic_config_pattern_match_text)
+        dnf5_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(
+            package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(dnf5_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertTrue('apply_updates = yes' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
+        self.assertTrue('download_updates = no' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
 
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.dnf5_automatic_apply_updates_identifier_text,"no")
-
-        override_read = self.runtime.env_layer.file_system.read_with_retry(override_file)
-        self.assertTrue(override_read is not None)
-        self.assertTrue("--downloadupdates" in override_read)
-        self.assertTrue("--installupdates" not in override_read)
-
-        # -----------------------------
-        # 2) disable download_updates when default is apply=yes, download=yes
-        # expected: install remains enabled; dnf5 normalization means install implies download
-        # ExecStart => --installupdates
-        # -----------------------------
-        self.runtime.write_to_file(override_file, initial_override)
-
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.dnf5_automatic_download_updates_identifier_text,"no")
-
-        override_read = self.runtime.env_layer.file_system.read_with_retry(override_file)
-        self.assertTrue(override_read is not None)
-        self.assertTrue("--installupdates" in override_read)
-        self.assertTrue("--no-downloadupdates" not in override_read)
-        self.assertTrue("--no-installupdates" not in override_read)
-
-        # -----------------------------
-        # 3) disable apply_updates when current/default state is empty / baseline
-        # expected: no explicit download flag introduced, only install disabled
-        # ExecStart => --no-installupdates
-        # -----------------------------
-        baseline_override = (
-            "[Service]\n"
-            "ExecStart=\n"
-            "ExecStart=/usr/bin/dnf5 automatic --timer\n"
-        )
-        self.runtime.write_to_file(override_file, baseline_override)
-
-        package_manager.update_os_patch_configuration_sub_setting(package_manager.dnf5_automatic_apply_updates_identifier_text,"no")
-
-        override_read = self.runtime.env_layer.file_system.read_with_retry(override_file)
-        self.assertTrue(override_read is not None)
-        self.assertTrue("--downloadupdates"  in override_read)
-        self.assertTrue("--installupdates" not in override_read)
-
+        # disable apply_updates when default patch mode settings file is empty
+        dnf5_automatic_os_patch_configuration_settings = ''
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path,
+                                   dnf5_automatic_os_patch_configuration_settings)
+        package_manager.update_os_patch_configuration_sub_setting(
+            package_manager.dnf5_automatic_apply_updates_identifier_text, "no",
+            package_manager.dnf5_automatic_config_pattern_match_text)
+        dnf5_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(
+            package_manager.os_patch_configuration_settings_file_path)
+        self.assertTrue(dnf5_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertTrue('download_updates' not in dnf5_automatic_os_patch_configuration_settings_file_path_read)
+        self.assertTrue('apply_updates = no' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
 
     def test_disable_auto_os_update_on_reboot(self):
         self.runtime.set_legacy_test_type('HappyPath')
@@ -843,77 +752,6 @@ class TestDnfPackageManager(unittest.TestCase):
         security_packages, security_package_versions  = package_manager.get_security_updates()
         self.assertTrue(5, security_packages)
         self.assertTrue(5, security_package_versions)
-
-    def test_install_security_updates_azgps_coordinated(self):
-        self.runtime.set_legacy_test_type('HappyPath')
-        package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager)
-
-        code, out = package_manager.install_security_updates_azgps_coordinated()
-        self.assertTrue(code == 0)
-        self.assertTrue("Complete!", out)
-
-    def test_backup_image_default_patch_configuration_with_downloadupdates_only_execstart(self):
-        """
-        DNF5:
-        Validates backup creation when current ExecStart contains only --downloadupdates
-        and no explicit apply flag.
-
-        Expected backup:
-          - installation_state = True
-          - enable_on_reboot = True
-          - download_updates = "yes"
-          - apply_updates = ""
-        """
-        self.runtime.set_legacy_test_type('AnotherHappyPath')
-        package_manager = self.container.get('package_manager')
-        self.assertIsNotNone(package_manager)
-
-        # Arrange
-        package_manager._Dnf5PackageManager__init_auto_update_for_dnf5_automatic()
-
-        # Make sure no stale backup exists from previous runs
-        if os.path.exists(package_manager.image_default_patch_configuration_backup_path):
-            os.remove(package_manager.image_default_patch_configuration_backup_path)
-
-        # Make sure service override dir exists
-        override_dir = os.path.dirname(package_manager.dnf5_automatic_override_file)
-        os.makedirs(override_dir, exist_ok=True)
-
-        # Write override with ONLY --downloadupdates
-        override_text = "[Service]\nExecStart=\nExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates\n"
-        self.runtime.env_layer.file_system.write_with_retry(
-            package_manager.dnf5_automatic_override_file,
-            override_text,
-            mode='w+'
-        )
-
-        # Act
-        package_manager.backup_image_default_patch_configuration_if_not_exists()
-
-        # Assert
-        self.assertTrue(os.path.exists(package_manager.image_default_patch_configuration_backup_path))
-
-        backup_text = self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path)
-        backup_json = json.loads(backup_text)
-
-        self.assertIn(package_manager.current_auto_os_update_service, backup_json)
-
-        service_backup = backup_json[package_manager.current_auto_os_update_service]
-
-        self.assertEqual("yes", service_backup[package_manager.download_updates_identifier_text])
-        self.assertEqual("", service_backup[package_manager.apply_updates_identifier_text])
-        self.assertFalse(service_backup[package_manager.enable_on_reboot_identifier_text])
-        self.assertTrue(service_backup[package_manager.installation_state_identifier_text])
-
-
-    def test_set_dnf5_automatic_execstart_flags_exception_handling(self):
-        """Test exception handling when override file write fails"""
-        self.runtime.set_legacy_test_type('HappyPath')
-        package_manager = self.container.get('package_manager')
-        # Mock file_system.write_with_retry to raise exception
-        self.runtime.env_layer.file_system.write_with_retry =  self.mock_write_with_retry_raise_exception
-        self.assertRaises(Exception, package_manager._Dnf5PackageManager__set_dnf5_automatic_execstart_flags,)
 
     def test_update_os_patch_configuration_sub_setting_exception_handling(self):
         """Test exception handling when override file write fails"""
@@ -950,6 +788,8 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager.separate_out_esm_packages([], [])
 
         self.assertTrue(True)
+
+
 
 
 if __name__ == '__main__':

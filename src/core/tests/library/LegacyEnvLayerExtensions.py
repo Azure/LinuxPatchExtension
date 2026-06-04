@@ -644,7 +644,7 @@ class LegacyEnvLayerExtensions():
                                   "hypervkvpd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
                                   "Total installed size:   1.20M\n" + \
                                   "Total download size: 661.34k\n"
-                elif self.legacy_package_manager_name is Constants.DNF:
+                elif self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("check-update") > -1:
                         code = 100
                         output = ("Updating and loading repositories:\n"
@@ -658,7 +658,6 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("dnf5 -y upgrade") > -1:
                         code = 0
                         output = "Complete!\n"
-
                     elif cmd.find("dnf5 needs-restarting") > -1:
                         code = 1
                         output = "Updating and loading repositories:\n" + \
@@ -667,8 +666,7 @@ class LegacyEnvLayerExtensions():
                                  "  * glibc\n\n" + \
                                  "Reboot is required to fully utilize these updates.\n" + \
                                  "More information: https://access.redhat.com/solutions/27943\n"
-
-                    elif cmd.find("dnf5 list available python3") > -1:
+                    elif cmd.find("dnf5 list --available python3") > -1:
                         code = 0
                         output = "Updating and loading repositories:\n" + \
                                  "Repositories loaded.\n" + \
@@ -691,15 +689,13 @@ class LegacyEnvLayerExtensions():
                                  "Operation aborted by the user.\n"
                     elif cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
-                        output = "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates --installupdates"
+                        output = "ExecStart=/usr/bin/dnf5 automatic --timer"
                     elif cmd.find("systemctl is-enabled ") > -1:
                         code = 0
                         output = 'disabled'
-
                     elif cmd.find("systemctl disable ") > -1:
                         code = 0
                         output = 'Auto update service disabled'
-
                     elif cmd.find("rpm -qa") > -1:
                         code = 0
                         output = 'dnf5-plugin-automatic'
@@ -752,7 +748,7 @@ class LegacyEnvLayerExtensions():
                     else:
                         code = 0
                         output = ''
-                elif self.legacy_package_manager_name is Constants.DNF:
+                elif self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("systemctl enable --now dnf5-automatic.timer") > -1:
                         code = 1
                         output = ''
@@ -802,8 +798,8 @@ class LegacyEnvLayerExtensions():
                              "azurelinux-repos-ms-oss.noarch\n" + \
                              "3.0-3.azl3                        azurelinux-official-base\n" + \
                              "libseccomp.x86_64     2.5.4-1.azl3     azurelinux-official-base\n" + \
-                              "libxml2.x86_64 azurelinux-official-base\n" + \
-                              "dracut.x86_64                        102-7.azl3                        azurelinux-official-base\n"
+                             "libxml2.x86_64 azurelinux-official-base\n" + \
+                             "dracut.x86_64                        102-7.azl3                        azurelinux-official-base\n"
             elif self.legacy_test_type == 'NonexistentErrorCodePath':
                 if self.legacy_package_manager_name is Constants.ZYPPER:
                     if cmd.find('sudo zypper refresh') > -1:
@@ -827,10 +823,10 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("systemctl is-enabled ") > -1:
                         code = 0
                         output = 'enabled'
-                if self.legacy_package_manager_name is Constants.DNF:
+                if self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
-                        output = "ExecStart=/usr/bin/dnf5 automatic --downloadupdates --no-installupdates"
+                        output = "ExecStart=/usr/bin/dnf5 automatic "
                     elif "systemctl is-enabled" in cmd:
                         code = 0
                         output = 'enabled'
@@ -1003,33 +999,19 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = "Loaded plugin: tdnfrepogpgcheck\n" + \
                                  "hyperv-daemons-license.noarch                     6.6.78.1-1.azl3                     @System\n"
-                elif self.legacy_package_manager_name is Constants.DNF:
-                    if cmd.find("simulate-install") > -1 or cmd.find(
-                            "sudo dnf5 install --assumeno --skip-broken hyperv-daemons.x86_64") > -1:
-                        code = 0
-                        output = "Updating and loading repositories:\n" + \
-                                 "Repositories loaded.\n" + \
-                                 "Package                                Arch      Version                                 Repository                   Size\n" + \
-                                 "Installing:\n" + \
-                                 " hyperv-daemons                        x86_64    6.10-3.azl4~20260501                    azurelinux-base           0.0   B\n" + \
-                                 "Installing dependencies:\n" + \
-                                 " hyperv-daemons-license                noarch    6.10-3.azl4~20260501                    azurelinux-base          18.3 KiB\n" + \
-                                 " hypervfcopyd                          x86_64    6.10-3.azl4~20260501                    azurelinux-base          20.2 KiB\n" + \
-                                 " hypervkvpd                            x86_64    6.10-3.azl4~20260501                    azurelinux-base          36.2 KiB\n" + \
-                                 " hypervvssd                            x86_64    6.10-3.azl4~20260501                    azurelinux-base          20.0 KiB\n\n" + \
-                                 "Transaction Summary:\n" + \
-                                 " Installing:         5 packages\n\n" + \
-                                 "Total size of inbound packages is 79 KiB. Need to download 79 KiB.\n" + \
-                                 "After this operation, 95 KiB extra will be used (install 95 KiB, remove 0 B).\n" + \
-                                 "Operation aborted by the user."
-                    elif "dnf5 list available" in cmd and "hyperv-daemons.x86_64" in cmd:
+                elif self.legacy_package_manager_name is Constants.DNF5:
+                    if "rubygem-json" in cmd and "--assumeno" in cmd:
+                            code = 0
+                            output = (
+                                'Updating and loading repositories:\n'
+                                'Repositories loaded.\n'
+                                'Package "rubygem-json-2.13.2-2.azl4~20260501.x86_64" is already installed.\n\n'
+                                'Nothing to do.\n')
+                    elif "dnf5 list --installed rubygem-json" in cmd:
                         code = 0
                         output = (
-                            "Updating and loading repositories:\n"
-                            "Repositories loaded.\n"
-                            "Available packages\n"
-                            "hyperv-daemons.x86_64 6.10-3.azl4~20260501 azurelinux-base\n"
-                        )
+                            "Installed packages\n"
+                            "rubygem-json.x86_64 2.13.2-2.azl4~20260501 azurelinux-base\n")
             elif self.legacy_test_type == 'FailInstallPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -1186,7 +1168,7 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("simulate-install") > -1 or cmd.find("sudo tdnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
                         code = 100
                         output = "Failed to install package"
-                elif self.legacy_package_manager_name is Constants.DNF:
+                elif self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("simulate-install") > -1 or cmd.find("sudo dnf5 install --assumeno --skip-broken hyperv-daemons-license") > -1:
                         code = 1
                         output = "Updating and loading repositories:\n" + \
@@ -1505,8 +1487,8 @@ class LegacyEnvLayerExtensions():
                                  "python3.x86_64                3.12.9-1.azl3                   azurelinux-official-base\n" + \
                                  "Obsoleting:\n" + \
                                  "python.x86_64                 2.7.9-1.azl3                    azurelinux-official-base\n"
-                elif self.legacy_package_manager_name is Constants.DNF:
-                    if cmd.find("dnf5 list available python3") > -1:
+                elif self.legacy_package_manager_name is Constants.DNF5:
+                    if cmd.find("dnf5 list --available python3") > -1:
                         code = 0
                         output = "Updating and loading repositories:\n" + \
                                  "Repositories loaded.\n" + \
@@ -1617,6 +1599,10 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("systemctl list-unit-files --type=service | grep dnf-automatic.service") > -1:
                         code = 0
                         output = 'Auto update service installed'
+                elif self.legacy_package_manager_name is Constants.DNF5:
+                    if "rpm -qa | grep dnf5-plugin-automatic" in cmd:
+                        code = 0
+                        output = 'dnf5-plugin-automatic'
             major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')

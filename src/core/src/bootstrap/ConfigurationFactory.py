@@ -71,19 +71,19 @@ class ConfigurationFactory(object):
 
         self.configurations = {
             'apt_prod_config':    self.new_prod_configuration(Constants.APT, AptitudePackageManager),
-            'dnf5_prod_config':    self.new_prod_configuration(Constants.DNF, Dnf5PackageManager),
+            'dnf5_prod_config':    self.new_prod_configuration(Constants.DNF5, Dnf5PackageManager),
             'tdnf_prod_config': self.new_prod_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_prod_config':    self.new_prod_configuration(Constants.YUM, YumPackageManager),
             'zypper_prod_config': self.new_prod_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_dev_config':     self.new_dev_configuration(Constants.APT, AptitudePackageManager),
-            'dnf5_dev_config':     self.new_dev_configuration(Constants.DNF, Dnf5PackageManager),
+            'dnf5_dev_config':     self.new_dev_configuration(Constants.DNF5, Dnf5PackageManager),
             'tdnf_dev_config': self.new_dev_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_dev_config':     self.new_dev_configuration(Constants.YUM, YumPackageManager),
             'zypper_dev_config':  self.new_dev_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_test_config':    self.new_test_configuration(Constants.APT, AptitudePackageManager),
-            'dnf5_test_config':    self.new_test_configuration(Constants.DNF, Dnf5PackageManager),
+            'dnf5_test_config':    self.new_test_configuration(Constants.DNF5, Dnf5PackageManager),
             'tdnf_test_config': self.new_test_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
             'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
@@ -120,7 +120,7 @@ class ConfigurationFactory(object):
             print ("Error: Environment configuration not supported - " + str(env))
             return None
 
-        if str(package_manager_name) not in [Constants.APT, Constants.DNF, Constants.TDNF, Constants.YUM, Constants.ZYPPER]:
+        if str(package_manager_name) not in [Constants.APT, Constants.DNF5, Constants.TDNF, Constants.YUM, Constants.ZYPPER]:
             print ("Error: Package manager configuration not supported - " + str(package_manager_name))
             return None
 
