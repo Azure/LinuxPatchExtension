@@ -17,6 +17,12 @@ import io
 import platform
 import sys
 import unittest
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
+
 from core.src.bootstrap.EnvLayer import EnvLayer
 from core.src.bootstrap.Constants import Constants
 from core.src.external_dependencies import distro
@@ -165,10 +171,16 @@ class TestExecutionConfig(unittest.TestCase):
         ]
 
         for row in test_input_output_table:
+            captured_output = StringIO()
+            original_output = sys.stdout
+            sys.stdout = captured_output
             self.envlayer.platform.linux_distribution = row[0]
             distro.os_release_attr = row[1]
-            package_manager = self.envlayer.get_package_manager()
-            self.assertEqual(package_manager, "")
+
+            result = self.envlayer.get_package_manager()
+            sys.stdout = original_output
+            self.assertEqual(row[2], captured_output.getvalue())
+            self.assertEqual(result, "")
 
         # restore
         self.__restore_mocks()
