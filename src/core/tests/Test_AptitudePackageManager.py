@@ -37,6 +37,8 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.argument_composer = ArgumentComposer().get_composed_arguments()
         self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
         self.container = self.runtime.container
+        self.latest_certs_check_attempts = 0
+        self.latest_apt_update_cmd_attempt = 0
 
     def tearDown(self):
         self.runtime.stop()
@@ -71,6 +73,31 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def mock_get_security_updates_return_empty_list(self):
         return [], []
+
+    def mock_is_reboot_pending_returns_bool_False(self):
+        return False
+
+    def mock_are_latest_certs_present_with_different_output_across_multiple_attempts(self):
+        """Mock the presence of latest certs with different output across multiple attempts."""
+        self.latest_certs_check_attempts += 1
+
+        # Mock the first attempt to indicate certs are not present
+        if self.latest_certs_check_attempts == 1:
+            return False
+
+        return True
+
+    def mock_run_command_output_remove_proposed_pin_fails(self, cmd, no_output=False, chk_err=True):
+        if cmd.find(self.runtime.package_manager.remove_proposed_pin_cmd) > -1:
+            return 1, "Error"
+        return 0, ""
+
+    def mock_run_command_output_apt_update_cmd_fails(self, cmd, no_output=False, chk_err=True):
+        if cmd.find(self.runtime.package_manager.apt_update_cmd) > -1:
+            self.latest_apt_update_cmd_attempt +=1
+            if self.latest_apt_update_cmd_attempt == 2:
+                return 1, "Error"
+        return 0, ""
     # endregion Mocks
 
     # region Utility Functions
@@ -1089,6 +1116,72 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue(package_manager.try_update_certs())
         self.assertEqual(shell_calls, [])
         self.assertEqual(apt_calls, [])
+
+    def test_try_update_certs_success(self):
+        package_manager = self.container.get('package_manager')
+
+        backup_is_reboot_pending = package_manager.is_reboot_pending
+        backup_are_latest_certs_present = package_manager.are_latest_certs_present
+        package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_with_different_output_across_multiple_attempts
+
+        self.assertTrue(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, False)
+
+        package_manager.is_reboot_pending = backup_is_reboot_pending
+        package_manager.are_latest_certs_present = backup_are_latest_certs_present
+
+    def test_try_update_certs_all_commands_succeed_but_certs_not_updated(self):
+        """ Test when all commands to update certs succeed but certs are still not updated,
+        which should return False and not change reboot pending status """
+        package_manager = self.container.get('package_manager')
+        previous_reboot_pending_status = package_manager.status_handler.is_reboot_pending
+        self.assertFalse(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, previous_reboot_pending_status)
+
+    def test_try_update_certs_shell_command_fail_raises_exception(self):
+        """ Test when a command to update certs fails, which should return False and not change reboot pending status"""
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        previous_reboot_pending_status = package_manager.status_handler.is_reboot_pending
+        self.assertFalse(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, previous_reboot_pending_status)
+
+    def test_try_update_certs_apt_command_fail_raises_exception(self):
+        """ Test when a command to update certs fails, which should return False and not change reboot pending status"""
+        self.runtime.set_legacy_test_type('FailInstallPath')
+        package_manager = self.container.get('package_manager')
+        previous_reboot_pending_status = package_manager.status_handler.is_reboot_pending
+        self.assertFalse(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, previous_reboot_pending_status)
+
+    def test_try_update_certs_shell_command_fail_no_exception_raised(self):
+        """ Test when a command to update certs fails, which should return False and not change reboot pending status"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        backup_run_command_output = package_manager.env_layer.run_command_output
+        package_manager.env_layer.run_command_output = self.mock_run_command_output_remove_proposed_pin_fails
+
+        previous_reboot_pending_status = package_manager.status_handler.is_reboot_pending
+        self.assertFalse(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, previous_reboot_pending_status)
+
+        package_manager.env_layer.run_command_output = backup_run_command_output
+
+    def test_try_update_certs_apt_command_fail_no_exception_raised(self):
+        """ Test when a command to update certs fails, which should return False and not change reboot pending status"""
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+
+        backup_run_command_output = package_manager.env_layer.run_command_output
+        package_manager.env_layer.run_command_output = self.mock_run_command_output_apt_update_cmd_fails
+
+        previous_reboot_pending_status = package_manager.status_handler.is_reboot_pending
+        self.assertFalse(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, previous_reboot_pending_status)
+
+        package_manager.env_layer.run_command_output = backup_run_command_output
     # endregion
 
 

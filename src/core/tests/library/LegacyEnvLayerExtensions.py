@@ -700,6 +700,10 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('apt-get install -y -qq mokutil') > 1:
                         code = 1
                         output = "E: Unable to locate package mokutil\n"
+                    elif cmd.find("bash -c 'echo \"deb http://archive.ubuntu.com/ubuntu/ "
+                                  "$( . /etc/os-release && echo $VERSION_CODENAME )-proposed restricted main multiverse universe") > -1:
+                        code = 1
+                        output = "Error: Unable to locate package multiverse universe\n "
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("microcode_ctl") > -1:
                         code = 1
@@ -1122,6 +1126,9 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("force-dpkg-failure") > -1:
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
+                    elif cmd.find("bash -c 'sudo apt-get install -y -t $( . /etc/os-release") > -1:
+                        code = 1
+                        output = "Error"
                 elif self.legacy_package_manager_name is Constants.TDNF:
                     if cmd.find("simulate-install") > -1 or cmd.find("sudo tdnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
                         code = 100
