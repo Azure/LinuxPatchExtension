@@ -17,10 +17,10 @@
 """Dnf5PackageManager for Azure Linux 4 or above and RHEL"""
 import json
 import re
-from abc import ABCMeta, abstractmethod
 
-from core.src.bootstrap.Constants import Constants
+from abc import ABCMeta, abstractmethod
 from core.src.core_logic.VersionComparator import VersionComparator
+from core.src.bootstrap.Constants import Constants
 from core.src.package_managers.PackageManager import PackageManager
 
 
@@ -41,14 +41,12 @@ class Dnf5PackageManager(PackageManager):
 
         # Install update
         self.single_package_upgrade_cmd = 'sudo dnf5 -y upgrade'
-
         # Support to check if reboot is required
         # dnf-utils not required (needs-restarting is built into dnf5)
         self.needs_restarting_with_flag = 'sudo LANG=en_US.UTF8 dnf5 needs-restarting -r'
 
         # DNF5 exit codes
         self.dnf_exitcode_ok = [0, 100]
-
         # DNF5 valid exit codes for simulation commands
         self.dnf5_simulation_valid_exit_codes = [0, 1]
         self.dnf5_dependency_failure_text = ["Skipping packages with broken dependencies", "Nothing to do."]
@@ -469,10 +467,6 @@ class Dnf5PackageManager(PackageManager):
         self.dnf5_automatic_config_pattern_match_text = ' = (no|yes)'
         self.dnf5_automatic_download_updates_identifier_text = "download_updates"
         self.dnf5_automatic_apply_updates_identifier_text = "apply_updates"
-        # ExecStart flag identifiers
-        self.dnf5_automatic_download_updates_flag = '--downloadupdates'
-        self.dnf5_automatic_apply_updates_flag = '--installupdates'
-
         self.dnf5_automatic_enable_on_reboot_identifier_text = "enable_on_reboot"
         self.dnf5_automatic_installation_state_identifier_text = "installation_state"
         self.dnf5_auto_os_update_service = "dnf5-automatic"
@@ -534,7 +528,13 @@ class Dnf5PackageManager(PackageManager):
                 return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
 
             code, service_output = self.env_layer.run_command_output(self.dnf5_automatic_configuration_service, False, False)
-            self.composite_logger.log_debug("[DNF5] dnf5-automatic ExecStart details. [Command={0}][Code={1}][Output={2}]".format(self.dnf5_automatic_configuration_service, str(code), service_output))
+            exec_start_line = ""
+            #Only print ExecStart details
+            for line in service_output.splitlines():
+                if line.strip().startswith("ExecStart"):
+                    exec_start_line = line.strip()
+                    break
+            self.composite_logger.log_debug("[DNF5] dnf5-automatic ExecStart details. [Command={0}][Code={1}][Output={2}]".format(self.dnf5_automatic_configuration_service, str(code), exec_start_line))
 
             is_service_installed = True
             enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
@@ -670,7 +670,6 @@ class Dnf5PackageManager(PackageManager):
                         self.installation_state_identifier_text: is_service_installed
                     }
                 }
-
                 image_default_patch_configuration_backup.update(backup_image_default_patch_configuration_json_to_add)
 
                 self.composite_logger.log_debug("[DNF5] Logging default system configuration settings for auto OS updates. ""[Settings={0}] [Log file path={1}]".format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
@@ -701,8 +700,7 @@ class Dnf5PackageManager(PackageManager):
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
             self.composite_logger.log_debug("[DNF5] Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(
                     str(patch_configuration_sub_setting), value))
-            os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(
-                self.os_patch_configuration_settings_file_path)
+            os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path)
             patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + ' = ' + value
             patch_configuration_sub_setting_found_in_file = False
             updated_patch_configuration_sub_setting = ""
@@ -720,9 +718,7 @@ class Dnf5PackageManager(PackageManager):
             if not patch_configuration_sub_setting_found_in_file:
                 updated_patch_configuration_sub_setting += patch_configuration_sub_setting_to_update + "\n"
 
-            self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path,
-                                                        '{0}'.format(updated_patch_configuration_sub_setting.lstrip()),
-                                                        mode='w+')
+            self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path,'{0}'.format(updated_patch_configuration_sub_setting.lstrip()),mode='w+')
         except Exception as error:
             error_msg = "[DNF5] Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(
                 str(patch_configuration_sub_setting), repr(error))
@@ -789,8 +785,7 @@ class Dnf5PackageManager(PackageManager):
         # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
         if self.image_default_patch_configuration_backup_exists():
             try:
-                image_default_patch_configuration_backup = json.loads(
-                    self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
+                image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
             except Exception as error:
                 self.composite_logger.log_error("[DNF5] Unable to read backup for default patch state. Will attempt to re-write. [Exception={0}]".format(repr(error)))
         return image_default_patch_configuration_backup
