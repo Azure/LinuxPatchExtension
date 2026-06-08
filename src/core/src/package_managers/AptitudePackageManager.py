@@ -183,7 +183,7 @@ class AptitudePackageManager(PackageManager):
 
         for line in sources_content_lines:
             if len(line.strip()) != 0 and not line.strip().startswith("#"):
-                if base_classification == Constants.PackageClassification.SECURITY and "security" not in line:
+                if base_classification == Constants.PackageClassification.SECURITY and "security" not in line and "fips-updates" not in line:
                     continue
                 std_source_list_content += "\n" + self.__apply_max_patch_publish_date(sources_content=line, max_patch_publish_date=max_patch_published_date)
 
@@ -207,7 +207,7 @@ class AptitudePackageManager(PackageManager):
 
                 if len(line.strip()) == 0:  # stanza separating line
                     if stanza != str():
-                        if base_classification == str() or (base_classification == Constants.PackageClassification.SECURITY and "security" in stanza):
+                        if base_classification == str() or (base_classification == Constants.PackageClassification.SECURITY and ("security" in stanza or "fips-updates" in stanza)):
                             std_source_parts_content += self.__apply_max_patch_publish_date(sources_content=stanza, max_patch_publish_date=max_patch_published_date) + '\n'
                         stanza = str()
                         continue

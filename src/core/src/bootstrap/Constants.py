@@ -31,7 +31,7 @@ class Constants(object):
     UNKNOWN = "Unknown"
 
     # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.64"
+    EXT_VERSION = "1.6.65"
 
     # Runtime environments
     TEST = 'Test'
@@ -197,7 +197,7 @@ class Constants(object):
     RED_HAT = 'Red Hat'
     SUSE = 'SUSE'
     CENTOS = 'CentOS'
-    AZURE_LINUX = ['Microsoft Azure Linux', 'Common Base Linux Mariner']
+    AZURE_LINUX = ['Azure Linux', 'Microsoft Azure Linux', 'Common Base Linux Mariner']
 
     # Package Managers
     APT = 'apt'
