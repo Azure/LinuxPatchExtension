@@ -204,6 +204,7 @@ class Constants(object):
     TDNF = 'tdnf'
     YUM = 'yum'
     ZYPPER = 'zypper'
+    DNF4 = 'dnf4'
 
     # Package Statuses
     INSTALLED = 'Installed'

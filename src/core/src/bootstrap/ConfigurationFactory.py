@@ -38,6 +38,7 @@ from core.src.local_loggers.CompositeLogger import CompositeLogger
 
 from core.src.package_managers.AptitudePackageManager import AptitudePackageManager
 from core.src.package_managers.AzL3TdnfPackageManager import AzL3TdnfPackageManager
+from core.src.package_managers.Dnf4PackageManager import Dnf4PackageManager
 from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
 
@@ -73,16 +74,19 @@ class ConfigurationFactory(object):
             'tdnf_prod_config': self.new_prod_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_prod_config':    self.new_prod_configuration(Constants.YUM, YumPackageManager),
             'zypper_prod_config': self.new_prod_configuration(Constants.ZYPPER, ZypperPackageManager),
+            'dnf4_prod_config' : self.new_prod_configuration(Constants.DNF4, Dnf4PackageManager),
 
             'apt_dev_config':     self.new_dev_configuration(Constants.APT, AptitudePackageManager),
             'tdnf_dev_config': self.new_dev_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_dev_config':     self.new_dev_configuration(Constants.YUM, YumPackageManager),
             'zypper_dev_config':  self.new_dev_configuration(Constants.ZYPPER, ZypperPackageManager),
+            'dnf4_dev_config': self.new_prod_configuration(Constants.DNF4, Dnf4PackageManager),
 
             'apt_test_config':    self.new_test_configuration(Constants.APT, AptitudePackageManager),
             'tdnf_test_config': self.new_test_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
-            'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
+            'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager),
+            'dnf4_test_config': self.new_prod_configuration(Constants.DNF4, Dnf4PackageManager)
         }
 
     # region - Configuration Getters
