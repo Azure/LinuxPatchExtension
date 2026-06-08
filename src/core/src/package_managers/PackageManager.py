@@ -450,6 +450,12 @@ class PackageManager(object):
         return True
     # endregion
 
+    # region Livepatch
+    def start_livepatch(self):
+        """ Applies livepatches on the machine, if supported by the distro and all pre-reqs are met"""
+        pass
+    # endregion
+
     @abstractmethod
     def is_reboot_pending(self):
         """ Checks if there is a pending reboot on the machine. """

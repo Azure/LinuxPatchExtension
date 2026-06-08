@@ -1082,6 +1082,12 @@ class YumPackageManager(PackageManager):
         return process_count != 0  # True if there were any
     # endregion Reboot Management
 
+    # region Livepatch
+    def start_livepatch(self):
+        """ Applies livepatches on the machine, if supported by the distro and all pre-reqs are met"""
+        pass
+    # endregion
+
     def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
         """
         Add the packages with same name as that of input parameter package but with different architectures from packages list to the list package_and_dependencies.

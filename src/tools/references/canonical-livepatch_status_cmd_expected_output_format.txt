@@ -1,0 +1,42 @@
+This is a sample of livepatch status output for reference:
+        {
+            "Client-Version": "<>",
+            "Machine-Id": "<>",
+            "Architecture": "<>",
+            "CPU-Model": "<>",
+            "Last-Check": "<>",
+            "Boot-Time": "<>",
+            "Uptime": "<>",
+            "Status": [
+            {
+                "Kernel": "<>",
+                "Running": true,
+                "Livepatch": {
+                    "CheckState": "checked",
+                    "State": "<>", // "nothing-to-apply" or "applied"
+                    "Version": "" // "" or a version such as "1.0",
+                    "Fixes": // empty if no livepatches available or a list of CVEs installed
+                    [{
+                        "Name": "<>", //cve identifier such as CVE-000-0000
+                        "Description": "<>", // description of the livepatch fix
+                        "Bug": "",
+                        "Patched": <bool> // boolean value indicating status
+                    }]
+                },
+                "Supported": "<>", // "supported" or a quick text on what is needed such as "kernel-upgrade-required"
+                "UpgradeRequiredDate": "<>" // date
+            }],
+            "tier": "updates",
+            "Excluded-LSNs": [], // List of excluded LSNs
+            "Fixed-CVEs": {
+                "Timestamp": "",
+                "Kernel-Package-Fixes": [], // list of all kernel packages fixed
+                "Installed-Kernels": [],
+                "Patched-CVEs": [], // list of patched CVEs identifiers
+                "Digest": ""
+            },
+            "Blocking-Options": [ // List of configs blocking livepatch, if any. For eg: cutoff-date set for livepatch client
+                "cutoff-date"
+            ],
+            "Using-Cutoff-Date": <bool> // boolean value indicating whether livepatch client is using cutoff-date config or not
+        }

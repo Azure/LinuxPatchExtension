@@ -69,9 +69,17 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_os_path_isfile_raise_exception(self, file):
         raise Exception
 
+    def mock_run_command_output_raise_exception(self, cmd="", output=False, chk_err=False):
+        raise Exception
+
     def mock_get_security_updates_return_empty_list(self):
         return [], []
 
+    def mock_launch_livepatch_client_failed(self):
+        return False
+
+    def mock_ubuntu_pro_client_livepatch_service_enabled_on_machine_returns_true(self):
+        return True
     # endregion Mocks
 
     # region Utility Functions
@@ -1067,6 +1075,249 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertTrue(os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS))
         self.assertEqual(exec_config.accept_package_eula, False)
         runtime.stop()
+
+    def test_are_livepatch_prereq_met_success(self):
+        package_manager = self.__setup_package_manager()
+        self.assertIsNotNone(package_manager)
+        package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
+        self.assertTrue(package_manager.are_livepatch_prereq_met())
+
+    def test_are_livepatch_prereq_met_failure(self):
+        package_manager = self.__setup_package_manager()
+        self.assertIsNotNone(package_manager)
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+
+        # VM is not attached
+        package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = False
+        self.assertFalse(package_manager.are_livepatch_prereq_met())
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        errors = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(errors, None)
+        self.assertTrue("Livepatches will NOT be applied since the VM is not attached to a pro subscription." in str(errors))
+
+        #VM is attached but livepatch service not enabled
+        package_manager = self.__setup_package_manager(legacy_type='SadPath')
+        package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
+        self.assertFalse(package_manager.are_livepatch_prereq_met())
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        updated_errors = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(updated_errors, None)
+        self.assertTrue("The Ubuntu Pro client reported that the Livepatch service is not enabled." in str(updated_errors))
+
+    def test_try_set_livepatch_cutoff_date_in_config_success(self):
+        package_manager = self.__setup_package_manager()
+        self.assertTrue(package_manager.try_set_livepatch_cutoff_date_in_config())
+
+    def test_try_set_livepatch_cutoff_date_in_config_failure(self):
+        package_manager = self.__setup_package_manager(legacy_type='SadPath')
+        self.assertFalse(package_manager.try_set_livepatch_cutoff_date_in_config())
+
+    def test_try_set_livepatch_cutoff_date_in_config_exception_path(self):
+        package_manager = self.container.get('package_manager')
+        backup_run_command_output = package_manager.env_layer.run_command_output
+        package_manager.env_layer.run_command_output = self.mock_run_command_output_raise_exception
+        self.assertFalse(package_manager.try_set_livepatch_cutoff_date_in_config())
+        package_manager.env_layer.run_command_output = backup_run_command_output
+
+    def test_launch_livepatch_client_success(self):
+        package_manager = self.__setup_package_manager()
+        self.assertTrue(package_manager.launch_livepatch_client())
+
+    def test_launch_livepatch_client_failure(self):
+        package_manager = self.__setup_package_manager(legacy_type='SadPath')
+        self.assertFalse(package_manager.launch_livepatch_client())
+
+    def test_launch_livepatch_client_exception_path(self):
+        package_manager = self.__setup_package_manager()
+        backup_run_command_output = package_manager.env_layer.run_command_output
+        package_manager.env_layer.run_command_output = self.mock_run_command_output_raise_exception
+        self.assertFalse(package_manager.launch_livepatch_client())
+        package_manager.env_layer.run_command_output = backup_run_command_output
+
+    def test_try_get_livepatch_status_success(self):
+        expected_livepatch_status = {
+            "Status":[{
+                "Kernel":"123",
+                "Running":True,
+                "Livepatch": {"CheckState": "checked","State": "nothing-to-apply","Version": ""},
+                "Supported": "supported",
+                "UpgradeRequiredDate": "2027-04-13"}],
+            "tier":"stable",
+            "Using-Cutoff-Date":True
+        }
+        package_manager = self.__setup_package_manager()
+        self.assertEqual(package_manager.try_get_livepatch_status(), expected_livepatch_status)
+
+    def test_try_get_livepatch_status_failure(self):
+        package_manager = self.__setup_package_manager(legacy_type='SadPath')
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        self.assertEqual(package_manager.try_get_livepatch_status(), {})
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        errors = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(errors, None)
+        self.assertTrue("Exception while fetching livepatch status." in str(errors))
+
+    def test_try_get_livepatch_status_exception_path(self):
+        package_manager = self.__setup_package_manager()
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        backup_run_command_output = package_manager.env_layer.run_command_output
+        package_manager.env_layer.run_command_output = self.mock_run_command_output_raise_exception
+        self.assertEqual(package_manager.try_get_livepatch_status(), {})
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        errors = json.loads(substatus_file_data["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(errors, None)
+        self.assertTrue("Exception while fetching livepatch status" in str(errors))
+        package_manager.env_layer.run_command_output = backup_run_command_output
+
+    def test_update_livepatch_status_in_patch_installation_summary_success(self):
+        livepatch_status = {
+            "Status": [{
+                "Kernel": "123",
+                "Running": True,
+                "Livepatch": {"CheckState": "checked", "State": "applied", "Version": "1.0"},
+                "Supported": "supported",
+                "UpgradeRequiredDate": "2027-04-13"}],
+            "tier": "stable",
+            "Using-Cutoff-Date": True
+        }
+        substatus_file_data = self.__invoke_update_livepatch_status_and_fetch_status(livepatch_status)[0]
+
+        self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        patch = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]
+        self.assertEqual(patch["name"],"livepatch_checked_applied")
+        self.assertTrue("Other" in str(patch["classifications"]))
+        self.assertEqual(patch["patchInstallationState"], Constants.INSTALLED)
+        self.assertEqual(patch["version"],"1.0")
+
+    def test_update_livepatch_status_in_patch_installation_summary_success_with_no_livepatch_applied(self):
+        livepatch_status = {
+            "Status": [{
+                "Kernel": "123",
+                "Running": True,
+                "Livepatch": {"CheckState": "checked", "State": "nothing-to-apply", "Version": ""},
+                "Supported": "supported",
+                "UpgradeRequiredDate": "2027-04-13"}],
+            "tier": "stable",
+            "Using-Cutoff-Date": True
+        }
+        substatus_file_data = self.__invoke_update_livepatch_status_and_fetch_status(livepatch_status)[0]
+
+        self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        patch = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]
+        self.assertEqual(patch["name"], "livepatch_checked_nothing-to-apply")
+        self.assertTrue("Other" in str(patch["classifications"]))
+        self.assertEqual(patch["patchInstallationState"], Constants.NOT_SELECTED)
+        self.assertEqual(patch["version"], "")
+
+    def test_update_livepatch_status_in_patch_installation_summary_empty_livepatch_status(self):
+        livepatch_status = {
+            "Status": [{
+                "Kernel": "123",
+                "Running": False,
+                "Livepatch": {"CheckState": "checked", "State": "nothing-to-apply", "Version": ""},
+                "Supported": "supported",
+                "UpgradeRequiredDate": "2027-04-13"}],
+            "tier": "stable",
+            "Using-Cutoff-Date": True
+        }
+        substatus_file_data = self.__invoke_update_livepatch_status_and_fetch_status(livepatch_status)
+        self.assertEqual(len(substatus_file_data), 0)
+
+    def test_set_config_date_in_livepatch_cmd_success(self):
+        self.runtime.execution_config.max_patch_publish_date = "20250324T000000Z"
+        package_manager_for_test = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger,
+                                                                                 self.runtime.telemetry_writer, self.runtime.status_handler)
+        self.assertEqual(package_manager_for_test.set_cutoff_date_in_livepatch_config_cmd, "sudo canonical-livepatch config cutoff-date=2025-03-24T00:00:00Z")
+
+    def test_set_config_date_in_livepatch_cmd_failure(self):
+        self.runtime.execution_config.max_patch_publish_date = "2025-0324T000000Z"
+        package_manager_for_test = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger,
+                                                                                 self.runtime.telemetry_writer, self.runtime.status_handler)
+        self.assertEqual(package_manager_for_test.set_cutoff_date_in_livepatch_config_cmd, "sudo canonical-livepatch config cutoff-date=")
+
+    def test_start_livepatch_success(self):
+        package_manager = self.__setup_package_manager()
+        package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        package_manager.start_livepatch()
+
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        patch = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]
+        self.assertEqual(patch["name"], "livepatch_checked_nothing-to-apply")
+        self.assertTrue("Other" in str(patch["classifications"]))
+        self.assertEqual(patch["patchInstallationState"], Constants.NOT_SELECTED)
+        self.assertEqual(patch["version"], "")
+
+    def test_start_livepatch_when_pre_req_not_met(self):
+        package_manager = self.__setup_package_manager(legacy_type='SadPath')
+        package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+
+        package_manager.start_livepatch()
+        substatus_file_data = self.__get_substatus_from_status_file()
+        self.assertEqual(len(substatus_file_data), 1)
+        errors = json.loads(substatus_file_data[0]["formattedMessage"]["message"])["errors"]
+        self.assertNotEqual(errors, None)
+        self.assertTrue("The Ubuntu Pro client reported that the Livepatch service is not enabled" in str(errors))
+
+    def test_start_livepatch_when_livepatch_config_date_not_set(self):
+        # cmd to set config date in livepatch service failed. So livepatch client is not launched and status not updated with livepatch data
+        package_manager = self.__setup_package_manager(legacy_type='SadPath')
+        package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        backup_ubuntu_pro_client_livepatch_service_enabled_on_machine = package_manager.ubuntu_pro_client.livepatch_service_enabled_on_machine
+        package_manager.ubuntu_pro_client.livepatch_service_enabled_on_machine = self.mock_ubuntu_pro_client_livepatch_service_enabled_on_machine_returns_true
+
+        package_manager.start_livepatch()
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        patches = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"]
+        self.assertEqual(len(patches), 0)
+        package_manager.ubuntu_pro_client.livepatch_service_enabled_on_machine = backup_ubuntu_pro_client_livepatch_service_enabled_on_machine
+
+    def test_start_livepatch_when_launch_livepatch_client_failed(self):
+        # livepatch client is not launched, status is still updated with stale livepatch config
+        package_manager = self.__setup_package_manager()
+        package_manager.ubuntu_pro_client.is_ubuntu_pro_client_attached = True
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        backup_launch_livepatch_client = package_manager.launch_livepatch_client
+        package_manager.launch_livepatch_client = self.mock_launch_livepatch_client_failed
+
+        package_manager.start_livepatch()
+        substatus_file_data = self.__get_substatus_from_status_file()[0]
+        self.assertNotEqual(json.loads(substatus_file_data["formattedMessage"]["message"])["errors"], None)
+        self.assertEqual(substatus_file_data["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        patch = json.loads(substatus_file_data["formattedMessage"]["message"])["patches"][0]
+        self.assertEqual(patch["name"], "livepatch_checked_nothing-to-apply")
+        self.assertTrue("Other" in str(patch["classifications"]))
+        self.assertEqual(patch["patchInstallationState"], Constants.NOT_SELECTED)
+        self.assertEqual(patch["version"], "")
+        package_manager.launch_livepatch_client = backup_launch_livepatch_client
+
+    def __setup_package_manager(self, legacy_type="HappyPath"):
+        self.runtime.set_legacy_test_type(legacy_type)
+        package_manager = self.container.get('package_manager')
+        return package_manager
+
+    def __get_substatus_from_status_file(self):
+        substatus_file_data = []
+        with self.runtime.env_layer.file_system.open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
+            status = json.load(file_handle)
+            self.assertEqual(status[0]["status"]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+            substatus_file_data = status[0]["status"]["substatus"]
+        return substatus_file_data
+
+    def __invoke_update_livepatch_status_and_fetch_status(self, livepatch_status):
+        package_manager = self.__setup_package_manager()
+        self.runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+        package_manager.update_livepatch_status_in_patch_installation_summary(livepatch_status)
+        self.assertEqual(os.path.exists(self.runtime.execution_config.status_file_path), True)
+        return self.__get_substatus_from_status_file()
 
 
 if __name__ == '__main__':

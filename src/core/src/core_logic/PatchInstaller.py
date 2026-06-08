@@ -58,13 +58,16 @@ class PatchInstaller(object):
         self.raise_if_telemetry_unsupported()
         self.raise_if_min_python_version_not_met()
 
+        maintenance_window = self.maintenance_window
+        package_manager = self.package_manager
+        reboot_manager = self.reboot_manager
+
         self.composite_logger.log("\nStarting patch installation... [MachineId: " + self.env_layer.platform.vm_name() + "][ActivityId: " + self.execution_config.activity_id + "][StartTime: " + self.execution_config.start_time + "][MaintenanceWindowDuration: " + self.execution_config.duration + "]")
 
         self.stopwatch.start()
 
-        maintenance_window = self.maintenance_window
-        package_manager = self.package_manager
-        reboot_manager = self.reboot_manager
+        if self.execution_config.is_livepatch_requested:
+            package_manager.start_livepatch()
 
         # Early reboot if reboot is allowed by settings and required by the machine
         reboot_pending = self.package_manager.is_reboot_pending()
