@@ -40,17 +40,17 @@ class TelemetryWriter(object):
         self.credential_sanitizer = credential_sanitizer
 
     def __new_event_json(self, event_level, message, task_name):
-        # Step 1: Apply message restrictions (formatting, truncation)
-        restricted_message = self.__ensure_message_restriction_compliance(message)
-        # Step 2: Sanitize credentials from URIs
-        sanitized_message = self.credential_sanitizer.sanitize(restricted_message)
+        # Step 1: Sanitize credentials from URIs
+        sanitized_message = self.credential_sanitizer.sanitize(message)
+        # Step 2: Apply message restrictions (formatting, truncation)
+        restricted_message = self.__ensure_message_restriction_compliance(sanitized_message)
 
         return {
             "Version": Constants.EXT_VERSION,
             "Timestamp": str(datetime.datetime.utcnow()),
             "TaskName": task_name,
             "EventLevel": event_level,
-            "Message": sanitized_message,
+            "Message": restricted_message,
             "EventPid": "",
             "EventTid": "",
             "OperationId": self.__operation_id  # This should have activity id from from config settings, but since we only read settings file for enable command, enable command will have activity id set here and all non-enable commands will have this as a timestamp
