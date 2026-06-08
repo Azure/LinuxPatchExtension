@@ -76,7 +76,7 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager.disable_auto_os_update()
         self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
-        self.assertTrue(image_default_patch_configuration_backup is not None)
+        self.assertIsNot(image_default_patch_configuration_backup, None)
 
         # validating backup for dnf-automatic
         self.assertTrue(package_manager.dnf5_auto_os_update_service in image_default_patch_configuration_backup)
@@ -158,8 +158,8 @@ class TestDnfPackageManager(unittest.TestCase):
                             '3.12.9-1.azl3', '3.12.3-4.azl3', '6.6.78.1-1.azl3', '3.12.3-5.azl3', '3.12.3-5.azl3']
         deduped_packages, deduped_package_versions = package_manager.dedupe_update_packages_to_get_latest_versions(
             packages, package_versions)
-        self.assertTrue(deduped_packages is not None and deduped_packages is not [])
-        self.assertTrue(deduped_package_versions is not None and deduped_package_versions is not [])
+        self.assertTrue(deduped_packages is not None and deduped_packages != [])
+        self.assertTrue(deduped_package_versions is not None and deduped_package_versions != [])
         self.assertTrue(len(deduped_packages) == 6)
         self.assertTrue(deduped_packages[0] == 'python3.x86_64')
         self.assertTrue(deduped_package_versions[0] == '3.12.9-1.azl3')
@@ -561,9 +561,6 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertEqual(versions[4], '3.12.3-6.azl4~20260501')
 
         # Test: install command generation (pure logic, safe to test)
-        packages = ['kernel.x86_64', 'selinux-policy-targeted.noarch']
-        package_versions = ['2.02.177-4.el7', '3.10.0-862.el7']
-
         # Test exception handling scenarios
         self.runtime.stop()
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True,Constants.DNF5)

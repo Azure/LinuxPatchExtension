@@ -14,7 +14,7 @@
 #
 # Requires Python 2.7+
 
-"""Dnf5PackageManager for Azure Linux 4 or above and RHEL"""
+"""Dnf5PackageManager for Azure Linux 4 or above"""
 import json
 import re
 
@@ -211,11 +211,11 @@ class Dnf5PackageManager(PackageManager):
         pass
 
     def install_security_updates_azgps_coordinated(self):
-        """no-op for now"""
+        """This is not applicable for dnf5 yet. DNF5 will not have this method implemented """
         pass
 
     def try_meet_azgps_coordinated_requirements(self):
-        """no-op for now"""
+        """This is not applicable for dnf5 yet. DNF5 will not have this method implemented"""
         pass
     # endregion
 
@@ -237,7 +237,6 @@ class Dnf5PackageManager(PackageManager):
         packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
         return package_versions
 
-    # AssessPatch method
     def is_package_version_installed(self, package_name, package_version):
         """Returns true if the specific package version is installed"""
         # Sample output format
@@ -254,58 +253,14 @@ class Dnf5PackageManager(PackageManager):
             else:
                 self.composite_logger.log_verbose("[DNF5] > Did not match: " + package + " (" + package_versions[index] + ")")
 
-        # sometimes packages are removed entirely from the system during installation of other packages
-        # so let's check that the package is still needed before
+        # If no matching package name and version are found in the package manager output, the requested version is not installed (it may have been replaced, upgraded, or removed)
         self.composite_logger.log_debug("[DNF5] > Installed version match NOT found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
         return False
 
     def get_dependent_list(self, packages):
         """Returns dependent list for the list of packages
-        Parameters:
-        - packages (list): List of package names to get dependencies for
-        Commands used:
-        - sudo dnf5 install --assumeno --skip-broken <packages> (simulates installation to find dependencies without actually installing)
-        Returns: List of dependency package names required for the input packages
-
-        Sample output format: ( Failure case : Dependency Fails and exit code : 0 ) - Raise Exception
-        # Updating and loading repositories:
-        # Repositories loaded.
-        # Problem: package perl-Getopt-Long-1:2.58-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Usage) >= 1.14, but none of the providers can be installed
-        #   - package perl-Pod-Usage-4:2.05-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Text) >= 4, but none of the providers can be installed
-        #   - package git-2.53.0-2.azl4~20260501.x86_64 from azurelinux-base requires perl(Getopt::Long), but none of the providers can be installed
-        #   - package perl-podlators-1:6.0.2-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Simple) >= 3.26, but none of the providers can be installed
-        #   - conflicting requests
-        #   - nothing provides perl(Text::Wrap) >= 98.112902 needed by perl-Pod-Simple-1:3.47-4.azl4~20260501.noarch from azurelinux-base
-        #
-        # Package           Arch   Version           Repository      Size
-        # Skipping packages with broken dependencies:
-        #  git              x86_64 2.53.0-2.azl4~202 azurelinux  56.4 KiB
-        #  perl-Getopt-Long noarch 1:2.58-521.azl4~2 azurelinux 144.5 KiB
-        #  perl-Pod-Simple  noarch 1:3.47-4.azl4~202 azurelinux 565.3 KiB
-        #  perl-Pod-Usage   noarch 4:2.05-521.azl4~2 azurelinux  86.3 KiB
-        #  perl-podlators   noarch 1:6.0.2-521.azl4~ azurelinux 317.5 KiB
-        # Nothing to do.
-            Exit Code : 0
-
-        #--------Success Case-------
-            [inGuestLinux@vm-yashna-linux4 ~]$ sudo dnf5 install --assumeno --skip-broken NetworkManager
-            Updating and loading repositories:
-            Repositories loaded.
-            Package                                 Arch      Version                                  Repository                   Size
-            Installing:
-             NetworkManager                         x86_64    1:1.54.3-3.azl4~20260501                 azurelinux-base           5.9 MiB
-            Installing dependencies:
-             NetworkManager-libnm                   x86_64    1:1.54.3-3.azl4~20260501                 azurelinux-base          10.0 MiB
-             libndp                                 x86_64    1.9-5.azl4~20260501                      azurelinux-base          86.0 KiB
-
-            Transaction Summary:
-             Installing:         3 packages
-
-            Total size of inbound packages is 4 MiB. Need to download 4 MiB.
-            After this operation, 16 MiB extra will be used (install 16 MiB, remove 0 B).
-            Operation aborted by the user.
-            Exit Code : 1
         """
+        # Gets the dependent list from packages.Refer dnf5_output_expected_format.txt for examples of output formats.
         package_names = " ".join(packages)
         cmd = self.single_package_upgrade_simulation_cmd + package_names
         code, output = self.env_layer.run_command_output(cmd, False, False)
@@ -319,42 +274,7 @@ class Dnf5PackageManager(PackageManager):
         return dependencies
 
     def extract_dependencies(self, output, packages):
-        # Sample output format (Success case with dependencies , exit code : 1)
-        # Command :  sudo dnf5 install --assumeno --skip-broken jq
-        # Updating and loading repositories:
-        # Repositories loaded.
-        # Package                                                                                                       Arch                   Version                                                                                                       Repository                                                           Size
-        # Installing:
-        #  jq                                                                                                           x86_64                 1.8.1-3.azl4~20260501                                                                                         azurelinux-base                                                 457.7 KiB
-        # Installing dependencies:
-        #  oniguruma                                                                                                    x86_64                 6.9.10-3.azl4~20260501                                                                                        azurelinux-base                                                 763.1 KiB
-        #
-        # Transaction Summary:
-        #  Installing:         2 packages
-        #
-        # Total size of inbound packages is 428 KiB. Need to download 428 KiB.
-        # After this operation, 1 MiB extra will be used (install 1 MiB, remove 0 B).
-        # Operation aborted by the user.
-
-        #Command : sudo dnf5 install --assumeno --skip-broken git
-        # Failure Case : Sample  output
-        # Updating and loading repositories:
-        # Repositories loaded.
-        # Problem: package perl-Getopt-Long-1:2.58-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Usage) >= 1.14, but none of the providers can be installed
-        #   - package perl-Pod-Usage-4:2.05-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Text) >= 4, but none of the providers can be installed
-        #   - package git-2.53.0-2.azl4~20260501.x86_64 from azurelinux-base requires perl(Getopt::Long), but none of the providers can be installed
-        #   - package perl-podlators-1:6.0.2-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Simple) >= 3.26, but none of the providers can be installed
-        #   - conflicting requests
-        #   - nothing provides perl(Text::Wrap) >= 98.112902 needed by perl-Pod-Simple-1:3.47-4.azl4~20260501.noarch from azurelinux-base
-        #
-        # Package                                       Arch        Version                                       Repository                     Size
-        # Skipping packages with broken dependencies:
-        #  git                                          x86_64      2.53.0-2.azl4~20260501                        azurelinux-base            56.4 KiB
-        #  perl-Getopt-Long                             noarch      1:2.58-521.azl4~20260501                      azurelinux-base           144.5 KiB
-        #  perl-Pod-Simple                              noarch      1:3.47-4.azl4~20260501                        azurelinux-base           565.3 KiB
-        #  perl-Pod-Usage                               noarch      4:2.05-521.azl4~20260501                      azurelinux-base            86.3 KiB
-        #  perl-podlators                               noarch      1:6.0.2-521.azl4~20260501                     azurelinux-base           317.5 KiB
-        # Nothing to do.
+        # Extracts dependent packages from output. Refer dnf5_output_expected_format.txt for examples of output formats.
         dependencies = []
 
         # Handle non-blocking dependency failure / nothing-to-do cases
@@ -397,26 +317,7 @@ class Dnf5PackageManager(PackageManager):
         return dependencies
 
     def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
-        """
-        Unnecessary for DNF because the package manager already handles multi-architecture dependencies automatically
-        Command Used to confirm above: sudo dnf5 -y install jq
-        Sample output format:
-        [inGuestLinux@vm-yashna-linux4 ~]$ sudo dnf5 install --assumeno jq
-        Updating and loading repositories:
-        Repositories loaded.
-        Package                                 Arch      Version                                  Repository                   Size
-        Installing:
-         jq                                     x86_64    1.8.1-3.azl4~20260501                    azurelinux-base           457.7 KiB
-        Installing dependencies:
-         oniguruma                              x86_64    6.9.10-3.azl4~20260501                  azurelinux-base           763.1 KiB
-
-        Transaction Summary:
-         Installing:         2 packages
-
-        Total size of inbound packages is 428 KiB. Need to download 428 KiB.
-        After this operation, 1 MiB extra will be used (install 1 MiB, remove 0 B).
-        Operation aborted by the user.
-        """
+        # Not needed since it already supports multi-architecture. Refer dnf5_output_expected_format.txt for examples of output formats.
         pass
 
     def is_valid_update(self, package_details_in_output, package_arch_to_look_for):
@@ -539,7 +440,7 @@ class Dnf5PackageManager(PackageManager):
             is_service_installed = True
             enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
 
-            self.composite_logger.log_debug("[DNF5]Checking if auto updates are currently enabled...")
+            self.composite_logger.log_verbose("[DNF5]Checking if auto updates are currently enabled...")
             image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path, raise_if_not_found=False)
             if image_default_patch_configuration is not None:
                 settings = image_default_patch_configuration.strip().split('\n')
@@ -553,11 +454,11 @@ class Dnf5PackageManager(PackageManager):
                         apply_updates_value = match.group(1)
 
             if download_updates_value == "":
-                self.composite_logger.log_debug("[DNF5] Machine did not have any value set for [Setting={0}]".format(str(self.download_updates_identifier_text)))
+                self.composite_logger.log_verbose("[DNF5] Machine did not have any value set for [Setting={0}]".format(str(self.download_updates_identifier_text)))
             else:
                 self.composite_logger.log_verbose("[DNF5]  Current value set for [{0}={1}]".format(str(self.download_updates_identifier_text), str(download_updates_value)))
             if apply_updates_value == "":
-                self.composite_logger.log_debug("[DNF5] Machine did not have any value set for [Setting={0}]".format(str(self.apply_updates_identifier_text)))
+                self.composite_logger.log_verbose("[DNF5] Machine did not have any value set for [Setting={0}]".format(str(self.apply_updates_identifier_text)))
             else:
                 self.composite_logger.log_verbose("[DNF5] Current value set for [{0}={1}]".format(str(self.apply_updates_identifier_text), str(apply_updates_value)))
             return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
@@ -567,29 +468,24 @@ class Dnf5PackageManager(PackageManager):
 
     def is_auto_update_service_installed(self, install_check_cmd):
         """ Checks if the auto update service is installed on the VM """
+        self.composite_logger.log_verbose("[DNF5] Checking if auto update service is installed. [Command={0}]".format(install_check_cmd))
         code, out = self.env_layer.run_command_output(install_check_cmd, False, False)
-        self.composite_logger.log_debug("[DNF5] Checked if auto update service is installed. [Command={0}][Code={1}][Output={2}]".format(install_check_cmd, str(code), out))
-        if len(out.strip()) > 0 and code == 0:
-            self.composite_logger.log_debug("[DNF5] > Auto OS update service is installed on the machine")
-            return True
-        else:
-            self.composite_logger.log_debug("[DNF5] > Auto OS update service is NOT installed on the machine")
-            return False
+        is_installed = len(out.strip()) > 0 and code == 0
+        self.composite_logger.log_debug("[DNF5] Auto update service check completed. [Command={0}][Code={1}][Output={2}][Installed={3}]".format(install_check_cmd, str(code), out, str(is_installed)))
+        return is_installed
 
     def is_service_set_to_enable_on_reboot(self, command):
         """ Checking if auto update is set to enable on reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot """
+        self.composite_logger.log_verbose("[DNF5] Checking if auto update service is set to enable on reboot. [Command={0}]".format(command))
         code, out = self.env_layer.run_command_output(command, False, False)
-        self.composite_logger.log_debug("[DNF5] Checked if auto update service is set to enable on reboot. [Code={0}][Out={1}]".format(str(code),out))
-        if len(out.strip()) > 0 and code == 0 and out.strip() == "enabled":
-            self.composite_logger.log_debug("[DNF5] > Auto OS update service will enable on reboot")
-            return True
-        self.composite_logger.log_debug("[DNF5] > Auto OS update service will NOT enable on reboot")
-        return False
+        is_enable_on_reboot = len(out.strip()) > 0 and code == 0 and out.strip() == "enabled"
+        self.composite_logger.log_debug("[DNF5] Auto update service enable on reboot check completed. [Command={0}][Code={1}][EnabledOnReboot={2}]".format(command,str(code),str(is_enable_on_reboot)))
+        return is_enable_on_reboot
 
     def __get_extension_standard_value_for_apply_updates(self, apply_updates_value):
-        if apply_updates_value.lower() == 'yes' or apply_updates_value.lower() == 'true':
+        if apply_updates_value.lower() == 'yes':
             return self.apply_updates_enabled
-        elif apply_updates_value.lower() == 'no' or apply_updates_value.lower() == 'false':
+        elif apply_updates_value.lower() == 'no':
             return self.apply_updates_disabled
         else:
             return self.apply_updates_unknown
@@ -648,7 +544,7 @@ class Dnf5PackageManager(PackageManager):
                         }
                     } """
         try:
-            self.composite_logger.log_debug("[DNF5] Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
+            self.composite_logger.log_verbose("[DNF5] Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
 
             image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
             # verify if existing backup is valid if not, write to backup
@@ -658,7 +554,7 @@ class Dnf5PackageManager(PackageManager):
                 self.composite_logger.log_debug("[DNF5] Since extension has a valid backup, no need to log the current settings again. ""[Default Auto OS update settings={0}] [File path={1}]".format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
             else:
                 self.composite_logger.log_debug("[DNF5] Since the backup is invalid, will add a new backup with the current auto OS update settings")
-                self.composite_logger.log_debug("[DNF5] Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
+                self.composite_logger.log_verbose("[DNF5] Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
 
                 is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
 
@@ -744,11 +640,11 @@ class Dnf5PackageManager(PackageManager):
             self.composite_logger.log_debug("[DNF5] Machine default auto OS update service is not installed on the VM and hence no config to revert. [Service={0}]".format(str(self.current_auto_os_update_service)))
             return
 
-        self.composite_logger.log_debug("[DNF5] Logging current configuration settings for auto OS updates [Service={0}][Is_Service_Installed={1}][Machine_default_update_enable_on_reboot={2}]".format(
+        self.composite_logger.log_verbose("[DNF5] Logging current configuration settings for auto OS updates [Service={0}][Is_Service_Installed={1}][Machine_default_update_enable_on_reboot={2}]".format(
                 str(self.current_auto_os_update_service), str(is_service_installed), str(enable_on_reboot_value)))
 
         image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
-        self.composite_logger.log_debug("[DNF5] Logging system default configuration settings for auto OS updates. [Settings={0}]".format(str(image_default_patch_configuration_backup)))
+        self.composite_logger.log_verbose("[DNF5] Logging system default configuration settings for auto OS updates. [Settings={0}]".format(str(image_default_patch_configuration_backup)))
         is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
 
         if is_backup_valid:
@@ -781,7 +677,6 @@ class Dnf5PackageManager(PackageManager):
     def __get_image_default_patch_configuration_backup(self):
         """ Get image_default_patch_configuration_backup file"""
         image_default_patch_configuration_backup = {}
-
         # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
         if self.image_default_patch_configuration_backup_exists():
             try:
@@ -795,6 +690,7 @@ class Dnf5PackageManager(PackageManager):
     def is_reboot_pending(self):
         """Checks reboot requirement for Azure Linux 4 (dnf5)"""
         try:
+            self.composite_logger.log_verbose("[DNF5] Checking if reboot is required using needs-restarting. [Command={0}]".format(self.needs_restarting_with_flag))
             code, _ = self.env_layer.run_command_output(self.needs_restarting_with_flag, False, False)
             reboot_required = (code == 1)
             self.composite_logger.log_debug("[DNF5] > Reboot required (needs-restarting) = {0}".format(reboot_required))
@@ -805,7 +701,7 @@ class Dnf5PackageManager(PackageManager):
 
     def do_processes_require_restart(self):
         """Fulfilling base class contract. Not needed for DNF5"""
-    pass
+        pass
     # endregion
 
     def set_security_esm_package_status(self, operation, packages):
