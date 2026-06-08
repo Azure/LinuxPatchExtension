@@ -17,6 +17,12 @@ import io
 import platform
 import sys
 import unittest
+# Conditional import for StringIO
+try:
+    from StringIO import StringIO  # Python 2
+except ImportError:
+    from io import StringIO  # Python 3
+
 from core.src.bootstrap.EnvLayer import EnvLayer
 from core.src.bootstrap.Constants import Constants
 from core.src.external_dependencies import distro
@@ -152,31 +158,32 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.cpu_arch()
         self.envlayer.platform.vm_name()
 
-    # def test_get_package_manager_azure_linux_4_and_rhel10_not_supported(self):
-    #     """Test that Azure Linux 4 and RHEL 10 log unsupported message"""
-    #     self.backup_platform_system = platform.system
-    #     self.backup_linux_distribution = self.envlayer.platform.linux_distribution
-    #     self.backup_distro_os_release_attr = distro.os_release_attr
-    #
-    #     platform.system = self.mock_platform_system
-    #     test_input_output_table = [
-    #         [self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Microsoft Azure Linux][Version=4.0][Code=]\n"],
-    #         [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_rhel_10, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Red Hat][Version=10.0][Code=abc]\n"],
-    #     ]
-    #
-    #     for row in test_input_output_table:
-    #         self.envlayer.platform.linux_distribution = row[0]
-    #         distro.os_release_attr = row[1]
-    #
-    #         captured_output = io.StringIO()
-    #         sys.stdout = captured_output
-    #         result = self.envlayer.get_package_manager()
-    #         sys.stdout = sys.__stdout__
-    #         self.assertEqual(row[2], captured_output.getvalue())
-    #         self.assertEqual(result, "")
-    #
-    #     # restore
-    #     self.__restore_mocks()
+    def test_get_package_manager_azure_linux_4_and_rhel10_not_supported(self):
+        """Test that Azure Linux 4 and RHEL 10 log unsupported message"""
+        self.backup_platform_system = platform.system
+        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
+        self.backup_distro_os_release_attr = distro.os_release_attr
+
+        platform.system = self.mock_platform_system
+        test_input_output_table = [
+            [self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Microsoft Azure Linux][Version=4.0][Code=]\n"],
+            [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_rhel_10, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Red Hat][Version=10.0][Code=abc]\n"],
+        ]
+
+        for row in test_input_output_table:
+            captured_output = StringIO()
+            original_output = sys.stdout
+            sys.stdout = captured_output
+            self.envlayer.platform.linux_distribution = row[0]
+            distro.os_release_attr = row[1]
+
+            result = self.envlayer.get_package_manager()
+            sys.stdout = original_output
+            self.assertEqual(row[2], captured_output.getvalue())
+            self.assertEqual(result, "")
+
+        # restore
+        self.__restore_mocks()
 
     def __restore_mocks(self):
         """Restore backed up mocks to their original state"""
