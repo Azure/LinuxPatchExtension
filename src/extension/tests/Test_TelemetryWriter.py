@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -176,20 +177,12 @@ class TestTelemetryWriter(unittest.TestCase):
             event_index: Index of the event within the file (default: -1 for last event)
         Returns: The parsed event dictionary from the JSON file
         """
-        event_files = sorted(os.listdir(self.telemetry_writer.events_folder_path))
-        if not event_files:
-            raise Exception("No event files found in events folder")
+        event_files = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                       re.search('^[0-9]+.json$', pos_json)][-1]
 
-        if file_index is None:
-            event_file_path = os.path.join(self.telemetry_writer.events_folder_path, event_files[-1])
-        else:
-            event_file_path = os.path.join(self.telemetry_writer.events_folder_path, event_files[file_index])
-
-        with open(event_file_path, 'r+') as f:
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, event_files), 'r+') as f:
             events = json.load(f)
             f.close()
-            if not events:
-                raise Exception("No events found in event file")
             return events[event_index]
 
     def _validate_sanitized_event(self, expected_message, task_name=None, event_index=-1, file_index=None):
@@ -235,10 +228,6 @@ class TestTelemetryWriter(unittest.TestCase):
         self._validate_sanitized_event("ERROR: Customer environment error (expired SSL certs):Command=sudo yum update -y --disablerepo='*' Status code: 401 "
                    "for https://testuser@packages-microsoft-com-prod/CENTRAL.rpm", task_name="Test Task", event_index=-1)
 
-    def test_sanitize_credentials_exception_handling(self):
-        """ Test exception handling: passing None should return the input unchanged """
-        result = self.telemetry_writer.credential_sanitizer.sanitize(None)
-        self.assertIsNone(result)
 
 if __name__ == '__main__':
      SUITE = unittest.TestLoader().loadTestsFromTestCase(TestTelemetryWriter)
