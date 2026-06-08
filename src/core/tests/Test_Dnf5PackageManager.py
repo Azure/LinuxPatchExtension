@@ -79,7 +79,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertIsNot(image_default_patch_configuration_backup, None)
 
         # validating backup for dnf-automatic
-        self.assertTrue(package_manager.dnf5_auto_os_update_service in image_default_patch_configuration_backup)
+        self.assertIn(package_manager.dnf5_auto_os_update_service, image_default_patch_configuration_backup)
         self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_download_updates_identifier_text], "yes")
         self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_apply_updates_identifier_text], "yes")
         self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_enable_on_reboot_identifier_text], False)
@@ -146,11 +146,11 @@ class TestDnfPackageManager(unittest.TestCase):
         package_versions = []
 
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         deduped_packages, deduped_package_versions = package_manager.dedupe_update_packages_to_get_latest_versions(
             packages, package_versions)
         self.assertTrue(deduped_packages == [])
-        self.assertTrue(deduped_package_versions == [])
+        self.assertEqual(deduped_package_versions, [])
 
         packages = ['python3.x86_64', 'dracut.x86_64', 'libxml2.x86_64', 'azurelinux-release.noarch', 'python3.noarch',
                     'python3.x86_64', 'python3.x86_64', 'hypervvssd.x86_64', 'python3.x86_64', 'python3.x86_64']
@@ -160,9 +160,9 @@ class TestDnfPackageManager(unittest.TestCase):
             packages, package_versions)
         self.assertTrue(deduped_packages is not None and deduped_packages != [])
         self.assertTrue(deduped_package_versions is not None and deduped_package_versions != [])
-        self.assertTrue(len(deduped_packages) == 6)
-        self.assertTrue(deduped_packages[0] == 'python3.x86_64')
-        self.assertTrue(deduped_package_versions[0] == '3.12.9-1.azl3')
+        self.assertEqual(len(deduped_packages), 6)
+        self.assertEqual(deduped_packages[0], 'python3.x86_64')
+        self.assertEqual(deduped_package_versions[0], '3.12.9-1.azl3')
 
     def test_obsolete_packages_should_not_considered_in_available_updates(self):
         self.runtime.set_legacy_test_type('ObsoletePackages')
