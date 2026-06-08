@@ -330,20 +330,12 @@ class TestTelemetryWriter(unittest.TestCase):
             event_index: Index of the event within the file (default: -1 for last event)
         Returns: The parsed event dictionary from the JSON file
         """
-        event_files = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if re.search('^[0-9]+.json$', pos_json)]
-        if not event_files:
-            raise Exception("No event files found in events folder")
+        event_files = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                       re.search('^[0-9]+.json$', pos_json)][-1]
 
-        if file_index is None:
-            event_file_path = os.path.join(self.runtime.telemetry_writer.events_folder_path, event_files[-1])
-        else:
-            event_file_path = os.path.join(self.runtime.telemetry_writer.events_folder_path, event_files[file_index])
-
-        with open(event_file_path, 'r+') as f:
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, event_files), 'r+') as f:
             events = json.load(f)
             f.close()
-            if not events:
-                raise Exception("No events found in event file")
             return events[event_index]
 
     def _get_message_without_tc(self, event):

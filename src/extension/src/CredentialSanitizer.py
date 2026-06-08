@@ -30,7 +30,7 @@ class CredentialSanitizer(object):
         Returns: The message with credentials removed from URIs
         """
         try:
-            # Pattern matches: scheme://user:password@host  →  scheme://user@host
+            # Pattern matches: scheme://user:password@host ->  scheme://user@host
             # Handles credentials containing special characters (except @, /, whitespace)
             # Groups:
             # (1) scheme: https://, http://, or ftp://
