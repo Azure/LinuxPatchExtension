@@ -1255,9 +1255,9 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         self.assertRaises(Exception, package_manager.update_certs)
         self.assertEqual(len(captured_errors), 2)
-        self.assertTrue("Customer environment error:" in captured_errors[0][0])
+        self.assertIn("Customer environment error:", captured_errors[0][0])
         self.assertEqual(captured_errors[0][1], Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-        self.assertTrue("Mokutil is not installed and could not be installed" in captured_errors[1][0])
+        self.assertIn("Mokutil is not installed and could not be installed", captured_errors[1][0])
         self.assertEqual(captured_errors[1][1], Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
 
         package_manager.status_handler.add_error_to_status = backup_add_error_to_status

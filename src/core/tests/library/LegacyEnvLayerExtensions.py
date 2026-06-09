@@ -553,7 +553,7 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = ("Issuer: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation Third Party Marketplace Root"
                                   "Subject: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation UEFI CA 2011")
-                    elif cmd.find("bash -c 'echo \"deb http://archive.ubuntu.com/ubuntu/ "
+                    elif cmd.find("bash -c 'echo \"deb https://archive.ubuntu.com/ubuntu/ "
                                   "$( . /etc/os-release && echo $VERSION_CODENAME )-proposed restricted main multiverse universe") > -1:
                         code = 0
                         output = "deb http://archive.ubuntu.com/ubuntu/ jammy-proposed restricted main multiverse universe "
@@ -709,7 +709,7 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("mokutil --db | grep 'CN='") > -1:
                         code = 1
                         output = "No Db cert found"
-                    elif cmd.find("bash -c 'echo \"deb http://archive.ubuntu.com/ubuntu/ "
+                    elif cmd.find("bash -c 'echo \"deb https://archive.ubuntu.com/ubuntu/ "
                                   "$( . /etc/os-release && echo $VERSION_CODENAME )-proposed restricted main multiverse universe") > -1:
                         code = 1
                         output = "Error: Unable to locate package multiverse universe\n "

@@ -56,7 +56,7 @@ class PackageManager(object):
 
         # Update certificates in factory defaults
         self.check_mokutil_exists_cmd = "command -v mokutil"
-        self.get_kek_cert_status_cmd = "mokutil --kek | grep 'CN='"  # todo: review if this should be changed to mokutil --kek 2>&1 | grep -oP 'CN=\K[^,]+' | sort -u | tr '\n' '; ' || echo "none"
+        self.get_kek_cert_status_cmd = "mokutil --kek | grep 'CN='"
         self.get_db_cert_status_cmd = "mokutil --db | grep 'CN='"
         self.mokutil_success_exit_code = 0
 

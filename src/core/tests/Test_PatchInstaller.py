@@ -54,9 +54,8 @@ class TestPatchInstaller(unittest.TestCase):
 
     @staticmethod
     def __write_config_settings_to_file(config_settings, config_file_path):
-        f = open(config_file_path, "w+")
-        f.write(json.dumps(config_settings))
-        f.close()
+        with open(config_file_path, "w+") as f:
+            f.write(json.dumps(config_settings))
 
     @staticmethod
     def _track_method_call(obj, method_name):

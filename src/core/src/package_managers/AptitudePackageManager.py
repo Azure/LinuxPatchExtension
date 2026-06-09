@@ -91,13 +91,12 @@ class AptitudePackageManager(PackageManager):
         
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
-        # Update certificates in factory defaults
-        # self.check_mokutil_exists_cmd = "command -v mokutil"
+        # Update certificates in factory defaults NOTE: The proposed references are short-term as it will be moved out soon
         self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
         self.proposed_repo_file_path = "/etc/apt/sources.list.d/proposed.list"
         self.proposed_pin_file_path = "/etc/apt/preferences.d/proposed"
         self.add_proposed_repo_cmd = (
-            "bash -c 'echo \"deb http://archive.ubuntu.com/ubuntu/ "
+            "bash -c 'echo \"deb https://archive.ubuntu.com/ubuntu/ "
             "$( . /etc/os-release && echo $VERSION_CODENAME )-proposed restricted main multiverse universe\" "
             "| sudo tee {0}'").format(self.proposed_repo_file_path)
         self.create_proposed_pin_cmd = (
@@ -973,7 +972,7 @@ class AptitudePackageManager(PackageManager):
         cmd = self.install_mokutil_cmd
         self.composite_logger.log_verbose('[APM] Invoking install mokutil command [Command={0}]'.format(cmd))
         out, code = self.invoke_package_manager_advanced(cmd, raise_on_exception=False)
-        self.composite_logger.log_debug('[APM] Invoked install mokutil exists. [Command={0}][Code={1}][Output={2}]'.format(cmd, str(code), str(out)))
+        self.composite_logger.log_debug('[APM] Invoked install mokutil command. [Command={0}][Code={1}][Output={2}]'.format(cmd, str(code), str(out)))
         return code == 0
 
     def try_update_certs(self):
@@ -994,6 +993,9 @@ class AptitudePackageManager(PackageManager):
             self.__run_cert_shell_command(self.fwupd_refresh_cmd, "FwupdRefresh", raise_on_error=True)
             self.__run_cert_shell_command(self.fwupd_update_cmd, "FwupdUpdate", raise_on_error=True)
 
+            """ NOTE: They tooling used to update here is fwupd (firmware update manager). In this method of updating certs, the exact version of current certs is never pinned
+            or set/referred while installing. fwupd fetches and installs latest available certs. This is beneficial because our code doesn't become dated in the future
+            (if it was pinned to an old version) but adds the need to verify if the certs we intend to update were applied. Hence the validation on latest certs. """
             if self.are_latest_certs_present():
                 self.composite_logger.log("[APM][Certs] Cert update completed and verified.")
                 success = True
