@@ -39,11 +39,24 @@ class TestPatchInstaller(unittest.TestCase):
 
     # region Utility functions (update cert tests)
     def _create_update_certs_runtime(self, enable_uefi_cert_update=True, health_store_id=None, operation=Constants.INSTALLATION):
-        runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.APT)
-        runtime.patch_installer.execution_config.enable_uefi_cert_update = enable_uefi_cert_update
-        runtime.patch_installer.execution_config.health_store_id = health_store_id
-        runtime.patch_installer.execution_config.operation = operation
+        argument_composer = ArgumentComposer()
+        argument_composer.health_store_id = health_store_id
+        argument_composer.operation = operation
+        config_file_path = Constants.AzGPSPaths.UEFI_SETTINGS
+        config_settings = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-04-21",
+            "EnableUEFICertUpdate": True if enable_uefi_cert_update else False,
+        }
+        self.__write_config_settings_to_file(config_settings, config_file_path=config_file_path)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         return runtime
+
+    @staticmethod
+    def __write_config_settings_to_file(config_settings, config_file_path):
+        f = open(config_file_path, "w+")
+        f.write(json.dumps(config_settings))
+        f.close()
 
     @staticmethod
     def _track_method_call(obj, method_name):
@@ -736,56 +749,63 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.stop()
 
     # region test update certs
-    def test_try_update_certs_skipped_when_enable_uefi_cert_update_is_false(self):
-        """try_update_certificates_for_default_patching should NOT be called when the feature flag is off."""
-        runtime = self._create_update_certs_runtime(enable_uefi_cert_update=False, health_store_id="pub_off_sku_2025.01.01")
-        runtime.set_legacy_test_type('SuccessInstallPath')
+    def test_try_update_certificates_for_default_patching(self):
+        """ Test update certificates code path depending on different configurations """
 
-        try_update_certs_for_default_patching_called = self._track_method_call(runtime.patch_installer, 'try_update_certificates_for_default_patching')
+        # Use case 1: Feature flag is off
+        enable_uefi_cert_update_usecase1 = False
+        health_store_id_usecase1 = "pub_off_sku_2025.01.01"
+        operation_usecase1 = Constants.INSTALLATION
+        method_to_track_usecase1 = 'try_update_certificates_for_default_patching'
+        is_package_manager_method_usecase1 = False
+        number_of_times_method_called_usecase1 = 0
 
-        runtime.patch_installer.start_installation(simulate=True)
-        self.assertEqual(len(try_update_certs_for_default_patching_called), 0)
-        runtime.stop()
+        # Use case 2: update_certs should NOT be called when health_store_id is None i.e. not a default patching operation
+        enable_uefi_cert_update_usecase2 = True
+        health_store_id_usecase2 = None
+        operation_usecase2 = Constants.INSTALLATION
+        method_to_track_usecase2 = 'update_certs'
+        is_package_manager_method_usecase2 = True
+        number_of_times_method_called_usecase2= 0
 
-    def test_try_update_certs_skipped_when_health_store_id_is_none(self):
-        """update_certs should NOT be called when health_store_id is None."""
-        runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id=None)
+        # Use case 3: """update_certs should NOT be called when health_store_id is an empty string i.e. not a default patching operation
+        enable_uefi_cert_update_usecase3 = True
+        health_store_id_usecase3 = str()
+        operation_usecase3 = Constants.INSTALLATION
+        method_to_track_usecase3 = 'update_certs'
+        is_package_manager_method_usecase3 = True
+        number_of_times_method_called_usecase3 = 0
 
-        update_certs_called = self._track_method_call(runtime.patch_installer.package_manager, 'update_certs')
+        # Use case 4: update_certs should NOT be called when operation is Assessment (not Installation). i.e. not default patching operation
+        enable_uefi_cert_update_usecase4 = True
+        health_store_id_usecase4 = None
+        operation_usecase4 = Constants.ASSESSMENT
+        method_to_track_usecase4 = 'update_certs'
+        is_package_manager_method_usecase4 = True
+        number_of_times_method_called_usecase4 = 0
 
-        runtime.patch_installer.try_update_certificates_for_default_patching()
-        self.assertEqual(len(update_certs_called), 0)
-        runtime.stop()
+        # Use case 5: update_certs SHOULD be called when feature flag is on, health_store_id is set, and operation is Installation (for default patching)
+        enable_uefi_cert_update_usecase5 = True
+        health_store_id_usecase5 = "pub_off_sku_2025.01.01"
+        operation_usecase5 = Constants.INSTALLATION
+        method_to_track_usecase5 = 'update_certs'
+        is_package_manager_method_usecase5 = True
+        number_of_times_method_called_usecase5 = 1
 
-    def test_try_update_certs_skipped_when_health_store_id_is_empty_string(self):
-        """update_certs should NOT be called when health_store_id is an empty string."""
-        runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id=str())
+        test_input_output_table = [
+            [enable_uefi_cert_update_usecase1, health_store_id_usecase1, operation_usecase1, method_to_track_usecase1, is_package_manager_method_usecase1, number_of_times_method_called_usecase1],
+            [enable_uefi_cert_update_usecase2, health_store_id_usecase2, operation_usecase2, method_to_track_usecase2, is_package_manager_method_usecase2, number_of_times_method_called_usecase2],
+            [enable_uefi_cert_update_usecase3, health_store_id_usecase3, operation_usecase3, method_to_track_usecase3, is_package_manager_method_usecase3, number_of_times_method_called_usecase3],
+            [enable_uefi_cert_update_usecase4, health_store_id_usecase4, operation_usecase4, method_to_track_usecase4, is_package_manager_method_usecase4, number_of_times_method_called_usecase4],
+            [enable_uefi_cert_update_usecase5, health_store_id_usecase5, operation_usecase5, method_to_track_usecase5, is_package_manager_method_usecase5, number_of_times_method_called_usecase5],
+        ]
 
-        update_certs_called = self._track_method_call(runtime.patch_installer.package_manager, 'update_certs')
-
-        runtime.patch_installer.try_update_certificates_for_default_patching()
-        self.assertEqual(len(update_certs_called), 0)
-        runtime.stop()
-
-    def test_try_update_certs_skipped_when_operation_is_not_installation(self):
-        """update_certs should NOT be called when operation is Assessment (not Installation)."""
-        runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, operation=Constants.ASSESSMENT)
-
-        update_certs_called = self._track_method_call(runtime.patch_installer.package_manager, 'update_certs')
-
-        runtime.patch_installer.try_update_certificates_for_default_patching()
-        self.assertEqual(len(update_certs_called), 0)
-        runtime.stop()
-
-    def test_try_update_certs_invoked_for_default_patching(self):
-        """update_certs SHOULD be called when feature flag is on, health_store_id is set, and operation is Installation (for default patching)"""
-        runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id="pub_off_sku_2025.01.01")
-
-        update_certs_called = self._track_method_call(runtime.patch_installer.package_manager, 'update_certs')
-
-        runtime.patch_installer.try_update_certificates_for_default_patching()
-        self.assertEqual(len(update_certs_called), 1)
-        runtime.stop()
+        for row in test_input_output_table:
+            runtime = self._create_update_certs_runtime(enable_uefi_cert_update=bool(row[0]), health_store_id=row[1], operation=row[2])
+            method_called = self._track_method_call(runtime.patch_installer.package_manager if row[4] == True else runtime.patch_installer, row[3])
+            runtime.patch_installer.start_installation(simulate=True)
+            self.assertEqual(len(method_called), row[5], "Failed for row: {row}")
+            runtime.stop()
 
     def test_try_update_certs_swallows_exception_from_update_certs(self):
         """An exception raised by update_certs should be swallowed and not propagate."""
@@ -793,7 +813,7 @@ class TestPatchInstaller(unittest.TestCase):
         backup_up_update_certs = runtime.patch_installer.package_manager.update_certs
 
         runtime.patch_installer.package_manager.update_certs = self.mock_update_certs_raise_exception
-        runtime.patch_installer.try_update_certificates_for_default_patching()
+        runtime.patch_installer.start_installation(simulate=True)
 
         runtime.patch_installer.package_manager.update_certs = backup_up_update_certs
         runtime.stop()

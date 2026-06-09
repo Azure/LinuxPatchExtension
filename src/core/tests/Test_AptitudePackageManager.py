@@ -77,6 +77,16 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_is_reboot_pending_returns_bool_False(self):
         return False
 
+    def mock_fetch_current_certs_only_db_latest(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
+        if cert_type == Constants.Certificates.KEK:
+            return 0, "CN=LegacyCert 2011"
+        return 0, "CN=LatestCert 2023"
+
+    def mock_fetch_current_certs_kek_latest_db_fails(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
+        if cert_type == Constants.Certificates.KEK:
+            return 0, "CN=LatestCert 2023"
+        return 1, "mokutil error"
+
     def mock_are_latest_certs_present_with_different_output_across_multiple_attempts(self):
         """Mock the presence of latest certs with different output across multiple attempts."""
         self.latest_certs_check_attempts += 1
@@ -98,6 +108,9 @@ class TestAptitudePackageManager(unittest.TestCase):
             if self.latest_apt_update_cmd_attempt == 2:
                 return 1, "Error"
         return 0, ""
+
+    def mock_is_mokutil_installed_return_false(self):
+        return False
     # endregion Mocks
 
     # region Utility Functions
@@ -1104,6 +1117,29 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         self.assertFalse(package_manager.try_install_mokutil())
 
+    def test_are_latest_certs_present_returns_true_when_both_kek_and_db_are_latest(self):
+        self.runtime.set_legacy_test_type('SuccessInstallPath')
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager.are_latest_certs_present())
+
+    def test_are_latest_certs_present_returns_false_when_kek_is_not_latest(self):
+        package_manager = self.container.get('package_manager')
+        backup_fetch_current_certs = package_manager.fetch_current_certs
+
+        package_manager.fetch_current_certs = self.mock_fetch_current_certs_only_db_latest
+
+        self.assertFalse(package_manager.are_latest_certs_present())
+        package_manager.fetch_current_certs = backup_fetch_current_certs
+
+    def test_are_latest_certs_present_returns_false_when_db_fetch_fails(self):
+        package_manager = self.container.get('package_manager')
+        backup_fetch_current_certs = package_manager.fetch_current_certs
+
+        package_manager.fetch_current_certs = self.mock_fetch_current_certs_kek_latest_db_fails
+
+        self.assertFalse(package_manager.are_latest_certs_present())
+        package_manager.fetch_current_certs = backup_fetch_current_certs
+
     def test_try_update_certs_returns_true_when_latest_certs_already_present(self):
         self.runtime.set_legacy_test_type('SuccessInstallPath')
         package_manager = self.container.get('package_manager')
@@ -1182,6 +1218,49 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.assertEqual(package_manager.status_handler.is_reboot_pending, previous_reboot_pending_status)
 
         package_manager.env_layer.run_command_output = backup_run_command_output
+
+    def test_update_certs_calls_try_update_when_mokutil_already_installed(self):
+        package_manager = self.container.get('package_manager')
+        backup_try_update_certs = package_manager.try_update_certs
+
+        calls = []
+        package_manager.try_update_certs = lambda: calls.append("try_update_certs")
+        package_manager.update_certs()
+
+        self.assertEqual(calls, ["try_update_certs"])
+        package_manager.try_update_certs = backup_try_update_certs
+
+    def test_update_certs_calls_try_update_when_mokutil_install_succeeds(self):
+        package_manager = self.container.get('package_manager')
+        backup_is_mokutil_installed = package_manager.is_mokutil_installed
+        backup_try_update_certs = package_manager.try_update_certs
+
+        calls = []
+        package_manager.is_mokutil_installed = self.mock_is_mokutil_installed_return_false
+        package_manager.try_update_certs = lambda: calls.append("try_update_certs")
+
+        package_manager.update_certs()
+        self.assertEqual(calls, ["try_update_certs"])
+
+        package_manager.is_mokutil_installed = backup_is_mokutil_installed
+        package_manager.try_update_certs = backup_try_update_certs
+
+    def test_update_certs_raises_when_mokutil_install_fails(self):
+        self.runtime.set_legacy_test_type('SadPath')
+        package_manager = self.container.get('package_manager')
+        backup_add_error_to_status = package_manager.status_handler.add_error_to_status
+
+        captured_errors = []
+        package_manager.status_handler.add_error_to_status = lambda error_msg, error_code=None: captured_errors.append((error_msg, error_code))
+
+        self.assertRaises(Exception, package_manager.update_certs)
+        self.assertEqual(len(captured_errors), 2)
+        self.assertTrue("Customer environment error:" in captured_errors[0][0])
+        self.assertEqual(captured_errors[0][1], Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+        self.assertTrue("Mokutil is not installed and could not be installed" in captured_errors[1][0])
+        self.assertEqual(captured_errors[1][1], Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+
+        package_manager.status_handler.add_error_to_status = backup_add_error_to_status
     # endregion
 
 

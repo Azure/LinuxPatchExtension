@@ -539,6 +539,9 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('pro security-status --format=json') > -1:
                         code = 0
                         output = "{\"summary\":{\"ua\":{\"attached\":true}}}"
+                    elif cmd.find('command -v mokutil') > -1:
+                        code = 0
+                        output = '/usr/bin/mokutil'
                     elif cmd.find('apt-get install -y -qq mokutil') > -1:
                         code = 0
                         output = "Installed"
@@ -697,9 +700,15 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('pro security-status --format=json') > -1:
                         code = 0
                         output = "{\"summary\":{\"ua\":{\"attached\":false}}}"
+                    elif cmd.find('command -v mokutil') > -1:
+                        code = 1
+                        output = 'E: Unable to locate package mokutil'
                     elif cmd.find('apt-get install -y -qq mokutil') > 1:
                         code = 1
                         output = "E: Unable to locate package mokutil\n"
+                    elif cmd.find("mokutil --db | grep 'CN='") > -1:
+                        code = 1
+                        output = "No Db cert found"
                     elif cmd.find("bash -c 'echo \"deb http://archive.ubuntu.com/ubuntu/ "
                                   "$( . /etc/os-release && echo $VERSION_CODENAME )-proposed restricted main multiverse universe") > -1:
                         code = 1

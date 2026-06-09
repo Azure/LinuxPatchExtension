@@ -58,39 +58,6 @@ class TestExecutionConfig(unittest.TestCase):
         self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=False, expected_enable_uefi_cert_update=False)
         self.__teardown(runtime)
 
-    def test_uefi_config_when_no_data_found_in_file(self):
-        # UEFI in-VM customer config file exists but the file has no data
-        uefi_settings = None
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=False)
-        self.__teardown(runtime)
-
-    def test_uefi_config_when_enable_uefi_cert_update_not_in_config(self):
-        # EnableUEFICertUpdate not set in config
-        uefi_settings = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21"
-        }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=False)
-        self.__teardown(runtime)
-
-    def test_uefi_config_when_enable_uefi_cert_update_not_set_as_boolean(self):
-        uefi_settings = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": "test"
-        }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=False)
-        self.__teardown(runtime)
-
-    def test_uefi_config_with_illformed_config(self):
-        uefi_settings = ["test unexpected config value"]
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=False)
-        self.__teardown(runtime)
-
     def test_uefi_config_when_file_read_raises_exception(self):
         uefi_settings = {
             "EnabledBy": "TestSetup",
@@ -105,65 +72,128 @@ class TestExecutionConfig(unittest.TestCase):
         runtime.env_layer.file_system.read_with_retry = self.backup_read_with_retry
         self.__teardown(runtime)
 
-    def test_uefi_config_file_with_enable_uefi_cert_update_set_to_false(self):
-        # Tests UEFI cert update enable set with different non-true values
+    def test_uefi_config_file_with_enable_uefi_cert_update(self):
+        # Tests UEFI cert update enable set with different values based in uefi config
 
-        # Value set to boolean False
-        uefi_settings = {
+        # Use Case 1: No UEFI config found on VM
+        uefi_settings_update_cert_when_no_uefi_config = None
+        expected_file_status_when_no_uefi_config = True
+        expected_enable_uefi_when_no_uefi_config = False
+
+        # Use Case 2: UEFI settings are illformed
+        uefi_settings_update_cert_when_enable_not_in_config = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-04-21"
+        }
+        expected_file_status_when_enable_not_in_config = True
+        expected_enable_uefi_when_enable_not_in_config = False
+
+        # Use Case 3: UEFI settings are illformed
+        uefi_settings_update_cert_illformed_config = ["test unexpected config value"]
+        expected_file_status_when_illformed_config = True
+        expected_enable_uefi_when_illformed_config = False
+
+        # Use Case 4: Value set to boolean False
+        uefi_settings_update_cert_false = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
             "EnableUEFICertUpdate": False
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=False)
-        self.__teardown(runtime)
+        expected_file_status_when_update_cert_false = True
+        expected_enable_uefi_when_update_cert_false = False
 
-        # Value set to random string
-        uefi_settings = {
+        # Use Case 5: Value set to random string
+        uefi_settings_when_update_cert_is_str = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
             "EnableUEFICertUpdate": "3"
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=False)
-        self.__teardown(runtime)
+        expected_file_status_when_update_cert_is_str = True
+        expected_enable_uefi_when_update_cert_is_str = False
 
-    def test_uefi_config_file_with_enable_uefi_cert_update_set_to_true(self):
+        # Use Case 6: Value set to random string test 2
+        uefi_settings_when_update_cert_is_str_test2 = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-04-21",
+            "EnableUEFICertUpdate": "test"
+        }
+        expected_file_status_when_update_cert_is_str_test2 = True
+        expected_enable_uefi_when_update_cert_is_str_test2 = False
+
+        # Use Case 7: Value set to float
+        uefi_settings_when_update_cert_is_float = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-04-21",
+            "EnableUEFICertUpdate": 3.1
+        }
+        expected_file_status_when_update_cert_is_float = True
+        expected_enable_uefi_when_update_cert_is_float = False
+
         # Tests EnableUEFICertUpdate with all acceptable values of true
-
-        # Value set to boolean True
-        uefi_settings = {
+        # Use Case 8: Value set to boolean True
+        uefi_settings_when_update_cert_true = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
             "EnableUEFICertUpdate": True
         }
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=True)
-        self.__teardown(runtime)
+        expected_file_status_when_update_cert_true = True
+        expected_enable_uefi_when_update_cert_true = True
 
-        # Value set to string "True"
-        uefi_settings["EnableUEFICertUpdate"] = "True"
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=True)
-        self.__teardown(runtime)
+        # Use Case 9: Value set to boolean True
+        uefi_settings_when_update_cert_true_str = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-04-21",
+            "EnableUEFICertUpdate": "True"
+        }
+        expected_file_status_when_update_cert_true_str = True
+        expected_enable_uefi_when_update_cert_true_str = True
 
-        # Value set to string "true"
-        uefi_settings["EnableUEFICertUpdate"] = "true"
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=True)
-        self.__teardown(runtime)
+        # Use Case 10: Value set to boolean True
+        uefi_settings_when_update_cert_true_str_lower_case = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-04-21",
+            "EnableUEFICertUpdate": "true"
+        }
+        expected_file_status_when_update_cert_true_str_lower_case = True
+        expected_enable_uefi_when_update_cert_true_str_lower_case = True
 
-        # Value set to string "1"
-        uefi_settings["EnableUEFICertUpdate"] = "1"
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=True)
-        self.__teardown(runtime)
+        # Use Case 11: Value set to boolean True
+        uefi_settings_when_update_cert_true_numericstr = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-04-21",
+            "EnableUEFICertUpdate": "1"
+        }
+        expected_file_status_when_update_cert_true_numericstr = True
+        expected_enable_uefi_when_update_cert_true_numericstr = True
 
-        # Value set to 1
-        uefi_settings["EnableUEFICertUpdate"] = 1
-        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=True, expected_enable_uefi_cert_update=True)
-        self.__teardown(runtime)
+        # Use Case 12: Value set to boolean True
+        uefi_settings_when_update_cert_true_numeric = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-04-21",
+            "EnableUEFICertUpdate": 1
+        }
+        expected_file_status_when_update_cert_true_numeric = True
+        expected_enable_uefi_when_update_cert_true_numeric = True
+
+        test_input_output_table = [
+            [uefi_settings_update_cert_when_no_uefi_config, expected_file_status_when_no_uefi_config, expected_enable_uefi_when_no_uefi_config],
+            [uefi_settings_update_cert_when_enable_not_in_config, expected_file_status_when_enable_not_in_config, expected_enable_uefi_when_enable_not_in_config],
+            [uefi_settings_update_cert_illformed_config, expected_file_status_when_illformed_config, expected_enable_uefi_when_illformed_config],
+            [uefi_settings_update_cert_false, expected_file_status_when_update_cert_false, expected_enable_uefi_when_update_cert_false],
+            [uefi_settings_when_update_cert_is_str, expected_file_status_when_update_cert_is_str, expected_enable_uefi_when_update_cert_is_str],
+            [uefi_settings_when_update_cert_is_str_test2, expected_file_status_when_update_cert_is_str_test2, expected_enable_uefi_when_update_cert_is_str_test2],
+            [uefi_settings_when_update_cert_is_float, expected_file_status_when_update_cert_is_float, expected_enable_uefi_when_update_cert_is_float],
+            [uefi_settings_when_update_cert_true, expected_file_status_when_update_cert_true, expected_enable_uefi_when_update_cert_true],
+            [uefi_settings_when_update_cert_true_str, expected_file_status_when_update_cert_true_str, expected_enable_uefi_when_update_cert_true_str],
+            [uefi_settings_when_update_cert_true_str_lower_case, expected_file_status_when_update_cert_true_str_lower_case, expected_enable_uefi_when_update_cert_true_str_lower_case],
+            [uefi_settings_when_update_cert_true_numericstr, expected_file_status_when_update_cert_true_numericstr, expected_enable_uefi_when_update_cert_true_numericstr],
+            [uefi_settings_when_update_cert_true_numeric, expected_file_status_when_update_cert_true_numeric, expected_enable_uefi_when_update_cert_true_numeric]
+        ]
+
+        for row in test_input_output_table:
+            runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=row[0])
+            self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=row[1], expected_enable_uefi_cert_update=row[2])
+            self.__teardown(runtime)
 
     def __assert_uefi_configs(self, execution_config, expected_file_exists, expected_enable_uefi_cert_update):
         self.assertEqual(os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS), expected_file_exists)

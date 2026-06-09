@@ -817,5 +817,5 @@ class PatchInstaller(object):
         # type: () -> bool
         """ Returns true if the patching run is a default patching run"""
         return (self.execution_config.health_store_id is not None and
-                self.execution_config.health_store_id is not str() and
+                self.execution_config.health_store_id != "" and
                 self.execution_config.operation.lower() == Constants.INSTALLATION.lower())
