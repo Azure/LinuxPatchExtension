@@ -16,9 +16,13 @@ class TestTelemetryWriter(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
         self.telemetry_writer = self.runtime.telemetry_writer
-        self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
         self.telemetry_writer._TelemetryWriter__agent_is_compatible = True
         Constants.TELEMETRY_ENABLED_AT_EXTENSION = True
+        print("Before folder path")
+        print(" self.telemetry_writer",  self.telemetry_writer)
+        print(" self.telemetry_writer.events_folder_path", self.telemetry_writer.events_folder_path)
+        self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
+        print("After folder path")
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
@@ -162,13 +166,6 @@ class TestTelemetryWriter(unittest.TestCase):
         os.listdir = backup_os_listdir
 
     # ==================== Unit tests for credential sanitization in telemetry ====================
-    def _clear_events_folder(self):
-        """
-        Helper method to clear the events folder for sanitization test setup.
-        """
-        shutil.rmtree(self.telemetry_writer.events_folder_path)
-        self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
-
     def _read_event_from_file(self, file_index=None, event_index=-1):
         """
         Helper method to open and read an event from an event file in the events folder.
