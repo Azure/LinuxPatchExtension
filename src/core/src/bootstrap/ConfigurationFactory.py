@@ -120,7 +120,7 @@ class ConfigurationFactory(object):
             print ("Error: Environment configuration not supported - " + str(env))
             return None
 
-        if str(package_manager_name) not in [Constants.APT, Constants.TDNF, Constants.YUM, Constants.ZYPPER]:
+        if str(package_manager_name) not in [Constants.APT, Constants.DNF4, Constants.TDNF, Constants.YUM, Constants.ZYPPER]:
             print ("Error: Package manager configuration not supported - " + str(package_manager_name))
             return None
 

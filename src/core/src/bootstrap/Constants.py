@@ -201,10 +201,11 @@ class Constants(object):
 
     # Package Managers
     APT = 'apt'
+    DNF4 = 'dnf4'
     TDNF = 'tdnf'
     YUM = 'yum'
     ZYPPER = 'zypper'
-    DNF4 = 'dnf4'
+
 
     # Package Statuses
     INSTALLED = 'Installed'

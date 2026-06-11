@@ -1,0 +1,49 @@
+Example of different output formats for DNF 4 commands:
+
+In DNF$ : Sample Output for the command 'dnf4 install --assumeno git' is as follows(Success use case):
+        #      Updating Subscription Management repositories.
+        #      Last metadata expiration check: 1:13:33 ago on Wed Jun 10 12:37:56 2026.
+        #      Dependencies resolved.
+        #      ========================================================================================================================================================================================================================================================================================
+        #       Package                                                            Architecture                                             Version                                                                Repository                                                                     Size
+        #      ========================================================================================================================================================================================================================================================================================
+        #      Installing:
+        #       git                                                                x86_64                                                   2.52.0-1.el10                                                          rhel-10-appstream-rhui-rpms                                                    46 k
+        #      Installing dependencies:
+        #       git-core                                                           x86_64                                                   2.52.0-1.el10                                                          rhel-10-appstream-rhui-rpms                                                   5.2 M
+        #       git-core-doc                                                       noarch                                                   2.52.0-1.el10                                                          rhel-10-appstream-rhui-rpms                                                   3.2 M
+        #       perl-Error                                                         noarch                                                   1:0.17029-18.el10                                                      rhel-10-appstream-rhui-rpms                                                    46 k
+        #       perl-Git                                                           noarch                                                   2.52.0-1.el10                                                          rhel-10-appstream-rhui-rpms                                                    43 k
+        #       perl-TermReadKey                                                   x86_64                                                   2.38-24.el10                                                           rhel-10-appstream-rhui-rpms                                                    40 k
+        #       perl-lib                                                           x86_64                                                   0.65-512.2.el10_0                                                      rhel-10-appstream-rhui-rpms                                                    16 k
+        #      Transaction Summary
+        #      ========================================================================================================================================================================================================================================================================================
+        #      Install  7 Packages
+        #      Total download size: 8.6 M
+        #      Installed size: 40 M
+        #      Operation aborted.
+
+In DNF4 : Sample output for command 'dnf4 install --assumeno python3' is as follows (arch dependencies):
+        #      Updating Subscription Management repositories.
+        #      Last metadata expiration check: 1:05:28 ago on Tue Jun  9 15:10:49 2026.
+        #      Package python3-3.12.12-3.el10_1.2.x86_64 is already installed.
+        #      Dependencies resolved.
+        #      ========================================================================================================================================================================================================================================================================================
+        #       Package                                                                    Architecture                                           Version                                                            Repository                                                                   Size
+        #      ========================================================================================================================================================================================================================================================================================
+        #      Upgrading:
+        #       expat                                                                      x86_64                                                 2.7.3-1.el10_2.1                                                   rhel-10-baseos-rhui-rpms                                                    126 k
+        #       python-unversioned-command                                                 noarch                                                 3.12.13-2.el10_2                                                   rhel-10-appstream-rhui-rpms                                                  17 k
+        #       python3                                                                    x86_64                                                 3.12.13-2.el10_2                                                   rhel-10-baseos-rhui-rpms                                                     35 k
+        #       python3-libs                                                               x86_64                                                 3.12.13-2.el10_2                                                   rhel-10-baseos-rhui-rpms                                                    9.5 M
+        #      Transaction Summary
+        #      ========================================================================================================================================================================================================================================================================================
+         #      Upgrade  4 Packages
+         #      Total download size: 9.6 M
+         #      Operation aborted.
+         #
+         # 2nd Sample output for the command `dnf4 install --assumeno glibc.i686` (Failure case - package not found):
+         #      Updating Subscription Management repositories.
+         #      Last metadata expiration check: 1:05:52 ago on Tue Jun  9 15:10:49 2026.
+         #      No match for argument: glibc.i686
+         #      Error: Unable to find a match: glibc.i686
