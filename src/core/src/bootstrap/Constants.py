@@ -96,6 +96,11 @@ class Constants(object):
     TEMP_FOLDER_DIR_NAME = "tmp"
     TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list", "azgps*"]
 
+    # Boot Certificates to update
+    class Certificates(EnumBackport):
+        KEK = "KEK"
+        DB = "DB"
+
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
 
@@ -304,11 +309,6 @@ class Constants(object):
     # Settings for Error Objects logged in status file
     STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128
     STATUS_ERROR_LIMIT = 5
-
-    # Boot Certificates to update
-    class Certificates(EnumBackport):
-        KEK = "KEK"
-        DB = "DB"
 
     LATEST_CERTIFICATE_TIMESTAMP = "2023"
 

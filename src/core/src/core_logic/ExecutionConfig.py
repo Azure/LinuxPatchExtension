@@ -265,7 +265,7 @@ class ExecutionConfig(object):
 
     @staticmethod
     def __fetch_specific_azgps_setting(settings_source, setting_to_fetch):
-        """ Returns the specific setting value from eula_settings_source or None if not found """
+        """ Returns the specific setting value azgps settings source or None if not found """
         if settings_source is not None and setting_to_fetch is not None and setting_to_fetch in settings_source:
             return settings_source[setting_to_fetch]
         return None

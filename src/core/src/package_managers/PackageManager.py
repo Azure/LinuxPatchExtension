@@ -498,6 +498,7 @@ class PackageManager(object):
         pass
 
     # region Update certificates in factory defaults
+    # TODO (Before removing in-VM feature flag): This update should not be done in CVMs in current form
     def update_certs(self):
         # 1. Fetch and Log current certs on the VM NOTE: Common across distros
             # ensure mokutil exists
