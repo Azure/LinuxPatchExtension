@@ -54,7 +54,7 @@ class Dnf5PackageManager(PackageManager):
         self.dnf5_dependency_exit_text = "Transaction Summary"
         self.dnf5_not_installed_exit_code = 1
         self.dnf5_not_installed_text = "No matching packages to list"
-        self.dnf5_list_installed_command_patterns = ["list --installed"]
+        self.dnf5_list_installed_command_patterns = "list --installed"
 
         self.set_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, Constants.DNF5)
 
@@ -92,7 +92,7 @@ class Dnf5PackageManager(PackageManager):
     def invoke_package_manager_advanced(self, command, raise_on_exception=True):
         self.composite_logger.log_verbose("[DNF5] Invoking package manager. [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
-        is_valid_not_installed = ("list --installed" in command and code == self.dnf5_not_installed_exit_code and self.dnf5_not_installed_text in (out or ""))
+        is_valid_not_installed = (self.dnf5_list_installed_command_patterns in command and code == self.dnf5_not_installed_exit_code and self.dnf5_not_installed_text in (out or ""))
 
         if code in self.dnf_exitcode_ok or is_valid_not_installed:
             self.composite_logger.log_debug('[DNF5] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -269,7 +269,7 @@ class Dnf5PackageManager(PackageManager):
         self.composite_logger.log_verbose("[DNF5] Dependency simulation. [Command={0}][Code={1}]".format(cmd, str(code)))
         if code not in self.dnf5_simulation_valid_exit_codes:
             self.composite_logger.log_error("[DNF5] Unexpected failure. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output))
-            raise Exception("DNF dependency simulation failed")
+            raise Exception("DNF5 dependency simulation failed")
 
         dependencies = self.extract_dependencies(output, packages)
         self.composite_logger.log_verbose("[DNF5] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd), str(packages), len(dependencies)))
@@ -298,6 +298,7 @@ class Dnf5PackageManager(PackageManager):
 
             #  Detect exit of dependency section
             if in_dependency_section and line_str.startswith(self.dnf5_dependency_exit_text):
+                self.composite_logger.log_verbose("[DNF5] Exiting dependency section. Remaining output lines are skipped.")
                 break
 
             line = re.split(r'\s+', line_str)
@@ -312,7 +313,7 @@ class Dnf5PackageManager(PackageManager):
             #  Remove input packages (support both pkg and pkg.arch)
             base_pkg = dependent_package_name.rsplit('.', 1)[0] if '.' in dependent_package_name else dependent_package_name
 
-            if len(dependent_package_name) != 0 and dependent_package_name not in packages and base_pkg not in packages and dependent_package_name not in dependencies:
+            if len(dependent_package_name) != 0 and dependent_package_name not in packages and dependent_package_name not in dependencies:
                 self.composite_logger.log_verbose("[DNF5] > Dependency detected: " + dependent_package_name)
                 dependencies.append(dependent_package_name)
 
@@ -440,7 +441,7 @@ class Dnf5PackageManager(PackageManager):
             is_service_installed = True
             enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
 
-            self.composite_logger.log_verbose("[DNF5]Checking if auto updates are currently enabled...")
+            self.composite_logger.log_verbose("[DNF5] Checking if auto updates are currently enabled...")
             image_default_patch_configuration = self.env_layer.file_system.read_with_retry(self.os_patch_configuration_settings_file_path, raise_if_not_found=False)
             if image_default_patch_configuration is not None:
                 settings = image_default_patch_configuration.strip().split('\n')
@@ -478,6 +479,8 @@ class Dnf5PackageManager(PackageManager):
         """ Checking if auto update is set to enable on reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot """
         self.composite_logger.log_verbose("[DNF5] Checking if auto update service is set to enable on reboot. [Command={0}]".format(command))
         code, out = self.env_layer.run_command_output(command, False, False)
+        #[inGuestLinux@vm-yashna-linux4 ~]$ systemctl is-enabled dnf5-automatic.timer
+        # enabled
         is_enable_on_reboot = len(out.strip()) > 0 and code == 0 and out.strip() == "enabled"
         self.composite_logger.log_debug("[DNF5] Auto update service enable on reboot check completed. [Command={0}][Code={1}][EnabledOnReboot={2}]".format(command,str(code),str(is_enable_on_reboot)))
         return is_enable_on_reboot
@@ -513,8 +516,8 @@ class Dnf5PackageManager(PackageManager):
             return
 
         self.composite_logger.log_verbose("[DNF5] Preemptively disabling auto OS updates using dnf5-automatic")
-        self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "no")
-        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "no")
+        self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "no", self.dnf5_automatic_config_pattern_match_text)
+        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "no", self.dnf5_automatic_config_pattern_match_text)
         self.disable_auto_update_on_reboot(self.dnf5_automatic_disable_on_reboot_cmd)
         self.composite_logger.log_debug("[DNF5] Successfully disabled auto OS updates using dnf5-automatic")
 
@@ -568,7 +571,8 @@ class Dnf5PackageManager(PackageManager):
                 }
                 image_default_patch_configuration_backup.update(backup_image_default_patch_configuration_json_to_add)
 
-                self.composite_logger.log_debug("[DNF5] Logging default system configuration settings for auto OS updates. ""[Settings={0}] [Log file path={1}]".format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
+                self.composite_logger.log_debug("[DNF5] Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
+                                                .format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
                 self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path,'{0}'.format(json.dumps(image_default_patch_configuration_backup)),mode='w+')
         except Exception as error:
             self.composite_logger.log_error( "[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error)))
@@ -609,7 +613,6 @@ class Dnf5PackageManager(PackageManager):
                     settings[i] = patch_configuration_sub_setting_to_update
                     patch_configuration_sub_setting_found_in_file = True
                 updated_patch_configuration_sub_setting += settings[i] + "\n"
-
             # add setting to configuration file, since it doesn't exist
             if not patch_configuration_sub_setting_found_in_file:
                 updated_patch_configuration_sub_setting += patch_configuration_sub_setting_to_update + "\n"
@@ -688,16 +691,12 @@ class Dnf5PackageManager(PackageManager):
 
     # region Reboot Management
     def is_reboot_pending(self):
-        """Checks reboot requirement for Azure Linux 4 (dnf5)"""
-        try:
-            self.composite_logger.log_verbose("[DNF5] Checking if reboot is required using needs-restarting. [Command={0}]".format(self.needs_restarting_with_flag))
-            code, _ = self.env_layer.run_command_output(self.needs_restarting_with_flag, False, False)
-            reboot_required = (code == 1)
-            self.composite_logger.log_debug("[DNF5] > Reboot required (needs-restarting) = {0}".format(reboot_required))
-            return reboot_required
-        except Exception as error:
-            self.composite_logger.log_error("[DNF5] Error checking reboot pending: " + repr(error))
-        return False  # safe fallback
+        """Checks if reboot is required"""
+        self.composite_logger.log_verbose("[DNF5] Checking if reboot is required [Command={0}]".format(self.needs_restarting_with_flag))
+        code, output = self.env_layer.run_command_output(self.needs_restarting_with_flag, False, False)
+        reboot_required = (code == 1)
+        self.composite_logger.log_debug("[DNF5] > Outcome of reboot required check. [Command={0}][Code={1}][ComputedValueOfRebootRequired={2}]".format(str(self.needs_restarting_with_flag), str(code), str(reboot_required)))
+        return reboot_required
 
     def do_processes_require_restart(self):
         """Fulfilling base class contract. Not needed for DNF5"""
@@ -717,3 +716,4 @@ class Dnf5PackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
+

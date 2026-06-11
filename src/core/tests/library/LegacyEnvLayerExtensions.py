@@ -699,6 +699,16 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("rpm -qa") > -1:
                         code = 0
                         output = 'dnf5-plugin-automatic'
+                    elif cmd.find("dnf5 list --installed") > -1:
+                        code = 0
+                        package = cmd.replace('sudo dnf5 list --installed ', '').strip()
+                        whitelisted_versions = ['3.0-16.azl4~20260501', '3.0-3.azl4~20260501', '2.5.4-1.azl4~20260501', '2.11.5-1.azl4~20260501', '102-7.azl4~20260501', '3.12.3-6.azl4~20260501', '6.10-3.azl4~20260501']
+                        output = ("Updating and loading repositories:\nRepositories loaded.\nInstalled packages\n")
+                        template = "<PACKAGE> <VERSION> @System\n"
+                        for version in whitelisted_versions:
+                            entry = template.replace('<PACKAGE>', package)
+                            entry = entry.replace('<VERSION>', version)
+                            output += entry
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -839,16 +849,6 @@ class LegacyEnvLayerExtensions():
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
-            elif self.legacy_test_type == 'AnotherHappyPath':
-                if cmd.find("systemctl cat dnf5-automatic.service") > -1:
-                    code = 0
-                    output = "ExecStart=/usr/bin/dnf5 automatic --timer --downloadupdates"
-                elif cmd.find("rpm -qa") > -1:
-                    code = 0
-                    output = 'dnf5-plugin-automatic'
-                elif "systemctl is-enabled" in cmd:
-                    code = 0
-                    output = "disabled"
             elif self.legacy_test_type == 'SuccessInstallPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0

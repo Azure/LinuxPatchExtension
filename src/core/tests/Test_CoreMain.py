@@ -51,6 +51,9 @@ class TestCoreMain(unittest.TestCase):
     def mock_linux_distribution_to_return_azure_linux(self):
         return ['Microsoft Azure Linux', '3.0', '']
 
+    def mock_linux_distribution_to_return_azure_linux4(self):
+        return ['Microsoft Azure Linux', '4.0', '']
+
     def mock_os_remove(self, file_to_remove):
         raise Exception("File could not be deleted")
 
@@ -1321,6 +1324,56 @@ class TestCoreMain(unittest.TestCase):
         # reset os.remove() mock
         os.remove = self.backup_os_remove
         runtime.stop()
+
+    def test_install_all_packages_for_azure_linux4_autopatching(self):
+        """Unit test for auto patching request on Azure Linux4, should install all patches irrespective of classification"""
+
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_azure_linux4
+
+        argument_composer = ArgumentComposer()
+        classifications_to_include = ["Security", "Critical"]
+        argument_composer.health_store_id = str("pub_off_sku_2025.03.24")
+        argument_composer.classifications_to_include = classifications_to_include
+        argument_composer.reboot_setting = 'Always'
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.DNF5)
+        runtime.set_legacy_test_type("HappyPath")
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 4)
+        self.assertTrue(substatus_file_data[0]["name"] == Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertTrue(substatus_file_data[0]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(substatus_file_data[1]["name"] == Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertTrue(substatus_file_data[1]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        self.assertTrue(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["installedPatchCount"] == 5)
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "azurelinux-repos-ms-oss.noarch")
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
+        self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["patchInstallationState"])
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["name"], "libseccomp.x86_64")
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["classifications"]))
+        self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["patchInstallationState"])
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["name"], "azurelinux-release.noarch")
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
+        self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchInstallationState"])
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][3]["name"], "libxml2.x86_64")
+        self.assertTrue("Security" in str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][3]["classifications"]))
+        self.assertTrue("Installed" == json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][3]["patchInstallationState"])
+        self.assertTrue(substatus_file_data[2]["name"] == Constants.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertTrue(substatus_file_data[2]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
+        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "pub_off_sku_2025.03.24")
+        self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
+        self.assertTrue(substatus_file_data[3]["name"] == Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertTrue(substatus_file_data[3]["status"].lower() == Constants.STATUS_SUCCESS.lower())
+        runtime.stop()
+
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
 
     def __check_telemetry_events(self, runtime):
         all_events = os.listdir(runtime.telemetry_writer.events_folder_path)
