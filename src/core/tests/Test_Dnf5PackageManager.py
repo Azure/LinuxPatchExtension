@@ -46,7 +46,7 @@ class TestDnfPackageManager(unittest.TestCase):
     def test_refresh_repo(self):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         package_manager.refresh_repo_safely()
 
     def test_disable_auto_os_updates_with_uninstalled_services(self):
@@ -56,7 +56,7 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager.disable_auto_os_update()
         self.assertTrue(package_manager.image_default_patch_configuration_backup_exists())
         image_default_patch_configuration_backup = json.loads(self.runtime.env_layer.file_system.read_with_retry(package_manager.image_default_patch_configuration_backup_path))
-        self.assertTrue(image_default_patch_configuration_backup is not None)
+        self.assertIsNotNone(image_default_patch_configuration_backup)
 
         # validating backup for dnf-automatic
         self.assertTrue(package_manager.dnf5_auto_os_update_service in image_default_patch_configuration_backup)
@@ -387,7 +387,7 @@ class TestDnfPackageManager(unittest.TestCase):
         if config_exists:
             reverted_dnf5_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(
                 package_manager.dnf5_automatic_configuration_file_path)
-            self.assertTrue(reverted_dnf5_automatic_patch_configuration_settings is not None)
+            self.assertIsNotNone(reverted_dnf5_automatic_patch_configuration_settings)
         else:
             self.assertFalse(os.path.exists(package_manager.dnf5_automatic_configuration_file_path))
 
@@ -441,18 +441,18 @@ class TestDnfPackageManager(unittest.TestCase):
         """Unit test for install package failure"""
         self.runtime.set_legacy_test_type('FailInstallPath')
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         package_filter = self.container.get('package_filter')
-        self.assertTrue(package_filter is not None)
+        self.assertIsNotNone(package_filter)
         # test for unsuccessfully installing a package
         self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('hyperv-daemons-license.noarch','6.6.78.1-1.azl3',simulate=True),Constants.FAILED)
 
     def test_get_product_name(self):
         """Unit test for retrieving product Name"""
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         package_filter = self.container.get('package_filter')
-        self.assertTrue(package_filter is not None)
+        self.assertIsNotNone(package_filter)
         self.assertEqual(package_manager.get_product_name("bash.x86_64"), "bash.x86_64")
         self.assertEqual(package_manager.get_product_name("firefox.x86_64"), "firefox.x86_64")
         self.assertEqual(package_manager.get_product_name("test.noarch"), "test.noarch")
@@ -464,9 +464,9 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('SadPath')
 
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         package_filter = self.container.get('package_filter')
-        self.assertTrue(package_filter is not None)
+        self.assertIsNotNone(package_filter)
 
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
         self.assertEqual(len(available_updates), 0)
@@ -477,10 +477,10 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('FailInstallPath')
 
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
 
         package_filter = self.container.get('package_filter')
-        self.assertTrue(package_filter is not None)
+        self.assertIsNotNone(package_filter)
 
         self.assertEqual(
             package_manager.install_update_and_dependencies_and_get_status(
@@ -496,19 +496,19 @@ class TestDnfPackageManager(unittest.TestCase):
         # Restart required (needs-restarting returns code=1)
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         self.assertTrue(package_manager.is_reboot_pending())
 
         # Restart not required (needs-restarting returns code=0)
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         self.assertFalse(package_manager.is_reboot_pending())
 
         # Exception Path
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.is_reboot_pending())
 
@@ -516,7 +516,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('SadPath')
 
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
 
         current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
 
@@ -528,15 +528,15 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('HappyPath')
 
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
 
         package_filter = self.container.get('package_filter')
-        self.assertTrue(package_filter is not None)
+        self.assertIsNotNone(package_filter)
 
         # Test: get_available_updates (do NOT assert exact count unless mock supports it)
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
-        self.assertTrue(available_updates is not None)
-        self.assertTrue(package_versions is not None)
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
         self.assertEqual(len(available_updates), len(package_versions))
 
         cmd = package_manager.single_package_upgrade_simulation_cmd + "hyperv-daemons.x86_64"
@@ -552,7 +552,7 @@ class TestDnfPackageManager(unittest.TestCase):
 
         # Test: get_all_available_versions_of_package (ONLY python3 since mock exists)
         versions = package_manager.get_all_available_versions_of_package("python3")
-        self.assertTrue(versions is not None)
+        self.assertIsNotNone(versions)
         self.assertEqual(len(versions), 5)
         self.assertEqual(versions[0], '3.12.3-1.azl4~20260501')
         self.assertEqual(versions[1], '3.12.3-2.azl4~20260501')
@@ -560,7 +560,6 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertEqual(versions[3], '3.12.3-5.azl4~20260501')
         self.assertEqual(versions[4], '3.12.3-6.azl4~20260501')
 
-        # Test: install command generation (pure logic, safe to test)
         # Test exception handling scenarios
         self.runtime.stop()
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True,Constants.DNF5)
@@ -569,10 +568,10 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('ExceptionPath')
 
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
 
         package_filter = self.container.get('package_filter')
-        self.assertTrue(package_filter is not None)
+        self.assertIsNotNone(package_filter)
 
         # Exception test: get_available_updates
         try:
@@ -592,20 +591,20 @@ class TestDnfPackageManager(unittest.TestCase):
 
         self.runtime.set_legacy_test_type('SuccessInstallPath')
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
 
         # Test: get_dependent_list
         dependent_list = package_manager.get_dependent_list(["hyperv-daemons.x86_64"])
-        self.assertTrue(dependent_list is not None)
+        self.assertIsNotNone(dependent_list)
 
     def test_install_package_success(self):
         """Unit test for install package success"""
         self.runtime.set_legacy_test_type('SuccessInstallPath')
 
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         package_filter = self.container.get('package_filter')
-        self.assertTrue(package_filter is not None)
+        self.assertIsNotNone(package_filter)
 
         # test for successfully installing a package
         self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('rubygem-json.x86_64','2.13.2-2.azl4~20260501',simulate=True),Constants.INSTALLED)
@@ -614,7 +613,7 @@ class TestDnfPackageManager(unittest.TestCase):
         """Unit test for dnf5 package manager with inclusion and Classification = Other. All packages are considered are 'Security' since DNF does not have patch classification"""
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         self.runtime.stop()
 
         argument_composer = ArgumentComposer()
@@ -625,12 +624,12 @@ class TestDnfPackageManager(unittest.TestCase):
         self.container = self.runtime.container
 
         package_filter = self.container.get('package_filter')
-        self.assertTrue(package_filter is not None)
+        self.assertIsNotNone(package_filter)
 
         # test for get_available_updates
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
-        self.assertTrue(available_updates is not None)
-        self.assertTrue(package_versions is not None)
+        self.assertIsNotNone(available_updates)
+        self.assertIsNotNone(package_versions)
         self.assertEqual(0, len(available_updates))
         self.assertEqual(0, len(package_versions))
 
@@ -645,7 +644,7 @@ class TestDnfPackageManager(unittest.TestCase):
         # Restart not required
         self.runtime.set_legacy_test_type('SadPath')
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager is not None)
+        self.assertIsNotNone(package_manager)
         self.assertFalse(package_manager.is_reboot_pending())
 
     def test_get_current_auto_os_patch_state_dnf5_disabled(self):
@@ -689,7 +688,7 @@ class TestDnfPackageManager(unittest.TestCase):
             package_manager.dnf5_automatic_config_pattern_match_text)
         dnf5_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(
             package_manager.os_patch_configuration_settings_file_path)
-        self.assertTrue(dnf5_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertIsNotNone(dnf5_automatic_os_patch_configuration_settings_file_path_read)
         self.assertTrue('apply_updates = no' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
         self.assertTrue('download_updates = yes' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
 
@@ -702,7 +701,7 @@ class TestDnfPackageManager(unittest.TestCase):
             package_manager.dnf5_automatic_config_pattern_match_text)
         dnf5_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(
             package_manager.os_patch_configuration_settings_file_path)
-        self.assertTrue(dnf5_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertIsNotNone(dnf5_automatic_os_patch_configuration_settings_file_path_read)
         self.assertTrue('apply_updates = yes' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
         self.assertTrue('download_updates = no' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
 
@@ -715,7 +714,7 @@ class TestDnfPackageManager(unittest.TestCase):
             package_manager.dnf5_automatic_config_pattern_match_text)
         dnf5_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(
             package_manager.os_patch_configuration_settings_file_path)
-        self.assertTrue(dnf5_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertIsNotNone(dnf5_automatic_os_patch_configuration_settings_file_path_read)
         self.assertTrue('download_updates' not in dnf5_automatic_os_patch_configuration_settings_file_path_read)
         self.assertTrue('apply_updates = no' in dnf5_automatic_os_patch_configuration_settings_file_path_read)
 

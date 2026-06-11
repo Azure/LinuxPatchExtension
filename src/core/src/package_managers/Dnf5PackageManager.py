@@ -258,11 +258,13 @@ class Dnf5PackageManager(PackageManager):
         return False
 
     def get_dependent_list(self, packages):
-        """Returns dependent list for the list of packages
-        """
+        """Returns dependent list for the list of packages"""
         # Gets the dependent list from packages.Refer dnf5_output_expected_format.txt for examples of output formats.
         package_names = " ".join(packages)
         cmd = self.single_package_upgrade_simulation_cmd + package_names
+        # Dependency simulation using dnf5 install --assumeno --skip-broken has non-standard exit code behavior. A valid simulation run may return exit code 1 (e.g., "Operation aborted by the user"),
+        # while dependency resolution failures may still return exit code 0 with output indicating skipped packages (e.g., "Skipping packages with broken dependencies" and "Nothing to do.").
+        # calling the runcommand directly to get the output as well as code to determine failure/success cases
         code, output = self.env_layer.run_command_output(cmd, False, False)
         self.composite_logger.log_verbose("[DNF5] Dependency simulation. [Command={0}][Code={1}]".format(cmd, str(code)))
         if code not in self.dnf5_simulation_valid_exit_codes:
@@ -336,11 +338,9 @@ class Dnf5PackageManager(PackageManager):
         return package_name
 
     def get_product_name_with_arch(self, package_detail, package_arch_to_look_for):
-        """
-        Returns package name in format: name.arch
+        """Returns package name in format: name.arch
         Example:
-            ["oniguruma", "x86_64", ...] -> "oniguruma.x86_64"
-        """
+            ["oniguruma", "x86_64", ...] -> "oniguruma.x86_64"""
         if package_detail[1] in package_arch_to_look_for:
             return package_detail[0] + "." + package_detail[1]
         return ""
@@ -709,8 +709,7 @@ class Dnf5PackageManager(PackageManager):
         return
 
     def separate_out_esm_packages(self, packages, package_versions):
-        """Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
-                Only needed for apt. No-op for tdnf, dnf5, yum and zypper"""
+        """Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.Only needed for apt. No-op for tdnf, dnf5, yum and zypper"""
         esm_packages = []
         esm_package_versions = []
         esm_packages_found = False
