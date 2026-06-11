@@ -407,7 +407,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertIsNotNone(package_manager)
         deduped_packages, deduped_package_versions = package_manager.dedupe_update_packages_to_get_latest_versions(
             packages, package_versions)
-        self.assertTrue(deduped_packages == [])
+        self.assertEqual(deduped_packages, [])
         self.assertEqual(deduped_package_versions, [])
 
         packages = ['python3.x86_64', 'dracut.x86_64', 'libxml2.x86_64', 'azurelinux-release.noarch', 'python3.noarch',
@@ -416,8 +416,11 @@ class TestDnfPackageManager(unittest.TestCase):
                             '3.12.9-1.azl3', '3.12.3-4.azl3', '6.6.78.1-1.azl3', '3.12.3-5.azl3', '3.12.3-5.azl3']
         deduped_packages, deduped_package_versions = package_manager.dedupe_update_packages_to_get_latest_versions(
             packages, package_versions)
-        self.assertTrue(deduped_packages is not None and deduped_packages != [])
-        self.assertTrue(deduped_package_versions is not None and deduped_package_versions != [])
+
+        self.assertIsNotNone(deduped_packages)
+        self.assertNotEqual(deduped_packages, [])
+        self.assertIsNotNone(deduped_package_versions)
+        self.assertNotEqual(deduped_package_versions, [])
         self.assertEqual(len(deduped_packages), 6)
         self.assertEqual(deduped_packages[0], 'python3.x86_64')
         self.assertEqual(deduped_package_versions[0], '3.12.9-1.azl3')
