@@ -30,7 +30,7 @@ class TelemetryWriter(object):
 
     TELEMETRY_BUFFER_DELIMETER= "\n|\t"
 
-    def __init__(self, env_layer, composite_logger, events_folder_path, telemetry_supported):
+    def __init__(self, env_layer, composite_logger, credential_sanitizer, events_folder_path, telemetry_supported):
         self.env_layer = env_layer
         self.composite_logger = composite_logger
         self.__operation_id = str(datetime.datetime.utcnow())
@@ -38,6 +38,7 @@ class TelemetryWriter(object):
         self.__task_name = Constants.TelemetryTaskName.STARTUP + self.__task_name_watermark
         self.events_folder_path = None
         self.__telemetry_event_counter = 1  # will be added at the end of each event sent to telemetry to assist in tracing and identifying event/message loss in telemetry
+        self.credential_sanitizer = credential_sanitizer
         self.start_time_for_event_count_throttle_check = datetime.datetime.utcnow()
         self.event_count = 1
 
@@ -127,12 +128,17 @@ class TelemetryWriter(object):
         return events_folder_path is not None and os.path.exists(events_folder_path)
 
     def __new_event_json(self, event_level, message, task_name):
+        # Step 1: Sanitize credentials from URIs
+        sanitized_message = self.credential_sanitizer.sanitize(message)
+        # Step 2: Apply message restrictions (formatting, truncation)
+        restricted_message = self.__ensure_message_restriction_compliance(sanitized_message)
+
         return {
             "Version": Constants.EXT_VERSION,
             "Timestamp": str(datetime.datetime.utcnow()),
             "TaskName": task_name,
             "EventLevel": event_level,
-            "Message": self.__ensure_message_restriction_compliance(message),
+            "Message": restricted_message,
             "EventPid": "",
             "EventTid": "",
             "OperationId": self.__operation_id  # activity id from from config settings
