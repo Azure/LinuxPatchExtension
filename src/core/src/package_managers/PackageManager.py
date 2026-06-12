@@ -54,6 +54,12 @@ class PackageManager(object):
         # Primarily for debian-based but generalizing for back-compat on customer-driven scenarios
         self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
 
+        # Update certificates in factory defaults
+        self.check_mokutil_exists_cmd = "command -v mokutil"
+        self.get_kek_cert_status_cmd = "mokutil --kek | grep 'CN='"
+        self.get_db_cert_status_cmd = "mokutil --db | grep 'CN='"
+        self.mokutil_success_exit_code = 0
+
     __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
 
     @abstractmethod
@@ -490,4 +496,86 @@ class PackageManager(object):
     def get_package_install_expected_avg_time_in_seconds(self):
         """Retrieves average time to install package in seconds."""
         pass
+
+    # region Update certificates in factory defaults
+    # TODO (Before removing in-VM feature flag): This update should not be done in CVMs in current form
+    def update_certs(self):
+        # 1. Fetch and Log current certs on the VM NOTE: Common across distros
+            # ensure mokutil exists
+            # if not, install mokutil
+            # If success, fetch cert detail
+            # If not, throw exception and stop
+            # log output
+        # 2. If 2023 certs already exists, do nothing
+        # 3. If not, perform all the steps to update certs
+        # 4. Validate and log new certs were installed
+
+        self.composite_logger.log_verbose("[PM] Updating current certificates if needed...")
+        is_mokutil_installed = self.is_mokutil_installed()
+        try_install_mokutil_status = False
+        if not is_mokutil_installed:
+            try_install_mokutil_status = self.try_install_mokutil()
+
+        if is_mokutil_installed or try_install_mokutil_status:
+            self.try_update_certs()
+        else:
+            error_msg = "[PM][UpdateCerts] Mokutil is not installed and could not be installed. Cannot fetch current certs."
+            self.composite_logger.log_error(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+
+    def is_mokutil_installed(self):
+        # type: () -> bool
+        """check if mokutil is installed"""
+        cmd = self.check_mokutil_exists_cmd
+        self.composite_logger.log_verbose('[PM] Invoking check mokutil exists command [Command={0}]'.format(cmd))
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        self.composite_logger.log_debug('[PM] Invoked check mokutil exists. [Command={0}][Code={1}][Output={2}]'.format(cmd, str(code), str(out)))
+        return code == 0
+
+    def are_latest_certs_present(self):
+        kek_code, kek_out = self.fetch_current_certs(Constants.Certificates.KEK, self.get_kek_cert_status_cmd, raise_on_exception=False)
+        db_code, db_out = self.fetch_current_certs(Constants.Certificates.DB, self.get_db_cert_status_cmd, raise_on_exception=False)
+        return self.is_latest_cert_installed(kek_code, kek_out) and self.is_latest_cert_installed(db_code, db_out)
+
+    def fetch_current_certs(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
+        # type: (str, str, bool) -> (int, str)
+        """ Fetches the status of the certificates on the machine """
+        cmd = get_cert_status_cmd
+        self.composite_logger.log_verbose('[PM] Invoking mokutil to fetch certificate details [Certificate={0}][Command={1}]'.format(cert_type, cmd))
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+
+        if code != self.mokutil_success_exit_code:
+            self.composite_logger.log_warning('[ERROR] Customer environment error. Error invoking mokutil to fetch certificate status. '
+                                              '[Certificate={0}][Command={1}][Code={2}][Output={3}]'.format(cert_type, cmd, str(code), str(out)))
+            error_msg = ("Customer environment error: Investigate and resolve unexpected return code ({0}) for certificate ({1}) on command: {2}"
+                         .format(str(code), cert_type, cmd))
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            if raise_on_exception:
+                raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+
+        else:
+            self.composite_logger.log_debug('[PM] Invoked mokutil to fetch certificate details. [Certificate={0}][Command={1}][Code={2}][Output={3}]'
+                                            .format(cert_type, cmd, str(code), str(out)))
+
+        return code, out
+
+    def is_latest_cert_installed(self, status_code, status_output):
+        # type: (int, str) -> bool
+        """ Checks if the latest certs (i.e. 2023 certs) are already installed on the machine based on mokutil output """
+        if status_code != self.mokutil_success_exit_code:
+            return False
+
+        return Constants.LATEST_CERTIFICATE_TIMESTAMP in status_output
+
+    @abstractmethod
+    def try_install_mokutil(self):
+        """ Attempts to install mokutil """
+        pass
+
+    @abstractmethod
+    def try_update_certs(self):
+        """ Attempts to update certificate status """
+        pass
+    # endregion
 
