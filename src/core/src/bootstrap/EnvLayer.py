@@ -71,11 +71,6 @@ class EnvLayer(object):
         """ Checks if the current distro is Azure Linux 3 """
         return self.__is_matching_distro_and_version(distro_name, Constants.AZURE_LINUX, version_to_match=3)
 
-    def is_distro_azure_linux_4(self, distro_name):
-        # type: (str) -> bool
-        """ Checks if the current distro is Azure Linux 4 """
-        return self.__is_matching_distro_and_version(distro_name, Constants.AZURE_LINUX, version_to_match=4)
-
     def is_distro_rhel_10(self, distro_name):
         # type: (str) -> bool
         """ Checks if the current distro is RHEL 10 """
@@ -92,7 +87,7 @@ class EnvLayer(object):
         os_name, os_version, os_code = self.platform.linux_distribution()
 
         # Check for unsupported distros
-        if self.is_distro_azure_linux_4(os_name) or self.is_distro_rhel_10(os_name):
+        if self.is_distro_rhel_10(os_name):
             error_msg = "This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro={0}][Version={1}][Code={2}]".format(str(os_name), os_version, os_code)
             print("Error: {0}".format(error_msg))
             return str()

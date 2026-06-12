@@ -187,6 +187,8 @@ class TestDnfPackageManager(unittest.TestCase):
         dnf5_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
         self.runtime.write_to_file(package_manager.dnf5_automatic_configuration_file_path, dnf5_automatic_os_patch_configuration_settings)
 
+        is_enabled = package_manager.is_service_set_to_enable_on_reboot(package_manager.enable_on_reboot_check_cmd)
+        self.assertFalse(is_enabled)
         current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
 
         self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
@@ -631,7 +633,6 @@ class TestDnfPackageManager(unittest.TestCase):
         command = "systemctl disable --now dnf5-automatic.timer"
 
         package_manager.disable_auto_update_on_reboot(command)
-        self.assertTrue(True)  # method should NOT throw
 
         self.runtime.set_legacy_test_type('AnotherSadPath')
         package_manager = self.container.get('package_manager')
@@ -721,8 +722,6 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager.add_arch_dependencies(package_manager, "pkg", "1.0", [], [], [], [])
         package_manager.set_security_esm_package_status("op", [])
         package_manager.separate_out_esm_packages([], [])
-
-        self.assertTrue(True)
 
 if __name__ == '__main__':
     unittest.main()

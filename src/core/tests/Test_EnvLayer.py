@@ -80,12 +80,6 @@ class TestExecutionConfig(unittest.TestCase):
     def mock_distro_os_release_attr_return_none(self, attribute):
         return None
 
-    def mock_linux_distribution_to_return_azure_linux_4(self):
-        return ['Microsoft Azure Linux', '4.0', '']
-
-    def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
-        return '4.0.2'
-
     def mock_linux_distribution_to_return_rhel_10(self):
         return ['Red Hat', '10.0', 'abc']
 
@@ -159,17 +153,15 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.vm_name()
 
     def test_get_package_manager_azure_linux_4_and_rhel10_not_supported(self):
-        """Test that Azure Linux 4 and RHEL 10 log unsupported message"""
+        """Test for RHEL 10 log unsupported message"""
         self.backup_platform_system = platform.system
         self.backup_linux_distribution = self.envlayer.platform.linux_distribution
         self.backup_distro_os_release_attr = distro.os_release_attr
 
         platform.system = self.mock_platform_system
         test_input_output_table = [
-            [self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Microsoft Azure Linux][Version=4.0][Code=]\n"],
             [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_rhel_10, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Red Hat][Version=10.0][Code=abc]\n"],
         ]
-
         for row in test_input_output_table:
             captured_output = StringIO()
             original_output = sys.stdout

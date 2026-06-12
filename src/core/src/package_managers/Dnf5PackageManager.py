@@ -269,7 +269,9 @@ class Dnf5PackageManager(PackageManager):
         self.composite_logger.log_verbose("[DNF5] Dependency simulation. [Command={0}][Code={1}]".format(cmd, str(code)))
         if code not in self.dnf5_simulation_valid_exit_codes:
             self.composite_logger.log_error("[DNF5] Unexpected failure. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output))
-            raise Exception("DNF5 dependency simulation failed")
+            error_msg = "DNF5 dependency simulation failed. Investigate and resolve unexpected return code({0}) from package manager on command: {1} ".format(str(code), cmd)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         dependencies = self.extract_dependencies(output, packages)
         self.composite_logger.log_verbose("[DNF5] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd), str(packages), len(dependencies)))
@@ -311,8 +313,6 @@ class Dnf5PackageManager(PackageManager):
                 continue
 
             #  Remove input packages (support both pkg and pkg.arch)
-            base_pkg = dependent_package_name.rsplit('.', 1)[0] if '.' in dependent_package_name else dependent_package_name
-
             if len(dependent_package_name) != 0 and dependent_package_name not in packages and dependent_package_name not in dependencies:
                 self.composite_logger.log_verbose("[DNF5] > Dependency detected: " + dependent_package_name)
                 dependencies.append(dependent_package_name)
@@ -479,10 +479,8 @@ class Dnf5PackageManager(PackageManager):
         """ Checking if auto update is set to enable on reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot """
         self.composite_logger.log_verbose("[DNF5] Checking if auto update service is set to enable on reboot. [Command={0}]".format(command))
         code, out = self.env_layer.run_command_output(command, False, False)
-        #[inGuestLinux@vm-yashna-linux4 ~]$ systemctl is-enabled dnf5-automatic.timer
-        # enabled
-        is_enable_on_reboot = len(out.strip()) > 0 and code == 0 and out.strip() == "enabled"
-        self.composite_logger.log_debug("[DNF5] Auto update service enable on reboot check completed. [Command={0}][Code={1}][EnabledOnReboot={2}]".format(command,str(code),str(is_enable_on_reboot)))
+        is_enable_on_reboot = len(out.strip()) > 0 and code == 0 and out.strip().lower() == "enabled"
+        self.composite_logger.log_debug("[DNF5] Auto update service enable on reboot check completed. [Command={0}][Code={1}][IsServiceSetToEnableOnReboot={2}]".format(command, str(code), str(is_enable_on_reboot)))
         return is_enable_on_reboot
 
     def __get_extension_standard_value_for_apply_updates(self, apply_updates_value):
@@ -575,8 +573,8 @@ class Dnf5PackageManager(PackageManager):
                                                 .format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
                 self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path,'{0}'.format(json.dumps(image_default_patch_configuration_backup)),mode='w+')
         except Exception as error:
-            self.composite_logger.log_error( "[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error)))
-            self.status_handler.add_error_to_status( "[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.composite_logger.log_error("[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error)))
+            self.status_handler.add_error_to_status("[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
