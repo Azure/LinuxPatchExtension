@@ -40,7 +40,7 @@ class Dnf5PackageManager(PackageManager):
         self.single_package_upgrade_simulation_cmd = "sudo dnf5 install --assumeno --skip-broken "
 
         # Install update
-        self.single_package_upgrade_cmd = 'sudo dnf5 -y upgrade'
+        self.single_package_upgrade_cmd = 'sudo dnf5 -y upgrade '
         # Support to check if reboot is required
         # dnf-utils not required (needs-restarting is built into dnf5)
         self.needs_restarting_with_flag = 'sudo LANG=en_US.UTF8 dnf5 needs-restarting -r'
