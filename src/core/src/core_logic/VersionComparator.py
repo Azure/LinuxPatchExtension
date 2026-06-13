@@ -36,10 +36,10 @@ class VersionComparator(object):
         return (len(parse_version_a) > len(parse_version_b)) - (len(parse_version_a) < len(parse_version_b))
 
     @staticmethod
-    def extract_version_from_os_version_nums(os_version):
+    def extract_version_from_version_str(version_str):
         # type (str) -> str
         """
-        Extract the version part from a given os version.
+        Extract the version part from a given version string.
         Input os version	                        Extracted Version
         34                                          34
         34~18                                       34
@@ -56,7 +56,7 @@ class VersionComparator(object):
         34.13.4abc-18.04.1                          34.13.4
         abc.34.13.4!@abc                            34.13.4
         """
-        version_num = re.search(r'(\d+(?:\.\d+)*)', os_version)  # extract numbers with optional dot-separated parts
+        version_num = re.search(r'(\d+(?:\.\d+)*)', version_str)  # extract numbers with optional dot-separated parts
         return version_num.group(1) if version_num else str()
 
     def __version_key(self, version_input):
@@ -65,7 +65,7 @@ class VersionComparator(object):
         os version input: "34~18.04"
         Return: (34)
         """
-        version_numbers = self.extract_version_from_os_version_nums(os_version=version_input)
+        version_numbers = self.extract_version_from_version_str(version_str=version_input)
         return tuple(map(int, version_numbers.split('.'))) if version_numbers else (0, 0, 0)
 
     def __parse_version(self, version_components):
