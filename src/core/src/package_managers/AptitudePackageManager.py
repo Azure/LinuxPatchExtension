@@ -23,6 +23,7 @@ import sys
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
+from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.package_managers.UbuntuProClient import UbuntuProClient
 
 
@@ -88,27 +89,17 @@ class AptitudePackageManager(PackageManager):
 
         self.ubuntu_pro_client_all_updates_cached = []
         self.ubuntu_pro_client_all_updates_versions_cached = []
-        
+        self.version_comparator = VersionComparator()
+
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
-        # Update certificates in factory defaults NOTE: The proposed references are short-term as it will be moved out soon
+        # Update certificates in factory defaults using default Ubuntu repos.
         self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
-        self.proposed_repo_file_path = "/etc/apt/sources.list.d/proposed.list"
-        self.proposed_pin_file_path = "/etc/apt/preferences.d/proposed"
-        self.add_proposed_repo_cmd = (
-            "bash -c 'echo \"deb https://archive.ubuntu.com/ubuntu/ "
-            "$( . /etc/os-release && echo $VERSION_CODENAME )-proposed restricted main multiverse universe\" "
-            "| sudo tee {0}'").format(self.proposed_repo_file_path)
-        self.create_proposed_pin_cmd = (
-            "bash -c 'cat << EOF | sudo tee {0}\n"
-            "Package: *\n"
-            "Pin: release a=$( . /etc/os-release && echo $VERSION_CODENAME )-proposed\n"
-            "Pin-Priority: 100\n"
-            "EOF'").format(self.proposed_pin_file_path)
-        self.remove_proposed_repo_cmd = "sudo rm -f {0}".format(self.proposed_repo_file_path)
-        self.remove_proposed_pin_cmd = "sudo rm -f {0}".format(self.proposed_pin_file_path)
         self.apt_update_cmd = "sudo apt-get -q update"
-        self.install_fwupd_from_proposed_cmd = "bash -c 'sudo apt-get install -y -t $( . /etc/os-release && echo $VERSION_CODENAME )-proposed fwupd'"
+        self.min_fwupd_version = "2.0.0"
+        self.get_installed_fwupd_version_cmd = "fwupdmgr --version"
+        self.remove_fwupd_cmd = "sudo apt purge -y fwupd"
+        self.install_fwupd_cmd = "sudo apt-get install -y fwupd"
         self.fwupd_refresh_cmd = "sudo fwupdmgr refresh" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
         self.fwupd_update_cmd = "sudo fwupdmgr update -y"
 
@@ -984,10 +975,8 @@ class AptitudePackageManager(PackageManager):
 
         success = False
         try:
-            self.__run_cert_shell_command(self.add_proposed_repo_cmd, "AddProposedRepo", raise_on_error=True)
-            self.__run_cert_apt_command(self.apt_update_cmd, "AptUpdateAfterRepo", raise_on_error=True)
-            self.__run_cert_shell_command(self.create_proposed_pin_cmd, "CreateAptPin", raise_on_error=True)
-            self.__run_cert_apt_command(self.install_fwupd_from_proposed_cmd, "InstallFwupdFromProposed", raise_on_error=True)
+            self.__run_cert_apt_command(self.apt_update_cmd, "AptUpdate", raise_on_error=True)
+            self.__ensure_fwupd_installation()
 
             # shell fwupd commands to update certificates
             self.__run_cert_shell_command(self.fwupd_refresh_cmd, "FwupdRefresh", raise_on_error=True)
@@ -1007,18 +996,68 @@ class AptitudePackageManager(PackageManager):
         except Exception as error:
             self.composite_logger.log_error("[APM][Certs] Exception during cert update flow. [Error={0}]".format(repr(error)))
 
-        finally:
-            # best-effort cleanup
-            self.__run_cert_shell_command(self.remove_proposed_pin_cmd, "CleanupAptPin", raise_on_error=False)
-            self.__run_cert_shell_command(self.remove_proposed_repo_cmd, "CleanupProposedRepo", raise_on_error=False)
-            self.__run_cert_apt_command(self.apt_update_cmd, "AptUpdateAfterCleanup", raise_on_error=False)
-
         if success:
             # Not explicitly rebooting the VM to honor the customer's reboot preference and to avoid unexpected reboots.
             # Reboot will only be performed if it is required by the VM after cert update and if the customer has set reboot setting in patch configuration to 'Reboot if required'.
             self.status_handler.set_reboot_pending(self.is_reboot_pending())
 
         return success
+
+    def __ensure_fwupd_installation(self):
+        # type: () -> bool
+        """Ensure fwupd is installed at minimum required version for cert update flow."""
+        installed_version = self.__get_installed_fwupd_version()
+        if installed_version != str() and self.__is_min_fwupd_version_installed(installed_version):
+            self.composite_logger.log_debug("[APM][Certs] Existing fwupd version meets minimum requirement. [InstalledVersion={0}][MinimumVersion={1}]"
+                                            .format(installed_version, self.min_fwupd_version))
+            return True
+
+        if installed_version != str():
+            self.composite_logger.log("[APM][Certs] Existing fwupd version is below minimum. Reinstalling latest. [InstalledVersion={0}][MinimumVersion={1}]"
+                                      .format(installed_version, self.min_fwupd_version))
+            self.__run_cert_apt_command(self.remove_fwupd_cmd, "RemoveOldFwupd", raise_on_error=True)
+        else:
+            self.composite_logger.log_debug("[APM][Certs] fwupd is not installed. Installing latest version.")
+
+        self.__run_cert_apt_command(self.install_fwupd_cmd, "InstallFwupd", raise_on_error=True)
+        return True
+
+    def __get_installed_fwupd_version(self):
+        # type: () -> str
+        """Return installed fwupd version, or empty string when fwupd is not installed."""
+        cmd = self.get_installed_fwupd_version_cmd
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        if code != self.apt_exitcode_ok:
+            self.composite_logger.log_debug("[APM][Certs] fwupd not installed or version could not be determined. [Command={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(out)))
+            return str()
+
+        output = str(out).strip()
+        if output == str():
+            return str()
+
+        # Partner guidance: use the org.freedesktop.fwupd line from fwupdmgr --version.
+        match = re.search(r'org\.freedesktop\.fwupd\s+([0-9][0-9A-Za-z\.\-:+~]*)', output)
+        if match is None:
+            self.composite_logger.log_debug("[APM][Certs] fwupd version was not found in fwupdmgr output. [Output={0}]".format(output))
+            return str()
+
+        return match.group(1).strip()
+
+    def __is_min_fwupd_version_installed(self, installed_version):
+        # type: (str) -> bool
+        """Use VersionComparator to determine if installed fwupd meets minimum version."""
+        installed_normalized = self.version_comparator.extract_version_from_version_str(str(installed_version))
+        minimum_normalized = self.version_comparator.extract_version_from_version_str(str(self.min_fwupd_version))
+        if installed_normalized == str() or minimum_normalized == str():
+            self.composite_logger.log_debug("[APM][Certs] fwupd version comparison failed to normalize version values. [InstalledVersion={0}][InstalledNormalized={1}][MinimumVersion={2}][MinimumNormalized={3}]"
+                                            .format(str(installed_version), str(installed_normalized), str(self.min_fwupd_version), str(minimum_normalized)))
+            return False
+
+        compare_result = self.version_comparator.compare_versions(installed_normalized, minimum_normalized)
+        meets_minimum = compare_result >= 0
+        self.composite_logger.log_debug("[APM][Certs] fwupd version comparison result. [InstalledVersion={0}][InstalledNormalized={1}][MinimumVersion={2}][MinimumNormalized={3}][CompareResult={4}][MeetsMinimum={5}]"
+                                        .format(str(installed_version), str(installed_normalized), str(self.min_fwupd_version), str(minimum_normalized), str(compare_result), str(meets_minimum)))
+        return meets_minimum
 
     def __run_cert_apt_command(self, command, step_name, raise_on_error=False):
         """Run apt/dpkg commands through package-manager wrapper."""
