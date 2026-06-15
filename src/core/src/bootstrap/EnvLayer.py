@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 
 from __future__ import print_function
+
 import datetime
 import glob
 import os
@@ -46,13 +47,67 @@ class EnvLayer(object):
     def is_distro_azure_linux(distro_name):
         return any(x in distro_name for x in Constants.AZURE_LINUX)
 
+    @staticmethod
+    def __try_get_major_version():
+        # type: () -> str or None
+        """ Attempts to get major version from distro.os_release_attr('version').Returns major version as string or None if not available. """
+        version = distro.os_release_attr('version')
+        major = version.split('.')[0] if version else None
+        return major
+
+    def __is_matching_distro_and_version(self, distro_name, distro_to_match, version_to_match):
+        # type: (str, str, int) -> bool
+        """ Checks if distro name matches and version matches the expected version.
+        Returns True if both distro and version match, False otherwise. """
+        if distro_to_match == Constants.AZURE_LINUX and not self.is_distro_azure_linux(str(distro_name)):
+            return False
+        elif distro_to_match == Constants.RED_HAT and not Constants.RED_HAT.lower() in str(distro_name).lower():
+            return False
+        major = self.__try_get_major_version()
+        return major is not None and int(major) == version_to_match
+
+    def is_distro_azure_linux_3(self, distro_name):
+        # type: (str) -> bool
+        """ Checks if the current distro is Azure Linux 3 """
+        return self.__is_matching_distro_and_version(distro_name, Constants.AZURE_LINUX, version_to_match=3)
+
+    def is_distro_azure_linux_4(self, distro_name):
+        # type: (str) -> bool
+        """ Checks if the current distro is Azure Linux 4 """
+        return self.__is_matching_distro_and_version(distro_name, Constants.AZURE_LINUX, version_to_match=4)
+
+    def is_distro_rhel_10(self, distro_name):
+        # type: (str) -> bool
+        """ Checks if the current distro is RHEL 10 """
+        return self.__is_matching_distro_and_version(distro_name, Constants.RED_HAT, version_to_match=10)
+
     def get_package_manager(self):
         # type: () -> str
         """ Detects package manager type """
         if platform.system() == 'Windows':
             return Constants.APT
 
-        if self.is_distro_azure_linux(str(self.platform.linux_distribution())):
+        # platform.linux_distribution() returns a tuple with distro_name, version and a code
+        # Example: ['Azure Linux', '4.0', '']
+        os_name, os_version, os_code = self.platform.linux_distribution()
+
+        # Check for unsupported distros
+        if self.is_distro_rhel_10(os_name):
+            error_msg = "This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro={0}][Version={1}][Code={2}]".format(str(os_name), os_version, os_code)
+            print("Error: {0}".format(error_msg))
+            return str()
+
+        # Check for Azure Linux 4 or Above( uses dnf5)
+        if self.is_distro_azure_linux_4(str(os_name)):
+            code, out = self.run_command_output('which dnf', False, False)
+            if code == 0:
+                return Constants.DNF5
+            else:
+                print("Error: Expected package manager dnf5 not found on this Azure Linux4 VM.")
+                return str()
+
+        # Check for Azure Linux (3 and below use TDNF)
+        if self.is_distro_azure_linux(str(os_name)):
             code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
                 return Constants.TDNF
@@ -242,6 +297,7 @@ class EnvLayer(object):
         @staticmethod
         def vm_name():     # machine name
             return platform.node()
+
 # endregion - Platform extensions
 
 # region - File system extensions
@@ -396,4 +452,18 @@ class EnvLayer(object):
         def standard_datetime_to_utc(std_datetime):
             """ Converts datetime object to string of format '"%Y-%m-%dT%H:%M:%SZ"' """
             return std_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        @staticmethod
+        def datetime_string_to_posix_time(datetime_string, format_string):
+            # type: (str, str) -> int
+            """ Converts string of given format to posix datetime string. """
+            # eg: Input: datetime_string: 20241220T000000Z (str), format_string: '%Y%m%dT%H%M%SZ' -> Output: 1734681600 (str)
+
+            # Parse the datetime string
+            dt = datetime.datetime.strptime(datetime_string, format_string)
+
+            # Convert to POSIX time assuming UTC
+            epoch = datetime.datetime(1970, 1, 1)
+            return int((dt - epoch).total_seconds())
+
 # endregion - DateTime emulator and extensions

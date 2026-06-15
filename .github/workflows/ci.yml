@@ -1,4 +1,6 @@
 name: Workflow for Codecov
+permissions:
+  contents: read
 on:
   push:
     branches: [master]
