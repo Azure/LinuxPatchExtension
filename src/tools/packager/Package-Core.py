@@ -14,7 +14,7 @@
 #
 # Requires Python 2.7+
 
-""" Merges individual python modules from src to the AzGPSLinuxPatchCore.py files in the out directory.
+""" Merges individual python modules from src to the MsftLinuxPatchCore.py files in the out directory.
 Relative source and destination paths for the extension Core are auto-detected if the optional src parameter is not present.
 How to use: python Package-Core.py <optional: full path to runbook 'src' folder>"""
 
@@ -237,7 +237,7 @@ def main(argv):
             raise Exception("Unable to determine target version.")
 
         # Generated compiled scripts at the destination
-        merged_file_details = [('AzGPSLinuxPatchCore.py', 'Constants.PROD')]
+        merged_file_details = [('MsftLinuxPatchCore.py', 'Constants.PROD')]
         for merged_file_detail in merged_file_details:
             merged_file_destination = os.path.join(working_directory, 'out', merged_file_detail[0])
             generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1], new_version)

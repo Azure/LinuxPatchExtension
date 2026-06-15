@@ -94,10 +94,8 @@ class Constants(object):
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
 
     # Auto assessment shell script name
-    CORE_AUTO_ASSESS_SH_FILE_NAME = "AzGPSLinuxPatchAutoAssess.sh"
-    AUTO_ASSESSMENT_SERVICE_NAME = "AzGPSLinuxPatchAutoAssess"
-    CORE_AUTO_ASSESS_SH_FILE_NAME_LEGACY = "MsftLinuxPatchAutoAssess.sh"
-    AUTO_ASSESSMENT_SERVICE_NAME_LEGACY = "MsftLinuxPatchAutoAssess"
+    CORE_AUTO_ASSESS_SH_FILE_NAME = "MsftLinuxPatchAutoAssess.sh"
+    AUTO_ASSESSMENT_SERVICE_NAME = "MsftLinuxPatchAutoAssess"
     AUTO_ASSESSMENT_SERVICE_DESC = "Microsoft Azure Linux Patch Extension - Auto Assessment"
 
     # Operations
