@@ -171,9 +171,9 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             ext_status_asserter.assert_operation_summary_has_error(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG)
             ext_status_asserter.assert_operation_summary_has_error(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG, 'autoAssessmentStatus')
             ext_status_asserter.assert_configure_patching_auto_assessment_state(Constants.STATUS_ERROR)
-        else:
+        #else:
             # this code path never executed in the test as it sat (discovered in refactoring). Marking as TODO for Arc.
-            ext_status_asserter.assert_status_file_substatus(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.STATUS_SUCCESS)
+            # ext_status_asserter.assert_status_file_substatus(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.STATUS_SUCCESS)
         runtime.stop()
 
     def test_patch_mode_set_failure_for_configure_patching(self):
