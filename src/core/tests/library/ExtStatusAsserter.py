@@ -122,7 +122,7 @@ class ExtStatusAsserter(object):
                 if classification and classification not in patch["classifications"]:
                     raise AssertionError("Classification '{0}' does not match expected value '{1}' for patch '{2}'.".format(classification, str(patch["classifications"]), patch_name))
                 if patch_id and patch_id not in str(patch["patchId"]):
-                    raise AssertionError("Patch ID '{0}' does not match expected value '{1}' for patch '{2}'.".format(patch_id, str(patch["patch_id"]), patch_name))
+                    raise AssertionError("Patch ID '{0}' does not match expected value '{1}' for patch '{2}'.".format(patch_id, str(patch["patchId"]), patch_name))
                 return True
 
         raise AssertionError("Patch '{0}' not found in '{1}' summary.".format(patch_name, operation))

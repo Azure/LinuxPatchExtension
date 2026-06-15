@@ -19,7 +19,7 @@ import re
 import unittest
 import sys
 
-from library.ExtStatusAsserter import ExtStatusAsserter
+from core.tests.library.ExtStatusAsserter import ExtStatusAsserter
 
 # Conditional import for StringIO
 try:

@@ -128,7 +128,6 @@ class ConfigurePatchingProcessor(object):
                 self.composite_logger.log_debug("Disabling platform-based automatic assessment.")
                 self.auto_assess_timer_manager.remove_timer()
                 self.auto_assess_service_manager.remove_service()
-                # self.__erase_auto_assess_config_if_any(Constants.AUTO_ASSESSMENT_SERVICE_NAME, self.auto_assess_service_manager, self.auto_assess_timer_manager)
                 self.current_auto_assessment_state = Constants.AutoAssessmentStates.DISABLED
             else:
                 raise Exception("Unknown assessment mode specified. [AssessmentMode={0}]".format(self.execution_config.assessment_mode))
@@ -144,21 +143,6 @@ class ConfigurePatchingProcessor(object):
         # revert operation back to parent
         self.composite_logger.log_debug("Restoring status handler operation to {0}.".format(Constants.CONFIGURE_PATCHING))
         self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
-
-    def __erase_auto_assess_config_if_any(self, service_name, service_manager, timer_manager):
-        # type: (str, ServiceManager, TimerManager) -> None
-        """ Cleans up the legacy auto-assess service """
-        try:
-            if service_manager is not None:
-                self.composite_logger.log_debug("[CPP] Cleaning up the {0} service.".format(service_name))
-                service_manager.remove_service()
-
-            if timer_manager is not None:
-                self.composite_logger.log_debug("[CPP] Cleaning up the {0} timer.".format(service_name))
-                timer_manager.remove_timer()
-        except Exception as error:
-            self.composite_logger.log_warning("[CPP] Retriable error while cleaning up auto-assess config. [Error={0}]".format(repr(error)))
-            self.configure_patching_successful &= False
 
     def __report_consolidated_configure_patch_status(self, status=Constants.STATUS_TRANSITIONING, error=Constants.DEFAULT_UNSPECIFIED_VALUE):
         # type: (str, any) -> None
