@@ -27,8 +27,8 @@ class Constants(object):
                     if item == self.__dict__[item]:
                         yield item
 
-    # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.65"
+    # Extension version (will be updated from manifest.xml at compile time)
+    EXT_VERSION = "[%exec_ver%]"
 
     # Runtime environments
     TEST = 'Test'
