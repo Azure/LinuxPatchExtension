@@ -93,6 +93,8 @@ class ConfigurePatchingProcessor(object):
             # NOTE: this condition will be false for Assessment operations, since patchMode is not sent in the API request
             if self.current_auto_os_patch_state != Constants.AutomaticOSPatchStates.DISABLED and self.execution_config.patch_mode == Constants.PatchModes.AUTOMATIC_BY_PLATFORM:
                 self.package_manager.disable_auto_os_update()
+            elif self.current_auto_os_patch_state == Constants.AutomaticOSPatchStates.DISABLED and self.execution_config.patch_mode == Constants.PatchModes.IMAGE_DEFAULT:
+                self.package_manager.revert_auto_os_update_to_system_default()
 
             self.current_auto_os_patch_state = self.package_manager.get_current_auto_os_patch_state()
 
@@ -121,17 +123,13 @@ class ConfigurePatchingProcessor(object):
                 if not self.auto_assess_service_manager.systemd_exists():
                     raise Exception("Systemd is not available on this system, and platform-based auto-assessment cannot be configured.")
 
-                self.__erase_auto_assess_config_if_any("legacy", self.auto_assess_service_manager_legacy, self.auto_assess_timer_manager_legacy)
                 self.auto_assess_service_manager.create_and_set_service_idem()
                 self.auto_assess_timer_manager.create_and_set_timer_idem()
 
                 self.current_auto_assessment_state = Constants.AutoAssessmentStates.ENABLED
             elif self.execution_config.assessment_mode == Constants.AssessmentModes.IMAGE_DEFAULT:
                 self.composite_logger.log_debug("Disabling platform-based automatic assessment.")
-
                 self.__erase_auto_assess_config_if_any(Constants.AUTO_ASSESSMENT_SERVICE_NAME, self.auto_assess_service_manager, self.auto_assess_timer_manager)
-                self.__erase_auto_assess_config_if_any(Constants.AUTO_ASSESSMENT_SERVICE_NAME_LEGACY, self.auto_assess_service_manager_legacy, self.auto_assess_timer_manager_legacy)
-
                 self.current_auto_assessment_state = Constants.AutoAssessmentStates.DISABLED
             else:
                 raise Exception("Unknown assessment mode specified. [AssessmentMode={0}]".format(self.execution_config.assessment_mode))
@@ -149,13 +147,14 @@ class ConfigurePatchingProcessor(object):
         self.status_handler.set_current_operation(Constants.CONFIGURE_PATCHING)
 
     def __erase_auto_assess_config_if_any(self, service_name, service_manager, timer_manager):
+        # type: (str, ServiceManager, TimerManager) -> None
         """ Cleans up the legacy auto-assess service """
         try:
-            if service_manager is not None and not service_manager.service_exists():
+            if service_manager is not None:
                 self.composite_logger.log_debug("[CPP] Cleaning up the {0} service.".format(service_name))
                 service_manager.remove_service()
 
-            if timer_manager is not None and not timer_manager.timer_exists():
+            if timer_manager is not None:
                 self.composite_logger.log_debug("[CPP] Cleaning up the {0} timer.".format(service_name))
                 timer_manager.remove_timer()
         except Exception as error:
