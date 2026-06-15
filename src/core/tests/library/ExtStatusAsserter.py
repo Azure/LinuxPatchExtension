@@ -164,7 +164,7 @@ class ExtStatusAsserter(object):
         """ Check if the auto-assessment state is as expected """
         substatus_message = self.__get_substatus_message_as_dict(Constants.CONFIGURE_PATCHING_SUMMARY)
         if substatus_message["autoAssessmentStatus"]["autoAssessmentState"] != expected_state:
-            raise AssertionError("Auto-assessment state '{0}' does not match expected value '{1}'.".format(substatus_message["autoAssessmentStatus"]["state"], expected_state))
+            raise AssertionError("Auto-assessment state '{0}' does not match expected value '{1}'.".format(substatus_message["autoAssessmentStatus"]["autoAssessmentState"], expected_state))
 
     def assert_healthstore_status_info(self, patch_version, should_report=True):
         # type: (str, bool) -> None
