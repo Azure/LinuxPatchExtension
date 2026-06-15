@@ -27,9 +27,8 @@ from core.src.core_logic.TimerManager import TimerManager
 
 
 class ConfigurePatchingProcessor(object):
-    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, auto_assess_service_manager, auto_assess_timer_manager, lifecycle_manager,
-                 auto_assess_service_manager_legacy=None, auto_assess_timer_manager_legacy=None):
-        # type: (EnvLayer, ExecutionConfig, CompositeLogger, TelemetryWriter, StatusHandler, PackageManager, ServiceManager, TimerManager, ServiceManager, TimerManager) -> None
+    def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler, package_manager, auto_assess_service_manager, auto_assess_timer_manager, lifecycle_manager):
+        # type: (EnvLayer, ExecutionConfig, CompositeLogger, TelemetryWriter, StatusHandler, PackageManager, ServiceManager, TimerManager) -> None
         self.env_layer = env_layer
         self.execution_config = execution_config
 
@@ -40,8 +39,6 @@ class ConfigurePatchingProcessor(object):
         self.package_manager = package_manager
         self.auto_assess_service_manager = auto_assess_service_manager
         self.auto_assess_timer_manager = auto_assess_timer_manager
-        self.auto_assess_service_manager_legacy = auto_assess_service_manager_legacy
-        self.auto_assess_timer_manager_legacy = auto_assess_timer_manager_legacy
         self.lifecycle_manager = lifecycle_manager
 
         self.current_auto_os_patch_state = Constants.AutomaticOSPatchStates.UNKNOWN
@@ -129,7 +126,9 @@ class ConfigurePatchingProcessor(object):
                 self.current_auto_assessment_state = Constants.AutoAssessmentStates.ENABLED
             elif self.execution_config.assessment_mode == Constants.AssessmentModes.IMAGE_DEFAULT:
                 self.composite_logger.log_debug("Disabling platform-based automatic assessment.")
-                self.__erase_auto_assess_config_if_any(Constants.AUTO_ASSESSMENT_SERVICE_NAME, self.auto_assess_service_manager, self.auto_assess_timer_manager)
+                self.auto_assess_timer_manager.remove_timer()
+                self.auto_assess_service_manager.remove_service()
+                # self.__erase_auto_assess_config_if_any(Constants.AUTO_ASSESSMENT_SERVICE_NAME, self.auto_assess_service_manager, self.auto_assess_timer_manager)
                 self.current_auto_assessment_state = Constants.AutoAssessmentStates.DISABLED
             else:
                 raise Exception("Unknown assessment mode specified. [AssessmentMode={0}]".format(self.execution_config.assessment_mode))
