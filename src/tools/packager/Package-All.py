@@ -149,7 +149,13 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
 
         print('------------- Set Copyright, Version and Environment. Also enforce UNIX-style line endings.')
         insert_copyright_notice(merged_file_full_path, merged_file_name)
-        date = datetime.datetime.now(datetime.timezone.utc).strftime("%y.%m.%d")
+        try:
+            # Python 3.2+
+            now = datetime.datetime.now(datetime.timezone.utc)
+        except AttributeError:
+            # Older Python fallback (naive UTC)
+            now = datetime.datetime.utcnow()
+        date = now.strftime("%y.%m.%d")
         replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name)
         replace_text_in_file(merged_file_full_path, '[%exec_ver%]', str(new_version))
         replace_text_in_file(merged_file_full_path, '[%exec_build_date%]', date)
