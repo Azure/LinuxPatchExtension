@@ -18,7 +18,6 @@
 import json
 import re
 
-from abc import ABCMeta, abstractmethod
 from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.bootstrap.Constants import Constants
 from core.src.package_managers.PackageManager import PackageManager
@@ -80,8 +79,6 @@ class Dnf5PackageManager(PackageManager):
         self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
         self.package_install_expected_avg_time_in_seconds = 90
         self.version_comparator = VersionComparator()
-
-    __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
 
     def refresh_repo(self):
         self.composite_logger.log("[DNF5] Refreshing local repo...")
@@ -186,7 +183,6 @@ class Dnf5PackageManager(PackageManager):
         self.composite_logger.log_verbose("[DNF5] Discovering 'other' packages...")
         return [], []
 
-    @abstractmethod
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         pass
     # endregion
@@ -206,9 +202,8 @@ class Dnf5PackageManager(PackageManager):
             package_identifier += arch
         return package_identifier
 
-    @abstractmethod
     def install_updates_fail_safe(self, excluded_packages):
-        pass
+        return
 
     def install_security_updates_azgps_coordinated(self):
         """This is not applicable for dnf5 yet. DNF5 will not have this method implemented """
@@ -715,3 +710,12 @@ class Dnf5PackageManager(PackageManager):
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
 
+    # region Update certificates in factory defaults
+    def try_install_mokutil(self):
+        """ Attempts to install mokutil """
+        pass
+
+    def try_update_certs(self):
+        """ Attempts to update certificate status """
+        pass
+    # endregion
