@@ -1267,6 +1267,24 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager.is_reboot_pending = backup_is_reboot_pending
         package_manager.are_latest_certs_present = backup_are_latest_certs_present
 
+    def test_try_update_certs_when_fwupd_version_normalization_fails(self):
+        self.runtime.set_legacy_test_type('SuccessInstallPath')
+        package_manager = self.container.get('package_manager')
+
+        backup_is_reboot_pending = package_manager.is_reboot_pending
+        backup_are_latest_certs_present = package_manager.are_latest_certs_present
+        backup_min_fwupd_version = package_manager.min_fwupd_version
+        package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_with_different_output_across_multiple_attempts
+        package_manager.min_fwupd_version = "test"
+
+        self.assertFalse(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, False)
+
+        package_manager.is_reboot_pending = backup_is_reboot_pending
+        package_manager.are_latest_certs_present = backup_are_latest_certs_present
+        package_manager.min_fwupd_version = backup_min_fwupd_version
+
     def test_try_update_certs_when_older_fwupd_installed_by_azgps(self):
         self.runtime.set_legacy_test_type('SuccessInstallPath')
         package_manager = self.container.get('package_manager')
