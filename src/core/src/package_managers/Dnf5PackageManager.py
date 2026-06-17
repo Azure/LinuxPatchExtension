@@ -18,7 +18,6 @@
 import json
 import re
 
-from abc import ABCMeta, abstractmethod
 from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.bootstrap.Constants import Constants
 from core.src.package_managers.PackageManager import PackageManager
@@ -80,8 +79,6 @@ class Dnf5PackageManager(PackageManager):
         self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
         self.package_install_expected_avg_time_in_seconds = 90
         self.version_comparator = VersionComparator()
-
-    __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
 
     def refresh_repo(self):
         self.composite_logger.log("[DNF5] Refreshing local repo...")
