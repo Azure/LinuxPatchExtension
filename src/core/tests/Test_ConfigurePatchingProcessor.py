@@ -88,7 +88,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             Constants.CONFIGURE_PATCHING_SUMMARY: Constants.STATUS_SUCCESS
         })
         ext_status_asserter.assert_configure_patching_patch_mode_state(Constants.AutomaticOSPatchStates.DISABLED)
-        ext_status_asserter.assert_configure_patching_auto_assessment_state(Constants.AutomaticOSPatchStates.DISABLED)
+        ext_status_asserter.assert_configure_patching_auto_assessment_state(Constants.AutoAssessmentStates.DISABLED)
 
         # stop test runtime
         runtime.stop()
@@ -170,7 +170,7 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
             ext_status_asserter.assert_status_file_substatus(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.STATUS_ERROR)
             ext_status_asserter.assert_operation_summary_has_error(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG)
             ext_status_asserter.assert_operation_summary_has_error(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.TELEMETRY_NOT_COMPATIBLE_ERROR_MSG, 'autoAssessmentStatus')
-            ext_status_asserter.assert_configure_patching_auto_assessment_state(Constants.STATUS_ERROR)
+            ext_status_asserter.assert_configure_patching_auto_assessment_state(Constants.AutoAssessmentStates.ERROR)
         #else:
             # this code path never executed in the test as it sat (discovered in refactoring). Marking as TODO for Arc.
             # ext_status_asserter.assert_status_file_substatus(Constants.CONFIGURE_PATCHING_SUMMARY, Constants.STATUS_SUCCESS)
@@ -328,7 +328,13 @@ class TestConfigurePatchingProcessor(unittest.TestCase):
         # mock swap service manager
         back_up_auto_assess_service_manager = runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists
         runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists = lambda: False
-        self.assertRaises(Exception, runtime.configure_patching_processor.start_configure_patching())
+        runtime.configure_patching_processor.start_configure_patching()
+        runtime.configure_patching_processor.set_configure_patching_final_overall_status()
+        ext_status_asserter = ExtStatusAsserter(runtime.execution_config.status_file_path, runtime.env_layer)
+        ext_status_asserter.assert_operation_summary_has_error(operation=Constants.CONFIGURE_PATCHING_SUMMARY,
+                                                               error_message="Systemd is not available on this system, and platform-based auto-assessment cannot be configured",
+                                                               sub_level_for_configure_patching_only="autoAssessmentStatus")
+
         runtime.configure_patching_processor.auto_assess_service_manager.systemd_exists = back_up_auto_assess_service_manager
 
         runtime.stop()
