@@ -1036,6 +1036,7 @@ class AptitudePackageManager(PackageManager):
         """Return installed fwupd version, or empty string when fwupd is not installed."""
         cmd = self.get_installed_fwupd_version_cmd
         code, out = self.env_layer.run_command_output(cmd, False, False)
+        self.composite_logger.log_debug("[APM][Certs] Get installed fwupd version command executed. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
         if code != self.apt_exitcode_ok:
             self.composite_logger.log_debug("[APM][Certs] fwupd not installed or version could not be determined. [Command={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(out)))
             return str()
