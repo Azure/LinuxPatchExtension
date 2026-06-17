@@ -40,7 +40,7 @@ class VersionComparator(object):
         # type (str) -> str
         """
         Extract the version part from a given version string.
-        Input os version	                        Extracted Version
+        Input version version	                   Extracted Version
         34                                          34
         34~18                                       34
         34.~18.04                                   34

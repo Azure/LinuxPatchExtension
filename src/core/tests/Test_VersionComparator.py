@@ -24,7 +24,7 @@ class TestVersionComparator(unittest.TestCase):
     def setUp(self):
         self.version_comparator = VersionComparator()
 
-    def test_extract_version_from_os_version_nums(self):
+    def test_extract_version_from_version_str(self):
         """ Test extract version logic on Ubuntuproclient version """
         self.assertEqual(self.version_comparator.extract_version_from_version_str("34"), "34")
         self.assertEqual(self.version_comparator.extract_version_from_version_str("34~18"), "34")

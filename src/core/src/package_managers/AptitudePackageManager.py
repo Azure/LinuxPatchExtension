@@ -96,9 +96,9 @@ class AptitudePackageManager(PackageManager):
         # Update certificates in factory defaults using default Ubuntu repos.
         self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
         self.apt_update_cmd = "sudo apt-get -q update"
-        self.min_fwupd_version = "2.0.0"
+        self.min_fwupd_version = "2.0.8" # Refer public docs: https://github.com/fwupd/fwupd/releases/tag/2.0.8 and https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
         self.get_installed_fwupd_version_cmd = "fwupdmgr --version"
-        self.remove_fwupd_cmd = "sudo apt purge -y fwupd"
+        self.remove_fwupd_cmd = "sudo apt-get purge -y fwupd"
         self.install_fwupd_cmd = "sudo apt-get install -y fwupd"
         self.fwupd_refresh_cmd = "sudo fwupdmgr refresh" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
         self.fwupd_update_cmd = "sudo fwupdmgr update -y"
@@ -1020,6 +1020,15 @@ class AptitudePackageManager(PackageManager):
             self.composite_logger.log_debug("[APM][Certs] fwupd is not installed. Installing latest version.")
 
         self.__run_cert_apt_command(self.install_fwupd_cmd, "InstallFwupd", raise_on_error=True)
+
+        # Validate that the installed fwupd meets the minimum requirement.
+        installed_version = self.__get_installed_fwupd_version()
+        if installed_version == str() or not self.__is_min_fwupd_version_installed(installed_version):
+            msg = "[APM][Certs] fwupd does not meet minimum version requirement after install. [InstalledVersion={0}][MinimumVersion={1}]".format(str(installed_version), str(self.min_fwupd_version))
+            self.composite_logger.log_error(msg)
+            self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+
         return True
 
     def __get_installed_fwupd_version(self):

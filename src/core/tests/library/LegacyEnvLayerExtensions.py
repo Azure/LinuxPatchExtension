@@ -546,12 +546,17 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = "Installed"
                     elif cmd.find("fwupdmgr --version") > -1:
-                        code = 1
-                        output = ""
-                    elif cmd.find("dpkg --compare-versions") > -1:
-                        code = 1
-                        output = ""
-                    elif cmd.find("sudo apt purge -y fwupd") > -1:
+                        code = 0
+                        output = ("compile    info.libusb                   1.0.25\n"
+                                  "compile   org.freedesktop.fwupd         2.0.20\n"
+                                  "compile   com.hughsie.libxmlb           0.3.24\n"
+                                  "compile   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.freedesktop.fwupd-efi     1.4\n"
+                                  "runtime   com.hughsie.libxmlb           0.3.24\n"
+                                  "runtime   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.kernel                    6.8.0-1052-azure\n"
+                                  "runtime   org.freedesktop.fwupd         2.0.20\n")
+                    elif cmd.find("sudo apt-get purge -y fwupd") > -1:
                         code = 0
                         output = "Removed"
                     elif cmd.find("mokutil --kek | grep 'CN='") > -1:

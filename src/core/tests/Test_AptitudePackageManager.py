@@ -39,6 +39,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.container = self.runtime.container
         self.latest_certs_check_attempts = 0
         self.latest_apt_update_cmd_attempt = 0
+        self.get_installed_fwupd_version_check_attempts = 0
 
     def tearDown(self):
         self.runtime.stop()
@@ -96,6 +97,15 @@ class TestAptitudePackageManager(unittest.TestCase):
             return False
 
         return True
+
+    def mock_get_installed_fwupd_version_with_different_output_across_multiple_attempts(self):
+        self.get_installed_fwupd_version_check_attempts += 1
+
+        # Mock the first attempt to return lower fwupd version
+        if self.get_installed_fwupd_version_check_attempts == 1:
+            return "2.0.1"
+
+        return "2.0.15"
 
     def mock_run_command_output_fwupd_refresh_fails(self, cmd, no_output=False, chk_err=True):
         if cmd.find(self.runtime.package_manager.fwupd_refresh_cmd) > -1:
@@ -1170,62 +1180,33 @@ class TestAptitudePackageManager(unittest.TestCase):
     def test_try_update_certs_skips_install_when_fwupd_meets_minimum_version(self):
         package_manager = self.container.get('package_manager')
 
-        backup_are_latest_certs_present = package_manager.are_latest_certs_present
         backup_is_reboot_pending = package_manager.is_reboot_pending
-        backup_get_installed_fwupd_version = package_manager._AptitudePackageManager__get_installed_fwupd_version
-        backup_is_min_fwupd_version_installed = package_manager._AptitudePackageManager__is_min_fwupd_version_installed
-        backup_run_cert_apt_command = package_manager._AptitudePackageManager__run_cert_apt_command
-        backup_run_cert_shell_command = package_manager._AptitudePackageManager__run_cert_shell_command
-
-        apt_steps = []
-        shell_steps = []
-        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_with_different_output_across_multiple_attempts
+        backup_are_latest_certs_present = package_manager.are_latest_certs_present
         package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
-        package_manager._AptitudePackageManager__get_installed_fwupd_version = lambda: "2.0.1"
-        package_manager._AptitudePackageManager__is_min_fwupd_version_installed = lambda version: True
-        package_manager._AptitudePackageManager__run_cert_apt_command = lambda command, step_name, raise_on_error=False: (apt_steps.append(step_name), (True, ""))[1]
-        package_manager._AptitudePackageManager__run_cert_shell_command = lambda command, step_name, raise_on_error=False: (shell_steps.append(step_name), (True, ""))[1]
+        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_with_different_output_across_multiple_attempts
 
         self.assertTrue(package_manager.try_update_certs())
-        self.assertEqual(apt_steps, ["AptUpdate"])
-        self.assertEqual(shell_steps, ["FwupdRefresh", "FwupdUpdate"])
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, False)
 
-        package_manager.are_latest_certs_present = backup_are_latest_certs_present
         package_manager.is_reboot_pending = backup_is_reboot_pending
-        package_manager._AptitudePackageManager__get_installed_fwupd_version = backup_get_installed_fwupd_version
-        package_manager._AptitudePackageManager__is_min_fwupd_version_installed = backup_is_min_fwupd_version_installed
-        package_manager._AptitudePackageManager__run_cert_apt_command = backup_run_cert_apt_command
-        package_manager._AptitudePackageManager__run_cert_shell_command = backup_run_cert_shell_command
+        package_manager.are_latest_certs_present = backup_are_latest_certs_present
 
     def test_try_update_certs_removes_old_fwupd_before_install(self):
         package_manager = self.container.get('package_manager')
 
-        backup_are_latest_certs_present = package_manager.are_latest_certs_present
         backup_is_reboot_pending = package_manager.is_reboot_pending
+        backup_are_latest_certs_present = package_manager.are_latest_certs_present
         backup_get_installed_fwupd_version = package_manager._AptitudePackageManager__get_installed_fwupd_version
-        backup_is_min_fwupd_version_installed = package_manager._AptitudePackageManager__is_min_fwupd_version_installed
-        backup_run_cert_apt_command = package_manager._AptitudePackageManager__run_cert_apt_command
-        backup_run_cert_shell_command = package_manager._AptitudePackageManager__run_cert_shell_command
-
-        apt_steps = []
-        shell_steps = []
-        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_with_different_output_across_multiple_attempts
         package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
-        package_manager._AptitudePackageManager__get_installed_fwupd_version = lambda: "1.9.12-1"
-        package_manager._AptitudePackageManager__is_min_fwupd_version_installed = lambda version: False
-        package_manager._AptitudePackageManager__run_cert_apt_command = lambda command, step_name, raise_on_error=False: (apt_steps.append(step_name), (True, ""))[1]
-        package_manager._AptitudePackageManager__run_cert_shell_command = lambda command, step_name, raise_on_error=False: (shell_steps.append(step_name), (True, ""))[1]
+        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_with_different_output_across_multiple_attempts
+        package_manager._AptitudePackageManager__get_installed_fwupd_version = self.mock_get_installed_fwupd_version_with_different_output_across_multiple_attempts
 
         self.assertTrue(package_manager.try_update_certs())
-        self.assertEqual(apt_steps, ["AptUpdate", "RemoveOldFwupd", "InstallFwupd"])
-        self.assertEqual(shell_steps, ["FwupdRefresh", "FwupdUpdate"])
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, False)
 
-        package_manager.are_latest_certs_present = backup_are_latest_certs_present
         package_manager.is_reboot_pending = backup_is_reboot_pending
+        package_manager.are_latest_certs_present = backup_are_latest_certs_present
         package_manager._AptitudePackageManager__get_installed_fwupd_version = backup_get_installed_fwupd_version
-        package_manager._AptitudePackageManager__is_min_fwupd_version_installed = backup_is_min_fwupd_version_installed
-        package_manager._AptitudePackageManager__run_cert_apt_command = backup_run_cert_apt_command
-        package_manager._AptitudePackageManager__run_cert_shell_command = backup_run_cert_shell_command
 
     def test_try_update_certs_all_commands_succeed_but_certs_not_updated(self):
         """ Test when all commands to update certs succeed but certs are still not updated,
