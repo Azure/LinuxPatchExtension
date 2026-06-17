@@ -130,6 +130,16 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
                     continue
                 elif os.path.basename(file_path) in ('PackageManager.py', 'Constants.py', 'LifecycleManager.py', 'SystemctlManager.py'):
                     modules_to_be_merged.insert(0, file_path)
+                elif os.path.basename(file_path) == 'TdnfPackageManager.py':
+                    # Insert before `AzL3PackageManager.py`; fallback to append.
+                    inserted = False
+                    for i, p in enumerate(modules_to_be_merged):
+                        if os.path.basename(p) == 'AzL3TdnfPackageManager.py':
+                            modules_to_be_merged.insert(i, file_path)
+                            inserted = True
+                            break
+                    if not inserted:
+                        modules_to_be_merged.append(file_path)
                 else:
                     if len(modules_to_be_merged) > 0 and '__main__.py' in modules_to_be_merged[-1]:
                         modules_to_be_merged.insert(-1, file_path)

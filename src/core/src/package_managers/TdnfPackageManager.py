@@ -19,13 +19,14 @@ import json
 import os
 import re
 
+from abc import ABCMeta, abstractmethod
 from core.src.core_logic.VersionComparator import VersionComparator
-from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
+from core.src.package_managers.PackageManager import PackageManager
 
 
 class TdnfPackageManager(PackageManager):
-    """Implementation of Azure Linux package management operations"""
+    """Implementation of Tdnf package management operations"""
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         super(TdnfPackageManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, status_handler)
@@ -35,8 +36,8 @@ class TdnfPackageManager(PackageManager):
 
         # Support to get updates and their dependencies
         self.tdnf_check = 'sudo tdnf -q list updates'
-        self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME>'
-        self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME>'
+        self.single_package_check_versions = 'sudo tdnf list available <PACKAGE-NAME> '
+        self.single_package_check_installed = 'sudo tdnf list installed <PACKAGE-NAME> '
         self.single_package_upgrade_simulation_cmd = 'sudo tdnf install --assumeno --skip-broken '
 
         # Install update
@@ -75,15 +76,9 @@ class TdnfPackageManager(PackageManager):
         self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
         self.version_comparator = VersionComparator()
 
-        # if an Auto Patching request comes in on a Azure Linux machine with Security and/or Critical classifications selected, we need to install all patches, since classifications aren't available in Azure Linux repository
-        installation_included_classifications = [] if execution_config.included_classifications_list is None else execution_config.included_classifications_list
-        if execution_config.health_store_id is not str() and execution_config.operation.lower() == Constants.INSTALLATION.lower() \
-                and (env_layer.is_distro_azure_linux(str(env_layer.platform.linux_distribution()))) \
-                and 'Critical' in installation_included_classifications and 'Security' in installation_included_classifications:
-            self.composite_logger.log_debug("Updating classifications list to install all patches for the Auto Patching request since classification based patching is not available on Azure Linux machines")
-            execution_config.included_classifications_list = [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER]
-
         self.package_install_expected_avg_time_in_seconds = 90  # Setting a default value of 90 seconds as the avg time to install a package using tdnf, might be changed later if needed.
+
+    __metaclass__ = ABCMeta  # For Python 3.0+, it changes to class Abstract(metaclass=ABCMeta)
 
     def refresh_repo(self):
         self.composite_logger.log("[TDNF] Refreshing local repo...")
@@ -97,8 +92,8 @@ class TdnfPackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(command, False, False)
 
         if code is self.tdnf_exitcode_ok or \
-            (any(command_expecting_no_action_exitcode in command for command_expecting_no_action_exitcode in self.commands_expecting_no_action_exitcode) and
-             code is self.tdnf_exitcode_on_no_action_for_install_update):
+                (any(command_expecting_no_action_exitcode in command for command_expecting_no_action_exitcode in self.commands_expecting_no_action_exitcode) and
+                 code is self.tdnf_exitcode_on_no_action_for_install_update):
             self.composite_logger.log_debug('[TDNF] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         else:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -117,32 +112,32 @@ class TdnfPackageManager(PackageManager):
             self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
-        out = self.invoke_package_manager(self.tdnf_check)
+        out = self.invoke_package_manager(self.add_additional_parameters_as_required_to_cmd(self.tdnf_check))
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
-
         self.composite_logger.log_debug("[TDNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
         return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
         """Get missing security updates. NOTE: Classification based categorization of patches is not available in Azure Linux as of now"""
-        self.composite_logger.log_verbose("[TDNF] Discovering 'security' packages...")
-        security_packages, security_package_versions = [], []
+        self.composite_logger.log_verbose("[TDNF] Discovering all packages as 'security' packages, since TDNF does not support package classification...")
+        security_packages, security_package_versions = self.get_all_updates(cached=False)
         self.composite_logger.log_debug("[TDNF] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
         return security_packages, security_package_versions
 
     def get_other_updates(self):
-        """Get missing other updates.
-        NOTE: This function will return all available packages since Azure Linux does not support package classification in it's repository"""
+        """Get missing other updates."""
         self.composite_logger.log_verbose("[TDNF] Discovering 'other' packages...")
-        other_packages, other_package_versions = [], []
+        return [], []
 
-        all_packages, all_package_versions = self.get_all_updates(True)
-
-        self.composite_logger.log_debug("[TDNF] Discovered 'other' packages. [Count={0}]".format(len(other_packages)))
-        return all_packages, all_package_versions
-
+    @abstractmethod
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         pass
+
+    def add_additional_parameters_as_required_to_cmd(self, cmd):
+        if self.max_patch_publish_date == str():
+            return cmd
+        else:
+            return cmd + ' --snapshottime={0}'.format(str(self.max_patch_publish_date))
     # endregion
 
     # region Output Parser(s)
@@ -203,7 +198,7 @@ class TdnfPackageManager(PackageManager):
     # endregion
     # endregion
 
-    # region Install Updates
+    # region Install Update
     def get_composite_package_identifier(self, package, package_version):
         package_without_arch, arch = self.get_product_name_and_arch(package)
         package_identifier = package_without_arch + '-' + str(package_version)
@@ -211,11 +206,18 @@ class TdnfPackageManager(PackageManager):
             package_identifier += arch
         return package_identifier
 
+    @abstractmethod
     def install_updates_fail_safe(self, excluded_packages):
-        return
+        pass
 
+    @abstractmethod
     def install_security_updates_azgps_coordinated(self):
         pass
+
+    def try_meet_azgps_coordinated_requirements(self):
+        # type: () -> bool
+        """ Returns true if the package manager meets the requirements for azgps coordinated security updates """
+        return False
     # endregion
 
     # region Package Information
@@ -325,10 +327,10 @@ class TdnfPackageManager(PackageManager):
                 package_names += ' '
             package_names += package
 
-        self.composite_logger.log_verbose("[TDNF] Resolving dependencies. [Command={0}]".format(str(self.single_package_upgrade_simulation_cmd + package_names)))
-        output = self.invoke_package_manager(self.single_package_upgrade_simulation_cmd + package_names)
+        cmd = self.single_package_upgrade_simulation_cmd + package_names
+        output = self.invoke_package_manager(cmd)
         dependencies = self.extract_dependencies(output, packages)
-        self.composite_logger.log_verbose("[TDNF] Resolved dependencies. [Packages={0}][DependencyCount={1}]".format(str(packages), len(dependencies)))
+        self.composite_logger.log_verbose("[TDNF] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd), str(packages), len(dependencies)))
         return dependencies
 
     def get_product_name(self, package_name):
@@ -732,6 +734,21 @@ class TdnfPackageManager(PackageManager):
         return False
     # endregion
 
+    def get_tdnf_version(self):
+        # type: () -> any
+        """Get the version of TDNF installed on the system"""
+        self.composite_logger.log_debug("[TDNF] Getting tdnf version...")
+        cmd = "rpm -q tdnf | sed -E 's/^tdnf-([0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+\\.[a-zA-Z0-9]+).*/\\1/'"
+        code, output = self.env_layer.run_command_output(cmd, False, False)
+        if code == 0:
+            # Sample output: 3.5.8-3-azl3
+            version = output.split()[0] if output else None
+            self.composite_logger.log_debug("[TDNF] TDNF version detected. [Version={0}]".format(version))
+            return version
+        else:
+            self.composite_logger.log_error("[TDNF] Failed to get TDNF version. [Command={0}][Code={1}][Output={2}]".format(cmd, code, output))
+            return None
+
     def set_security_esm_package_status(self, operation, packages):
         """ Set the security-ESM classification for the esm packages. Only needed for apt. No-op for tdnf, yum and zypper."""
         pass
@@ -747,4 +764,14 @@ class TdnfPackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
+
+    # region Update certificates in factory defaults
+    def try_install_mokutil(self):
+        """ Attempts to install mokutil """
+        pass
+
+    def try_update_certs(self):
+        """ Attempts to update certificate status """
+        pass
+    # endregion
 
