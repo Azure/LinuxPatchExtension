@@ -107,6 +107,33 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         return "2.0.15"
 
+    def mock_run_command_output_fwupd_version_not_found_in_first_attempt_and_found_later(self, cmd, no_output=False, chk_err=True):
+
+        if cmd.find(self.runtime.package_manager.get_installed_fwupd_version_cmd) > -1:
+            self.get_installed_fwupd_version_check_attempts += 1
+
+            # Mock the first attempt to return lower fwupd version
+            if self.get_installed_fwupd_version_check_attempts == 1:
+                return 0, ("compile    info.libusb                   1.0.25\n"
+                           "compile   com.hughsie.libxmlb           0.3.24\n"
+                           "compile   com.hughsie.libjcat           0.2.3\n"
+                           "runtime   org.freedesktop.fwupd-efi     1.4\n"
+                           "runtime   com.hughsie.libxmlb           0.3.24\n"
+                           "runtime   com.hughsie.libjcat           0.2.3\n"
+                           "runtime   org.kernel                    6.8.0-1052-azure\n")
+
+            else:
+                return 0, ("compile    info.libusb                   1.0.25\n"
+                           "compile   org.freedesktop.fwupd         2.0.20\n"
+                           "compile   com.hughsie.libxmlb           0.3.24\n"
+                           "compile   com.hughsie.libjcat           0.2.3\n"
+                           "runtime   org.freedesktop.fwupd-efi     1.4\n"
+                           "runtime   com.hughsie.libxmlb           0.3.24\n"
+                           "runtime   com.hughsie.libjcat           0.2.3\n"
+                           "runtime   org.kernel                    6.8.0-1052-azure\n"
+                           "runtime   org.freedesktop.fwupd         2.0.20\n")
+        return 0, ""
+
     def mock_run_command_output_fwupd_refresh_fails(self, cmd, no_output=False, chk_err=True):
         if cmd.find(self.runtime.package_manager.fwupd_refresh_cmd) > -1:
             return 1, "Error"
@@ -1177,7 +1204,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager.is_reboot_pending = backup_is_reboot_pending
         package_manager.are_latest_certs_present = backup_are_latest_certs_present
 
-    def test_try_update_certs_skips_install_when_fwupd_meets_minimum_version(self):
+    def test_try_update_certs_when_fwupd_meets_minimum_version(self):
         package_manager = self.container.get('package_manager')
 
         backup_is_reboot_pending = package_manager.is_reboot_pending
@@ -1207,6 +1234,53 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager.is_reboot_pending = backup_is_reboot_pending
         package_manager.are_latest_certs_present = backup_are_latest_certs_present
         package_manager._AptitudePackageManager__get_installed_fwupd_version = backup_get_installed_fwupd_version
+
+    def test_try_update_certs_when_fwupd_not_pre_installed(self):
+        package_manager = self.container.get('package_manager')
+
+        backup_is_reboot_pending = package_manager.is_reboot_pending
+        backup_are_latest_certs_present = package_manager.are_latest_certs_present
+        backup_run_command_output = package_manager.env_layer.run_command_output
+        package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_with_different_output_across_multiple_attempts
+        package_manager.env_layer.run_command_output = self.mock_run_command_output_fwupd_version_not_found_in_first_attempt_and_found_later
+
+        self.assertTrue(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, False)
+
+        package_manager.is_reboot_pending = backup_is_reboot_pending
+        package_manager.are_latest_certs_present = backup_are_latest_certs_present
+        package_manager.env_layer.run_command_output = backup_run_command_output
+
+    def test_try_update_certs_when_fwupd_install_failed(self):
+        self.runtime.set_legacy_test_type('FailInstallPath')
+        package_manager = self.container.get('package_manager')
+
+        backup_is_reboot_pending = package_manager.is_reboot_pending
+        backup_are_latest_certs_present = package_manager.are_latest_certs_present
+        package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_with_different_output_across_multiple_attempts
+
+        self.assertFalse(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, False)
+
+        package_manager.is_reboot_pending = backup_is_reboot_pending
+        package_manager.are_latest_certs_present = backup_are_latest_certs_present
+
+    def test_try_update_certs_when_older_fwupd_installed_by_azgps(self):
+        self.runtime.set_legacy_test_type('SuccessInstallPath')
+        package_manager = self.container.get('package_manager')
+
+        backup_is_reboot_pending = package_manager.is_reboot_pending
+        backup_are_latest_certs_present = package_manager.are_latest_certs_present
+        package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_with_different_output_across_multiple_attempts
+
+        self.assertFalse(package_manager.try_update_certs())
+        self.assertEqual(package_manager.status_handler.is_reboot_pending, False)
+
+        package_manager.is_reboot_pending = backup_is_reboot_pending
+        package_manager.are_latest_certs_present = backup_are_latest_certs_present
 
     def test_try_update_certs_all_commands_succeed_but_certs_not_updated(self):
         """ Test when all commands to update certs succeed but certs are still not updated,

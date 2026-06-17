@@ -1050,6 +1050,17 @@ class LegacyEnvLayerExtensions():
                                   "Subject: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation UEFI CA 2011"
                                   "Issuer: C=US, O=Microsoft Corporation, CN=Microsoft RSA Devices Root CA 2021"
                                   "Subject: C=US, O=Microsoft Corporation, CN=Microsoft UEFI CA 2023")
+                    elif cmd.find("fwupdmgr --version") > -1:
+                        code = 0
+                        output = ("compile   info.libusb                   1.0.25\n"
+                                  "compile   org.freedesktop.fwupd         2.0.2\n"
+                                  "compile   com.hughsie.libxmlb           0.3.24\n"
+                                  "compile   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.freedesktop.fwupd-efi     1.4\n"
+                                  "runtime   com.hughsie.libxmlb           0.3.24\n"
+                                  "runtime   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.kernel                    6.8.0-1052-azure\n"
+                                  "runtime   org.freedesktop.fwupd         2.0.2\n")
                 elif self.legacy_package_manager_name is Constants.TDNF:
                     if cmd.find("simulate-install") > -1 or cmd.find("sudo tdnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
                         code = 8
