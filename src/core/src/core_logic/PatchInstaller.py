@@ -811,8 +811,6 @@ class PatchInstaller(object):
         try:
             is_confidential_vm, detection_details = self.env_layer.detect_confidential_vm()
         except Exception as e:
-            is_confidential_vm = False
-            detection_details = str()
             self.composite_logger.log_warning("Unable to determine whether the VM is a Confidential VM before attempting the UEFI certificate update. Continuing with patch installation... [Error: {0}]".format(str(e)))
             return
 

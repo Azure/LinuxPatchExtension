@@ -297,9 +297,8 @@ echo "$HOSTNAME,$ROOT_DEV,FDE=$FDE,$DETAILS"
             if script_dir and not os.path.isdir(script_dir):
                 try:
                     os.makedirs(script_dir)
-                except OSError:
-                    if not os.path.isdir(script_dir):
-                        raise
+                except Exception:
+                    raise
 
             self.file_system.write_with_retry(script_path, detection_script, 'w')
 
@@ -307,7 +306,7 @@ echo "$HOSTNAME,$ROOT_DEV,FDE=$FDE,$DETAILS"
             command_output = str(out).strip() if out is not None else str()
             return code == 0 and re.search(r'\bFDE\s*=\s*true\b', command_output, re.IGNORECASE) is not None, command_output
         except Exception:
-            return False, command_output
+            raise Exception("FDE_DETECTION_ERROR:{0}; OUTPUT:{1}".format(str(e), command_output))
         finally:
             if script_path is not None and os.path.exists(script_path):
                 try:
@@ -320,13 +319,10 @@ echo "$HOSTNAME,$ROOT_DEV,FDE=$FDE,$DETAILS"
         """Queries Azure IMDS and returns whether the VM reports ConfidentialVM security type."""
         command = 'curl -s --connect-timeout 2 --max-time 2 -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2025-04-07"'
 
-        try:
-            code, out = self.run_command_output(command, False, False)
-            command_output = str(out).strip() if out is not None else str()
-            if code == 0 and re.search(r'"securityType"\s*:\s*"ConfidentialVM"', command_output, re.IGNORECASE) is not None:
-                return True, 'IMDS:ConfidentialVM'
-        except Exception:
-            pass
+        code, out = self.run_command_output(command, False, False)
+        command_output = str(out).strip() if out is not None else str()
+        if code == 0 and re.search(r'"securityType"\s*:\s*"ConfidentialVM"', command_output, re.IGNORECASE) is not None:
+            return True, 'IMDS:ConfidentialVM'
 
         return False, str()
 

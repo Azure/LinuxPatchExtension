@@ -35,6 +35,12 @@ class TestPatchInstaller(unittest.TestCase):
     # region Mocks
     def mock_update_certs_raise_exception(self):
         raise Exception("Simulated cert update failure")
+
+    def mock_detect_confidential_vm_raises_exception(self):
+        raise Exception("Simulated VM detection failure")
+
+    def mock_detect_confidential_vm_by_imds_returns_true(self):
+        return True, 'IMDS:ConfidentialVM'
     # endregion
 
     # region Utility functions (update cert tests)
@@ -819,12 +825,26 @@ class TestPatchInstaller(unittest.TestCase):
 
     def test_try_update_certificates_skips_confidential_vm(self):
         runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id="pub_off_sku_2025.01.01")
-        runtime.patch_installer.env_layer.detect_confidential_vm = lambda: (True, 'IMDS:ConfidentialVM')
+        backup_detect_confidential_vm_by_imds = runtime.env_layer.detect_confidential_vm_by_imds
 
+        runtime.env_layer.detect_confidential_vm_by_imds = self.mock_detect_confidential_vm_by_imds_returns_true
         method_called = self._track_method_call(runtime.patch_installer.package_manager, 'update_certs')
         runtime.patch_installer.start_installation(simulate=True)
-
         self.assertEqual(len(method_called), 0)
+
+        runtime.env_layer.detect_confidential_vm_by_imds = backup_detect_confidential_vm_by_imds
+        runtime.stop()
+
+    def test_try_update_certificates_skips_when_detect_confidential_vm_raises_exception(self):
+        runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id="pub_off_sku_2025.01.01")
+        backup_detect_confidential_vm = runtime.env_layer.detect_confidential_vm
+
+        runtime.env_layer.detect_confidential_vm = self.mock_detect_confidential_vm_raises_exception
+        method_called = self._track_method_call(runtime.patch_installer.package_manager, 'update_certs')
+        runtime.patch_installer.start_installation(simulate=True)
+        self.assertEqual(len(method_called), 0)
+
+        runtime.env_layer.detect_confidential_vm = backup_detect_confidential_vm
         runtime.stop()
     # endregion
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
+import os
 import platform
 import sys
 import unittest
@@ -84,6 +85,42 @@ class TestExecutionConfig(unittest.TestCase):
 
     def mock_distro_os_release_attr_return_rhel_10(self, attribute):
         return '10.0'
+
+    def mock_run_command_output_fde_true(self, cmd, no_output=False, chk_err=False):
+        return 0, 'test-vm,/dev/sda1,FDE=true,LUKS:/dev/sda1'
+
+    def mock_run_command_output_fde_false(self, cmd, no_output=False, chk_err=False):
+        return 0, 'test-vm,/dev/sda1,FDE=false,LUKS:/dev/sda1'
+
+    def mock_run_command_output_imds_true(self, cmd, no_output=False, chk_err=False):
+        return 0, '"securityProfile": { "encryptionAtHost": "false", "secureBootEnabled": "false", "securityType": "ConfidentialVM", "virtualTpmEnabled": "false"}'
+
+    def mock_run_command_output_imds_false(self, cmd, no_output=False, chk_err=False):
+        return 0, '{"compute":{"securityProfile":{"securityType":""}}}'
+
+    def mock_run_command_raises_exception(self, cmd, no_output=False, chk_err=False):
+        raise Exception('Test Exception')
+
+    def mock_detect_confidential_vm_by_fde_returns_true(self):
+        return True, 'test-vm,/dev/sda1,FDE=true,LUKS:/dev/sda1'
+
+    def mock_detect_confidential_vm_by_fde_returns_false(self):
+        return False, str()
+
+    def mock_detect_confidential_vm_by_imds_returns_true(self):
+        return True, 'IMDS:ConfidentialVM'
+
+    def mock_detect_confidential_vm_by_imds_returns_false(self):
+        return False, str()
+
+    def mock_os_remove_raises_exeception(self, path):
+        raise Exception('Test Exception')
+
+    def mock_os_makedirs_raises_exeception(self, path):
+        raise Exception('Test Exception')
+
+    def mock_os_path_isdir_returns_false(self, path):
+        return False
     # endregion
 
     def test_get_package_manager(self):
@@ -138,84 +175,82 @@ class TestExecutionConfig(unittest.TestCase):
         distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
 
     def test_detect_confidential_vm_by_fde(self):
+        backup_detect_cvm_bash_file_path = Constants.AzGPSPaths.DETECT_CVM
         backup_run_command_output = self.envlayer.run_command_output
+        backup_os_remove = os.remove
+        backup_os_path_isdir = os.path.isdir
+        backup_os_makedirs = os.makedirs
 
-        self.envlayer.run_command_output = lambda cmd, no_output=False, chk_err=False: (0, 'test-vm,/dev/sda1,FDE=true,LUKS:/dev/sda1')
-        is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm_by_fde()
+        test_input_output_table = [
+            [self.mock_run_command_output_fde_true, backup_os_remove, backup_os_path_isdir, backup_os_makedirs, False, True, 'FDE=true'],
+            [self.mock_run_command_output_fde_false, backup_os_remove, backup_os_path_isdir, backup_os_makedirs, False, False, str()],
+            [self.mock_run_command_output_fde_true, self.mock_os_remove_raises_exeception, backup_os_path_isdir, backup_os_makedirs, False, True, 'FDE=true'],
+            [self.mock_run_command_output_fde_true, backup_os_remove, self.mock_os_path_isdir_returns_false, self.mock_os_makedirs_raises_exeception, True, False, str()],
+            [self.mock_run_command_output_fde_true, self.mock_os_remove_raises_exeception, self.mock_os_path_isdir_returns_false, self.mock_os_makedirs_raises_exeception, True, False, str()],
+        ]
 
-        self.assertTrue(is_confidential_vm)
-        self.assertIn('FDE=true', detection_details)
+        Constants.AzGPSPaths.DETECT_CVM = os.path.join(os.getcwd(), 'patch.detectcvm.sh')
+        for row in test_input_output_table:
+            self.envlayer.run_command_output = row[0]
+            os.remove = row[1]
+            os.path.isdir = row[2]
+            os.makedirs = row[3]
+            expected_raises_exception = row[4]
+            expected_is_confidential_vm = row[5]
+            expected_detection_details = row[6]
+
+            if expected_raises_exception:
+                self.assertRaises(Exception, self.envlayer.detect_confidential_vm_by_fde)
+            else:
+                is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm_by_fde()
+                self.assertEqual(is_confidential_vm, expected_is_confidential_vm)
+                self.assertIn(expected_detection_details, detection_details)
 
         self.envlayer.run_command_output = backup_run_command_output
+        os.remove = backup_os_remove
+        os.path.isdir = backup_os_path_isdir
+        os.makedirs = backup_os_makedirs
+        Constants.AzGPSPaths.DETECT_CVM = backup_detect_cvm_bash_file_path
 
     def test_detect_confidential_vm_by_imds(self):
         backup_run_command_output = self.envlayer.run_command_output
 
-        self.envlayer.run_command_output = lambda cmd, no_output=False, chk_err=False: (0, '{"compute":{"securityProfile":{"securityType":"ConfidentialVM"}}}')
-        is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm_by_imds()
+        test_input_output_table = [
+            [self.mock_run_command_output_imds_true, True, 'IMDS:ConfidentialVM'],
+            [self.mock_run_command_output_imds_false, False, str()],
+        ]
 
-        self.assertTrue(is_confidential_vm)
-        self.assertEqual('IMDS:ConfidentialVM', detection_details)
+        for row in test_input_output_table:
+            self.envlayer.run_command_output = row[0]
+            is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm_by_imds()
+            self.assertEqual(is_confidential_vm, row[1])
+            self.assertIn(row[2], detection_details)
 
         self.envlayer.run_command_output = backup_run_command_output
 
-    def test_detect_confidential_vm_checks_imds_before_fde(self):
-        backup_platform = self.envlayer.platform
+    def test_detect_confidential_vm(self):
+        self.backup_platform_system = platform.system
+
         backup_detect_confidential_vm_by_fde = self.envlayer.detect_confidential_vm_by_fde
         backup_detect_confidential_vm_by_imds = self.envlayer.detect_confidential_vm_by_imds
 
-        calls = []
-        self.envlayer.platform = self.envlayer.Platform()
-        self.envlayer.platform.os_type = lambda: 'Linux'
+        test_input_output_table = [
+            ["Linux", self.mock_detect_confidential_vm_by_fde_returns_true, self.mock_detect_confidential_vm_by_imds_returns_true, True, 'IMDS:ConfidentialVM'],
+            ["Linux", self.mock_detect_confidential_vm_by_fde_returns_true, self.mock_detect_confidential_vm_by_imds_returns_false, True, 'FDE=true'],
+            ["Windows", self.mock_run_command_output_fde_true, self.mock_run_command_output_imds_true, False, str()],
+            ["Linux", self.mock_detect_confidential_vm_by_fde_returns_false, self.mock_detect_confidential_vm_by_imds_returns_false, False, str()],
+        ]
 
-        def detect_confidential_vm_by_fde():
-            calls.append('fde')
-            return True, 'test-vm,/dev/sda1,FDE=true,LUKS:/dev/sda1'
+        for row in test_input_output_table:
+            platform.system = self.mock_platform_system if row[0] == 'Linux' else self.mock_platform_system_windows
+            self.envlayer.detect_confidential_vm_by_fde = row[1]
+            self.envlayer.detect_confidential_vm_by_imds = row[2]
+            is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm()
+            self.assertEqual(is_confidential_vm, row[3])
+            self.assertIn(row[4], detection_details)
 
-        def detect_confidential_vm_by_imds():
-            calls.append('imds')
-            return True, 'IMDS:ConfidentialVM'
-
-        self.envlayer.detect_confidential_vm_by_fde = detect_confidential_vm_by_fde
-        self.envlayer.detect_confidential_vm_by_imds = detect_confidential_vm_by_imds
-
-        is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm()
-
-        self.assertTrue(is_confidential_vm)
-        self.assertIn('IMDS:ConfidentialVM', detection_details)
-        self.assertEqual(['imds'], calls)
-
-        self.envlayer.platform = backup_platform
-        self.envlayer.detect_confidential_vm_by_fde = backup_detect_confidential_vm_by_fde
-        self.envlayer.detect_confidential_vm_by_imds = backup_detect_confidential_vm_by_imds
-
-    def test_detect_confidential_vm_checks_fde_when_imds_not_detected(self):
-        backup_platform = self.envlayer.platform
-        backup_detect_confidential_vm_by_fde = self.envlayer.detect_confidential_vm_by_fde
-        backup_detect_confidential_vm_by_imds = self.envlayer.detect_confidential_vm_by_imds
-
-        calls = []
-        self.envlayer.platform = self.envlayer.Platform()
-        self.envlayer.platform.os_type = lambda: 'Linux'
-
-        def detect_confidential_vm_by_fde():
-            calls.append('fde')
-            return True, 'test-vm,/dev/sda1,FDE=true,LUKS:/dev/sda1'
-
-        def detect_confidential_vm_by_imds():
-            calls.append('imds')
-            return False, str()
-
-        self.envlayer.detect_confidential_vm_by_fde = detect_confidential_vm_by_fde
-        self.envlayer.detect_confidential_vm_by_imds = detect_confidential_vm_by_imds
-
-        is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm()
-
-        self.assertTrue(is_confidential_vm)
-        self.assertIn('FDE=true', detection_details)
-        self.assertEqual(['imds', 'fde'], calls)
-
-        self.envlayer.platform = backup_platform
+        # restore original methods
+        platform.system = self.backup_platform_system
         self.envlayer.detect_confidential_vm_by_fde = backup_detect_confidential_vm_by_fde
         self.envlayer.detect_confidential_vm_by_imds = backup_detect_confidential_vm_by_imds
 
