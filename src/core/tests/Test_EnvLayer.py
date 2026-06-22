@@ -75,8 +75,10 @@ class TestExecutionConfig(unittest.TestCase):
         return -1, ''
 
     def mock_run_command_for_dnf5(self, cmd, no_output=False, chk_err=False):
-        if cmd.find("dnf --version") > -1:
-            return 0, '5.2.0'
+        if "which dnf" in cmd:
+            return 0, '/usr/bin/dnf'
+        if "dnf --version" in cmd:
+            return 0, 'dnf5 version 5.2.18.0'
         return -1, ''
 
     def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
@@ -207,6 +209,20 @@ class TestExecutionConfig(unittest.TestCase):
 
         # restore
         self.__restore_mocks()
+
+    def test_mock_command_fallback_paths(self):
+        """Test that mock commands return -1 for unexpected commands"""
+        # Cover line 60: apt mock with unexpected command
+        code, out = self.mock_run_command_for_apt('which yum')
+        self.assertEqual(code, -1)
+
+        # Cover line 75: dnf5 mock with unexpected command
+        code, out = self.mock_run_command_for_dnf5('which not-dnf')
+        self.assertEqual(code, -1)
+
+        # Cover line 75: dnf5 mock with unexpected command
+        code, out = self.mock_run_command_for_tdnf('which apt')
+        self.assertEqual(code, -1)
 
     def __restore_mocks(self):
         """Restore backed up mocks to their original state"""
