@@ -59,6 +59,7 @@ class Constants(object):
     class AzGPSPaths(EnumBackport):
         EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
         UEFI_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.uefi.settings"
+        DETECT_CVM = "/var/lib/azure/linuxpatchextension/patch.detectcvm.sh"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"

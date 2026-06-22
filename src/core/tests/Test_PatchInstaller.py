@@ -816,6 +816,16 @@ class TestPatchInstaller(unittest.TestCase):
 
         runtime.patch_installer.package_manager.update_certs = backup_up_update_certs
         runtime.stop()
+
+    def test_try_update_certificates_skips_confidential_vm(self):
+        runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id="pub_off_sku_2025.01.01")
+        runtime.patch_installer.env_layer.detect_confidential_vm = lambda: (True, 'IMDS:ConfidentialVM')
+
+        method_called = self._track_method_call(runtime.patch_installer.package_manager, 'update_certs')
+        runtime.patch_installer.start_installation(simulate=True)
+
+        self.assertEqual(len(method_called), 0)
+        runtime.stop()
     # endregion
 
 

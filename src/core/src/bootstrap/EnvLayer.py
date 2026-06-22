@@ -192,6 +192,144 @@ class EnvLayer(object):
                 raise
             return None
 
+    def detect_confidential_vm(self):
+        # type: () -> tuple
+        """Returns whether the current VM is a Confidential VM and the detection details."""
+        if self.platform.os_type() == 'Windows':
+            return False, str()
+
+        is_confidential_vm, detection_details = self.detect_confidential_vm_by_imds()
+        if is_confidential_vm:
+            return True, detection_details
+
+        is_confidential_vm, detection_details = self.detect_confidential_vm_by_fde()
+        if is_confidential_vm:
+            return True, detection_details
+
+        return False, str()
+
+    def detect_confidential_vm_by_fde(self):
+        # type: () -> tuple
+        """Runs the FDE-based CVM detection script and returns whether it detected a Confidential VM."""
+        script_path = Constants.AzGPSPaths.DETECT_CVM
+        command_output = str()
+        detection_script = """#!/usr/bin/env bash
+set -euo pipefail
+
+HOSTNAME=$(hostname)
+
+ROOT_SRC=$(findmnt -n -o SOURCE /)
+ROOT_DEV=$(readlink -f "$ROOT_SRC" || echo "$ROOT_SRC")
+
+FDE="false"
+DETAILS=""
+
+check_device() {
+   local dev="$1"
+
+   if blkid "$dev" 2>/dev/null | grep -qi 'crypto_LUKS'; then
+       FDE="true"
+       DETAILS="LUKS:$dev"
+       return
+   fi
+
+   local type
+   type=$(lsblk -dn -o TYPE "$dev" 2>/dev/null || true)
+
+   if [[ "$type" == "crypt" ]]; then
+       FDE="true"
+       DETAILS="CRYPT:$dev"
+       return
+   fi
+}
+
+walk_parents() {
+   local dev="$1"
+
+   while [[ -n "$dev" ]]; do
+       check_device "$dev"
+
+       if [[ "$FDE" == "true" ]]; then
+           return
+       fi
+
+       local parent
+       parent=$(lsblk -ndo PKNAME "$dev" 2>/dev/null | head -1 || true)
+
+       if [[ -z "$parent" ]]; then
+           break
+       fi
+
+       dev="/dev/$parent"
+   done
+}
+
+walk_parents "$ROOT_DEV"
+
+if [[ "$FDE" != "true" ]]; then
+   while read -r name type; do
+       if [[ "$type" == "crypt" ]]; then
+           mapper="/dev/mapper/$name"
+
+           if mount | grep -q "^$mapper on / "; then
+               FDE="true"
+               DETAILS="DMCRYPT_ROOT:$mapper"
+               break
+           fi
+       fi
+   done < <(dmsetup ls --target crypt 2>/dev/null || true)
+fi
+
+if [[ "$FDE" != "true" ]]; then
+   if systemctl list-units 2>/dev/null | grep -qi azure; then
+       if ls /var/lib/waagent/*Encryption* >/dev/null 2>&1; then
+           FDE="true"
+           DETAILS="AZURE_ADE_ARTIFACTS"
+       fi
+   fi
+fi
+
+echo "$HOSTNAME,$ROOT_DEV,FDE=$FDE,$DETAILS"
+"""
+
+        try:
+            script_dir = os.path.dirname(script_path)
+            if script_dir and not os.path.isdir(script_dir):
+                try:
+                    os.makedirs(script_dir)
+                except OSError:
+                    if not os.path.isdir(script_dir):
+                        raise
+
+            self.file_system.write_with_retry(script_path, detection_script, 'w')
+
+            code, out = self.run_command_output('bash "{0}"'.format(script_path), False, False)
+            command_output = str(out).strip() if out is not None else str()
+            return code == 0 and re.search(r'\bFDE\s*=\s*true\b', command_output, re.IGNORECASE) is not None, command_output
+        except Exception:
+            return False, command_output
+        finally:
+            if script_path is not None and os.path.exists(script_path):
+                try:
+                    os.remove(script_path)
+                except Exception:
+                    pass
+
+    def detect_confidential_vm_by_imds(self):
+        # type: () -> tuple
+        """Queries Azure IMDS and returns whether the VM reports ConfidentialVM security type."""
+        command = 'curl -s --connect-timeout 2 --max-time 2 -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2025-04-07"'
+
+        try:
+            code, out = self.run_command_output(command, False, False)
+            command_output = str(out).strip() if out is not None else str()
+            if code == 0 and re.search(r'"securityType"\s*:\s*"ConfidentialVM"', command_output, re.IGNORECASE) is not None:
+                return True, 'IMDS:ConfidentialVM'
+        except Exception:
+            pass
+
+        return False, str()
+
     def run_command_output(self, cmd, no_output=False, chk_err=True):
         # type: (str, bool, bool) -> (int, any)
         """ Wrapper for subprocess.check_output. Execute 'cmd'. Returns return code and STDOUT, trapping expected exceptions. Reports exceptions to Error if chk_err parameter is True """

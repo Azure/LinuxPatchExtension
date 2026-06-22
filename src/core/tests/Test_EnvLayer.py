@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 # Requires Python 2.7+
-import io
 import platform
 import sys
 import unittest
@@ -137,6 +136,88 @@ class TestExecutionConfig(unittest.TestCase):
 
         # restore original methods
         distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
+
+    def test_detect_confidential_vm_by_fde(self):
+        backup_run_command_output = self.envlayer.run_command_output
+
+        self.envlayer.run_command_output = lambda cmd, no_output=False, chk_err=False: (0, 'test-vm,/dev/sda1,FDE=true,LUKS:/dev/sda1')
+        is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm_by_fde()
+
+        self.assertTrue(is_confidential_vm)
+        self.assertIn('FDE=true', detection_details)
+
+        self.envlayer.run_command_output = backup_run_command_output
+
+    def test_detect_confidential_vm_by_imds(self):
+        backup_run_command_output = self.envlayer.run_command_output
+
+        self.envlayer.run_command_output = lambda cmd, no_output=False, chk_err=False: (0, '{"compute":{"securityProfile":{"securityType":"ConfidentialVM"}}}')
+        is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm_by_imds()
+
+        self.assertTrue(is_confidential_vm)
+        self.assertEqual('IMDS:ConfidentialVM', detection_details)
+
+        self.envlayer.run_command_output = backup_run_command_output
+
+    def test_detect_confidential_vm_checks_imds_before_fde(self):
+        backup_platform = self.envlayer.platform
+        backup_detect_confidential_vm_by_fde = self.envlayer.detect_confidential_vm_by_fde
+        backup_detect_confidential_vm_by_imds = self.envlayer.detect_confidential_vm_by_imds
+
+        calls = []
+        self.envlayer.platform = self.envlayer.Platform()
+        self.envlayer.platform.os_type = lambda: 'Linux'
+
+        def detect_confidential_vm_by_fde():
+            calls.append('fde')
+            return True, 'test-vm,/dev/sda1,FDE=true,LUKS:/dev/sda1'
+
+        def detect_confidential_vm_by_imds():
+            calls.append('imds')
+            return True, 'IMDS:ConfidentialVM'
+
+        self.envlayer.detect_confidential_vm_by_fde = detect_confidential_vm_by_fde
+        self.envlayer.detect_confidential_vm_by_imds = detect_confidential_vm_by_imds
+
+        is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm()
+
+        self.assertTrue(is_confidential_vm)
+        self.assertIn('IMDS:ConfidentialVM', detection_details)
+        self.assertEqual(['imds'], calls)
+
+        self.envlayer.platform = backup_platform
+        self.envlayer.detect_confidential_vm_by_fde = backup_detect_confidential_vm_by_fde
+        self.envlayer.detect_confidential_vm_by_imds = backup_detect_confidential_vm_by_imds
+
+    def test_detect_confidential_vm_checks_fde_when_imds_not_detected(self):
+        backup_platform = self.envlayer.platform
+        backup_detect_confidential_vm_by_fde = self.envlayer.detect_confidential_vm_by_fde
+        backup_detect_confidential_vm_by_imds = self.envlayer.detect_confidential_vm_by_imds
+
+        calls = []
+        self.envlayer.platform = self.envlayer.Platform()
+        self.envlayer.platform.os_type = lambda: 'Linux'
+
+        def detect_confidential_vm_by_fde():
+            calls.append('fde')
+            return True, 'test-vm,/dev/sda1,FDE=true,LUKS:/dev/sda1'
+
+        def detect_confidential_vm_by_imds():
+            calls.append('imds')
+            return False, str()
+
+        self.envlayer.detect_confidential_vm_by_fde = detect_confidential_vm_by_fde
+        self.envlayer.detect_confidential_vm_by_imds = detect_confidential_vm_by_imds
+
+        is_confidential_vm, detection_details = self.envlayer.detect_confidential_vm()
+
+        self.assertTrue(is_confidential_vm)
+        self.assertIn('FDE=true', detection_details)
+        self.assertEqual(['imds', 'fde'], calls)
+
+        self.envlayer.platform = backup_platform
+        self.envlayer.detect_confidential_vm_by_fde = backup_detect_confidential_vm_by_fde
+        self.envlayer.detect_confidential_vm_by_imds = backup_detect_confidential_vm_by_imds
 
     def test_filesystem(self):
         # only validates if these invocable without exceptions
