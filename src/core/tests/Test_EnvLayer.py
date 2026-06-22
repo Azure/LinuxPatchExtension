@@ -111,7 +111,7 @@ class TestExecutionConfig(unittest.TestCase):
             [self.mock_run_command_for_dnf5, self.mock_linux_distribution_to_return_azure_linux_4, Constants.DNF5, self.mock_distro_os_release_attr_return_azure_linux_4],
             [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_3, Constants.TDNF, self.mock_distro_os_release_attr_return_azure_linux_3],
             [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, str(), self.mock_distro_os_release_attr_return_none],  # check for Azure Linux machine which does not have tdnf
-            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, Constants.TDNF, self.mock_distro_os_release_attr_return_azure_linux_3],
+            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, Constants.TDNF, self.mock_distro_os_release_attr_return_azure_linux_2],
             [self.mock_run_command_for_yum, self.mock_linux_distribution, Constants.YUM, self.mock_distro_os_release_attr_return_none],
             [self.mock_run_command_for_zypper, self.mock_linux_distribution, Constants.ZYPPER, self.mock_distro_os_release_attr_return_none],
             [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, str(), self.mock_distro_os_release_attr_return_none],    # no matches for any package manager
@@ -122,7 +122,7 @@ class TestExecutionConfig(unittest.TestCase):
             self.envlayer.platform.linux_distribution = row[1]
             distro.os_release_attr = row[3]
             package_manager = self.envlayer.get_package_manager()
-            self.assertTrue(package_manager is row[2])
+            self.assertEqual(package_manager, row[2])
 
         # test for Windows
         platform.system = self.mock_platform_system_windows
