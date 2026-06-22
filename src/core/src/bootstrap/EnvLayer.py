@@ -99,8 +99,8 @@ class EnvLayer(object):
 
         # Check for Azure Linux 4 or Above( uses dnf5)
         if self.is_distro_azure_linux_4(str(os_name)):
-            code, out = self.run_command_output('which dnf', False, False)
-            if code == 0:
+            code, out = self.run_command_output('dnf --version', False, False)
+            if code == 0 and out and str(out).strip().startswith('5'):
                 return Constants.DNF5
             else:
                 print("Error: Expected package manager dnf5 not found on this Azure Linux4 VM.")
