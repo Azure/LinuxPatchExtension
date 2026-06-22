@@ -81,6 +81,16 @@ class TestExecutionConfig(unittest.TestCase):
             return 0, 'dnf5 version 5.2.18.0'
         return -1, ''
 
+    def mock_run_command_for_dnf_not_found(self, cmd, no_output=False, chk_err=False):
+        return -1, ''
+
+    def mock_run_command_for_dnf_wrong_version(self, cmd, no_output=False, chk_err=False):
+        if "which dnf" in cmd:
+            return 0, '/usr/bin/dnf'
+        if "dnf --version" in cmd:
+            return 0, 'dnf version 4.14.0'
+        return -1, ''
+
     def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
         return '4.0.0'
 
@@ -159,7 +169,7 @@ class TestExecutionConfig(unittest.TestCase):
 
         test_input_output_table = [
             [self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, True],
-            [self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_none, False]
+            [self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_none, False],
         ]
 
         for row in test_input_output_table:
@@ -170,6 +180,33 @@ class TestExecutionConfig(unittest.TestCase):
 
         # restore original methods
         distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
+
+    def test_get_package_manager_dnf5_error_cases(self):
+        """Test dnf5 error cases in get_package_manager"""
+        self.backup_platform_system = platform.system
+        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
+        self.backup_run_command_output = self.envlayer.run_command_output
+        self.backup_distro_os_release_attr = distro.os_release_attr
+
+        platform.system = self.mock_platform_system
+        self.envlayer.platform.linux_distribution = self.mock_linux_distribution_to_return_azure_linux_4
+        distro.os_release_attr = self.mock_distro_os_release_attr_return_azure_linux_4
+
+        test_input_output_table = [
+            [self.mock_run_command_for_dnf_not_found, str()],
+            [self.mock_run_command_for_dnf_wrong_version, str()],
+        ]
+
+        for row in test_input_output_table:
+            self.envlayer.run_command_output = row[0]
+            result = self.envlayer.get_package_manager()
+            self.assertEqual(result, row[1])
+
+        # restore original methods
+        self.envlayer.run_command_output = self.backup_run_command_output
+        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
+        distro.os_release_attr = self.backup_distro_os_release_attr
+        platform.system = self.backup_platform_system
 
     def test_filesystem(self):
         # only validates if these invocable without exceptions
@@ -212,16 +249,16 @@ class TestExecutionConfig(unittest.TestCase):
 
     def test_mock_command_fallback_paths(self):
         """Test that mock commands return -1 for unexpected commands"""
-        # Cover line 60: apt mock with unexpected command
-        code, out = self.mock_run_command_for_apt('which yum')
+        code, out = self.mock_run_command_for_apt('which apt')
         self.assertEqual(code, -1)
 
-        # Cover line 75: dnf5 mock with unexpected command
         code, out = self.mock_run_command_for_dnf5('which not-dnf')
         self.assertEqual(code, -1)
 
-        # Cover line 75: dnf5 mock with unexpected command
-        code, out = self.mock_run_command_for_tdnf('which apt')
+        code, out = self.mock_run_command_for_dnf_wrong_version('dnf --v')
+        self.assertEqual(code, -1)
+
+        code, out = self.mock_run_command_for_tdnf('which not-tdnf')
         self.assertEqual(code, -1)
 
     def __restore_mocks(self):
