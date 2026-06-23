@@ -110,7 +110,9 @@ class EnvLayer(object):
                 version = str(out).split()[-1]
                 if version.startswith('5'):
                     return Constants.DNF5
-            print("Error: Expected dnf version 5 not found on this Azure Linux4 VM.")
+                print("Error: Expected dnf version 5 on this Azure Linux4 VM. Found: {0}".format(version))
+                return str()
+            print("Error: Unable to determine dnf version. Code={0}, Output={1}".format(code, out))
             return str()
 
         # Check for Azure Linux (3 and below use TDNF)

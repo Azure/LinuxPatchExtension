@@ -17,6 +17,7 @@ import io
 import platform
 import sys
 import unittest
+
 # Conditional import for StringIO
 try:
     from StringIO import StringIO  # Python 2
@@ -89,6 +90,13 @@ class TestExecutionConfig(unittest.TestCase):
             return 0, '/usr/bin/dnf'
         if "dnf --version" in cmd:
             return 0, 'dnf version 4.14.0'
+        return -1, ''
+
+    def mock_run_command_for_dnf_version_command_failure(self, cmd, no_output=False, chk_err=False):
+        if "which dnf" in cmd:
+            return 0, '/usr/bin/dnf'
+        if "dnf --version" in cmd:
+            return -1, 'dnf version command failure'
         return -1, ''
 
     def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
@@ -195,6 +203,7 @@ class TestExecutionConfig(unittest.TestCase):
         test_input_output_table = [
             [self.mock_run_command_for_dnf_not_found, str()],
             [self.mock_run_command_for_dnf_wrong_version, str()],
+            [self.mock_run_command_for_dnf_version_command_failure, str()]
         ]
 
         for row in test_input_output_table:
@@ -256,6 +265,9 @@ class TestExecutionConfig(unittest.TestCase):
         self.assertEqual(code, -1)
 
         code, out = self.mock_run_command_for_dnf_wrong_version('dnf --v')
+        self.assertEqual(code, -1)
+
+        code, out = self.mock_run_command_for_dnf_version_command_failure('dnf --v')
         self.assertEqual(code, -1)
 
         code, out = self.mock_run_command_for_tdnf('which not-tdnf')
