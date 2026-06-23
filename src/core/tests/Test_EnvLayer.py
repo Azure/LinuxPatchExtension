@@ -17,7 +17,6 @@ import io
 import platform
 import sys
 import unittest
-
 # Conditional import for StringIO
 try:
     from StringIO import StringIO  # Python 2
