@@ -59,7 +59,6 @@ class Constants(object):
     class AzGPSPaths(EnumBackport):
         EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
         UEFI_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.uefi.settings"
-        DETECT_CVM = "/var/lib/azure/linuxpatchextension/patch.detectcvm.sh"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -101,6 +100,9 @@ class Constants(object):
     class Certificates(EnumBackport):
         KEK = "KEK"
         DB = "DB"
+
+    # Confidential VM detection shim script name
+    DETECT_CVM_SHIM_FILE_NAME = "DetectConfidentialVmShim.sh"
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"

@@ -200,119 +200,42 @@ class EnvLayer(object):
 
         is_confidential_vm, detection_details = self.detect_confidential_vm_by_imds()
         if is_confidential_vm:
-            return True, detection_details
+            return is_confidential_vm, detection_details
 
         is_confidential_vm, detection_details = self.detect_confidential_vm_by_fde()
         if is_confidential_vm:
-            return True, detection_details
+            return is_confidential_vm, detection_details
 
         return False, str()
 
     def detect_confidential_vm_by_fde(self):
         # type: () -> tuple
         """Runs the FDE-based CVM detection script and returns whether it detected a Confidential VM."""
-        script_path = Constants.AzGPSPaths.DETECT_CVM
         command_output = str()
-        detection_script = """#!/usr/bin/env bash
-set -euo pipefail
-
-HOSTNAME=$(hostname)
-
-ROOT_SRC=$(findmnt -n -o SOURCE /)
-ROOT_DEV=$(readlink -f "$ROOT_SRC" || echo "$ROOT_SRC")
-
-FDE="false"
-DETAILS=""
-
-check_device() {
-   local dev="$1"
-
-   if blkid "$dev" 2>/dev/null | grep -qi 'crypto_LUKS'; then
-       FDE="true"
-       DETAILS="LUKS:$dev"
-       return
-   fi
-
-   local type
-   type=$(lsblk -dn -o TYPE "$dev" 2>/dev/null || true)
-
-   if [[ "$type" == "crypt" ]]; then
-       FDE="true"
-       DETAILS="CRYPT:$dev"
-       return
-   fi
-}
-
-walk_parents() {
-   local dev="$1"
-
-   while [[ -n "$dev" ]]; do
-       check_device "$dev"
-
-       if [[ "$FDE" == "true" ]]; then
-           return
-       fi
-
-       local parent
-       parent=$(lsblk -ndo PKNAME "$dev" 2>/dev/null | head -1 || true)
-
-       if [[ -z "$parent" ]]; then
-           break
-       fi
-
-       dev="/dev/$parent"
-   done
-}
-
-walk_parents "$ROOT_DEV"
-
-if [[ "$FDE" != "true" ]]; then
-   while read -r name type; do
-       if [[ "$type" == "crypt" ]]; then
-           mapper="/dev/mapper/$name"
-
-           if mount | grep -q "^$mapper on / "; then
-               FDE="true"
-               DETAILS="DMCRYPT_ROOT:$mapper"
-               break
-           fi
-       fi
-   done < <(dmsetup ls --target crypt 2>/dev/null || true)
-fi
-
-if [[ "$FDE" != "true" ]]; then
-   if systemctl list-units 2>/dev/null | grep -qi azure; then
-       if ls /var/lib/waagent/*Encryption* >/dev/null 2>&1; then
-           FDE="true"
-           DETAILS="AZURE_ADE_ARTIFACTS"
-       fi
-   fi
-fi
-
-echo "$HOSTNAME,$ROOT_DEV,FDE=$FDE,$DETAILS"
-"""
 
         try:
-            script_dir = os.path.dirname(script_path)
-            if script_dir and not os.path.isdir(script_dir):
-                try:
-                    os.makedirs(script_dir)
-                except Exception:
-                    raise
+            detection_shim_path = self.__get_fde_detection_shim_path()
+            detection_script = self.file_system.read_with_retry(detection_shim_path)
+            if detection_script is None or str(detection_script).strip() == str():
+                raise Exception("FDE_DETECTION_SHIM_EMPTY:{0}".format(str(detection_shim_path)))
 
-            self.file_system.write_with_retry(script_path, detection_script, 'w')
-
-            code, out = self.run_command_output('bash "{0}"'.format(script_path), False, False)
+            code, out = self.run_command_output('bash "{0}"'.format(detection_shim_path), False, False)
             command_output = str(out).strip() if out is not None else str()
             return code == 0 and re.search(r'\bFDE\s*=\s*true\b', command_output, re.IGNORECASE) is not None, command_output
-        except Exception:
+        except Exception as e:
             raise Exception("FDE_DETECTION_ERROR:{0}; OUTPUT:{1}".format(str(e), command_output))
-        finally:
-            if script_path is not None and os.path.exists(script_path):
-                try:
-                    os.remove(script_path)
-                except Exception:
-                    pass
+
+    @staticmethod
+    def __get_fde_detection_shim_path():
+        # type: () -> str
+        """Resolves the packaged FDE detection shim path."""
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        shim_path = os.path.join(current_dir, Constants.DETECT_CVM_SHIM_FILE_NAME)
+
+        if os.path.isfile(shim_path):
+            return shim_path
+
+        raise Exception("FDE_DETECTION_SHIM_NOT_FOUND:{0}".format(str(shim_path)))
 
     def detect_confidential_vm_by_imds(self):
         # type: () -> tuple

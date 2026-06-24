@@ -238,6 +238,15 @@ def main(argv):
         external_dependencies_source_code_path = os.path.join(source_code_path, 'external_dependencies')
         add_external_dependencies(external_dependencies_destination, external_dependencies_source_code_path)
 
+        # Copy core shim files + enforce UNIX style line endings
+        print('\n========== Copying core shim files + enforcing UNIX style line endings.\n')
+        core_shim_files = ['DetectConfidentialVmShim.sh']
+        for core_shim_file in core_shim_files:
+            core_shim_src = os.path.join(working_directory, 'core', 'src', 'bootstrap', core_shim_file)
+            core_shim_destination = os.path.join(working_directory, 'out', core_shim_file)
+            shutil.copyfile(core_shim_src, core_shim_destination)
+            replace_text_in_file(core_shim_destination, '\r\n', '\n')
+
     except Exception as error:
         print('Exception during packaging all python modules in core: ' + repr(error))
         raise

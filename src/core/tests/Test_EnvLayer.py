@@ -98,9 +98,6 @@ class TestExecutionConfig(unittest.TestCase):
     def mock_run_command_output_imds_false(self, cmd, no_output=False, chk_err=False):
         return 0, '{"compute":{"securityProfile":{"securityType":""}}}'
 
-    def mock_run_command_raises_exception(self, cmd, no_output=False, chk_err=False):
-        raise Exception('Test Exception')
-
     def mock_detect_confidential_vm_by_fde_returns_true(self):
         return True, 'test-vm,/dev/sda1,FDE=true,LUKS:/dev/sda1'
 
@@ -113,13 +110,10 @@ class TestExecutionConfig(unittest.TestCase):
     def mock_detect_confidential_vm_by_imds_returns_false(self):
         return False, str()
 
-    def mock_os_remove_raises_exeception(self, path):
-        raise Exception('Test Exception')
+    def mock_file_system_read_with_retry_returns_empty(self, file_path_or_handle, raise_if_not_found=True):
+        return str()
 
-    def mock_os_makedirs_raises_exeception(self, path):
-        raise Exception('Test Exception')
-
-    def mock_os_path_isdir_returns_false(self, path):
+    def mock_os_path_isfile_returns_false(self, path):
         return False
     # endregion
 
@@ -175,29 +169,24 @@ class TestExecutionConfig(unittest.TestCase):
         distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
 
     def test_detect_confidential_vm_by_fde(self):
-        backup_detect_cvm_bash_file_path = Constants.AzGPSPaths.DETECT_CVM
         backup_run_command_output = self.envlayer.run_command_output
-        backup_os_remove = os.remove
-        backup_os_path_isdir = os.path.isdir
-        backup_os_makedirs = os.makedirs
+        backup_read_with_retry = self.envlayer.file_system.read_with_retry
+        backup_os_path_isfile = os.path.isfile
 
         test_input_output_table = [
-            [self.mock_run_command_output_fde_true, backup_os_remove, backup_os_path_isdir, backup_os_makedirs, False, True, 'FDE=true'],
-            [self.mock_run_command_output_fde_false, backup_os_remove, backup_os_path_isdir, backup_os_makedirs, False, False, str()],
-            [self.mock_run_command_output_fde_true, self.mock_os_remove_raises_exeception, backup_os_path_isdir, backup_os_makedirs, False, True, 'FDE=true'],
-            [self.mock_run_command_output_fde_true, backup_os_remove, self.mock_os_path_isdir_returns_false, self.mock_os_makedirs_raises_exeception, True, False, str()],
-            [self.mock_run_command_output_fde_true, self.mock_os_remove_raises_exeception, self.mock_os_path_isdir_returns_false, self.mock_os_makedirs_raises_exeception, True, False, str()],
+            [self.mock_run_command_output_fde_true, backup_os_path_isfile, backup_read_with_retry, False, True, 'FDE=true'],
+            [self.mock_run_command_output_fde_false, backup_os_path_isfile, backup_read_with_retry, False, False, str()],
+            [self.mock_run_command_output_fde_true, backup_os_path_isfile, self.mock_file_system_read_with_retry_returns_empty, True, False, str()],
+            [self.mock_run_command_output_fde_true, self.mock_os_path_isfile_returns_false, backup_read_with_retry, True, False, str()],
         ]
 
-        Constants.AzGPSPaths.DETECT_CVM = os.path.join(os.getcwd(), 'patch.detectcvm.sh')
         for row in test_input_output_table:
             self.envlayer.run_command_output = row[0]
-            os.remove = row[1]
-            os.path.isdir = row[2]
-            os.makedirs = row[3]
-            expected_raises_exception = row[4]
-            expected_is_confidential_vm = row[5]
-            expected_detection_details = row[6]
+            os.path.isfile = row[1]
+            self.envlayer.file_system.read_with_retry = row[2]
+            expected_raises_exception = row[3]
+            expected_is_confidential_vm = row[4]
+            expected_detection_details = row[5]
 
             if expected_raises_exception:
                 self.assertRaises(Exception, self.envlayer.detect_confidential_vm_by_fde)
@@ -207,10 +196,8 @@ class TestExecutionConfig(unittest.TestCase):
                 self.assertIn(expected_detection_details, detection_details)
 
         self.envlayer.run_command_output = backup_run_command_output
-        os.remove = backup_os_remove
-        os.path.isdir = backup_os_path_isdir
-        os.makedirs = backup_os_makedirs
-        Constants.AzGPSPaths.DETECT_CVM = backup_detect_cvm_bash_file_path
+        self.envlayer.file_system.read_with_retry = backup_read_with_retry
+        os.path.isfile = backup_os_path_isfile
 
     def test_detect_confidential_vm_by_imds(self):
         backup_run_command_output = self.envlayer.run_command_output
