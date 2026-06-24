@@ -92,10 +92,19 @@ class EnvLayer(object):
         os_name, os_version, os_code = self.platform.linux_distribution()
 
         # Check for unsupported distros
-        if self.is_distro_azure_linux_4(os_name) or self.is_distro_rhel_10(os_name):
+        if self.is_distro_rhel_10(os_name):
             error_msg = "This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro={0}][Version={1}][Code={2}]".format(str(os_name), os_version, os_code)
             print("Error: {0}".format(error_msg))
             return str()
+
+        # Check for Azure Linux 4 or Above( uses dnf5)
+        if self.is_distro_azure_linux_4(str(os_name)):
+            code, out = self.run_command_output('which dnf', False, False)
+            if code == 0:
+                return Constants.DNF5
+            else:
+                print("Error: Expected package manager dnf5 not found on this Azure Linux4 VM.")
+                return str()
 
         # Check for Azure Linux (3 and below use TDNF)
         if self.is_distro_azure_linux(str(os_name)):

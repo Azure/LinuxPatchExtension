@@ -539,6 +539,53 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('pro security-status --format=json') > -1:
                         code = 0
                         output = "{\"summary\":{\"ua\":{\"attached\":true}}}"
+                    elif cmd.find('command -v mokutil') > -1:
+                        code = 0
+                        output = '/usr/bin/mokutil'
+                    elif cmd.find('apt-get install -y -qq mokutil') > -1:
+                        code = 0
+                        output = "Installed"
+                    elif cmd.find("fwupdmgr --version") > -1:
+                        code = 0
+                        output = ("compile    info.libusb                   1.0.25\n"
+                                  "compile   org.freedesktop.fwupd         2.0.20\n"
+                                  "compile   com.hughsie.libxmlb           0.3.24\n"
+                                  "compile   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.freedesktop.fwupd-efi     1.4\n"
+                                  "runtime   com.hughsie.libxmlb           0.3.24\n"
+                                  "runtime   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.kernel                    6.8.0-1052-azure\n"
+                                  "runtime   org.freedesktop.fwupd         2.0.20\n")
+                    elif cmd.find("sudo apt-get purge -y fwupd") > -1:
+                        code = 0
+                        output = "Removed"
+                    elif cmd.find("mokutil --kek | grep 'CN='") > -1:
+                        code = 0
+                        output = ("Issuer: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation Third Party Marketplace Root"
+                                  "Subject: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation KEK CA 2011")
+                    elif cmd.find("mokutil --db | grep 'CN='") > -1:
+                        code = 0
+                        output = ("Issuer: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation Third Party Marketplace Root"
+                                  "Subject: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation UEFI CA 2011")
+                    elif cmd.find("apt-get -q update") > -1:
+                        code = 0
+                        output = "Hit:1 http://archive.ubuntu.com/ubuntu jammy InRelease\n" + \
+                                 "Hit:2 http://archive.ubuntu.com/ubuntu jammy-updates InRelease\n" + \
+                                 "Hit:3 http://archive.ubuntu.com/ubuntu jammy-backports InRelease\n" + \
+                                 "Hit:4 http://security.ubuntu.com/ubuntu jammy-security InRelease\n" + \
+                                 "Reading package lists...\n"
+                    elif cmd.find("sudo apt-get install -y fwupd") > -1:
+                        code = 0
+                        output = ("Reading package lists... Done"
+                                  "Building dependency tree... Done"
+                                  "Reading state information... Done "
+                                  "2 upgraded, 7 newly installed, 0 to remove and 37 not upgraded")
+                    elif cmd.find("sudo fwupdmgr refresh") > -1:
+                        code = 0
+                        output = "Success"
+                    elif cmd.find("sudo fwupdmgr update") > -1:
+                        code = 0
+                        output = "Successfully installed firmware"
                 elif self.legacy_package_manager_name is Constants.TDNF:
                     if cmd.find("--security list updates") > -1:
                         code = 0
@@ -641,9 +688,74 @@ class LegacyEnvLayerExtensions():
                                  "dracut                      x86_64             102-7.azl3              azurelinux-official-base  382.51k               258.06k\n\n" + \
                                  "hyperv-daemons-license      noarch             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
                                  "hypervvssd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  382.51k               258.06k\n\n" + \
-                                 "hypervkvpd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
-                                 "Total installed size:   1.20M\n" + \
-                                 "Total download size: 661.34k\n"
+                                  "hypervkvpd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
+                                  "Total installed size:   1.20M\n" + \
+                                  "Total download size: 661.34k\n"
+                elif self.legacy_package_manager_name is Constants.DNF5:
+                    if cmd.find("check-update") > -1:
+                        code = 100
+                        output = ("Updating and loading repositories:\n"
+                                     "Repositories loaded.\n"
+                                     "Available packages\n"
+                                     "azurelinux-release.noarch 3.0-16.azl4~20260501 azurelinux-base\n"
+                                     "azurelinux-repos-ms-oss.noarch 3.0-3.azl4~20260501 azurelinux-base\n"
+                                     "libseccomp.x86_64 2.5.4-1.azl4~20260501 azurelinux-base\n"
+                                     "libxml2.x86_64 2.11.5-1.azl4~20260501 azurelinux-base\n"
+                                     "dracut.x86_64 102-7.azl4~20260501 azurelinux-base\n")
+                    elif cmd.find("dnf5 -y upgrade") > -1:
+                        code = 0
+                        output = "Complete!\n"
+                    elif cmd.find("dnf5 needs-restarting") > -1:
+                        code = 1
+                        output = "Updating and loading repositories:\n" + \
+                                 "Repositories loaded.\n" + \
+                                 "Core libraries or services have been updated since boot-up:\n" + \
+                                 "  * glibc\n\n" + \
+                                 "Reboot is required to fully utilize these updates.\n" + \
+                                 "More information: https://access.redhat.com/solutions/27943\n"
+                    elif cmd.find("dnf5 list --available python3") > -1:
+                        code = 0
+                        output = "Updating and loading repositories:\n" + \
+                                 "Repositories loaded.\n" + \
+                                 "Available packages\n" + \
+                                 "python3.x86_64 3.12.3-1.azl4~20260501 azurelinux-base\n" + \
+                                 "python3.x86_64 3.12.3-2.azl4~20260501 azurelinux-base\n" + \
+                                 "python3.x86_64 3.12.3-4.azl4~20260501 azurelinux-base\n" + \
+                                 "python3.x86_64 3.12.3-5.azl4~20260501 azurelinux-base\n" + \
+                                 "python3.x86_64 3.12.3-6.azl4~20260501 azurelinux-base\n"
+                    elif cmd.find("dnf5 install --assumeno --skip-broken") > -1 and "hyperv-daemons" in cmd:
+                        code = 1
+                        output = "Updating and loading repositories:\n" + \
+                                 "Repositories loaded.\n" + \
+                                 "Package                                                  Arch          Version                                                  Repository                          Size\n" + \
+                                 "Installing:\n" + \
+                                 " hyperv-daemons                                           x86_64        6.10-3.azl4~20260501                                     azurelinux-base                     20.08k\n\n" + \
+                                 "Transaction Summary:\n" + \
+                                 " Installing:         1 package\n\n" + \
+                                 "Total download size: 135.09k\n" + \
+                                 "Operation aborted by the user.\n"
+                    elif cmd.find("systemctl cat dnf5-automatic.service") > -1:
+                        code = 0
+                        output = "ExecStart=/usr/bin/dnf5 automatic --timer"
+                    elif cmd.find("systemctl is-enabled ") > -1:
+                        code = 0
+                        output = 'disabled'
+                    elif cmd.find("systemctl disable ") > -1:
+                        code = 0
+                        output = 'Auto update service disabled'
+                    elif cmd.find("rpm -qa") > -1:
+                        code = 0
+                        output = 'dnf5-plugin-automatic'
+                    elif cmd.find("dnf5 list --installed") > -1:
+                        code = 0
+                        package = cmd.replace('sudo dnf5 list --installed ', '').strip()
+                        whitelisted_versions = ['3.0-16.azl4~20260501', '3.0-3.azl4~20260501', '2.5.4-1.azl4~20260501', '2.11.5-1.azl4~20260501', '102-7.azl4~20260501', '3.12.3-6.azl4~20260501', '6.10-3.azl4~20260501']
+                        output = ("Updating and loading repositories:\nRepositories loaded.\nInstalled packages\n")
+                        template = "<PACKAGE> <VERSION> @System\n"
+                        for version in whitelisted_versions:
+                            entry = template.replace('<PACKAGE>', package)
+                            entry = entry.replace('<VERSION>', version)
+                            output += entry
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -657,6 +769,15 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('pro security-status --format=json') > -1:
                         code = 0
                         output = "{\"summary\":{\"ua\":{\"attached\":false}}}"
+                    elif cmd.find('command -v mokutil') > -1:
+                        code = 1
+                        output = 'E: Unable to locate package mokutil'
+                    elif cmd.find('apt-get install -y -qq mokutil') > 1:
+                        code = 1
+                        output = "E: Unable to locate package mokutil\n"
+                    elif cmd.find("mokutil --db | grep 'CN='") > -1:
+                        code = 1
+                        output = "No Db cert found"
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("microcode_ctl") > -1:
                         code = 1
@@ -693,6 +814,12 @@ class LegacyEnvLayerExtensions():
                     else:
                         code = 0
                         output = ''
+                elif self.legacy_package_manager_name is Constants.DNF5:
+                    if cmd.find("systemctl enable --now dnf5-automatic.timer") > -1:
+                        code = 1
+                        output = ''
+                    else:
+                        code = 0
                 elif cmd.find("systemctl") > -1:
                     code = 1
                     output = ''
@@ -762,6 +889,19 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("systemctl is-enabled ") > -1:
                         code = 0
                         output = 'enabled'
+                if self.legacy_package_manager_name is Constants.DNF5:
+                    if cmd.find("systemctl cat dnf5-automatic.service") > -1:
+                        code = 0
+                        output = "ExecStart=/usr/bin/dnf5 automatic "
+                    elif "systemctl is-enabled" in cmd:
+                        code = 0
+                        output = 'enabled'
+                    elif cmd.find("rpm -qa") > -1:
+                        code = 0
+                        output = 'dnf5-plugin-automatic'
+                    elif "systemctl enable --nows dnf-automatic.timer" in cmd:
+                        code = 1
+                        output = 'systemctl: unrecognized option --nows'
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
@@ -898,6 +1038,29 @@ class LegacyEnvLayerExtensions():
                         "sudo LANG=en_US.UTF8 zypper --non-interactive update --dry-run") > -1:
                         code = 0
                         output = "Package sucessfully installed!"
+                    elif cmd.find("mokutil --kek | grep 'CN='") > -1:
+                        code = 0
+                        output = ("Issuer: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation Third Party Marketplace Root"
+                                  "Subject: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation KEK CA 2011"
+                                  "Issuer: C=US, O=Microsoft Corporation, CN=Microsoft RSA Devices Root CA 2021"
+                                  "Subject: C=US, O=Microsoft Corporation, CN=Microsoft Corporation KEK 2K CA 2023")
+                    elif cmd.find("mokutil --db | grep 'CN='") > -1:
+                        code = 0
+                        output = ("Issuer: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation Third Party Marketplace Root"
+                                  "Subject: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation UEFI CA 2011"
+                                  "Issuer: C=US, O=Microsoft Corporation, CN=Microsoft RSA Devices Root CA 2021"
+                                  "Subject: C=US, O=Microsoft Corporation, CN=Microsoft UEFI CA 2023")
+                    elif cmd.find("fwupdmgr --version") > -1:
+                        code = 0
+                        output = ("compile   info.libusb                   1.0.25\n"
+                                  "compile   org.freedesktop.fwupd         2.0.2\n"
+                                  "compile   com.hughsie.libxmlb           0.3.24\n"
+                                  "compile   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.freedesktop.fwupd-efi     1.4\n"
+                                  "runtime   com.hughsie.libxmlb           0.3.24\n"
+                                  "runtime   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.kernel                    6.8.0-1052-azure\n"
+                                  "runtime   org.freedesktop.fwupd         2.0.2\n")
                 elif self.legacy_package_manager_name is Constants.TDNF:
                     if cmd.find("simulate-install") > -1 or cmd.find("sudo tdnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
                         code = 8
@@ -915,6 +1078,19 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = "Loaded plugin: tdnfrepogpgcheck\n" + \
                                  "hyperv-daemons-license.noarch                     6.6.78.1-1.azl3                     @System\n"
+                elif self.legacy_package_manager_name is Constants.DNF5:
+                    if "rubygem-json" in cmd and "--assumeno" in cmd:
+                            code = 0
+                            output = (
+                                'Updating and loading repositories:\n'
+                                'Repositories loaded.\n'
+                                'Package "rubygem-json-2.13.2-2.azl4~20260501.x86_64" is already installed.\n\n'
+                                'Nothing to do.\n')
+                    elif "dnf5 list --installed rubygem-json" in cmd:
+                        code = 0
+                        output = (
+                            "Installed packages\n"
+                            "rubygem-json.x86_64 2.13.2-2.azl4~20260501 azurelinux-base\n")
             elif self.legacy_test_type == 'FailInstallPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -1067,10 +1243,27 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("force-dpkg-failure") > -1:
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
+                    elif cmd.find("fwupdmgr --version") > -1:
+                        code = 1
+                        output = ""
+                    elif cmd.find("sudo apt-get install -y fwupd") > -1:
+                        code = 1
+                        output = "Error"
                 elif self.legacy_package_manager_name is Constants.TDNF:
                     if cmd.find("simulate-install") > -1 or cmd.find("sudo tdnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
                         code = 100
                         output = "Failed to install package"
+                elif self.legacy_package_manager_name is Constants.DNF5:
+                    if cmd.find("simulate-install") > -1 or cmd.find("sudo dnf5 install --assumeno --skip-broken hyperv-daemons-license") > -1:
+                        code = 1
+                        output = "Updating and loading repositories:\n" + \
+                                 "Repositories loaded.\n" + \
+                                 "Package Arch Version Repository Size\n" + \
+                                 "Installing:\n" + \
+                                 " hyperv-daemons-license noarch 6.10-3.azl4~20260501 azurelinux-base 18.3 KiB\n\n" + \
+                                 "Transaction Summary:\n" + \
+                                 " Installing:         1 package\n\n" + \
+                                 "Operation aborted by the user.\n"
             elif self.legacy_test_type == 'SSLCertificateIssueType1HappyPathAfterFix':
                 if self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("yum update -y --disablerepo='*' --enablerepo='*microsoft*'") > -1:
@@ -1379,6 +1572,13 @@ class LegacyEnvLayerExtensions():
                                  "python3.x86_64                3.12.9-1.azl3                   azurelinux-official-base\n" + \
                                  "Obsoleting:\n" + \
                                  "python.x86_64                 2.7.9-1.azl3                    azurelinux-official-base\n"
+                elif self.legacy_package_manager_name is Constants.DNF5:
+                    if cmd.find("dnf5 list --available python3") > -1:
+                        code = 0
+                        output = "Updating and loading repositories:\n" + \
+                                 "Repositories loaded.\n" + \
+                                 "Installed packages\n" + \
+                                 "python3.x86_64 3.14.3-2.azl4~20260501 azurelinux-base\n"
             elif self.legacy_test_type == 'YumVersion4Dependency':
                 if self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("--version") > -1:
@@ -1484,6 +1684,10 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("systemctl list-unit-files --type=service | grep dnf-automatic.service") > -1:
                         code = 0
                         output = 'Auto update service installed'
+                elif self.legacy_package_manager_name is Constants.DNF5:
+                    if "rpm -qa | grep dnf5-plugin-automatic" in cmd:
+                        code = 0
+                        output = 'dnf5-plugin-automatic'
             major_version = self.get_python_major_version()
             if major_version == 2:
                 return code, output.decode('utf8', 'ignore').encode('ascii', 'ignore')

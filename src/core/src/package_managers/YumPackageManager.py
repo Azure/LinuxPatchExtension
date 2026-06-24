@@ -18,6 +18,7 @@
 import json
 import os
 import re
+
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
@@ -1120,4 +1121,14 @@ class YumPackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
+
+    # region Update certificates in factory defaults
+    def try_install_mokutil(self):
+        """ Attempts to install mokutil """
+        pass
+
+    def try_update_certs(self):
+        """ Attempts to update certificate status """
+        pass
+    # endregion
 

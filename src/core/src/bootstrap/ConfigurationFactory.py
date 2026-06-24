@@ -38,6 +38,7 @@ from core.src.local_loggers.CompositeLogger import CompositeLogger
 
 from core.src.package_managers.AptitudePackageManager import AptitudePackageManager
 from core.src.package_managers.AzL3TdnfPackageManager import AzL3TdnfPackageManager
+from core.src.package_managers.Dnf5PackageManager import Dnf5PackageManager
 from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
 from core.src.service_interfaces.CredentialSanitizer import CredentialSanitizer
@@ -71,16 +72,19 @@ class ConfigurationFactory(object):
 
         self.configurations = {
             'apt_prod_config':    self.new_prod_configuration(Constants.APT, AptitudePackageManager),
+            'dnf5_prod_config':    self.new_prod_configuration(Constants.DNF5, Dnf5PackageManager),
             'tdnf_prod_config': self.new_prod_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_prod_config':    self.new_prod_configuration(Constants.YUM, YumPackageManager),
             'zypper_prod_config': self.new_prod_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_dev_config':     self.new_dev_configuration(Constants.APT, AptitudePackageManager),
+            'dnf5_dev_config':     self.new_dev_configuration(Constants.DNF5, Dnf5PackageManager),
             'tdnf_dev_config': self.new_dev_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_dev_config':     self.new_dev_configuration(Constants.YUM, YumPackageManager),
             'zypper_dev_config':  self.new_dev_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_test_config':    self.new_test_configuration(Constants.APT, AptitudePackageManager),
+            'dnf5_test_config':    self.new_test_configuration(Constants.DNF5, Dnf5PackageManager),
             'tdnf_test_config': self.new_test_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
             'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
@@ -117,7 +121,7 @@ class ConfigurationFactory(object):
             print ("Error: Environment configuration not supported - " + str(env))
             return None
 
-        if str(package_manager_name) not in [Constants.APT, Constants.TDNF, Constants.YUM, Constants.ZYPPER]:
+        if str(package_manager_name) not in [Constants.APT, Constants.DNF5, Constants.TDNF, Constants.YUM, Constants.ZYPPER]:
             print ("Error: Package manager configuration not supported - " + str(package_manager_name))
             return None
 
