@@ -1,22 +1,24 @@
 Example of different output formats for DNF 5 commands:
 
-In DNF 5: Sample output for the command 'sudo dnf5 upgrade --assumeno openssl' Success case : Exit code :1
+In DNF 5: Sample command output for 'sudo dnf5 upgrade --assumeno openssl' Success case: Exit code: 1
      Updating and loading repositories:
      Repositories loaded.
-
-     Package              Arch   Version          Repository
+     Package                                                        Arch         Version                                                         Repository                                        Size
      Upgrading:
-      openssl             x86_64 3.x.x            azurelinux-base
-
-     Upgrading dependencies:
-      openssl-libs        x86_64 3.x.x            azurelinux-base
+      openssl                                                       x86_64       1:3.5.4-7.azl4                                                  azurelinux-base                                1.8 MiB
+        replacing openssl                                           x86_64       1:3.5.4-4.azl4                                                  64806a6b30824b51aafe6d2d87587286               1.8 MiB
+      openssl-libs                                                  x86_64       1:3.5.4-7.azl4                                                  azurelinux-base                                6.5 MiB
+        replacing openssl-libs                                      x86_64       1:3.5.4-4.azl4                                                  64806a6b30824b51aafe6d2d87587286               6.5 MiB
 
      Transaction Summary:
-      Upgrading: 2 packages
+      Upgrading:          2 packages
+      Replacing:          2 packages
 
+     Total size of inbound packages is 3 MiB. Need to download 3 MiB.
+     After this operation, 32 B extra will be used (install 8 MiB, remove 8 MiB).
      Operation aborted by the user.
 
-In DNF 5: Sample output for the command 'sudo dnf5 upgrade --assumeno p11-kit.x86_64 p11-kit.x86_64'
+In DNF 5: Sample output for the command 'sudo dnf5 upgrade --assumeno p11-kit.x86_64'
      Updating and loading repositories:
      Repositories loaded.
      Package                                                        Arch         Version                                                         Repository                                        Size
@@ -34,7 +36,7 @@ In DNF 5: Sample output for the command 'sudo dnf5 upgrade --assumeno p11-kit.x8
      After this operation, 535 B will be freed (install 3 MiB, remove 3 MiB).
      Operation aborted by the user.
 
-Ind DNF 5 : Sample outut for the command 'sudo dnf5 upgrade --assumeno openssl-999.999' : Failure Case , exit code :1
+In DNF 5 : Sample outut for the command 'sudo dnf5 upgrade --assumeno openssl-999.999' : Failure Case , exit code :1
     Updating and loading repositories:
     Repositories loaded.
     Failed to resolve the transaction:

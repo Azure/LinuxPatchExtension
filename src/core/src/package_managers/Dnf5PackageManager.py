@@ -277,7 +277,7 @@ class Dnf5PackageManager(PackageManager):
 
         # Handle non-blocking dependency failure / nothing-to-do cases
         if any(text in output for text in self.dnf5_dependency_failure_text):
-            self.composite_logger.log_warning("[DNF5] Packages skipped due to broken dependencies (non-blocking)")
+            self.composite_logger.log_warning("[DNF5] Dependency simulation did not return dependency information (non-blocking)")
             return dependencies
 
         package_arch_to_look_for = ["x86_64", "noarch", "i686", "aarch64"]
