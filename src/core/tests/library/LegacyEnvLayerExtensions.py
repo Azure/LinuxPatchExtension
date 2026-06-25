@@ -905,6 +905,15 @@ class LegacyEnvLayerExtensions():
                     elif "systemctl enable --nows dnf-automatic.timer" in cmd:
                         code = 1
                         output = 'systemctl: unrecognized option --nows'
+                    elif cmd.find("dnf5 upgrade --assumeno") > -1 and "openssl-999.999" in cmd:
+                        code = 1
+                        output = (
+                            "Updating and loading repositories:\n"
+                            "Repositories loaded.\n"
+                            "Failed to resolve the transaction:\n"
+                            "No match for argument: openssl-999.999\n"
+                            "You can try to add to command line:\n"
+                            "  --skip-unavailable to skip unavailable packages\n")
             elif self.legacy_test_type == 'ExceptionPath':
                 code = -1
                 output = ''
