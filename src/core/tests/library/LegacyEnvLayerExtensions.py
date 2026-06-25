@@ -723,7 +723,7 @@ class LegacyEnvLayerExtensions():
                                  "python3.x86_64 3.12.3-4.azl4~20260501 azurelinux-base\n" + \
                                  "python3.x86_64 3.12.3-5.azl4~20260501 azurelinux-base\n" + \
                                  "python3.x86_64 3.12.3-6.azl4~20260501 azurelinux-base\n"
-                    elif cmd.find("dnf5 install --assumeno --skip-broken") > -1 and "hyperv-daemons" in cmd:
+                    elif cmd.find("dnf5 upgrade --assumeno") > -1 and "hyperv-daemons" in cmd:
                         code = 1
                         output = "Updating and loading repositories:\n" + \
                                  "Repositories loaded.\n" + \

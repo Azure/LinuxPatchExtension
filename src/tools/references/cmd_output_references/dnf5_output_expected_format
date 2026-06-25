@@ -1,81 +1,43 @@
 Example of different output formats for DNF 5 commands:
 
-In DNF 5: Sample output for the command `sudo dnf5 install --assumeno --skip-broken jq` to extract_dependencies Success Case is(exit code : 1):
+In DNF 5: Sample output for the command 'sudo dnf5 upgrade --assumeno openssl' Success case : Exit code :1
      Updating and loading repositories:
      Repositories loaded.
-     Package                                                                                                       Arch                   Version                                                                                                       Repository                                                           Size
-     Installing:
-      jq                                                                                                           x86_64                 1.8.1-3.azl4~20260501                                                                                         azurelinux-base                                                 457.7 KiB
-     Installing dependencies:
-      oniguruma                                                                                                    x86_64                 6.9.10-3.azl4~20260501                                                                                        azurelinux-base                                                 763.1 KiB
+
+     Package              Arch   Version          Repository
+     Upgrading:
+      openssl             x86_64 3.x.x            azurelinux-base
+
+     Upgrading dependencies:
+      openssl-libs        x86_64 3.x.x            azurelinux-base
+
      Transaction Summary:
-      Installing:         2 packages
-     Total size of inbound packages is 428 KiB. Need to download 428 KiB.
-     After this operation, 1 MiB extra will be used (install 1 MiB, remove 0 B).
+      Upgrading: 2 packages
+
      Operation aborted by the user.
 
-In DNF 5: Sample output for the command `sudo dnf5 install --assumeno --skip-broken git` to extract_dependencies Failure Case is(exit code : 0):
+In DNF 5: Sample output for the command 'sudo dnf5 upgrade --assumeno p11-kit.x86_64 p11-kit.x86_64'
      Updating and loading repositories:
      Repositories loaded.
-     Problem: package perl-Getopt-Long-1:2.58-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Usage) >= 1.14, but none of the providers can be installed
-       - package perl-Pod-Usage-4:2.05-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Text) >= 4, but none of the providers can be installed
-       - package git-2.53.0-2.azl4~20260501.x86_64 from azurelinux-base requires perl(Getopt::Long), but none of the providers can be installed
-       - package perl-podlators-1:6.0.2-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Simple) >= 3.26, but none of the providers can be installed
-       - conflicting requests
-       - nothing provides perl(Text::Wrap) >= 98.112902 needed by perl-Pod-Simple-1:3.47-4.azl4~20260501.noarch from azurelinux-base
-     Package                                       Arch        Version                                       Repository                     Size
-     Skipping packages with broken dependencies:
-      git                                          x86_64      2.53.0-2.azl4~20260501                        azurelinux-base            56.4 KiB
-      perl-Getopt-Long                             noarch      1:2.58-521.azl4~20260501                      azurelinux-base           144.5 KiB
-      perl-Pod-Simple                              noarch      1:3.47-4.azl4~20260501                        azurelinux-base           565.3 KiB
-      perl-Pod-Usage                               noarch      4:2.05-521.azl4~20260501                      azurelinux-base            86.3 KiB
-      perl-podlators                               noarch      1:6.0.2-521.azl4~20260501                     azurelinux-base           317.5 KiB
-     Nothing to do.
+     Package                                                        Arch         Version                                                         Repository                                        Size
+     Upgrading:
+      p11-kit                                                       x86_64       0.26.2-3.azl4                                                   azurelinux-base                                2.5 MiB
+        replacing p11-kit                                           x86_64       0.26.2-2.azl4                                                   64806a6b30824b51aafe6d2d87587286               2.5 MiB
+      p11-kit-trust                                                 x86_64       0.26.2-3.azl4                                                   azurelinux-base                              466.2 KiB
+        replacing p11-kit-trust                                     x86_64       0.26.2-2.azl4                                                   64806a6b30824b51aafe6d2d87587286             466.5 KiB
 
-In DNF 5: Sample output for the command 'sudo dnf5 -y install jq' for multi-arch dependencies is(exit code : 0):
-     Updating and loading repositories:
-     Repositories loaded.
-     Package                                 Arch      Version                                  Repository                   Size
-     Installing:
-      jq                                     x86_64    1.8.1-3.azl4~20260501                    azurelinux-base           457.7 KiB
-     Installing dependencies:
-      oniguruma                              x86_64    6.9.10-3.azl4~20260501                  azurelinux-base           763.1 KiB
      Transaction Summary:
-      Installing:         2 packages
-     Total size of inbound packages is 428 KiB. Need to download 428 KiB.
-     After this operation, 1 MiB extra will be used (install 1 MiB, remove 0 B).
+      Upgrading:          2 packages
+      Replacing:          2 packages
+
+     Total size of inbound packages is 664 KiB. Need to download 664 KiB.
+     After this operation, 535 B will be freed (install 3 MiB, remove 3 MiB).
      Operation aborted by the user.
 
-In DNF 5: Sample output for the command ' sudo dnf5 install --assumeno --skip-broken git' Failure case : Dependency Fails and exit code : 0
-     Updating and loading repositories:
-     Repositories loaded.
-     Problem: package perl-Getopt-Long-1:2.58-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Usage) >= 1.14, but none of the providers can be installed
-       - package perl-Pod-Usage-4:2.05-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Text) >= 4, but none of the providers can be installed
-       - package git-2.53.0-2.azl4~20260501.x86_64 from azurelinux-base requires perl(Getopt::Long), but none of the providers can be installed
-       - package perl-podlators-1:6.0.2-521.azl4~20260501.noarch from azurelinux-base requires perl(Pod::Simple) >= 3.26, but none of the providers can be installed
-       - conflicting requests
-       - nothing provides perl(Text::Wrap) >= 98.112902 needed by perl-Pod-Simple-1:3.47-4.azl4~20260501.noarch from azurelinux-base
-     Package           Arch   Version           Repository      Size
-     Skipping packages with broken dependencies:
-      git              x86_64 2.53.0-2.azl4~202 azurelinux  56.4 KiB
-      perl-Getopt-Long noarch 1:2.58-521.azl4~2 azurelinux 144.5 KiB
-      perl-Pod-Simple  noarch 1:3.47-4.azl4~202 azurelinux 565.3 KiB
-      perl-Pod-Usage   noarch 4:2.05-521.azl4~2 azurelinux  86.3 KiB
-      perl-podlators   noarch 1:6.0.2-521.azl4~ azurelinux 317.5 KiB
-     Nothing to do.
-
-In DNF 5: Sample output for the command ' sudo dnf5 install --assumeno --skip-broken NetworkManager' Success case : Dependency Fails and exit code 1
-     Updating and loading repositories:
-     Repositories loaded.
-     Package                                 Arch      Version                                  Repository                   Size
-     Installing:
-      NetworkManager                         x86_64    1:1.54.3-3.azl4~20260501                 azurelinux-base           5.9 MiB
-     Installing dependencies:
-      NetworkManager-libnm                   x86_64    1:1.54.3-3.azl4~20260501                 azurelinux-base          10.0 MiB
-      libndp                                 x86_64    1.9-5.azl4~20260501                      azurelinux-base          86.0 KiB
-     Transaction Summary:
-      Installing:         3 packages
-     Total size of inbound packages is 4 MiB. Need to download 4 MiB.
-     After this operation, 16 MiB extra will be used (install 16 MiB, remove 0 B).
-     Operation aborted by the user.
-     Exit Code : 1
+Ind DNF 5 : Sample outut for the command 'sudo dnf5 upgrade --assumeno openssl-999.999' : Failure Case , exit code :1
+    Updating and loading repositories:
+    Repositories loaded.
+    Failed to resolve the transaction:
+    No match for argument: openssl-999.999
+    You can try to add to command line:
+      --skip-unavailable to skip unavailable packages
