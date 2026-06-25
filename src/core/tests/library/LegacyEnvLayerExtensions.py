@@ -725,15 +725,18 @@ class LegacyEnvLayerExtensions():
                                  "python3.x86_64 3.12.3-6.azl4~20260501 azurelinux-base\n"
                     elif cmd.find("dnf5 upgrade --assumeno") > -1 and "hyperv-daemons" in cmd:
                         code = 1
-                        output = "Updating and loading repositories:\n" + \
-                                 "Repositories loaded.\n" + \
-                                 "Package                                                  Arch          Version                                                  Repository                          Size\n" + \
-                                 "Installing:\n" + \
-                                 " hyperv-daemons                                           x86_64        6.10-3.azl4~20260501                                     azurelinux-base                     20.08k\n\n" + \
-                                 "Transaction Summary:\n" + \
-                                 " Installing:         1 package\n\n" + \
-                                 "Total download size: 135.09k\n" + \
-                                 "Operation aborted by the user.\n"
+                        output = (
+                            "Updating and loading repositories:\n"
+                            "Repositories loaded.\n"
+                            "Package                                                  Arch          Version                                                  Repository                          Size\n"
+                            "Installing:\n"
+                            " hyperv-daemons                                           x86_64        6.10-3.azl4~20260501                                     azurelinux-base                     20.08k\n\n"
+                            "Installing dependencies:\n"
+                            " hyperv-daemons-license                                   noarch        6.10-3.azl4~20260501                                     azurelinux-base                     18.3 KiB\n\n"
+                            "Transaction Summary:\n"
+                            " Installing:         2 packages\n\n"
+                            "Total download size: 135.09k\n"
+                            "Operation aborted by the user.\n")
                     elif cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
                         output = "ExecStart=/usr/bin/dnf5 automatic --timer"
@@ -1086,6 +1089,20 @@ class LegacyEnvLayerExtensions():
                                 'Repositories loaded.\n'
                                 'Package "rubygem-json-2.13.2-2.azl4~20260501.x86_64" is already installed.\n\n'
                                 'Nothing to do.\n')
+                    elif "hyperv-daemons" in cmd and "--assumeno" in cmd:
+                        code = 1
+                        output = (
+                            "Updating and loading repositories:\n"
+                            "Repositories loaded.\n"
+                            "Package                                                  Arch          Version                                                  Repository                          Size\n"
+                            "Installing:\n"
+                            " hyperv-daemons                                           x86_64        6.10-3.azl4~20260501                                     azurelinux-base                     20.08k\n\n"
+                            "Installing dependencies:\n"
+                            " hyperv-daemons-license                                   noarch        6.10-3.azl4~20260501                                     azurelinux-base                     18.3 KiB\n\n"
+                            "Transaction Summary:\n"
+                            " Installing:         2 packages\n\n"
+                            "Total download size: 135.09k\n"
+                            "Operation aborted by the user.\n")
                     elif "dnf5 list --installed rubygem-json" in cmd:
                         code = 0
                         output = (
@@ -1254,7 +1271,7 @@ class LegacyEnvLayerExtensions():
                         code = 100
                         output = "Failed to install package"
                 elif self.legacy_package_manager_name is Constants.DNF5:
-                    if cmd.find("simulate-install") > -1 or cmd.find("sudo dnf5 install --assumeno --skip-broken hyperv-daemons-license") > -1:
+                    if cmd.find("simulate-install") > -1 or cmd.find("sudo dnf5 upgrade --assumeno hyperv-daemons-license") > -1:
                         code = 1
                         output = "Updating and loading repositories:\n" + \
                                  "Repositories loaded.\n" + \
