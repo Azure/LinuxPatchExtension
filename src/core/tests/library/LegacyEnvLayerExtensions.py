@@ -545,6 +545,20 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('apt-get install -y -qq mokutil') > -1:
                         code = 0
                         output = "Installed"
+                    elif cmd.find("fwupdmgr --version") > -1:
+                        code = 0
+                        output = ("compile    info.libusb                   1.0.25\n"
+                                  "compile   org.freedesktop.fwupd         2.0.20\n"
+                                  "compile   com.hughsie.libxmlb           0.3.24\n"
+                                  "compile   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.freedesktop.fwupd-efi     1.4\n"
+                                  "runtime   com.hughsie.libxmlb           0.3.24\n"
+                                  "runtime   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.kernel                    6.8.0-1052-azure\n"
+                                  "runtime   org.freedesktop.fwupd         2.0.20\n")
+                    elif cmd.find("sudo apt-get purge -y fwupd") > -1:
+                        code = 0
+                        output = "Removed"
                     elif cmd.find("mokutil --kek | grep 'CN='") > -1:
                         code = 0
                         output = ("Issuer: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation Third Party Marketplace Root"
@@ -553,24 +567,14 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = ("Issuer: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation Third Party Marketplace Root"
                                   "Subject: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation UEFI CA 2011")
-                    elif cmd.find("bash -c 'echo \"deb https://archive.ubuntu.com/ubuntu/ "
-                                  "$( . /etc/os-release && echo $VERSION_CODENAME )-proposed restricted main multiverse universe") > -1:
-                        code = 0
-                        output = "deb http://archive.ubuntu.com/ubuntu/ jammy-proposed restricted main multiverse universe "
                     elif cmd.find("apt-get -q update") > -1:
                         code = 0
                         output = "Hit:1 http://archive.ubuntu.com/ubuntu jammy InRelease\n" + \
                                  "Hit:2 http://archive.ubuntu.com/ubuntu jammy-updates InRelease\n" + \
                                  "Hit:3 http://archive.ubuntu.com/ubuntu jammy-backports InRelease\n" + \
                                  "Hit:4 http://security.ubuntu.com/ubuntu jammy-security InRelease\n" + \
-                                 "Hit:5 http://archive.ubuntu.com/ubuntu jammy-proposed InRelease\n" + \
                                  "Reading package lists...\n"
-                    elif cmd.find("bash -c 'cat << EOF | sudo tee") > -1:
-                        code = 0
-                        output = ("Package: * "
-                                  "Pin: release a=jammy-proposed "
-                                  "Pin-Priority: 100 ")
-                    elif cmd.find("bash -c 'sudo apt-get install -y -t $( . /etc/os-release") > -1:
+                    elif cmd.find("sudo apt-get install -y fwupd") > -1:
                         code = 0
                         output = ("Reading package lists... Done"
                                   "Building dependency tree... Done"
@@ -774,10 +778,6 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("mokutil --db | grep 'CN='") > -1:
                         code = 1
                         output = "No Db cert found"
-                    elif cmd.find("bash -c 'echo \"deb https://archive.ubuntu.com/ubuntu/ "
-                                  "$( . /etc/os-release && echo $VERSION_CODENAME )-proposed restricted main multiverse universe") > -1:
-                        code = 1
-                        output = "Error: Unable to locate package multiverse universe\n "
                 elif self.legacy_package_manager_name is Constants.YUM:
                     if cmd.find("microcode_ctl") > -1:
                         code = 1
@@ -1050,6 +1050,17 @@ class LegacyEnvLayerExtensions():
                                   "Subject: C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Corporation UEFI CA 2011"
                                   "Issuer: C=US, O=Microsoft Corporation, CN=Microsoft RSA Devices Root CA 2021"
                                   "Subject: C=US, O=Microsoft Corporation, CN=Microsoft UEFI CA 2023")
+                    elif cmd.find("fwupdmgr --version") > -1:
+                        code = 0
+                        output = ("compile   info.libusb                   1.0.25\n"
+                                  "compile   org.freedesktop.fwupd         2.0.2\n"
+                                  "compile   com.hughsie.libxmlb           0.3.24\n"
+                                  "compile   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.freedesktop.fwupd-efi     1.4\n"
+                                  "runtime   com.hughsie.libxmlb           0.3.24\n"
+                                  "runtime   com.hughsie.libjcat           0.2.3\n"
+                                  "runtime   org.kernel                    6.8.0-1052-azure\n"
+                                  "runtime   org.freedesktop.fwupd         2.0.2\n")
                 elif self.legacy_package_manager_name is Constants.TDNF:
                     if cmd.find("simulate-install") > -1 or cmd.find("sudo tdnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
                         code = 8
@@ -1232,7 +1243,10 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("force-dpkg-failure") > -1:
                         code = 100
                         output = "E: dpkg was interrupted, you must manually run 'sudo dpkg --configure -a' to correct the problem."
-                    elif cmd.find("bash -c 'sudo apt-get install -y -t $( . /etc/os-release") > -1:
+                    elif cmd.find("fwupdmgr --version") > -1:
+                        code = 1
+                        output = ""
+                    elif cmd.find("sudo apt-get install -y fwupd") > -1:
                         code = 1
                         output = "Error"
                 elif self.legacy_package_manager_name is Constants.TDNF:
