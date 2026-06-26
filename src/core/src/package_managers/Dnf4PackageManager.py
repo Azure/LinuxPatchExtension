@@ -244,13 +244,13 @@ class Dnf4PackageManager(PackageManager):
 
         for index, package in enumerate(packages):
             if package == package_name and (package_versions[index] == package_version):
-                self.composite_logger.log_debug("[DNF4] > Installed version match found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
+                self.composite_logger.log_debug("[DNF4] Installed version match found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
                 return True
             else:
-                self.composite_logger.log_verbose("[DNF4] > Did not match: " + package + " (" + package_versions[index] + ")")
+                self.composite_logger.log_verbose("[DNF4] Did not match: " + package + " (" + package_versions[index] + ")")
 
         #If no matching package name and version are found in the package manager output, the requested version is not installed (it may have been replaced, upgraded, or removed)
-        self.composite_logger.log_debug("[DNF4] > Installed version match NOT found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
+        self.composite_logger.log_debug("[DNF4] Installed version match NOT found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
         return False
 
     def extract_dependencies(self, output, packages):
@@ -283,14 +283,14 @@ class Dnf4PackageManager(PackageManager):
             if self.is_valid_update(line, package_arch_to_look_for):
                 dependent_package_name = self.get_product_name_with_arch(line, package_arch_to_look_for)
             else:
-                self.composite_logger.log_verbose("[DNF4] > Inapplicable line: " + str(line))
+                self.composite_logger.log_verbose("[DNF4] Inapplicable line: " + str(line))
                 continue
 
             #  Remove input packages (support both pkg and pkg.arch)
             base_pkg = dependent_package_name.rsplit('.', 1)[0] if '.' in dependent_package_name else dependent_package_name
 
             if len(dependent_package_name) != 0 and dependent_package_name not in packages and base_pkg not in packages and dependent_package_name not in dependencies:
-                self.composite_logger.log_verbose("[DNF4] > Dependency detected: " + dependent_package_name)
+                self.composite_logger.log_verbose("[DNF4] Dependency detected: " + dependent_package_name)
                 dependencies.append(dependent_package_name)
 
         return dependencies
@@ -371,9 +371,7 @@ class Dnf4PackageManager(PackageManager):
     def get_current_auto_os_patch_state(self):
         """ Gets the current auto OS update patch state on the machine """
         self.composite_logger.log("[DNF4] Fetching the current automatic OS patch state on the machine...")
-
         current_auto_os_patch_state_for_dnf_automatic = self.__get_current_auto_os_patch_state_for_dnf_automatic()
-
         self.composite_logger.log("[DNF4] OS patch state per auto OS update service: [dnf-automatic={0}]".format(str(current_auto_os_patch_state_for_dnf_automatic)))
 
         if current_auto_os_patch_state_for_dnf_automatic == Constants.AutomaticOSPatchStates.ENABLED:
@@ -437,13 +435,11 @@ class Dnf4PackageManager(PackageManager):
                 settings = image_default_patch_configuration.strip().split('\n')
                 for setting in settings:
                     match = re.search(
-                        self.download_updates_identifier_text + self.auto_update_config_pattern_match_text,
-                        str(setting))
+                        self.download_updates_identifier_text + self.auto_update_config_pattern_match_text,str(setting))
                     if match is not None:
                         download_updates_value = match.group(1)
 
-                    match = re.search(self.apply_updates_identifier_text + self.auto_update_config_pattern_match_text,
-                                      str(setting))
+                    match = re.search(self.apply_updates_identifier_text + self.auto_update_config_pattern_match_text,str(setting))
                     if match is not None:
                         apply_updates_value = match.group(1)
 
@@ -702,7 +698,7 @@ class Dnf4PackageManager(PackageManager):
 
     def separate_out_esm_packages(self, packages, package_versions):
         """Filter out packages from the list where the version matches the UA_ESM_REQUIRED string.
-        Only needed for apt. No-op for dnf4, yum and zypper"""
+        Only needed for apt. No-op for dnf4, dnf5 yum and zypper"""
         esm_packages = []
         esm_package_versions = []
         esm_packages_found = False
