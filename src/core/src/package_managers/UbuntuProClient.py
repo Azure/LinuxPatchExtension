@@ -57,7 +57,7 @@ class UbuntuProClient:
             ubuntu_pro_client_version = version_result.installed_version
 
             # extract version from pro_client_verison 27.13.4~18.04.1 -> 27.13.4
-            extracted_ubuntu_pro_client_version = self.version_comparator.extract_version_from_os_version_nums(ubuntu_pro_client_version)
+            extracted_ubuntu_pro_client_version = self.version_comparator.extract_version_from_version_str(ubuntu_pro_client_version)
 
             self.composite_logger.log_verbose("[APM][Pro] Ubuntu Pro Client current version: [ClientVersion={0}]".format(str(extracted_ubuntu_pro_client_version)))
 
