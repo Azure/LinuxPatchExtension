@@ -228,12 +228,14 @@ class EnvLayer(object):
     @staticmethod
     def __get_fde_detection_shim_path():
         # type: () -> str
-        """Resolves the packaged FDE detection shim path."""
+        """Resolves the FDE detection shim path for both source and packaged layouts."""
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        shim_path = os.path.join(current_dir, Constants.DETECT_CVM_SHIM_FILE_NAME)
+        shim_base_dir = os.path.dirname(current_dir) if os.path.basename(current_dir) == 'bootstrap' else current_dir
+        shim_path = os.path.join(shim_base_dir, Constants.DETECT_CVM_SHIM_FILE_NAME)
 
         if os.path.isfile(shim_path):
             return shim_path
+
 
         raise Exception("FDE_DETECTION_SHIM_NOT_FOUND:{0}".format(str(shim_path)))
 
