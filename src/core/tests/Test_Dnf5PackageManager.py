@@ -545,6 +545,13 @@ class TestDnfPackageManager(unittest.TestCase):
         dependent_list = package_manager.get_dependent_list(["hyperv-daemons.x86_64"])
         self.assertIsNotNone(dependent_list)
 
+        self.runtime.set_legacy_test_type('AnotherSadPath')
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
+        sad_dependent_list = package_manager.get_dependent_list(["openssl-999.999"])
+        self.assertIsNotNone(sad_dependent_list)
+        self.assertEqual(len(sad_dependent_list), 0)
+
     def test_install_package_success(self):
         """Unit test for install package success"""
         self.runtime.set_legacy_test_type('SuccessInstallPath')
