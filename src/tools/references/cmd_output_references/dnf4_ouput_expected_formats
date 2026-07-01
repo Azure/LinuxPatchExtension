@@ -1,6 +1,6 @@
 Example of different output formats for DNF 4 commands:
 
-In DNF$ : Sample Output for the command 'dnf4 install --assumeno git' is as follows(Success use case):
+In DNF4 : Sample Output for the command 'dnf4 install --assumeno git' is as follows(Success use case):
         #      Updating Subscription Management repositories.
         #      Last metadata expiration check: 1:13:33 ago on Wed Jun 10 12:37:56 2026.
         #      Dependencies resolved.

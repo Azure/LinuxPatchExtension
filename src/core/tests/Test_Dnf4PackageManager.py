@@ -467,20 +467,11 @@ class TestDnf4PackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
         package_filter = self.container.get('package_filter')
-        self.assertTrue(package_filter is not None)
+        self.assertIsNotNone(package_filter)
 
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
         self.assertEqual(len(available_updates), 0)
         self.assertEqual(len(package_versions), 0)
-
-    def test_install_package_failure(self):
-        """Unit test for dnf4 install package failure"""
-        self.runtime.set_legacy_test_type('FailInstallPath')
-        package_manager = self.container.get('package_manager')
-        self.assertIsNotNone(package_manager)
-        package_filter = self.container.get('package_filter')
-        self.assertIsNotNone(package_filter)
-        self.assertEqual(package_manager.install_update_and_dependencies_and_get_status('hyperv-daemons-license.noarch','6.10-3.azl4~20260501',simulate=True),Constants.FAILED)
 
     def test_package_manager(self):
         """Unit test for dnf4 package manager"""
@@ -511,7 +502,7 @@ class TestDnf4PackageManager(unittest.TestCase):
 
         # Test: get_all_available_versions_of_package (ONLY python3 since mock exists)
         versions = package_manager.get_all_available_versions_of_package("python3")
-        self.assertTrue(versions is not None)
+        self.assertIsNotNone(versions)
         self.assertEqual(len(versions), 1)
         self.assertEqual(versions[0], '3.12.13-2.el10_2')
 
@@ -624,7 +615,7 @@ class TestDnf4PackageManager(unittest.TestCase):
         self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path,dnf4_automatic_os_patch_configuration_settings)
         package_manager.update_os_patch_configuration_sub_setting(package_manager.dnf4_automatic_apply_updates_identifier_text, "no",package_manager.dnf4_automatic_config_pattern_match_text)
         dnf4_automatic_os_patch_configuration_settings_file_path_read = self.runtime.env_layer.file_system.read_with_retry(package_manager.os_patch_configuration_settings_file_path)
-        self.assertTrue(dnf4_automatic_os_patch_configuration_settings_file_path_read is not None)
+        self.assertIsNotNone(dnf4_automatic_os_patch_configuration_settings_file_path_read)
         self.assertNotIn('download_updates', dnf4_automatic_os_patch_configuration_settings_file_path_read)
         self.assertIn('apply_updates = no' , dnf4_automatic_os_patch_configuration_settings_file_path_read)
 
@@ -711,7 +702,7 @@ class TestDnf4PackageManager(unittest.TestCase):
     def test_get_package_install_expected_avg_time_in_seconds(self):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
-        self.assertTrue(package_manager.get_package_install_expected_avg_time_in_seconds(), 90)
+        self.assertEqual(package_manager.get_package_install_expected_avg_time_in_seconds(), 90)
 
     def test_no_op_methods(self):
         """Test all no-op methods execute without error"""

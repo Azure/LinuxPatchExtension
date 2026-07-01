@@ -195,5 +195,33 @@ class TestExecutionConfig(unittest.TestCase):
         # restore original methods
         distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
 
+    def test_get_package_manager_dnf4_error_cases(self):
+        """Test dnf4 error cases in get_package_manager"""
+        self.backup_platform_system = platform.system
+        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
+        self.backup_run_command_output = self.envlayer.run_command_output
+        self.backup_distro_os_release_attr = distro.os_release_attr
+
+        platform.system = self.mock_platform_system
+        self.envlayer.platform.linux_distribution = self.mock_linux_distribution_to_return_rhel_10
+        distro.os_release_attr = self.mock_distro_os_release_attr_return_rhel_10
+
+        test_input_output_table = [
+            [self.mock_run_command_for_dnf_not_found, str()],
+            [self.mock_run_command_for_dnf_wrong_version, str()],
+            [self.mock_run_command_for_dnf_version_command_failure, str()]
+        ]
+
+        for row in test_input_output_table:
+            self.envlayer.run_command_output = row[0]
+            result = self.envlayer.get_package_manager()
+            self.assertEqual(result, row[1])
+
+        # restore original methods
+        self.envlayer.run_command_output = self.backup_run_command_output
+        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
+        distro.os_release_attr = self.backup_distro_os_release_attr
+        platform.system = self.backup_platform_system
+
 if __name__ == '__main__':
     unittest.main()

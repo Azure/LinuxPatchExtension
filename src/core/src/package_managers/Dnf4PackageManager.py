@@ -295,7 +295,7 @@ class Dnf4PackageManager(PackageManager):
         return dependencies
 
     def add_arch_dependencies(self, package_manager, package, version, packages, package_versions, package_and_dependencies, package_and_dependency_versions):
-        """Not needed since it already supports multi-architecture. Refer dnf4_output_expected_format.txt for examples of output formats."""
+        """Not needed since it already supports multi-architecture. Refer to PR description for details."""
         pass
 
     def is_valid_update(self, package_details_in_output, package_arch_to_look_for):

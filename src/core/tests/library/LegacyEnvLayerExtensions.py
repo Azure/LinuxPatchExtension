@@ -894,9 +894,6 @@ class LegacyEnvLayerExtensions():
                         output = ''
                     else:
                         code = 0
-                elif cmd.find("systemctl") > -1:
-                    code = 1
-                    output = ''
                 elif self.legacy_package_manager_name is Constants.DNF4:
                     if cmd.find("systemctl enable --now dnf-automatic.timer") > -1:
                         code = 1
@@ -973,10 +970,7 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = 'enabled'
                 if self.legacy_package_manager_name is Constants.DNF4:
-                    if cmd.find("systemctl cat dnf-automatic.service") > -1:
-                        code = 0
-                        output = "ExecStart=/usr/bin/dnf4 automatic "
-                    elif "systemctl is-enabled" in cmd:
+                    if "systemctl is-enabled" in cmd:
                         code = 0
                         output = 'enabled'
                     elif cmd.find("rpm -qa") > -1:
