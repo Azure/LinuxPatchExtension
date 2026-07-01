@@ -47,3 +47,4 @@ In DNF4 : Sample output for command 'dnf4 install --assumeno python3' is as foll
          #      Last metadata expiration check: 1:05:52 ago on Tue Jun  9 15:10:49 2026.
          #      No match for argument: glibc.i686
          #      Error: Unable to find a match: glibc.i686
+

@@ -218,7 +218,6 @@ class Constants(object):
     YUM = 'yum'
     ZYPPER = 'zypper'
 
-
     # Package Statuses
     INSTALLED = 'Installed'
     FAILED = 'Failed'

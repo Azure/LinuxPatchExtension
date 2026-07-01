@@ -695,17 +695,17 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("check-update") > -1:
                         code = 100
                         output = (
-                            "Last metadata expiration check: 0:10:12 ago on Tue Jun  9 2026.\n"
-                            "Available Packages\n"
-                            "curl.x86_64 8.12.1-4.el10 rhel-10-baseos-rhui-rpms\n"
-                            "vim-enhanced.x86_64 9.0.1-3.el10 rhel-10-appstream-rhui-rpms\n"
-                            "glibc.x86_64 2.39-124.el10_2 rhel-10-baseos-rhui-rpms\n"
+                            "Updating Subscription Management repositories.\n"
+                            "Last metadata expiration check: 2:44:12 ago on Tue Jun 30 17:24:19 2026.\n"
+                            "\n"
+                            "dracut.x86_64                                                    107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
+                            "dracut-config-generic.x86_64                                     107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
+                            "dracut-network.x86_64                                            107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
+                            "dracut-squash.x86_64                                             107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
                         )
-
-                    elif cmd.find("dnf4 -y upgrade") > -1:
+                    elif cmd.find("dnf4 -y install") > -1:
                         code = 0
                         output = "Complete!\n"
-
                     elif "needs-restarting" in cmd:
                         code = 1
                         output = (
@@ -740,10 +740,6 @@ class LegacyEnvLayerExtensions():
                             "\nTotal download size: 91 k\n" 
                             "Installed size: 94 k\n"
                             "Operation aborted.\n")
-                    elif cmd.find("systemctl cat dnf-automatic.service") > -1:
-                        code = 0
-                        output = "ExecStart=/usr/bin/dnf-automatic"
-
                     elif cmd.find("systemctl is-enabled ") > -1:
                         code = 0
                         output = "disabled"
@@ -754,11 +750,21 @@ class LegacyEnvLayerExtensions():
 
                     elif cmd.find("rpm -qa") > -1:
                         code = 0
-                        output = "dnf-automatic"
-=======
-                                  "hypervkvpd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
-                                  "Total installed size:   1.20M\n" + \
-                                  "Total download size: 661.34k\n"
+                        output = (
+                            "dnf-automatic\n"
+                            "hypervkvpd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n"
+                            "Total installed size:   1.20M\n"
+                            "Total download size: 661.34k\n")
+                    elif cmd.find("dnf4 list --installed") > -1:
+                        code = 0
+                        package = cmd.replace('sudo dnf4 list --installed ','').strip()
+                        whitelisted_versions = ['107-8.el10_2','8.12.1-4.el10', '9.0.1-3.el10','2.39-124.el10_2'  ]
+                        output = ("Updating Subscription Management repositories.\n""Installed Packages\n")
+                        template = "<PACKAGE> <VERSION> @System\n"
+                        for version in whitelisted_versions:
+                            entry = template.replace('<PACKAGE>', package)
+                            entry = entry.replace('<VERSION>', version)
+                            output += entry
                 elif self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("check-update") > -1:
                         code = 100
@@ -824,7 +830,6 @@ class LegacyEnvLayerExtensions():
                             entry = template.replace('<PACKAGE>', package)
                             entry = entry.replace('<VERSION>', version)
                             output += entry
->>>>>>> origin/master
             elif self.legacy_test_type == 'SadPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -971,7 +976,24 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("systemctl cat dnf-automatic.service") > -1:
                         code = 0
                         output = "ExecStart=/usr/bin/dnf4 automatic "
-                    
+                    elif "systemctl is-enabled" in cmd:
+                        code = 0
+                        output = 'enabled'
+                    elif cmd.find("rpm -qa") > -1:
+                        code = 0
+                        output = 'dnf-automatic-4.20.0-22.el10_2.noarch'
+                    elif "systemctl enable --nows dnf-automatic.timer" in cmd:
+                        code = 1
+                        output = 'systemctl: unrecognized option --nows'
+                    elif cmd.find("dnf4 install --assumeno") > -1 and "openssl-999.999" in cmd:
+                        code = 1
+                        output = (
+                            "Updating and loading repositories:\n"
+                            "Repositories loaded.\n"
+                            "Failed to resolve the transaction:\n"
+                            "No match for argument: openssl-999.999\n"
+                            "You can try to add to command line:\n"
+                            "  --skip-unavailable to skip unavailable packages\n")
                 if self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
@@ -1699,7 +1721,12 @@ class LegacyEnvLayerExtensions():
                                  "Obsoleting:\n" + \
                                  "python.x86_64                 2.7.9-1.azl3                    azurelinux-official-base\n"
                 elif self.legacy_package_manager_name is Constants.DNF4:
-                    if cmd.find("dnf4 list --available python3") > -1:
+                    if cmd.find("dnf4 list --available kernel") > -1:
+                        code = 0
+                        output = "Updating Subscription Management repositories.\n" + \
+                                 "Last metadata expiration check: 0:43:21 ago on Mon Jun 29 14:49:21 2026.\n" + \
+                                 "Available Packages\n" + \
+                                 "kernel.x86_64                   6.12.0-211.28.1.el10_2                   rhel-10-baseos-rhui-rpms\n"
                 elif self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("dnf5 list --available python3") > -1:
                         code = 0

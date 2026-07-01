@@ -71,6 +71,30 @@ class TestExecutionConfig(unittest.TestCase):
             return 0, ''
         return -1, ''
 
+    def mock_run_command_for_dnf4(self, cmd, no_output=False, chk_err=False):
+        if "which dnf" in cmd:
+            return 0, '/usr/bin/dnf'
+        if "dnf --version" in cmd:
+            return 0, '4.20.0'
+        return -1, ''
+
+    def mock_run_command_for_dnf_not_found(self, cmd, no_output=False, chk_err=False):
+        return -1, ''
+
+    def mock_run_command_for_dnf_wrong_version(self, cmd, no_output=False, chk_err=False):
+        if "which dnf" in cmd:
+            return 0, '/usr/bin/dnf'
+        if "dnf --version" in cmd:
+            return 0, 'dnf version 6.14.0'
+        return -1, ''
+
+    def mock_run_command_for_dnf_version_command_failure(self, cmd, no_output=False, chk_err=False):
+        if "which dnf" in cmd:
+            return 0, '/usr/bin/dnf'
+        if "dnf --version" in cmd:
+            return -1, 'dnf version command failure'
+        return -1, ''
+
     def mock_distro_os_release_attr_return_azure_linux_3(self, attribute):
         return '3.0.0'
 
@@ -152,36 +176,24 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.cpu_arch()
         self.envlayer.platform.vm_name()
 
-    def test_get_package_manager_azure_linux_4_and_rhel10_not_supported(self):
-        """Test for RHEL 10 log unsupported message"""
-        self.backup_platform_system = platform.system
-        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
-        self.backup_distro_os_release_attr = distro.os_release_attr
 
-        platform.system = self.mock_platform_system
+    def test_is_distro_rhel_10(self):
+        self.backup_envlayer_distro_os_release_attr = distro.os_release_attr
+
         test_input_output_table = [
-            [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_rhel_10, "Error: This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro=Red Hat][Version=10.0][Code=abc]\n"],
+            [self.mock_linux_distribution_to_return_rhel_10,
+             self.mock_distro_os_release_attr_return_rhel_10, True],
+            [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_none, False],
         ]
+
         for row in test_input_output_table:
-            captured_output = StringIO()
-            original_output = sys.stdout
-            sys.stdout = captured_output
-            self.envlayer.platform.linux_distribution = row[0]
+            distro_name = row[0]()[0]  # Extract distro name from tuple (first element)
             distro.os_release_attr = row[1]
+            result = self.envlayer.is_distro_rhel_10(distro_name)
+            self.assertEqual(result, row[2])
 
-            result = self.envlayer.get_package_manager()
-            sys.stdout = original_output
-            self.assertEqual(row[2], captured_output.getvalue())
-            self.assertEqual(result, "")
-
-        # restore
-        self.__restore_mocks()
-
-    def __restore_mocks(self):
-        """Restore backed up mocks to their original state"""
-        distro.os_release_attr = self.backup_distro_os_release_attr
-        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
-        platform.system = self.backup_platform_system
+        # restore original methods
+        distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
 
 if __name__ == '__main__':
     unittest.main()

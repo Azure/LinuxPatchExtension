@@ -54,6 +54,9 @@ class TestCoreMain(unittest.TestCase):
     def mock_linux_distribution_to_return_azure_linux4(self):
         return ['Microsoft Azure Linux', '4.0', '']
 
+    def mock_linux_distribution_to_return_rhel_10(self):
+        return ['Red Hat', '10.0', 'abc']
+
     def mock_os_remove(self, file_to_remove):
         raise Exception("File could not be deleted")
 
@@ -1362,6 +1365,56 @@ class TestCoreMain(unittest.TestCase):
         self.assertIn("Security", str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
         self.assertEqual("Installed", json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchInstallationState"])
         self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][3]["name"], "libxml2.x86_64")
+        self.assertIn("Security", str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][3]["classifications"]))
+        self.assertEqual("Installed", json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][3]["patchInstallationState"])
+        self.assertEqual(substatus_file_data[2]["name"], Constants.PATCH_METADATA_FOR_HEALTHSTORE)
+        self.assertEqual(substatus_file_data[2]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+        substatus_file_data_patch_metadata_summary = json.loads(substatus_file_data[2]["formattedMessage"]["message"])
+        self.assertEqual(substatus_file_data_patch_metadata_summary["patchVersion"], "pub_off_sku_2025.03.24")
+        self.assertTrue(substatus_file_data_patch_metadata_summary["shouldReportToHealthStore"])
+        self.assertEqual(substatus_file_data[3]["name"], Constants.CONFIGURE_PATCHING_SUMMARY)
+        self.assertEqual(substatus_file_data[3]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+        runtime.stop()
+
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_envlayer_platform_linux_distribution
+
+    def test_install_all_packages_for_rhel_10_autopatching(self):
+        """Unit test for auto patching request on rhel10, should install all patches irrespective of classification"""
+
+        backup_envlayer_platform_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_rhel_10
+
+        argument_composer = ArgumentComposer()
+        classifications_to_include = ["Security", "Critical"]
+        argument_composer.health_store_id = str("pub_off_sku_2025.03.24")
+        argument_composer.classifications_to_include = classifications_to_include
+        argument_composer.reboot_setting = 'Always'
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.DNF4)
+        runtime.set_legacy_test_type("HappyPath")
+        CoreMain(argument_composer.get_composed_arguments())
+
+        # check telemetry events
+        self.__check_telemetry_events(runtime)
+
+        # check status file
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        self.assertEqual(len(substatus_file_data), 4)
+        self.assertEqual(substatus_file_data[0]["name"], Constants.PATCH_ASSESSMENT_SUMMARY)
+        self.assertEqual(substatus_file_data[0]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(substatus_file_data[1]["name"], Constants.PATCH_INSTALLATION_SUMMARY)
+        self.assertEqual(substatus_file_data[1]["status"].lower(), Constants.STATUS_SUCCESS.lower())
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["installedPatchCount"], 4)
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["name"], "dracut-config-generic.x86_64")
+        self.assertIn("Security", str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["classifications"]))
+        self.assertEqual("Installed", json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][1]["patchInstallationState"])
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["name"], "dracut-network.x86_64")
+        self.assertIn("Security", str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["classifications"]))
+        self.assertEqual("Installed", json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][2]["patchInstallationState"])
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["name"], "dracut.x86_64")
+        self.assertIn("Security", str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["classifications"]))
+        self.assertEqual("Installed", json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][0]["patchInstallationState"])
+        self.assertEqual(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][3]["name"], "dracut-squash.x86_64")
         self.assertIn("Security", str(json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][3]["classifications"]))
         self.assertEqual("Installed", json.loads(substatus_file_data[1]["formattedMessage"]["message"])["patches"][3]["patchInstallationState"])
         self.assertEqual(substatus_file_data[2]["name"], Constants.PATCH_METADATA_FOR_HEALTHSTORE)
