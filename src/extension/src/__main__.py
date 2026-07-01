@@ -18,6 +18,7 @@ import datetime
 import os
 import sys
 from extension.src.ActionHandler import ActionHandler
+from extension.src.CredentialSanitizer import CredentialSanitizer
 from extension.src.EnvLayer import EnvLayer
 from extension.src.EnvHealthManager import EnvHealthManager
 from extension.src.RuntimeContextHandler import RuntimeContextHandler
@@ -39,7 +40,8 @@ def main(argv):
     file_logger = None
     env_layer = EnvLayer()
     logger = Logger()
-    telemetry_writer = TelemetryWriter(logger, env_layer)
+    credential_sanitizer = CredentialSanitizer(logger)
+    telemetry_writer = TelemetryWriter(logger, env_layer, credential_sanitizer)
     logger.telemetry_writer = telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
     exit_code = None
     try:

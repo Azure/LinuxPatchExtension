@@ -4,6 +4,7 @@ import time
 import uuid
 
 from extension.src.Constants import Constants
+from extension.src.CredentialSanitizer import CredentialSanitizer
 from extension.src.EnvLayer import EnvLayer
 from extension.src.EnvHealthManager import EnvHealthManager
 from extension.src.TelemetryWriter import TelemetryWriter
@@ -21,7 +22,8 @@ class RuntimeComposer(object):
         self.json_file_handler = JsonFileHandler(self.logger)
         self.env_layer = EnvLayer()
         self.env_health_manager = EnvHealthManager(self.env_layer)
-        self.telemetry_writer = TelemetryWriter(self.logger, self.env_layer)
+        self.credential_sanitizer = CredentialSanitizer(self.logger)
+        self.telemetry_writer = TelemetryWriter(self.logger, self.env_layer, self.credential_sanitizer)
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
         self.env_health_manager.check_sudo_status = self.mock_check_sudo_status
@@ -29,9 +31,12 @@ class RuntimeComposer(object):
 
         if self.is_github_runner:
             def mkdtemp_runner():
+                print("inside mkdtemp_runner")
                 temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
+                print("after mkdtemp_runner")
                 os.mkdir(temp_path)
                 return temp_path
+            print("tempPath:", mkdtemp_runner)
             tempfile.mkdtemp = mkdtemp_runner
 
     def mock_sleep(self, seconds):
