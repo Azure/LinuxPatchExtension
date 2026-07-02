@@ -55,7 +55,7 @@ Of these, only `operation`, `activityId`, `startTime` are required for Assessmen
 
 ## 2. Build and Test locally
 
-* Run `python <Project-Path>\src\tools\Package-All.py`. This will generate LinuxPatchExtension.zip under `<Project-Path>\out\`
+* Run `python <Project-Path>\src\tools\packager\Package-All.py`. This will generate LinuxPatchExtension.zip under `<Project-Path>\out\`
 * Extract files from the zip to any location on your Linux machine. Note down this path.
 * Add `HandlerEnvironment.json` following the reference `<Project-Path>\src\tools\references\HandlerEnvironment.json` within the folder containing extracted files. 
 `HandlerEnvironment.json` defines the location where log, config and status files will be saved. Make sure to specify a directory/folder path for all 3 (can be any location within the machine)
