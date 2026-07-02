@@ -31,12 +31,9 @@ class RuntimeComposer(object):
 
         if self.is_github_runner:
             def mkdtemp_runner():
-                print("inside mkdtemp_runner")
                 temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
-                print("after mkdtemp_runner")
                 os.mkdir(temp_path)
                 return temp_path
-            print("tempPath:", mkdtemp_runner)
             tempfile.mkdtemp = mkdtemp_runner
 
     def mock_sleep(self, seconds):
