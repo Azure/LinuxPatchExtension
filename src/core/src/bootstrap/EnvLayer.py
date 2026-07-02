@@ -87,7 +87,7 @@ class EnvLayer(object):
 
     def __get_dnf_version(self):
         code, out = self.run_command_output('dnf --version', False, False)
-        # Output : dnf5 version 5.2.18.0/
+        # Output : dnf5 version 5.2.18.0
         # Output : 4.20.0
         if code != 0 or not out:
             return code, out, None
@@ -106,18 +106,21 @@ class EnvLayer(object):
         # Example: ['Azure Linux', '4.0', '']
         os_name, os_version, os_code = self.platform.linux_distribution()
 
-        # Check for unsupported distros
+        # Check for Rhel 10 ( uses dnf4)
         if self.is_distro_rhel_10(os_name):
             if not self.__is_dnf_available():
-                print("Error: Expected package manager dnf not found on this rhel 10 VM.")
+                error_msg = "Expected package manager dnf not found on this rhel 10 VM"
+                print("Error: {0}".format(error_msg))
                 return str()
             code, out, version = self.__get_dnf_version()
             if version:
                 if version.startswith('4'):
                     return Constants.DNF4
-                print("Error: Expected dnf version 4 on this rhel 10 VM. Found: {0}".format(version))
+                error_msg = "Expected dnf version 4 on this rhel 10 VM. Found: {0}".format(version)
+                print("Error: {0}".format(error_msg))
                 return str()
-            print("Error: Unable to determine dnf version. Code={0}, Output={1}".format(code, out))
+            error_msg = "Unable to determine dnf version. Code={0}, Output={1}".format(code, out)
+            print("Error: {0}".format(error_msg))
             return str()
 
         # Check for Azure Linux 4 or Above( uses dnf5)

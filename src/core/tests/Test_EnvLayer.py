@@ -207,6 +207,7 @@ class TestExecutionConfig(unittest.TestCase):
         distro.os_release_attr = self.mock_distro_os_release_attr_return_rhel_10
 
         test_input_output_table = [
+            [self.mock_run_command_for_dnf4, "dnf4"],
             [self.mock_run_command_for_dnf_not_found, str()],
             [self.mock_run_command_for_dnf_wrong_version, str()],
             [self.mock_run_command_for_dnf_version_command_failure, str()]

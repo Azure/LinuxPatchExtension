@@ -14,7 +14,7 @@
 #
 # Requires Python 2.7+
 
-"""Dnf4PackageManager for Rhel 10 or above"""
+"""Dnf4PackageManager for Rhel 10"""
 import json
 import re
 
@@ -49,7 +49,7 @@ class Dnf4PackageManager(PackageManager):
         self.dnf4_simulation_valid_exit_codes = [0, 1]
         self.dnf4_not_installed_exit_code = 1
 
-        #Package manager success/failure text
+        # Package manager success/failure text
         self.dnf4_not_installed_text = "No matching packages to list"
         self.dnf4_dependency_success_text = ["Installing dependencies:", "Upgrading:", "Dependencies resolved."]
         self.dnf4_dependency_exit_text = "Transaction Summary"
@@ -57,7 +57,7 @@ class Dnf4PackageManager(PackageManager):
         self.dnf4_subscription_failure_texts = ["Unable to read consumer identity", "This system is not registered with an entitlement server"]
         self.dnf4_list_installed_command_patterns = "list --installed"
 
-        # auto OS updates
+        # Auto OS updates
         self.current_auto_os_update_service = None
         self.os_patch_configuration_settings_file_path = ''
         self.auto_update_service_enabled = False
@@ -81,7 +81,7 @@ class Dnf4PackageManager(PackageManager):
         self.STR_TOTAL_DOWNLOAD_SIZE = "Total download size: "
         self.version_comparator = VersionComparator()
 
-        self.package_install_expected_avg_time_in_seconds = 90  # Setting a default value of 90 seconds as the avg time to install a package using dnf4, might be changed later if needed.
+        self.package_install_expected_avg_time_in_seconds = 90  # Setting a default value of 90 seconds as the avg time to install a package using dnf4.
 
     def refresh_repo(self):
         self.composite_logger.log("[DNF4] Refreshing local repo...")
@@ -97,11 +97,11 @@ class Dnf4PackageManager(PackageManager):
         is_valid_not_installed = (self.dnf4_list_installed_command_patterns in command and code == self.dnf4_not_installed_exit_code and self.dnf4_not_installed_text in (out or ""))
 
         if code in self.dnf4_exitcode_ok or is_valid_not_installed:
-            self.composite_logger.log_debug('[DNF4] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code),str(out)))
+            self.composite_logger.log_debug('[DNF4] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         else:
-            self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code),str(out)))
+            self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
             error_msg = "Customer environment error: Investigate and resolve unexpected return code ({0}) from package manager on command: {1}".format(str(code), command)
-            self.status_handler.add_error_to_status(error_msg,Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             if raise_on_exception:
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
@@ -118,16 +118,16 @@ class Dnf4PackageManager(PackageManager):
         """Get all missing updates"""
         self.composite_logger.log_verbose("[DNF4] Discovering all packages...")
         if cached and not len(self.all_updates_cached) == 0:
-            self.composite_logger.log_debug("[DNF4] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached),len(self.all_updates_cached)))
+            self.composite_logger.log_debug("[DNF4] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
         out = self.invoke_package_manager(self.cmd_get_all_updates)
         self.all_updates_cached, self.all_update_versions_cached = self.extract_packages_and_versions(out)
-        self.composite_logger.log_debug("[DNF4] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False),len(self.all_updates_cached)))
+        self.composite_logger.log_debug("[DNF4] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(False), len(self.all_updates_cached)))
         return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
-        """Get missing security updates. NOTE: Classification based categorization of patches is not available in Azure Linux as of now"""
+        """Get missing security updates. NOTE: Classification based categorization of patches is not available in Rhel 10 as of now"""
         self.composite_logger.log_verbose("[DNF4] Discovering all packages as 'security' packages, since DNF4 does not support package classification...")
         security_packages, security_package_versions = self.get_all_updates(cached=False)
         self.composite_logger.log_debug("[DNF4] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
@@ -172,7 +172,7 @@ class Dnf4PackageManager(PackageManager):
         return packages, versions
 
     def dedupe_update_packages_to_get_latest_versions(self, packages, package_versions):
-        """Remove duplicate packages and returns the latest/highest version of each package """
+        """Remove duplicate packages and returns the latest/highest version of each package"""
         deduped_packages = []
         deduped_package_versions = []
 
@@ -210,17 +210,17 @@ class Dnf4PackageManager(PackageManager):
         return
 
     def install_security_updates_azgps_coordinated(self):
-        """This is not applicable for dnf4 yet. DNF4 will not have this method implemented """
+        """This is not applicable for dnf4 yet. DNF4 will not have this method implemented"""
         pass
 
     def try_meet_azgps_coordinated_requirements(self):
-        """This is not applicable for dnf4 yet. DNF4 will not have this method implemented """
+        """This is not applicable for dnf4 yet. DNF4 will not have this method implemented"""
         pass
     # endregion
 
     # region Package Information
     def get_all_available_versions_of_package(self, package_name):
-        """ Returns a list of all the available versions of a package """
+        """Returns a list of all the available versions of a package"""
         # Sample output format ( plugin : kernel)
         #      Updating Subscription Management repositories.
         #      Last metadata expiration check: 0:46:06 ago on Tue Jun 30 19:39:22 2026.
@@ -232,12 +232,12 @@ class Dnf4PackageManager(PackageManager):
         return package_versions
 
     def is_package_version_installed(self, package_name, package_version):
-        """ Returns true if the specific package version is installed """
+        """Returns true if the specific package version is installed"""
         # Sample output for the command `dnf4 list --installed kernel`:
         #      Updating Subscription Management repositories.
         #      Installed Packages
         #      kernel.x86_64             6.12.0-211.22.1.el10_2              @System
-        self.composite_logger.log_verbose("[DNF4] Checking package install status. [PackageName={0}][PackageVersion={1}]".format(str(package_name),str(package_version)))
+        self.composite_logger.log_verbose("[DNF4] Checking package install status. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
         cmd = self.single_package_check_installed.replace('<PACKAGE-NAME>', package_name)
         output = self.invoke_package_manager(cmd)
         packages, package_versions = self.extract_packages_and_versions_including_duplicates(output)
@@ -249,12 +249,12 @@ class Dnf4PackageManager(PackageManager):
             else:
                 self.composite_logger.log_verbose("[DNF4] Did not match: " + package + " (" + package_versions[index] + ")")
 
-        #If no matching package name and version are found in the package manager output, the requested version is not installed (it may have been replaced, upgraded, or removed)
+        # If no matching package name and version are found in the package manager output, the requested version is not installed (it may have been replaced, upgraded, or removed)
         self.composite_logger.log_debug("[DNF4] Installed version match NOT found. [PackageName={0}][PackageVersion={1}]".format(str(package_name), str(package_version)))
         return False
 
     def extract_dependencies(self, output, packages):
-        #  # Extracts dependent packages from output. Refer dnf4_output_expected_format.txt for examples of output formats.
+        # Extracts dependent packages from output. Refer dnf4_output_expected_format.txt for examples of output formats.
         dependencies = []
 
         # Handle non-blocking dependency failure / nothing-to-do cases
@@ -301,8 +301,8 @@ class Dnf4PackageManager(PackageManager):
     def is_valid_update(self, package_details_in_output, package_arch_to_look_for):
         # Verifies whether the line under consideration (i.e. package_details_in_output) contains relevant package details.
         # package_details_in_output will be of the following format if it is valid
-        #   Sample package details in DNF4:
-        #   perl-lib                                                           x86_64                                                   0.65-512.2.el10_0                                                      rhel-10-appstream-rhui-rpms                                                    16 k
+        # Sample package details in DNF4:
+        # perl-lib                                                           x86_64                                                   0.65-512.2.el10_0                                                      rhel-10-appstream-rhui-rpms                                                    16 k
         return len(package_details_in_output) == 6 and self.is_arch_in_package_details(package_details_in_output[1], package_arch_to_look_for)
 
     @staticmethod
@@ -319,15 +319,15 @@ class Dnf4PackageManager(PackageManager):
         if code not in self.dnf4_simulation_valid_exit_codes:
             self.composite_logger.log_error("[DNF4] Unexpected failure during dependency simulation. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output))
             error_msg = "DNF4 dependency simulation failed. Investigate and resolve unexpected return code({0}) from package manager on command: {1} ".format(str(code), cmd)
-            self.status_handler.add_error_to_status(error_msg,Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         dependencies = self.extract_dependencies(output, packages)
-        self.composite_logger.log_verbose("[DNF4] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd),str(packages),len(dependencies)))
+        self.composite_logger.log_verbose("[DNF4] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd), str(packages), len(dependencies)))
         return dependencies
 
     def get_product_name(self, package_name):
-        """Retrieve package name """
+        """Retrieve package name"""
         return package_name
 
     def get_product_name_and_arch(self, package_name):
@@ -370,7 +370,7 @@ class Dnf4PackageManager(PackageManager):
         self.dnf4_auto_os_update_service = "dnf-automatic"
 
     def get_current_auto_os_patch_state(self):
-        """ Gets the current auto OS update patch state on the machine """
+        """Gets the current auto OS update patch state on the machine"""
         self.composite_logger.log("[DNF4] Fetching the current automatic OS patch state on the machine...")
         current_auto_os_patch_state_for_dnf_automatic = self.__get_current_auto_os_patch_state_for_dnf_automatic()
         self.composite_logger.log("[DNF4] OS patch state per auto OS update service: [dnf-automatic={0}]".format(str(current_auto_os_patch_state_for_dnf_automatic)))
@@ -386,7 +386,7 @@ class Dnf4PackageManager(PackageManager):
         return current_auto_os_patch_state
 
     def __get_current_auto_os_patch_state_for_dnf_automatic(self):
-        """ Gets current auto OS update patch state for dnf-automatic """
+        """Gets current auto OS update patch state for dnf-automatic"""
         self.composite_logger.log_debug("[DNF4] Fetching current automatic OS patch state in dnf-automatic service. This includes checks on whether the service is installed, current auto patch enable state and whether it is set to enable on reboot")
         self.__init_auto_update_for_dnf_automatic()
         is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value = self.__get_current_auto_os_updates_setting_on_machine()
@@ -402,7 +402,7 @@ class Dnf4PackageManager(PackageManager):
             return Constants.AutomaticOSPatchStates.UNKNOWN
 
     def __init_auto_update_for_dnf_automatic(self):
-        """ Initializes all generic auto OS update variables with the config values for dnf automatic service """
+        """Initializes all generic auto OS update variables with the config values for dnf automatic service"""
         self.os_patch_configuration_settings_file_path = self.dnf4_automatic_configuration_file_path
         self.download_updates_identifier_text = self.dnf4_automatic_download_updates_identifier_text
         self.apply_updates_identifier_text = self.dnf4_automatic_apply_updates_identifier_text
@@ -415,7 +415,7 @@ class Dnf4PackageManager(PackageManager):
         self.current_auto_os_update_service = self.dnf4_auto_os_update_service
 
     def __get_current_auto_os_updates_setting_on_machine(self):
-        """ Gets all the update settings related to auto OS updates currently set on the machine """
+        """Gets all the update settings related to auto OS updates currently set on the machine"""
         try:
             download_updates_value = ""
             apply_updates_value = ""
@@ -434,30 +434,30 @@ class Dnf4PackageManager(PackageManager):
             if image_default_patch_configuration is not None:
                 settings = image_default_patch_configuration.strip().split('\n')
                 for setting in settings:
-                    match = re.search(self.download_updates_identifier_text + self.auto_update_config_pattern_match_text,str(setting))
+                    match = re.search(self.download_updates_identifier_text + self.auto_update_config_pattern_match_text, str(setting))
                     if match is not None:
                         download_updates_value = match.group(1)
 
-                    match = re.search(self.apply_updates_identifier_text + self.auto_update_config_pattern_match_text,str(setting))
+                    match = re.search(self.apply_updates_identifier_text + self.auto_update_config_pattern_match_text, str(setting))
                     if match is not None:
                         apply_updates_value = match.group(1)
 
             if download_updates_value == "":
                 self.composite_logger.log_verbose("[DNF4] Machine did not have any value set for [Setting={0}]".format(str(self.download_updates_identifier_text)))
             else:
-                self.composite_logger.log_verbose("[DNF4] Current value set for [{0}={1}]".format(str(self.download_updates_identifier_text),str(download_updates_value)))
+                self.composite_logger.log_verbose("[DNF4] Current value set for [{0}={1}]".format(str(self.download_updates_identifier_text) , str(download_updates_value)))
 
             if apply_updates_value == "":
                 self.composite_logger.log_verbose("[DNF4] Machine did not have any value set for [Setting={0}]".format(str(self.apply_updates_identifier_text)))
             else:
-                self.composite_logger.log_verbose("[DNF4] Current value set for [{0}={1}]".format(str(self.apply_updates_identifier_text),str(apply_updates_value)))
+                self.composite_logger.log_verbose("[DNF4] Current value set for [{0}={1}]".format(str(self.apply_updates_identifier_text), str(apply_updates_value)))
             return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
 
         except Exception as error:
             raise Exception("[DNF4] Error occurred in fetching current auto OS update settings from the machine. [Exception={0}]".format(repr(error)))
 
     def is_auto_update_service_installed(self, install_check_cmd):
-        """ Checks if the auto update service is enable_on_reboot on the VM """
+        """Checks if the auto update service is enable_on_reboot on the VM"""
         self.composite_logger.log_verbose("[DNF4] Checking if auto update service is installed. [Command={0}]".format(install_check_cmd))
         code, out = self.env_layer.run_command_output(install_check_cmd, False, False)
         is_installed = len(out.strip()) > 0 and code == 0
@@ -465,7 +465,7 @@ class Dnf4PackageManager(PackageManager):
         return is_installed
 
     def is_service_set_to_enable_on_reboot(self, command):
-        """ Checking if auto update is enable_on_reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot """
+        """Checking if auto update is enable_on_reboot on the machine. An enable_on_reboot service will be activated (if currently inactive) on machine reboot"""
         self.composite_logger.log_verbose("[DNF4] Checking if auto update service is set to enable on reboot. [Command={0}]".format(command))
         code, out = self.env_layer.run_command_output(command, False, False)
         is_enable_on_reboot = len(out.strip()) > 0 and code == 0 and out.strip().lower() == "enabled"
@@ -481,7 +481,7 @@ class Dnf4PackageManager(PackageManager):
             return self.apply_updates_unknown
 
     def disable_auto_os_update(self):
-        """ Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with """
+        """Disables auto OS updates on the machine only if they are enabled and logs the default settings the machine comes with"""
         try:
             self.composite_logger.log_verbose("[DNF4] Disabling auto OS updates in all identified services...")
             self.disable_auto_os_update_for_dnf_automatic()
@@ -491,7 +491,7 @@ class Dnf4PackageManager(PackageManager):
             raise
 
     def disable_auto_os_update_for_dnf_automatic(self):
-        """ Disables auto OS updates, using dnf-automatic service, and logs the default settings the machine comes with """
+        """Disables auto OS updates, using dnf-automatic service, and logs the default settings the machine comes with"""
         self.composite_logger.log_verbose("[DNF4] Disabling auto OS updates using dnf-automatic")
         self.__init_auto_update_for_dnf_automatic()
 
@@ -502,8 +502,8 @@ class Dnf4PackageManager(PackageManager):
             return
 
         self.composite_logger.log_verbose("[DNF4] Preemptively disabling auto OS updates using dnf-automatic")
-        self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "no",self.dnf4_automatic_config_pattern_match_text)
-        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "no",self.dnf4_automatic_config_pattern_match_text)
+        self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, "no", self.dnf4_automatic_config_pattern_match_text)
+        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, "no", self.dnf4_automatic_config_pattern_match_text)
         self.disable_auto_update_on_reboot(self.dnf4_automatic_disable_on_reboot_cmd)
         self.composite_logger.log_debug("[DNF4] Successfully disabled auto OS updates using dnf-automatic")
 
@@ -517,10 +517,10 @@ class Dnf4PackageManager(PackageManager):
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:
-            self.composite_logger.log_debug("[DNF4] Disabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code),out))
+            self.composite_logger.log_debug("[DNF4] Disabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
 
     def backup_image_default_patch_configuration_if_not_exists(self):
-        """ Records the default system settings for auto OS updates within patch extension artifacts for future reference.
+        """Records the default system settings for auto OS updates within patch extension artifacts for future reference.
         We only log the default system settings a VM comes with, any subsequent updates will not be recorded"""
         """ JSON format for backup file:
                     {
@@ -538,7 +538,7 @@ class Dnf4PackageManager(PackageManager):
             # verify if existing backup is valid if not, write to backup
             is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
             if is_backup_valid:
-                self.composite_logger.log_debug("[DNF4] Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]".format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
+                self.composite_logger.log_debug("[DNF4] Since extension has a valid backup, no need to log the current settings again. [Default Auto OS update settings={0}] [File path={1}]".format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
             else:
                 self.composite_logger.log_debug("[DNF4] Since the backup is invalid, will add a new backup with the current auto OS update settings")
                 self.composite_logger.log_debug("[DNF4] Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
@@ -555,7 +555,7 @@ class Dnf4PackageManager(PackageManager):
                 image_default_patch_configuration_backup.update(backup_image_default_patch_configuration_json_to_add)
                 self.composite_logger.log_debug("[DNF4] Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
                                                 .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
-                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path,'{0}'.format(json.dumps(image_default_patch_configuration_backup)),mode='w+')
+                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
         except Exception as error:
             error_message = "[DNF4] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error))
             self.composite_logger.log_error(error_message)
@@ -563,7 +563,7 @@ class Dnf4PackageManager(PackageManager):
             raise
 
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
-        """ Verifies if default auto update configurations, for a service under consideration, are saved in backup """
+        """Verifies if default auto update configurations, for a service under consideration, are saved in backup"""
         return self.is_backup_valid_for_dnf_automatic(image_default_patch_configuration_backup)
 
     def is_backup_valid_for_dnf_automatic(self, image_default_patch_configuration_backup):
@@ -579,7 +579,7 @@ class Dnf4PackageManager(PackageManager):
             return False
 
     def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="no", config_pattern_match_text=""):
-        """ Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file """
+        """Updates (or adds if it doesn't exist) the given patch_configuration_sub_setting with the given value in os_patch_configuration_settings_file"""
         try:
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
             self.composite_logger.log_debug("[DNF4] Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(str(patch_configuration_sub_setting), value))
@@ -601,7 +601,7 @@ class Dnf4PackageManager(PackageManager):
             if not patch_configuration_sub_setting_found_in_file:
                 updated_patch_configuration_sub_setting += patch_configuration_sub_setting_to_update + "\n"
 
-            self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path,'{0}'.format(updated_patch_configuration_sub_setting.lstrip()),mode='w+')
+            self.env_layer.file_system.write_with_retry(self.os_patch_configuration_settings_file_path, '{0}'.format(updated_patch_configuration_sub_setting.lstrip()), mode='w+')
         except Exception as error:
             error_msg = "[DNF4] Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error))
             self.composite_logger.log_error(error_msg)
@@ -609,14 +609,14 @@ class Dnf4PackageManager(PackageManager):
             raise
 
     def revert_auto_os_update_to_system_default(self):
-        """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
+        """Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file"""
         # type () -> None
         self.composite_logger.log("[DNF4] Reverting the current automatic OS patch state on the machine to its system default value before patchmode was set to 'AutomaticByPlatform'")
         self.revert_auto_os_update_to_system_default_for_dnf_automatic()
         self.composite_logger.log_debug("[DNF4] Successfully reverted auto OS updates to system default config")
 
     def revert_auto_os_update_to_system_default_for_dnf_automatic(self):
-        """ Reverts the auto OS update patch state on the machine to its system default value for given service, if applicable """
+        """Reverts the auto OS update patch state on the machine to its system default value for given service, if applicable"""
         # type () -> None
         self.__init_auto_update_for_dnf_automatic()
         self.composite_logger.log("[DNF4] Reverting the current automatic OS patch state on the machine to its system default value for [Service={0}]".format(str(self.current_auto_os_update_service)))
@@ -627,7 +627,7 @@ class Dnf4PackageManager(PackageManager):
             return
 
         self.composite_logger.log_verbose("[DNF4] Logging current configuration settings for auto OS updates [Service={0}][Is_Service_Installed={1}][Machine_default_update_enable_on_reboot={2}][{3}={4}]][{5}={6}]".format(str(self.current_auto_os_update_service), str(is_service_installed), str(enable_on_reboot_value),
-                    str(self.download_updates_identifier_text), str(download_updates_value),str(self.apply_updates_identifier_text), str(apply_updates_value)))
+                    str(self.download_updates_identifier_text), str(download_updates_value), str(self.apply_updates_identifier_text), str(apply_updates_value)))
 
         image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
         self.composite_logger.log_verbose("[DNF4] Logging system default configuration settings for auto OS updates. [Settings={0}]".format(str(image_default_patch_configuration_backup)))
@@ -638,12 +638,12 @@ class Dnf4PackageManager(PackageManager):
             apply_updates_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.apply_updates_identifier_text]
             enable_on_reboot_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.enable_on_reboot_identifier_text]
 
-            self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text,download_updates_value_from_backup,self.auto_update_config_pattern_match_text)
-            self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text,apply_updates_value_from_backup,self.auto_update_config_pattern_match_text)
+            self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, download_updates_value_from_backup, self.auto_update_config_pattern_match_text)
+            self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, apply_updates_value_from_backup, self.auto_update_config_pattern_match_text)
             if str(enable_on_reboot_value_from_backup).lower() == 'true':
                 self.enable_auto_update_on_reboot()
         else:
-            self.composite_logger.log_debug("[DNF4] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]".format(str(self.current_auto_os_update_service)))
+            self.composite_logger.log_debug("[DNF4] Backup is invalid or does not exist for current service. Unable to revert auto OS patch settings to system default value. [Service={0}]".format(str(self.current_auto_os_update_service)))
 
     def enable_auto_update_on_reboot(self):
         """Enables machine default auto update on reboot"""
@@ -658,12 +658,12 @@ class Dnf4PackageManager(PackageManager):
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:
-            self.composite_logger.log_debug("[DNF4] Enabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code),out))
+            self.composite_logger.log_debug("[DNF4] Enabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
 
     def __get_image_default_patch_configuration_backup(self):
-        """ Get image_default_patch_configuration_backup file"""
+        """Get image_default_patch_configuration_backup file"""
         image_default_patch_configuration_backup = {}
-        # read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
+        # Read existing backup since it also contains backup from other update services. We need to preserve any existing data within the backup file
         if self.image_default_patch_configuration_backup_exists():
             try:
                 image_default_patch_configuration_backup = json.loads(self.env_layer.file_system.read_with_retry(self.image_default_patch_configuration_backup_path))
@@ -674,7 +674,7 @@ class Dnf4PackageManager(PackageManager):
 
     # region Reboot Management
     def is_reboot_pending(self):
-        """ Checks if there is a pending reboot on the machine. """
+        """Checks if there is a pending reboot on the machine."""
         self.composite_logger.log_verbose("[DNF4] Checking if reboot is required [Command={0}]".format(self.needs_restarting_with_flag))
         code, output = self.env_layer.run_command_output(self.needs_restarting_with_flag, False, False)
         reboot_required = (code == 1)
@@ -687,7 +687,7 @@ class Dnf4PackageManager(PackageManager):
     # endregion
 
     def set_security_esm_package_status(self, operation, packages):
-        """ Set the security-ESM classification for the esm packages. Only needed for apt. No-op for dnf4, yum and zypper."""
+        """Set the security-ESM classification for the esm packages. Only needed for apt. No-op for dnf4, yum and zypper."""
         return
 
     def separate_out_esm_packages(self, packages, package_versions):
@@ -704,11 +704,11 @@ class Dnf4PackageManager(PackageManager):
 
     # region Update certificates in factory defaults
     def try_install_mokutil(self):
-        """ Attempts to install mokutil """
+        """Attempts to install mokutil"""
         pass
 
     def try_update_certs(self):
-        """ Attempts to update certificate status """
+        """Attempts to update certificate status"""
         pass
     # endregion
 

@@ -322,7 +322,7 @@ class TestDnf4PackageManager(unittest.TestCase):
             "legacy_type": 'RevertToImageDefault',
             "stdio": {
                 "capture_output": True,
-                "expected_output": "[DNF4] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=dnf-automatic]"
+                "expected_output": "[DNF4] Backup is invalid or does not exist for current service. Unable to revert auto OS patch settings to system default value. [Service=dnf-automatic]"
             },
             "config": {
                 "current_auto_update_config": {
@@ -348,7 +348,7 @@ class TestDnf4PackageManager(unittest.TestCase):
             "legacy_type": 'RevertToImageDefault',
             "stdio": {
                 "capture_output": True,
-                "expected_output": "[DNF4] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service=dnf-automatic]"
+                "expected_output": "[DNF4] Backup is invalid or does not exist for current service. Unable to revert auto OS patch settings to system default value. [Service=dnf-automatic]"
             },
             "config": {
                 "current_auto_update_config": {
