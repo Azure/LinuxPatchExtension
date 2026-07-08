@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# NOTE: This script is used to detect if the VM is running on a confidential VM.
+# It checks for full disk encryption and other artifacts that indicate the presence of confidential computing features.
+# Please reach out to Azure Cloud Security team if you have any questions or concerns about this script.
+
 set -euo pipefail
 
 HOSTNAME=$(hostname)
