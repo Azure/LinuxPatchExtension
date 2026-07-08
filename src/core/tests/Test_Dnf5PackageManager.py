@@ -124,7 +124,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertIsNotNone(image_default_patch_configuration_backup)
 
         # validating backup for dnf-automatic
-        self.assertIn(package_manager.dnf5_auto_os_update_service, image_default_patch_configuration_backup)
+        self.assertIn(package_manager.dnf5_default_auto_os_config_backup_key, image_default_patch_configuration_backup)
         self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_download_updates_identifier_text], "")
         self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_apply_updates_identifier_text], "")
         self.assertEqual(image_default_patch_configuration_backup[package_manager.dnf5_auto_os_update_service][package_manager.dnf5_automatic_enable_on_reboot_identifier_text], False)
