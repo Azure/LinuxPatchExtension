@@ -194,7 +194,7 @@ def add_external_dependencies(external_dependencies_destination, external_depend
         dependencies_to_be_added = []
         for root, dirs, files in os.walk(external_dependencies_source_code_path):
             for file_name in files:
-                if ".py" not in file_name or ".pyc" in file_name:
+                if (not file_name.lower().endswith((".py", ".sh"))) or file_name.endswith(".pyc"):
                     continue
                 file_path = os.path.join(root, file_name)
                 dependencies_to_be_added.append(file_path)
@@ -265,15 +265,6 @@ def main(argv):
         external_dependencies_destination = os.path.join(merge_file_directory, 'external_dependencies')
         external_dependencies_source_code_path = os.path.join(source_code_path, 'external_dependencies')
         add_external_dependencies(external_dependencies_destination, external_dependencies_source_code_path)
-
-        # Copy core shim files + enforce UNIX style line endings
-        # print('\n========== Copying core shim files + enforcing UNIX style line endings.\n')
-        # core_shim_files = ['DetectConfidentialVMShim.sh']
-        # for core_shim_file in core_shim_files:
-        #     core_shim_src = os.path.join(working_directory, 'core', 'src', 'bootstrap', core_shim_file)
-        #     core_shim_destination = os.path.join(working_directory, 'out', core_shim_file)
-        #     shutil.copyfile(core_shim_src, core_shim_destination)
-        #     replace_text_in_file(core_shim_destination, '\r\n', '\n')
 
     except Exception as error:
         print('Exception during packaging all python modules in core: ' + repr(error))
