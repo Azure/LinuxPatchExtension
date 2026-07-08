@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,9 +16,12 @@
 
 """ Merges individual python modules from src to the MsftLinuxPatchExt files in the out directory.
 Relative source and destination paths for the extension are auto-detected if the optional src parameter is not present.
-How to use: python Package.py <optional: full path to extension 'src' folder>"""
+How to use: python Package-All.py <optional: full path to extension 'src' folder>
+Note: Package-All.py internally invokes Package-Core.py to generate MsftLinuxPatchCore.py """
 
 from __future__ import print_function
+
+import shutil
 import sys
 import os
 import errno
@@ -26,11 +29,13 @@ import datetime
 from shutil import copyfile
 from shutil import make_archive
 import subprocess
+import xml.etree.ElementTree as et
 
 # imports in VERY_FIRST_IMPORTS, order should be kept
 VERY_FIRST_IMPORTS = [
     'from __future__ import print_function\n',
-    'from abc import ABCMeta, abstractmethod\n']
+    'from abc import ABCMeta, abstractmethod\n',
+    'from distutils.version import LooseVersion\n']
 GLOBAL_IMPORTS = set()
 
 
@@ -59,15 +64,16 @@ def write_merged_code(code, merged_file_full_path):
 
 
 def insert_copyright_notice(merged_file_full_path, merged_file_name):
-    notice = '# --------------------------------------------------------------------------------------------------------------------\n'
+    notice = '# coding=utf-8\n'
+    notice += '# --------------------------------------------------------------------------------------------------------------------\n'
     notice += '# <copyright file="' + merged_file_name + '" company="Microsoft">\n'
-    notice += '#   Copyright 2020 Microsoft Corporation\n' \
+    notice += '#   Copyright ' + str(datetime.date.today().year) + ' Microsoft Corporation\n' \
               '#\n' \
               '#   Licensed under the Apache License, Version 2.0 (the "License");\n' \
               '#   you may not use this file except in compliance with the License.\n' \
               '#   You may obtain a copy of the License at\n' \
               '#\n' \
-              '#     http://www.apache.org/licenses/LICENSE-2.0\n' \
+              '#     https://www.apache.org/licenses/LICENSE-2.0\n' \
               '#\n' \
               '#   Unless required by applicable law or agreed to in writing, software\n' \
               '#   distributed under the License is distributed on an "AS IS" BASIS,\n' \
@@ -104,15 +110,15 @@ def prepend_content_to_file(content, file_name):
     os.rename(temp_file, file_name)
 
 
-def generate_compiled_script(source_code_path, merged_file_full_path, merged_file_name, environment):
+def generate_compiled_script(source_code_path, merged_file_full_path, merged_file_name, environment, new_version):
     try:
-        print('\n\n=============================== GENERATING ' + merged_file_name + '... =============================================================\n')
+        print('\n=============================== (2/3) GENERATING ' + merged_file_name + '... ================================\n')
 
-        print('========== Delete old extension file if it exists.')
+        print('------------- Deleting old extension file if it exists.')
         if os.path.exists(merged_file_full_path):
             os.remove(merged_file_full_path)
 
-        print('\n========== Merging modules: \n')
+        print('------------- Merging modules: ')
         modules_to_be_merged = []
         for root, dirs, files in os.walk(source_code_path):
             for file_name in files:
@@ -137,19 +143,26 @@ def generate_compiled_script(source_code_path, merged_file_full_path, merged_fil
             write_merged_code(codes, merged_file_full_path)
         print("<end>")
 
-        print('\n========== Prepend all import statements\n')
+        print('------------- Prepend all import statements')
         insert_imports(GLOBAL_IMPORTS, merged_file_full_path)
         insert_imports(VERY_FIRST_IMPORTS, merged_file_full_path)
 
-        print('========== Set Copyright, Version and Environment. Also enforce UNIX-style line endings.\n')
+        print('------------- Set Copyright, Version and Environment. Also enforce UNIX-style line endings.')
         insert_copyright_notice(merged_file_full_path, merged_file_name)
-        timestamp = datetime.datetime.utcnow().strftime("%y%m%d-%H%M")
-        replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name.split('.')[0])
-        replace_text_in_file(merged_file_full_path, '[%exec_sub_ver%]', timestamp)
+        try:
+            # Python 3.2+
+            now = datetime.datetime.now(datetime.timezone.utc)
+        except AttributeError:
+            # Older Python fallback (naive UTC)
+            now = datetime.datetime.utcnow()
+        date = now.strftime("%y.%m.%d")
+        replace_text_in_file(merged_file_full_path, '[%exec_name%]', merged_file_name)
+        replace_text_in_file(merged_file_full_path, '[%exec_ver%]', str(new_version))
+        replace_text_in_file(merged_file_full_path, '[%exec_build_date%]', date)
         replace_text_in_file(merged_file_full_path, 'Constants.UNKNOWN_ENV', environment)
         replace_text_in_file(merged_file_full_path, '\r\n', '\n')
 
-        print("========== Merged extension code was saved to:\n{0}\n".format(merged_file_full_path))
+        print("------------- Merged extension code was saved to:\n{0}\n".format(merged_file_full_path))
 
     except Exception as error:
         print('Exception during merge python modules: ' + repr(error))
@@ -165,7 +178,7 @@ def main(argv):
         # Determine code path if not specified
         if len(argv) < 2:
             # auto-detect src path
-            source_code_path = os.path.dirname(os.path.realpath(__file__)).replace("tools", os.path.join("extension", "src"))
+            source_code_path = os.path.dirname(os.path.realpath(__file__)).replace(os.path.join("tools", "packager"), os.path.join("extension", "src"))
             if os.path.exists(os.path.join(source_code_path, "__main__.py")) is False:
                 print("Invalid extension source code path. Check enlistment.\n")
                 return
@@ -180,39 +193,39 @@ def main(argv):
         working_directory = os.path.abspath(os.path.join(source_code_path, os.pardir, os.pardir))
         merge_file_directory = os.path.join(working_directory, 'out')
         try:
+            if os.path.exists(merge_file_directory):
+                shutil.rmtree(merge_file_directory)
             os.makedirs(merge_file_directory)
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
 
         # Invoke core business logic code packager
-        exec_core_build_path = os.path.join(working_directory, 'tools', 'Package-Core.py')
+        exec_core_build_path = os.path.join(working_directory, 'tools', 'packager', 'Package-Core.py')
         subprocess.call('python ' + exec_core_build_path, shell=True)
+
+        # Get version from manifest for code
+        new_version = None
+        manifest_xml_file_path = os.path.join(working_directory, 'extension', 'src', 'manifest.xml')
+        manifest_tree = et.parse(manifest_xml_file_path)
+        manifest_root = manifest_tree.getroot()
+        for i in range(0, len(manifest_root)):
+            if 'Version' in str(manifest_root[i]):
+                new_version = manifest_root[i].text
+        if new_version is None:
+            raise Exception("Unable to determine target version.")
 
         # Generated compiled scripts at the destination
         merged_file_details = [('MsftLinuxPatchExt.py', 'Constants.PROD')]
         for merged_file_detail in merged_file_details:
             merged_file_destination = os.path.join(working_directory, 'out', merged_file_detail[0])
-            generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1])
+            generate_compiled_script(source_code_path, merged_file_destination, merged_file_detail[0], merged_file_detail[1], new_version)
 
         # GENERATING EXTENSION
-        print('\n\n=============================== GENERATING LinuxPatchExtension.zip... =============================================================\n')
-        # Rev handler version
-        # print('\n========== Revising extension version.')
-        # manifest_xml_file_path = os.path.join(working_directory, 'extension', 'src', 'manifest.xml')
-        # manifest_tree = et.parse(manifest_xml_file_path)
-        # manifest_root = manifest_tree.getroot()
-        # for i in range(0, len(manifest_root)):
-        #     if 'Version' in str(manifest_root[i]):
-        #         current_version = manifest_root[i].text
-        #         version_split = current_version.split('.')
-        #         version_split[len(version_split)-1] = str(int(version_split[len(version_split)-1]) + 1)
-        #         new_version = '.'.join(version_split)
-        #         print("Changing extension version from {0} to {1}.".format(current_version, new_version))
-        #         replace_text_in_file(manifest_xml_file_path, current_version, new_version)
+        print('\n=============================== (3/3) GENERATING LinuxPatchExtension.zip... ==============================\n')
 
         # Copy extension files
-        print('\n========== Copying extension files + enforcing UNIX style line endings.\n')
+        print('------------- Copying extension files + enforcing UNIX style line endings.')
         ext_files = ['HandlerManifest.json', 'manifest.xml', 'MsftLinuxPatchExtShim.sh']
         for ext_file in ext_files:
             ext_file_src = os.path.join(working_directory, 'extension', 'src', ext_file)
@@ -230,18 +243,18 @@ def main(argv):
             os.remove(ext_zip_file_path_dest)
 
         # Generate zip
-        print('\n========== Generating extension zip.\n')
-        make_archive(os.path.splitext(ext_zip_file_path_src)[0], 'zip', os.path.join(working_directory, 'out'), '.')
+        print('------------- Generating extension zip.')
+        make_archive(os.path.splitext(ext_zip_file_path_src)[0], 'zip', os.path.join(working_directory, 'out'), '..')
         copyfile(ext_zip_file_path_src, ext_zip_file_path_dest)
         os.remove(ext_zip_file_path_src)
 
         # Remove extension file copies
-        print('\n========== Cleaning up environment.\n')
+        print('------------- Cleaning up environment.')
         for ext_file in ext_files:
             ext_file_path = os.path.join(working_directory, 'out', ext_file)
             os.remove(ext_file_path)
 
-        print("========== Extension ZIP was saved to:\n{0}\n".format(ext_zip_file_path_dest))
+        print("------------- Extension ZIP was saved to:\n{0}\n".format(ext_zip_file_path_dest))
 
     except Exception as error:
         print('Exception during merge python modules: ' + repr(error))
