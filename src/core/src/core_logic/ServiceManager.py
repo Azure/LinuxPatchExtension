@@ -36,6 +36,7 @@ class ServiceManager(SystemctlManager):
 
     # region - Service Creation / Removal
     def remove_service(self):
+        """ Remove the service if it exists """
         service_path = self.__systemd_service_unit_path.format(self.service_name)
         if os.path.exists(service_path):
             self.stop_service()
