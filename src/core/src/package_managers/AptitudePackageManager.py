@@ -975,12 +975,12 @@ class AptitudePackageManager(PackageManager):
 
         success = False
         try:
-            self.__run_cert_apt_command(self.apt_update_cmd, "AptUpdate", raise_on_error=True)
+            self.__run_cert_apt_command(self.apt_update_cmd, step_name="AptUpdate", raise_on_error=True)
             self.__ensure_fwupd_installation()
 
             # shell fwupd commands to update certificates
-            self.__run_cert_shell_command(self.fwupd_refresh_cmd, "FwupdRefresh", raise_on_error=True)
-            self.__run_cert_shell_command(self.fwupd_update_cmd, "FwupdUpdate", raise_on_error=True)
+            self.__run_cert_shell_command(self.fwupd_refresh_cmd, step_name="FwupdRefresh", raise_on_error=True)
+            self.__run_cert_shell_command(self.fwupd_update_cmd, step_name="FwupdUpdate", raise_on_error=True)
 
             """ NOTE: They tooling used to update here is fwupd (firmware update manager). In this method of updating certs, the exact version of current certs is never pinned
             or set/referred while installing. fwupd fetches and installs latest available certs. This is beneficial because our code doesn't become dated in the future
@@ -1015,11 +1015,11 @@ class AptitudePackageManager(PackageManager):
         if installed_version != str():
             self.composite_logger.log("[APM][Certs] Existing fwupd version is below minimum. Reinstalling latest. [InstalledVersion={0}][MinimumVersion={1}]"
                                       .format(installed_version, self.min_fwupd_version))
-            self.__run_cert_apt_command(self.remove_fwupd_cmd, "RemoveOldFwupd", raise_on_error=True)
+            self.__run_cert_apt_command(self.remove_fwupd_cmd, step_name="RemoveOldFwupd", raise_on_error=True)
         else:
             self.composite_logger.log_debug("[APM][Certs] fwupd is not installed. Installing latest version.")
 
-        self.__run_cert_apt_command(self.install_fwupd_cmd, "InstallFwupd", raise_on_error=True)
+        self.__run_cert_apt_command(self.install_fwupd_cmd, step_name="InstallFwupd", raise_on_error=True)
 
         # Validate that the installed fwupd meets the minimum requirement.
         installed_version = self.__get_installed_fwupd_version()

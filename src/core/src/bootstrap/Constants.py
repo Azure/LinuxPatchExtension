@@ -101,6 +101,9 @@ class Constants(object):
         KEK = "KEK"
         DB = "DB"
 
+    # Confidential VM detection shim script name
+    DETECT_CVM_SHIM_FILE_NAME = "external_dependencies/DetectConfidentialVMShim.sh"
+
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
 

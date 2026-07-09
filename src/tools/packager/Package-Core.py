@@ -194,7 +194,7 @@ def add_external_dependencies(external_dependencies_destination, external_depend
         dependencies_to_be_added = []
         for root, dirs, files in os.walk(external_dependencies_source_code_path):
             for file_name in files:
-                if ".py" not in file_name or ".pyc" in file_name:
+                if (not file_name.lower().endswith((".py", ".sh"))) or file_name.endswith(".pyc"):
                     continue
                 file_path = os.path.join(root, file_name)
                 dependencies_to_be_added.append(file_path)
