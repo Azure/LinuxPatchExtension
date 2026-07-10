@@ -15,7 +15,6 @@
 # Requires Python 2.7+
 
 """The is base package manager, which defines the package management relevant operations"""
-import json
 import os
 from abc import ABCMeta, abstractmethod
 from core.src.bootstrap.Constants import Constants
@@ -498,31 +497,27 @@ class PackageManager(object):
         pass
 
     # region Update certificates in factory defaults
-    # TODO (Before removing in-VM feature flag): This update should not be done in CVMs in current form
     def update_certs(self):
-        # 1. Fetch and Log current certs on the VM NOTE: Common across distros
-            # ensure mokutil exists
-            # if not, install mokutil
-            # If success, fetch cert detail
-            # If not, throw exception and stop
-            # log output
-        # 2. If 2023 certs already exists, do nothing
-        # 3. If not, perform all the steps to update certs
-        # 4. Validate and log new certs were installed
-
+        # type: () -> bool
+        """ Updates the certificates if the required ones do not exist. Returns True if certs were updated successfully, False otherwise. """
         self.composite_logger.log_verbose("[PM] Updating current certificates if needed...")
-        is_mokutil_installed = self.is_mokutil_installed()
-        try_install_mokutil_status = False
-        if not is_mokutil_installed:
-            try_install_mokutil_status = self.try_install_mokutil()
+        return self.try_update_certs()
 
-        if is_mokutil_installed or try_install_mokutil_status:
-            self.try_update_certs()
-        else:
-            error_msg = "[PM][UpdateCerts] Mokutil is not installed and could not be installed. Cannot fetch current certs."
-            self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+    def ensure_mokutil_available_for_cert_checks(self):
+        # type: (bool) -> bool
+        """Ensures mokutil is available before certificate status checks."""
+        if self.is_mokutil_installed():
+            return True
+
+        self.composite_logger.log_verbose("[PM][Certs] Mokutil is not installed. Attempting installation before cert check.")
+        try_install_mokutil_status = self.try_install_mokutil()
+        if try_install_mokutil_status:
+            return True
+
+        error_msg = "[PM][UpdateCerts] Mokutil is not installed and could not be installed. Cannot fetch current certs."
+        self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+        self.composite_logger.log_error(error_msg)
+        raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
     def is_mokutil_installed(self):
         # type: () -> bool
@@ -534,6 +529,9 @@ class PackageManager(object):
         return code == 0
 
     def are_latest_certs_present(self):
+        if not self.ensure_mokutil_available_for_cert_checks():
+            return False
+
         kek_code, kek_out = self.fetch_current_certs(Constants.Certificates.KEK, self.get_kek_cert_status_cmd, raise_on_exception=False)
         db_code, db_out = self.fetch_current_certs(Constants.Certificates.DB, self.get_db_cert_status_cmd, raise_on_exception=False)
         return self.is_latest_cert_installed(kek_code, kek_out) and self.is_latest_cert_installed(db_code, db_out)
@@ -576,6 +574,17 @@ class PackageManager(object):
     @abstractmethod
     def try_update_certs(self):
         """ Attempts to update certificate status """
+        pass
+
+    @abstractmethod
+    def is_hibernation_enabled_for_cert_update(self):
+        # type: () -> bool
+        """Checks whether hibernation is enabled."""
+        pass
+
+    @abstractmethod
+    def should_reboot_before_cert_update(self):
+        """ Checks if a reboot is required before updating certificates """
         pass
     # endregion
 

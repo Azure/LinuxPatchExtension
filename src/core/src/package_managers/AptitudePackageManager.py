@@ -102,6 +102,9 @@ class AptitudePackageManager(PackageManager):
         self.install_fwupd_cmd = "sudo apt-get install -y fwupd"
         self.fwupd_refresh_cmd = "sudo fwupdmgr refresh" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
         self.fwupd_update_cmd = "sudo fwupdmgr update -y"
+        self.get_uptime_seconds_cmd = "cat /proc/uptime"
+        self.get_hibernation_state_cmd = "cat /sys/power/disk"
+        self.pre_cert_reboot_uptime_threshold_seconds = 7 * 24 * 60 * 60
 
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
@@ -957,6 +960,57 @@ class AptitudePackageManager(PackageManager):
         return self.package_install_expected_avg_time_in_seconds
 
     # region Update certificates in factory defaults
+    def should_reboot_before_cert_update(self):
+        # type: () -> bool
+        """Return True when certificate update should be preceded by a reboot."""
+        uptime_seconds = self.__get_vm_uptime_seconds()
+        if uptime_seconds is None:
+            # Best-effort check: do not block cert flow if uptime cannot be determined.
+            return False
+
+        requires_reboot = uptime_seconds > self.pre_cert_reboot_uptime_threshold_seconds
+        self.composite_logger.log_debug("[APM][Certs] Pre-cert reboot check. [UptimeInSeconds={0}][ThresholdInSeconds={1}][RequiresReboot={2}]"
+                                        .format(str(uptime_seconds), str(self.pre_cert_reboot_uptime_threshold_seconds), str(requires_reboot)))
+        return requires_reboot
+
+    def is_hibernation_enabled_for_cert_update(self):
+        # type: () -> bool
+        """Returns True when hibernation appears enabled based on /sys/power/disk state."""
+        cmd = self.get_hibernation_state_cmd
+        self.composite_logger.log_verbose('[APM][Certs] Checking hibernation state before cert update. [Command={0}]'.format(cmd))
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        out = str(out) if out is not None else str()
+
+        if code != self.apt_exitcode_ok:
+            self.composite_logger.log_debug('[APM][Certs] Unable to determine hibernation state for cert update. Assuming disabled. [Code={0}][Output={1}]'.format(str(code), out))
+            return False
+
+        # Linux shows current mode in brackets; [disabled] means hibernation is turned off.
+        is_hibernation_enabled = '[disabled]' not in out
+        self.composite_logger.log_debug('[APM][Certs] Hibernation state for cert update. [Enabled={0}][RawState={1}]'.format(str(is_hibernation_enabled), out.strip()))
+        return is_hibernation_enabled
+
+    def __get_vm_uptime_seconds(self):
+        # type: () -> any
+        """Return VM uptime in seconds, or None when unavailable."""
+        cmd = self.get_uptime_seconds_cmd
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        self.composite_logger.log_debug("[APM][Certs] VM uptime command executed. [Command={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(out)))
+        if code != self.apt_exitcode_ok:
+            self.composite_logger.log_warning("[APM][Certs] Unable to determine VM uptime. [Command={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(out)))
+            return None
+
+        output = str(out).strip()
+        if output == str() or len(output.split()) == 0:
+            self.composite_logger.log_warning("[APM][Certs] VM uptime command returned an empty result.")
+            return None
+
+        try:
+            return int(float(output.split()[0]))
+        except Exception as error:
+            self.composite_logger.log_warning("[APM][Certs] Failed to parse VM uptime output. [Output={0}][Error={1}]".format(str(output), repr(error)))
+            return None
+
     def try_install_mokutil(self):
         # type: () -> bool
         """ Attempts to install mokutil """
@@ -969,9 +1023,6 @@ class AptitudePackageManager(PackageManager):
     def try_update_certs(self):
         """ Attempts to update certificate status """
         self.composite_logger.log("[APM][Certs] Starting cert update flow.")
-        if self.are_latest_certs_present():
-            self.composite_logger.log("[APM][Certs] Latest certs already present. Skipping.")
-            return True
 
         success = False
         try:
