@@ -626,7 +626,6 @@ class Dnf5PackageManager(PackageManager):
         settings = config.strip().split('\n')
 
         for setting in settings:
-            self.composite_logger.log_verbose("[DNF5] Reading config file.")
             match = re.search(self.download_updates_identifier_text + self.auto_update_config_pattern_match_text, str(setting))
             if match is not None:
                 download_updates_value = match.group(1)
