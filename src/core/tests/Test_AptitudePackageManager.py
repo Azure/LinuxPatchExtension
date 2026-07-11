@@ -112,7 +112,6 @@ class TestAptitudePackageManager(unittest.TestCase):
         return "2.0.15"
 
     def mock_run_command_output_fwupd_version_not_found_in_first_attempt_and_found_later(self, cmd, no_output=False, chk_err=True):
-
         if cmd.find(self.runtime.package_manager.get_installed_fwupd_version_cmd) > -1:
             self.get_installed_fwupd_version_check_attempts += 1
 
@@ -139,13 +138,12 @@ class TestAptitudePackageManager(unittest.TestCase):
         return 0, ""
 
     def mock_run_command_output_fwupd_refresh_fails(self, cmd, no_output=False, chk_err=True):
-        if cmd.find(self.runtime.package_manager.fwupd_refresh_cmd) > -1:
-            return 1, "Error"
-        return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.fwupd_refresh_cmd) > -1)
+        return 1, "Error"
 
     def mock_run_command_output_apt_update_cmd_fails(self, cmd, no_output=False, chk_err=True):
         if cmd.find(self.runtime.package_manager.apt_update_cmd) > -1:
-            self.latest_apt_update_cmd_attempt +=1
+            self.latest_apt_update_cmd_attempt += 1
             if self.latest_apt_update_cmd_attempt == 2:
                 return 1, "Error"
         return 0, ""
@@ -157,62 +155,52 @@ class TestAptitudePackageManager(unittest.TestCase):
         return True
 
     def mock_run_command_output_uptime_above_threshold(self, cmd, no_output=False, chk_err=True):
-        if cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1:
-            return 0, "700000.12 123.45"
-        return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
+        return 0, "700000.12 123.45"
 
     def mock_run_command_output_uptime_below_threshold(self, cmd, no_output=False, chk_err=True):
-        if cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1:
-            return 0, "120.12 123.45"
-        return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
+        return 0, "120.12 123.45"
 
     def mock_run_command_output_uptime_cmd_fails(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate uptime command failure"""
-        if cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1:
-            return 1, "Error: cannot read /proc/uptime"
-        return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
+        return 1, "Error: cannot read /proc/uptime"
 
     def mock_run_command_output_uptime_empty_output(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate uptime command returning empty output"""
-        if cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1:
-            return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
         return 0, ""
 
     def mock_run_command_output_uptime_invalid_output(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate uptime command returning unparseable output"""
-        if cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1:
-            return 0, "invalid unparseable output"
-        return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
+        return 0, "invalid unparseable output"
 
     def mock_run_command_output_hibernation_enabled(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate hibernation enabled state"""
-        if cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1:
-            return 0, "platform [suspend] disk"
-        return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
+        return 0, "platform [suspend] disk"
 
     def mock_run_command_output_hibernation_disabled(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate hibernation disabled state"""
-        if cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1:
-            return 0, "platform suspend [disabled]"
-        return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
+        return 0, "platform suspend [disabled]"
 
     def mock_run_command_output_hibernation_cmd_fails(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate hibernation check command failure"""
-        if cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1:
-            return 1, "Error: cannot read /sys/power/disk"
-        return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
+        return 1, "Error: cannot read /sys/power/disk"
 
     def mock_run_command_output_hibernation_empty_output(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate empty output for hibernation check"""
-        if cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1:
-            return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
         return 0, ""
 
     def mock_run_command_output_hibernation_none_output(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate None output for hibernation check"""
-        if cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1:
-            return 0, None
-        return 0, ""
+        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
+        return 0, None
     # endregion Mocks
 
     # region Utility Functions
