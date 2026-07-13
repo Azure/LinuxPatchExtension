@@ -54,7 +54,6 @@ class PackageManager(object):
         self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
 
         # Update certificates in factory defaults
-        self.is_certificate_update_enabled_for_package_manager = False # NOTE: This should be removed once certificate update is enabled for all package managers
         self.check_mokutil_exists_cmd = "command -v mokutil"
         self.get_kek_cert_status_cmd = "mokutil --kek | grep 'CN='"
         self.get_db_cert_status_cmd = "mokutil --db | grep 'CN='"

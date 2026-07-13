@@ -94,7 +94,6 @@ class AptitudePackageManager(PackageManager):
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
         # Update certificates in factory defaults.
-        self.is_certificate_update_enabled_for_package_manager = True
         self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
         self.apt_update_cmd = "sudo apt-get -q update"
         self.min_fwupd_version = "2.0.8" # Refer public docs: https://github.com/fwupd/fwupd/releases/tag/2.0.8 and https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
