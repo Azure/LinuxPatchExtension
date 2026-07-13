@@ -78,7 +78,7 @@ class PatchInstaller(object):
                 reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
 
         # Update certificates if feature flag to update certs is set
-        if self.execution_config.enable_uefi_cert_update:
+        if self.execution_config.enable_uefi_cert_update and self.package_manager.is_certificate_update_enabled_for_package_manager:
             self.try_update_certificates_for_default_patching()
 
         if self.execution_config.max_patch_publish_date != str():
@@ -808,20 +808,18 @@ class PatchInstaller(object):
             self.composite_logger.log_debug("Not updating certificates since this is not a default patching operation.")
             return
 
-        try:
-            is_confidential_vm, detection_details = self.env_layer.detect_confidential_vm()
-        except Exception as e:
-            self.composite_logger.log_warning("Unable to determine whether the VM is a Confidential VM before attempting the UEFI certificate update. Continuing with patch installation... [Error: {0}]".format(str(e)))
-            return
-
-        if is_confidential_vm:
-            self.composite_logger.log("Skipping UEFI certificate update because this VM was detected as a Confidential VM. [Detection={0}]".format(detection_details))
-            return
-
-        try:
-            self.package_manager.update_certs()
-        except Exception as e:
-            self.composite_logger.log_warning("An error was encountered while attempting to update certificates. Continuing with patch installation... [Error: {0}]".format(str(e)))
+        if self.__are_prerequisites_for_updating_certs_met():
+            try:
+                self.composite_logger.log_verbose("Updating current certificates if needed...")
+                certs_updated = self.package_manager.try_update_certs()
+                if not certs_updated:
+                    error_msg = "UEFI certificate update did not complete successfully. Certificates may not have been updated."
+                    self.composite_logger.log_error(error_msg)
+                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            except Exception as e:
+                error_msg = "An error was encountered while attempting to update certificates. Continuing with patch installation... [Error: {0}]".format(str(e))
+                self.composite_logger.log_error(error_msg)
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
 
     def __is_default_patching(self):
         # type: () -> bool
@@ -829,3 +827,119 @@ class PatchInstaller(object):
         return (self.execution_config.health_store_id is not None and
                 self.execution_config.health_store_id != "" and
                 self.execution_config.operation.lower() == Constants.INSTALLATION.lower())
+
+    def __are_prerequisites_for_updating_certs_met(self):
+        # type: () -> bool
+        """ Returns true if all the pre-requisites for updating certs are met. These pre-reqs are:
+        1. Should not be a CVM
+        2. Hibernation should be turned off
+        3. Should not already contain latest certificates
+        4. System uptime should not be more than 7 days, if it is, we issue a reboot if permitted"""
+
+        self.composite_logger.log_verbose("Verifying all pre-requisites for updating certificates are met...")
+        if not self.__is_definitely_not_cvm():
+            return False
+
+        if not self.can_continue_cert_update_after_hibernation_check():
+            return False
+
+        if not self.can_continue_cert_update_after_latest_cert_check():
+            return False
+
+        if not self.ensure_pre_cert_update_reboot_completed():
+            return False
+
+        return True
+
+    def __is_definitely_not_cvm(self):
+        # type: () -> bool
+        """ Returns true if this is not a Confidential VM (CVM), false otherwise (i.e. CVM or undeterministic) """
+        try:
+            self.composite_logger.log_verbose("Verifying if this is a Confidential VM...")
+            is_confidential_vm, detection_details = self.env_layer.detect_confidential_vm()
+        except Exception as e:
+            self.composite_logger.log_warning("Unable to determine whether the VM is a Confidential VM before attempting the UEFI certificate update. Continuing with patch installation... [Error: {0}]".format(str(e)))
+            return False
+
+        if is_confidential_vm:
+            self.composite_logger.log("Skipping UEFI certificate update because this VM was detected as a Confidential VM. [Detection={0}]".format(detection_details))
+
+        return not is_confidential_vm
+
+    def ensure_pre_cert_update_reboot_completed(self):
+        # type: () -> bool
+        """Attempts pre-cert reboot when required.
+
+        Returns True only when cert update can continue in the current cycle.
+        Returns False when reboot is required-but-blocked/failed, or when reboot was initiated
+        and cert update must wait for the post-reboot cycle.
+        """
+        self.composite_logger.log_verbose("Ensuring pre certificate update reboot is completed...")
+        is_reboot_required_before_cert_update = self.package_manager.is_reboot_required_before_cert_update()
+        if is_reboot_required_before_cert_update:
+            if self.reboot_manager.is_setting(Constants.REBOOT_NEVER):
+                error_msg = "UEFI certificate update requires a reboot first (VM uptime exceeded 7 days), but reboot setting is 'Never'. Skipping certificate update."
+                self.composite_logger.log_error(error_msg)
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+                return False
+
+            reboot_started = False
+            original_force_reboot = self.package_manager.force_reboot
+            self.package_manager.force_reboot = True
+            try:
+                remaining_time = self.maintenance_window.get_remaining_time_in_minutes(None, False)
+                reboot_started = self.reboot_manager.start_reboot_if_required_and_time_available(remaining_time)
+            except Exception as e:
+                error_msg = "Unable to reboot before UEFI certificate update. Skipping certificate update. [Error: {0}]".format(str(e))
+                self.composite_logger.log_warning(error_msg)
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+                return False
+            finally:
+                self.package_manager.force_reboot = original_force_reboot
+
+            if not reboot_started:
+                error_msg = "UEFI certificate update requires a reboot first (VM uptime exceeded 7 days), but reboot could not be initiated. Skipping certificate update."
+                self.composite_logger.log_warning(error_msg)
+                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+                return False
+
+            # If reboot was started, this process is expected to exit; avoid running cert update in the same cycle.
+            return False
+
+        return True
+
+    def can_continue_cert_update_after_hibernation_check(self):
+        # type: () -> bool
+        """Attempts hibernation pre-cert check.
+
+        Returns True when cert update can continue in the current cycle.
+        Returns False when hibernation is enabled and cert update must be skipped or hibernate state cannot be determined.
+        """
+        try:
+            is_hibernation_enabled = self.package_manager.is_hibernation_enabled_for_cert_update()
+        except Exception as e:
+            error_msg = "Unable to determine hibernation state before UEFI certificate update. Not continuing with certificate update. [Error: {0}]".format(str(e))
+            self.composite_logger.log_warning(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            return False
+
+        if is_hibernation_enabled:
+            error_msg = "UEFI certificate update requires hibernation to be turned off for the duration of the update. Turn off hibernation and re-run patching. Skipping certificate update."
+            self.composite_logger.log_warning(error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            return False
+
+        return True
+
+    def can_continue_cert_update_after_latest_cert_check(self):
+        # type: () -> bool
+        """Returns False when latest certs are already installed and cert update can be skipped."""
+        self.composite_logger.log_verbose("Checking if latest UEFI certificates are already present...")
+        latest_certs_present = self.package_manager.are_latest_certs_present_with_mokutil_check()
+        if latest_certs_present:
+            self.composite_logger.log("Latest UEFI certificates are already present. Skipping certificate update.")
+            return False
+
+        return True
+
+

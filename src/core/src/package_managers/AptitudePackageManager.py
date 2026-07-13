@@ -93,7 +93,8 @@ class AptitudePackageManager(PackageManager):
 
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
 
-        # Update certificates in factory defaults using default Ubuntu repos.
+        # Update certificates in factory defaults.
+        self.is_certificate_update_enabled_for_package_manager = True
         self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
         self.apt_update_cmd = "sudo apt-get -q update"
         self.min_fwupd_version = "2.0.8" # Refer public docs: https://github.com/fwupd/fwupd/releases/tag/2.0.8 and https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
@@ -102,6 +103,9 @@ class AptitudePackageManager(PackageManager):
         self.install_fwupd_cmd = "sudo apt-get install -y fwupd"
         self.fwupd_refresh_cmd = "sudo fwupdmgr refresh" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
         self.fwupd_update_cmd = "sudo fwupdmgr update -y"
+        self.get_uptime_seconds_cmd = "cat /proc/uptime"
+        self.get_hibernation_state_cmd = "cat /sys/power/disk"
+        self.pre_cert_reboot_uptime_threshold_seconds = 7 * 24 * 60 * 60 # NOTE: This needs to be reviewed again later as these aren't specific to this class
 
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
@@ -957,6 +961,59 @@ class AptitudePackageManager(PackageManager):
         return self.package_install_expected_avg_time_in_seconds
 
     # region Update certificates in factory defaults
+    def is_reboot_required_before_cert_update(self):
+        # type: () -> bool
+        """ Long-running VMs may not have the minimum firmware required for certificate updates.
+        We will reboot VMs with uptime > threshold to load the required firmware version. """
+        """ Return True when certificate update should be preceded by a reboot."""
+        uptime_seconds = self.__get_vm_uptime_seconds()
+        if uptime_seconds is None:
+            # Best-effort check: do not block cert flow if uptime cannot be determined.
+            return False
+
+        requires_reboot = uptime_seconds > self.pre_cert_reboot_uptime_threshold_seconds
+        self.composite_logger.log_debug("[APM][Certs] Pre-cert reboot check. [UptimeInSeconds={0}][ThresholdInSeconds={1}][RequiresReboot={2}]"
+                                        .format(str(uptime_seconds), str(self.pre_cert_reboot_uptime_threshold_seconds), str(requires_reboot)))
+        return requires_reboot
+
+    def is_hibernation_enabled_for_cert_update(self):
+        # type: () -> bool
+        """Returns True when hibernation appears enabled based on /sys/power/disk state."""
+        cmd = self.get_hibernation_state_cmd
+        self.composite_logger.log_verbose('[APM][Certs] Checking hibernation state before cert update. [Command={0}]'.format(cmd))
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        out = str(out) if out is not None else str()
+
+        if code != self.apt_exitcode_ok or out.strip() == str():
+            self.composite_logger.log_debug('[APM][Certs] Unable to determine hibernation state for cert update. Assuming enabled. [Code={0}][Output={1}]'.format(str(code), out))
+            return True
+
+        # Linux shows current mode in brackets; [disabled] means hibernation is turned off.
+        is_hibernation_enabled = '[disabled]' not in out
+        self.composite_logger.log_debug('[APM][Certs] Hibernation state for cert update. [Enabled={0}][RawState={1}]'.format(str(is_hibernation_enabled), out.strip()))
+        return is_hibernation_enabled
+
+    def __get_vm_uptime_seconds(self):
+        # type: () -> any
+        """Return VM uptime in seconds, or None when unavailable."""
+        cmd = self.get_uptime_seconds_cmd
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        self.composite_logger.log_debug("[APM][Certs] VM uptime command executed. [Command={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(out)))
+        if code != self.apt_exitcode_ok:
+            self.composite_logger.log_warning("[APM][Certs] Unable to determine VM uptime. [Command={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(out)))
+            return None
+
+        output = str(out).strip()
+        if output == str() or len(output.split()) == 0:
+            self.composite_logger.log_warning("[APM][Certs] VM uptime command returned an empty result.")
+            return None
+
+        try:
+            return int(float(output.split()[0]))
+        except Exception as error:
+            self.composite_logger.log_warning("[APM][Certs] Failed to parse VM uptime output. [Output={0}][Error={1}]".format(str(output), repr(error)))
+            return None
+
     def try_install_mokutil(self):
         # type: () -> bool
         """ Attempts to install mokutil """
@@ -969,9 +1026,6 @@ class AptitudePackageManager(PackageManager):
     def try_update_certs(self):
         """ Attempts to update certificate status """
         self.composite_logger.log("[APM][Certs] Starting cert update flow.")
-        if self.are_latest_certs_present():
-            self.composite_logger.log("[APM][Certs] Latest certs already present. Skipping.")
-            return True
 
         success = False
         try:
@@ -985,7 +1039,7 @@ class AptitudePackageManager(PackageManager):
             """ NOTE: They tooling used to update here is fwupd (firmware update manager). In this method of updating certs, the exact version of current certs is never pinned
             or set/referred while installing. fwupd fetches and installs latest available certs. This is beneficial because our code doesn't become dated in the future
             (if it was pinned to an old version) but adds the need to verify if the certs we intend to update were applied. Hence the validation on latest certs. """
-            if self.are_latest_certs_present():
+            if self.are_latest_certs_present_with_mokutil_check():
                 self.composite_logger.log("[APM][Certs] Cert update completed and verified.")
                 success = True
             else:
