@@ -723,7 +723,7 @@ class Dnf5PackageManager(PackageManager):
         """Checks whether hibernation is enabled"""
         return False
 
-    def should_reboot_before_cert_update(self):
+    def is_reboot_required_before_cert_update(self):
         """ Checks if a reboot is required before updating certificates """
         return False
     # endregion

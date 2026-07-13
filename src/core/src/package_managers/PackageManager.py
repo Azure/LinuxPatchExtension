@@ -54,6 +54,7 @@ class PackageManager(object):
         self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
 
         # Update certificates in factory defaults
+        self.is_certificate_update_enabled_for_package_manager = False # NOTE: This should be removed once certificate update is enabled for all package managers
         self.check_mokutil_exists_cmd = "command -v mokutil"
         self.get_kek_cert_status_cmd = "mokutil --kek | grep 'CN='"
         self.get_db_cert_status_cmd = "mokutil --db | grep 'CN='"
@@ -497,14 +498,8 @@ class PackageManager(object):
         pass
 
     # region Update certificates in factory defaults
-    def update_certs(self):
-        # type: () -> bool
-        """ Updates the certificates if the required ones do not exist. Returns True if certs were updated successfully, False otherwise. """
-        self.composite_logger.log_verbose("[PM] Updating current certificates if needed...")
-        return self.try_update_certs()
-
     def ensure_mokutil_available_for_cert_checks(self):
-        # type: (bool) -> bool
+        # type: () -> bool
         """Ensures mokutil is available before certificate status checks."""
         if self.is_mokutil_installed():
             return True
@@ -529,12 +524,20 @@ class PackageManager(object):
         return code == 0
 
     def are_latest_certs_present(self):
-        if not self.ensure_mokutil_available_for_cert_checks():
-            return False
-
         kek_code, kek_out = self.fetch_current_certs(Constants.Certificates.KEK, self.get_kek_cert_status_cmd, raise_on_exception=False)
         db_code, db_out = self.fetch_current_certs(Constants.Certificates.DB, self.get_db_cert_status_cmd, raise_on_exception=False)
         return self.is_latest_cert_installed(kek_code, kek_out) and self.is_latest_cert_installed(db_code, db_out)
+
+    def are_latest_certs_present_with_mokutil_check(self):
+        # type: () -> bool
+        """ Checks if the latest certs (i.e. 2023 certs) are already installed on the machine based on mokutil output, ensuring mokutil is available for the check."""
+        are_latest_certs_present = False
+        try:
+            if self.ensure_mokutil_available_for_cert_checks():
+                are_latest_certs_present = self.are_latest_certs_present()
+        except Exception as e:
+            self.composite_logger.log_warning("Unable to determine whether latest certs are already installed before UEFI certificate update.[Error: {0}]".format( str(e)))
+        return are_latest_certs_present
 
     def fetch_current_certs(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
         # type: (str, str, bool) -> (int, str)
@@ -583,7 +586,7 @@ class PackageManager(object):
         pass
 
     @abstractmethod
-    def should_reboot_before_cert_update(self):
+    def is_reboot_required_before_cert_update(self):
         """ Checks if a reboot is required before updating certificates """
         pass
     # endregion

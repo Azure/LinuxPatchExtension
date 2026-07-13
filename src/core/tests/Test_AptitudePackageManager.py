@@ -37,9 +37,6 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.argument_composer = ArgumentComposer().get_composed_arguments()
         self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
         self.container = self.runtime.container
-        self.latest_certs_check_attempts = 0
-        self.latest_apt_update_cmd_attempt = 0
-        self.get_installed_fwupd_version_check_attempts = 0
 
     def tearDown(self):
         self.runtime.stop()
@@ -138,7 +135,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         return 0, ""
 
     def mock_run_command_output_fwupd_refresh_fails(self, cmd, no_output=False, chk_err=True):
-        self.assertTrue(cmd.find(self.runtime.package_manager.fwupd_refresh_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.fwupd_refresh_cmd), -1)
         return 1, "Error"
 
     def mock_run_command_output_apt_update_cmd_fails(self, cmd, no_output=False, chk_err=True):
@@ -155,52 +152,89 @@ class TestAptitudePackageManager(unittest.TestCase):
         return True
 
     def mock_run_command_output_uptime_above_threshold(self, cmd, no_output=False, chk_err=True):
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd), -1)
         return 0, "700000.12 123.45"
 
     def mock_run_command_output_uptime_below_threshold(self, cmd, no_output=False, chk_err=True):
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd), -1)
         return 0, "120.12 123.45"
 
     def mock_run_command_output_uptime_cmd_fails(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate uptime command failure"""
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd), -1)
         return 1, "Error: cannot read /proc/uptime"
 
     def mock_run_command_output_uptime_empty_output(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate uptime command returning empty output"""
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd), -1)
         return 0, ""
 
     def mock_run_command_output_uptime_invalid_output(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate uptime command returning unparseable output"""
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd), -1)
         return 0, "invalid unparseable output"
 
     def mock_run_command_output_hibernation_enabled(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate hibernation enabled state"""
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd), -1)
         return 0, "platform [suspend] disk"
 
     def mock_run_command_output_hibernation_disabled(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate hibernation disabled state"""
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd), -1)
         return 0, "platform suspend [disabled]"
 
     def mock_run_command_output_hibernation_cmd_fails(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate hibernation check command failure"""
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd), -1)
         return 1, "Error: cannot read /sys/power/disk"
 
     def mock_run_command_output_hibernation_empty_output(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate empty output for hibernation check"""
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd), -1)
         return 0, ""
 
     def mock_run_command_output_hibernation_none_output(self, cmd, no_output=False, chk_err=True):
         """Mock run_command_output to simulate None output for hibernation check"""
-        self.assertTrue(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd) > -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.get_hibernation_state_cmd), -1)
         return 0, None
+
+    def mock_ensure_fwupd_installation_returns_true(self):
+        """Mock __ensure_fwupd_installation to return True"""
+        return True
+
+    def mock_run_cert_shell_command_to_track_step_calls(self, command, step_name, raise_on_error=False):
+        """Mock __run_cert_shell_command to track step names"""
+        self.shell_calls_tracking.append(step_name)
+
+    def mock_run_cert_apt_command_to_track_step_calls(self, command, step_name, raise_on_error=False):
+        """Mock __run_cert_apt_command to track step names"""
+        self.apt_calls_tracking.append(step_name)
+
+    def mock_try_install_mokutil_returns_false(self):
+        """Mock try_install_mokutil to return False"""
+        return False
+
+    def mock_try_install_mokutil_returns_true(self):
+        """Mock try_install_mokutil to return True"""
+        return True
+
+    def mock_fetch_current_certs_should_not_be_called(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
+        """Mock fetch_current_certs to fail if called in paths where it should not run"""
+        self.fail("fetch_current_certs should not be called for this use case")
+
+    def mock_fetch_current_certs_returns_latest_cert_output(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
+        """Mock fetch_current_certs to return latest cert output"""
+        cert_output = "{0}\n{1}".format("issuer: test", Constants.LATEST_CERTIFICATE_TIMESTAMP)
+        return (0, cert_output)
+
+    def mock_add_error_to_status_to_capture_errors(self, error_msg, error_code=None):
+        """Mock add_error_to_status to capture errors"""
+        self.captured_errors_tracking.append((error_msg, error_code))
+
+    def mock_ensure_mokutil_available_returns_false(self):
+        """Mock ensure_mokutil_available_for_cert_checks to return False"""
+        return False
     # endregion Mocks
 
     # region Utility Functions
@@ -1216,8 +1250,6 @@ class TestAptitudePackageManager(unittest.TestCase):
         backup_add_error_to_status = package_manager.status_handler.add_error_to_status
         backup_ensure_mokutil_available = package_manager.ensure_mokutil_available_for_cert_checks
 
-        cert_output = "{0}\n{1}".format("issuer: test", Constants.LATEST_CERTIFICATE_TIMESTAMP)
-
         use_cases = [
             {
                 "name": "both_kek_and_db_are_latest",
@@ -1237,7 +1269,7 @@ class TestAptitudePackageManager(unittest.TestCase):
             {
                 "name": "mokutil_missing_and_install_fails",
                 "mock_mokutil_install_failure": True,
-                "expect_exception": True,
+                "expected": False,
                 "validate_error_capture": True
             },
             {
@@ -1259,6 +1291,7 @@ class TestAptitudePackageManager(unittest.TestCase):
                 package_manager.fetch_current_certs = backup_fetch_current_certs
                 package_manager.status_handler.add_error_to_status = backup_add_error_to_status
                 package_manager.ensure_mokutil_available_for_cert_checks = backup_ensure_mokutil_available
+                self.captured_errors_tracking = []
 
                 if "set_legacy_test_type" in use_case:
                     self.runtime.set_legacy_test_type(use_case["set_legacy_test_type"])
@@ -1266,36 +1299,30 @@ class TestAptitudePackageManager(unittest.TestCase):
                 if "fetch_current_certs" in use_case:
                     package_manager.fetch_current_certs = use_case["fetch_current_certs"]
 
-                context = {"fetch_calls": [], "captured_errors": []}
-
                 if use_case.get("mock_mokutil_install_failure", False):
                     package_manager.is_mokutil_installed = self.mock_is_mokutil_installed_return_false
-                    package_manager.try_install_mokutil = lambda: False
-                    package_manager.fetch_current_certs = lambda cert_type, get_cert_status_cmd, raise_on_exception=False: context["fetch_calls"].append(cert_type)
-                    package_manager.status_handler.add_error_to_status = lambda error_msg, error_code=None: context["captured_errors"].append((error_msg, error_code))
+                    package_manager.try_install_mokutil = self.mock_try_install_mokutil_returns_false
+                    package_manager.fetch_current_certs = self.mock_fetch_current_certs_should_not_be_called
+                    package_manager.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
 
                 if use_case.get("force_ensure_mokutil_false", False):
-                    package_manager.ensure_mokutil_available_for_cert_checks = lambda: False
+                    package_manager.ensure_mokutil_available_for_cert_checks = self.mock_ensure_mokutil_available_returns_false
 
                 if use_case.get("mock_mokutil_install_success", False):
                     package_manager.is_mokutil_installed = self.mock_is_mokutil_installed_return_false
-                    package_manager.try_install_mokutil = lambda: True
-                    package_manager.fetch_current_certs = lambda cert_type, get_cert_status_cmd, raise_on_exception=False: (0, cert_output)
+                    package_manager.try_install_mokutil = self.mock_try_install_mokutil_returns_true
+                    package_manager.fetch_current_certs = self.mock_fetch_current_certs_returns_latest_cert_output
 
-                if use_case.get("expect_exception", False):
-                    self.assertRaises(Exception, package_manager.are_latest_certs_present)
-                else:
-                    self.assertEqual(
-                        package_manager.are_latest_certs_present(),
-                        use_case["expected"],
-                        "Failed use case: {0}".format(use_case["name"])
-                    )
+                self.assertEqual(
+                    package_manager.are_latest_certs_present_with_mokutil_check(),
+                    use_case["expected"],
+                    "Failed use case: {0}".format(use_case["name"])
+                )
 
                 if use_case.get("validate_error_capture", False):
-                    self.assertEqual(context["fetch_calls"], [])
-                    self.assertEqual(len(context["captured_errors"]), 1)
-                    self.assertIn("Mokutil is not installed and could not be installed", context["captured_errors"][0][0])
-                    self.assertEqual(context["captured_errors"][0][1], Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+                    self.assertEqual(len(self.captured_errors_tracking), 1)
+                    self.assertIn("Mokutil is not installed and could not be installed", self.captured_errors_tracking[0][0])
+                    self.assertEqual(self.captured_errors_tracking[0][1], Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
         finally:
             package_manager.is_mokutil_installed = backup_is_mokutil_installed
             package_manager.try_install_mokutil = backup_try_install_mokutil
@@ -1309,19 +1336,25 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         backup_are_latest_certs_present = package_manager.are_latest_certs_present
         backup_ensure_fwupd_installation = package_manager._AptitudePackageManager__ensure_fwupd_installation
-        shell_calls = []
-        apt_calls = []
-        package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_return_true
-        package_manager._AptitudePackageManager__ensure_fwupd_installation = lambda: True
-        package_manager._AptitudePackageManager__run_cert_shell_command = lambda command, step_name, raise_on_error=False: shell_calls.append(step_name)
-        package_manager._AptitudePackageManager__run_cert_apt_command = lambda command, step_name, raise_on_error=False: apt_calls.append(step_name)
+        backup_run_cert_shell_command = package_manager._AptitudePackageManager__run_cert_shell_command
+        backup_run_cert_apt_command = package_manager._AptitudePackageManager__run_cert_apt_command
 
-        self.assertTrue(package_manager.try_update_certs())
-        self.assertEqual(shell_calls, ["FwupdRefresh", "FwupdUpdate"])
-        self.assertEqual(apt_calls, ["AptUpdate"])
+        try:
+            self.shell_calls_tracking = []
+            self.apt_calls_tracking = []
+            package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_return_true
+            package_manager._AptitudePackageManager__ensure_fwupd_installation = self.mock_ensure_fwupd_installation_returns_true
+            package_manager._AptitudePackageManager__run_cert_shell_command = self.mock_run_cert_shell_command_to_track_step_calls
+            package_manager._AptitudePackageManager__run_cert_apt_command = self.mock_run_cert_apt_command_to_track_step_calls
 
-        package_manager.are_latest_certs_present = backup_are_latest_certs_present
-        package_manager._AptitudePackageManager__ensure_fwupd_installation = backup_ensure_fwupd_installation
+            self.assertTrue(package_manager.try_update_certs())
+            self.assertEqual(self.shell_calls_tracking, ["FwupdRefresh", "FwupdUpdate"])
+            self.assertEqual(self.apt_calls_tracking, ["AptUpdate"])
+        finally:
+            package_manager.are_latest_certs_present = backup_are_latest_certs_present
+            package_manager._AptitudePackageManager__ensure_fwupd_installation = backup_ensure_fwupd_installation
+            package_manager._AptitudePackageManager__run_cert_shell_command = backup_run_cert_shell_command
+            package_manager._AptitudePackageManager__run_cert_apt_command = backup_run_cert_apt_command
 
     def test_should_reboot_before_cert_update__with_various_use_cases(self):
         package_manager = self.container.get('package_manager')
@@ -1373,7 +1406,7 @@ class TestAptitudePackageManager(unittest.TestCase):
                 package_manager.are_latest_certs_present = use_case["are_latest_certs_present"]
                 package_manager.env_layer.run_command_output = use_case["run_command_output"]
                 self.assertEqual(
-                    package_manager.should_reboot_before_cert_update(),
+                    package_manager.is_reboot_required_before_cert_update(),
                     use_case["expected"],
                     "Failed use case: {0}".format(use_case["name"])
                 )
@@ -1531,64 +1564,6 @@ class TestAptitudePackageManager(unittest.TestCase):
         finally:
             package_manager.env_layer.run_command_output = backup_run_command_output
 
-    def test_update_certs__with_various_use_cases(self):
-        package_manager = self.container.get('package_manager')
-        backup_is_mokutil_installed = package_manager.is_mokutil_installed
-        backup_try_update_certs = package_manager.try_update_certs
-
-        use_cases = [
-            {
-                "name": "calls_try_update_when_mokutil_already_installed",
-                "mock_try_update_to_track_calls": True,
-                "expected_calls": ["try_update_certs"]
-            },
-            {
-                "name": "calls_try_update_when_mokutil_install_succeeds",
-                "force_mokutil_not_installed": True,
-                "mock_try_update_to_track_calls": True,
-                "expected_calls": ["try_update_certs"]
-            },
-            {
-                "name": "returns_false_when_try_update_reports_failure",
-                "mock_try_update_returns_false": True,
-                "expected_result": False
-            }
-        ]
-
-        try:
-            for use_case in use_cases:
-                package_manager.is_mokutil_installed = backup_is_mokutil_installed
-                package_manager.try_update_certs = backup_try_update_certs
-
-                calls = []
-                if use_case.get("force_mokutil_not_installed", False):
-                    package_manager.is_mokutil_installed = self.mock_is_mokutil_installed_return_false
-
-                if use_case.get("mock_try_update_to_track_calls", False):
-                    package_manager.try_update_certs = lambda: calls.append("try_update_certs")
-
-                if use_case.get("mock_try_update_returns_false", False):
-                    package_manager.try_update_certs = lambda: False
-
-                result = package_manager.update_certs()
-
-                if "expected_calls" in use_case:
-                    self.assertEqual(
-                        calls,
-                        use_case["expected_calls"],
-                        "Failed use case: {0}".format(use_case["name"])
-                    )
-
-                if "expected_result" in use_case:
-                    self.assertEqual(
-                        result,
-                        use_case["expected_result"],
-                        "Failed use case: {0}".format(use_case["name"])
-                    )
-        finally:
-            package_manager.is_mokutil_installed = backup_is_mokutil_installed
-            package_manager.try_update_certs = backup_try_update_certs
-
     def test_is_hibernation_enabled_for_cert_update__with_various_use_cases(self):
         """Test is_hibernation_enabled_for_cert_update with various hibernation states"""
         package_manager = self.container.get('package_manager')
@@ -1598,27 +1573,27 @@ class TestAptitudePackageManager(unittest.TestCase):
             {
                 "name": "hibernation_enabled",
                 "run_command_output": self.mock_run_command_output_hibernation_enabled,
-                "expected": True
+                "expected_computed_is_hibernation_enabled": True
             },
             {
                 "name": "hibernation_disabled",
                 "run_command_output": self.mock_run_command_output_hibernation_disabled,
-                "expected": False
+                "expected_computed_is_hibernation_enabled": False
             },
             {
                 "name": "hibernation_cmd_fails",
                 "run_command_output": self.mock_run_command_output_hibernation_cmd_fails,
-                "expected": False
+                "expected_computed_is_hibernation_enabled": True
             },
             {
                 "name": "hibernation_empty_output",
                 "run_command_output": self.mock_run_command_output_hibernation_empty_output,
-                "expected": True
+                "expected_computed_is_hibernation_enabled": True
             },
             {
                 "name": "hibernation_none_output",
                 "run_command_output": self.mock_run_command_output_hibernation_none_output,
-                "expected": True
+                "expected_computed_is_hibernation_enabled": True
             }
         ]
 
@@ -1626,7 +1601,7 @@ class TestAptitudePackageManager(unittest.TestCase):
             for use_case in use_cases:
                 package_manager.env_layer.run_command_output = use_case["run_command_output"]
                 self.assertEqual(
-                    package_manager.is_hibernation_enabled_for_cert_update(), use_case["expected"], "Failed use case: {0}".format(use_case["name"])
+                    package_manager.is_hibernation_enabled_for_cert_update(), use_case["expected_computed_is_hibernation_enabled"], "Failed use case: {0}".format(use_case["name"])
                 )
         finally:
             package_manager.env_layer.run_command_output = backup_run_command_output

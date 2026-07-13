@@ -78,7 +78,7 @@ class PatchInstaller(object):
                 reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
 
         # Update certificates if feature flag to update certs is set
-        if self.execution_config.enable_uefi_cert_update:
+        if self.execution_config.enable_uefi_cert_update and self.package_manager.is_certificate_update_enabled_for_package_manager:
             self.try_update_certificates_for_default_patching()
 
         if self.execution_config.max_patch_publish_date != str():
@@ -810,7 +810,8 @@ class PatchInstaller(object):
 
         if self.__are_prerequisites_for_updating_certs_met():
             try:
-                certs_updated = self.package_manager.update_certs()
+                self.composite_logger.log_verbose("[PM] Updating current certificates if needed...")
+                certs_updated = self.package_manager.try_update_certs()
                 if not certs_updated:
                     error_msg = "UEFI certificate update did not complete successfully. Certificates may not have been updated."
                     self.composite_logger.log_error(error_msg)
@@ -835,7 +836,7 @@ class PatchInstaller(object):
         3. Should not already contain latest certificates
         4. System uptime should not be more than 7 days, if it is, we issue a reboot if permitted"""
 
-        if self.__is_cvm():
+        if not self.__is_definitely_not_cvm():
             return False
 
         if not self.can_continue_cert_update_after_hibernation_check():
@@ -844,26 +845,26 @@ class PatchInstaller(object):
         if not self.can_continue_cert_update_after_latest_cert_check():
             return False
 
-        if not self.can_continue_cert_update_after_reboot_check():
+        if not self.ensure_pre_cert_update_reboot_completed():
             return False
 
         return True
 
-    def __is_cvm(self):
+    def __is_definitely_not_cvm(self):
         # type: () -> bool
-        """ Returns true if this is a Confidential VM (CVM) """
+        """ Returns true if this is not a Confidential VM (CVM), false otherwise (i.e. CVM or undeterministic) """
         try:
             is_confidential_vm, detection_details = self.env_layer.detect_confidential_vm()
         except Exception as e:
             self.composite_logger.log_warning("Unable to determine whether the VM is a Confidential VM before attempting the UEFI certificate update. Continuing with patch installation... [Error: {0}]".format(str(e)))
-            return True
+            return False
 
         if is_confidential_vm:
             self.composite_logger.log("Skipping UEFI certificate update because this VM was detected as a Confidential VM. [Detection={0}]".format(detection_details))
 
-        return is_confidential_vm
+        return not is_confidential_vm
 
-    def can_continue_cert_update_after_reboot_check(self):
+    def ensure_pre_cert_update_reboot_completed(self):
         # type: () -> bool
         """Attempts pre-cert reboot when required.
 
@@ -872,8 +873,8 @@ class PatchInstaller(object):
         and cert update must wait for the post-reboot cycle.
         """
 
-        should_reboot_before_cert_update = self.package_manager.should_reboot_before_cert_update()
-        if should_reboot_before_cert_update:
+        is_reboot_required_before_cert_update = self.package_manager.is_reboot_required_before_cert_update()
+        if is_reboot_required_before_cert_update:
             if self.reboot_manager.is_setting(Constants.REBOOT_NEVER):
                 error_msg = "UEFI certificate update requires a reboot first (VM uptime exceeded 7 days), but reboot setting is 'Never'. Skipping certificate update."
                 self.composite_logger.log_error(error_msg)
@@ -931,12 +932,7 @@ class PatchInstaller(object):
     def can_continue_cert_update_after_latest_cert_check(self):
         # type: () -> bool
         """Returns False when latest certs are already installed and cert update can be skipped."""
-        try:
-            latest_certs_present = self.package_manager.are_latest_certs_present()
-        except Exception as e:
-            self.composite_logger.log_warning("Unable to determine whether latest certs are already installed before UEFI certificate update. Not continuing with certificate update. [Error: {0}]".format(str(e)))
-            return False
-
+        latest_certs_present = self.package_manager.are_latest_certs_present_with_mokutil_check()
         if latest_certs_present:
             self.composite_logger.log("Latest UEFI certificates are already present. Skipping certificate update.")
             return False
