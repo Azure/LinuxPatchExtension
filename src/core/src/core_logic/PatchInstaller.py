@@ -810,7 +810,7 @@ class PatchInstaller(object):
 
         if self.__are_prerequisites_for_updating_certs_met():
             try:
-                self.composite_logger.log_verbose("[PM] Updating current certificates if needed...")
+                self.composite_logger.log_verbose("Updating current certificates if needed...")
                 certs_updated = self.package_manager.try_update_certs()
                 if not certs_updated:
                     error_msg = "UEFI certificate update did not complete successfully. Certificates may not have been updated."
@@ -836,6 +836,7 @@ class PatchInstaller(object):
         3. Should not already contain latest certificates
         4. System uptime should not be more than 7 days, if it is, we issue a reboot if permitted"""
 
+        self.composite_logger.log_verbose("Verifying all pre-requisites for updating certificates are met...")
         if not self.__is_definitely_not_cvm():
             return False
 
@@ -854,6 +855,7 @@ class PatchInstaller(object):
         # type: () -> bool
         """ Returns true if this is not a Confidential VM (CVM), false otherwise (i.e. CVM or undeterministic) """
         try:
+            self.composite_logger.log_verbose("Verifying if this is a Confidential VM...")
             is_confidential_vm, detection_details = self.env_layer.detect_confidential_vm()
         except Exception as e:
             self.composite_logger.log_warning("Unable to determine whether the VM is a Confidential VM before attempting the UEFI certificate update. Continuing with patch installation... [Error: {0}]".format(str(e)))
@@ -872,7 +874,7 @@ class PatchInstaller(object):
         Returns False when reboot is required-but-blocked/failed, or when reboot was initiated
         and cert update must wait for the post-reboot cycle.
         """
-
+        self.composite_logger.log_verbose("Ensuring pre certificate update reboot is completed...")
         is_reboot_required_before_cert_update = self.package_manager.is_reboot_required_before_cert_update()
         if is_reboot_required_before_cert_update:
             if self.reboot_manager.is_setting(Constants.REBOOT_NEVER):
@@ -932,6 +934,7 @@ class PatchInstaller(object):
     def can_continue_cert_update_after_latest_cert_check(self):
         # type: () -> bool
         """Returns False when latest certs are already installed and cert update can be skipped."""
+        self.composite_logger.log_verbose("Checking if latest UEFI certificates are already present...")
         latest_certs_present = self.package_manager.are_latest_certs_present_with_mokutil_check()
         if latest_certs_present:
             self.composite_logger.log("Latest UEFI certificates are already present. Skipping certificate update.")
