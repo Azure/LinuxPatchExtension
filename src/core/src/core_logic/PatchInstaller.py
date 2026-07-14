@@ -830,26 +830,36 @@ class PatchInstaller(object):
 
     def __is_cert_update_allowed_for_apt(self):
         # type: () -> bool
-        """For apt (Canonical): cert update is allowed unless explicitly disabled.
-        Exception: if disabled for auto but enabled for non-auto, only allow non-auto patching."""
-        if self.execution_config.is_cert_update_for_auto_patching_explicitly_disabled() and self.execution_config.is_cert_update_for_non_auto_patching_explicitly_enabled():
-            # Hybrid mode: allow only for non-auto patching
-            self.composite_logger.log_debug("Certificate update enabled only for non auto patching operations for Canonical. Verifying if current operation is non auto patching")
-            if self.__is_not_default_patching():
-                self.composite_logger.log_debug("UEFI certificate will be updated in this non auto patching operation")
+        """For apt (Canonical): determines whether cert update is allowed based on explicit configuration.
+        - If cert update is explicitly enabled for all patching (EnableUEFICertUpdateForAllPatching=True):
+          cert update is allowed for any patch installation operation, auto or non-auto.
+        - If cert update is explicitly disabled for auto patching (EnableUEFICertUpdateForAutoPatching=False):
+          cert update is blocked for auto (default) patching operations.
+        - Default (no explicit config): cert update is allowed only for auto (default) patching operations.
+        - Cert update will NOT be applied for anything outside of these conditions. """
+        if self.execution_config.is_cert_update_for_all_patching_explicitly_enabled():
+            # Hybrid mode: allow for all patching operation
+            self.composite_logger.log_debug("Certificate update enabled on this VM for all patching operations for Canonical. Verifying if current operation is patch installation...")
+            if self.execution_config.operation.lower() == Constants.INSTALLATION.lower():
+                self.composite_logger.log_debug("UEFI certificate update will be attempted in this patch installation operation")
                 return True
             else:
-                self.composite_logger.log_debug("UEFI certificate will not be updated since this is not a non auto patching operation")
+                self.composite_logger.log_debug("UEFI certificate will NOT be updated since this is not a patch installation operation")
                 return False
-
-        if self.execution_config.is_cert_update_for_auto_patching_explicitly_disabled():
+        elif self.execution_config.is_cert_update_for_auto_patching_explicitly_disabled():
             # Explicitly disabled for auto patching
-            self.composite_logger.log_debug("UEFI certificate update is disabled for Canonical. Continuing patch installation without certificate update.")
-            return False
+            self.composite_logger.log_debug("UEFI certificate update is disabled for auto patching operations on Canonical. Verifying if this is an auto patching operation...")
+            if self.__is_default_patching():
+                self.composite_logger.log_debug("UEFI certificate will NOT be updated for this auto patching operation as per user configuration. Continuing without certificate update.")
+                return False
+        else:
+            # Default: allowed for Auto Patching
+            if self.__is_default_patching():
+                self.composite_logger.log_debug("UEFI certificate update is allowed by default for auto patching operation. Certificate update will be attempted")
+                return True
 
-        # Default: allowed for apt
-        self.composite_logger.log_debug("UEFI certificate update is allowed for Canonical. Certificates will be updated")
-        return True
+        self.composite_logger.log_debug("UEFI certificate update will NOT be attempted since this operation does not meet update criteria. Continuing without certificate update.")
+        return False
 
     def __is_cert_update_allowed_for_non_apt(self):
         # type: () -> bool

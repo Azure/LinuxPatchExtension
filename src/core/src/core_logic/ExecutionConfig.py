@@ -93,7 +93,7 @@ class ExecutionConfig(object):
         self.accept_package_eula = self.__is_eula_accepted_for_all_patches()
 
         # UEFI config
-        self.enable_uefi_cert_update_for_auto_patching, self.enable_uefi_cert_update_for_non_auto_patching = self.__fetch_uefi_cert_update_settings()
+        self.enable_uefi_cert_update_for_auto_patching, self.enable_uefi_cert_update_for_all_patching = self.__fetch_uefi_cert_update_settings()
 
     def __transform_execution_config_for_auto_assessment(self):
         self.activity_id = str(uuid.uuid4())
@@ -272,24 +272,25 @@ class ExecutionConfig(object):
 
     def __fetch_uefi_cert_update_settings(self):
         # type: () -> (any, any)
-        """  Reads customer provided config on UEFI cert update from disk and returns the values for both uefi update enabled for auto patching and non-auto patching. If not found, returns None for both values."""
+        """  Reads customer provided config on UEFI cert update from disk and returns the values for both uefi update enabled
+        for auto patching and all patching operations. If not found, returns None for both values."""
         enable_uefi_cert_update_for_auto_patching = None
-        enable_uefi_cert_update_for_non_auto_patching = None
+        enable_uefi_cert_update_for_all_patching = None
         try:
             if os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS):
                 uefi_cert_update_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.UEFI_SETTINGS) or 'null')
                 enable_uefi_cert_update_for_auto_patching = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE_FOR_AUTO_PATCHING)
-                enable_uefi_cert_update_for_non_auto_patching = self.__fetch_specific_azgps_setting(uefi_cert_update_settings,Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE_FOR_NON_AUTO_PATCHING)
+                enable_uefi_cert_update_for_all_patching = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE_FOR_ALL_PATCHING)
                 enabled_by = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLED_BY)
                 last_modified = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.LAST_MODIFIED)
-                self.composite_logger.log_debug("UEFI cert update config values from disk: [EnableUefiCertUpdateForAutoPatching={0}] [EnableUefiCertUpdateForNonAutoPatching={1}] "
+                self.composite_logger.log_debug("UEFI cert update config values from disk: [EnableUefiCertUpdateForAutoPatching={0}] [EnableUefiCertUpdateForAllPatching={1}] "
                                                 "[EnabledBy={2}] [LastModified={3}].".format(str(enable_uefi_cert_update_for_auto_patching),
-                                                                                             str(enable_uefi_cert_update_for_non_auto_patching), str(enabled_by), str(last_modified)))
+                                                                                             str(enable_uefi_cert_update_for_all_patching), str(enabled_by), str(last_modified)))
             else:
                 self.composite_logger.log_debug("No UEFI cert update settings found on the VM.")
         except Exception as error:
             self.composite_logger.log_debug("Error occurred while reading and parsing UEFI cert update settings. [Error={0}]".format(repr(error)))
-        return enable_uefi_cert_update_for_auto_patching, enable_uefi_cert_update_for_non_auto_patching
+        return enable_uefi_cert_update_for_auto_patching, enable_uefi_cert_update_for_all_patching
 
     def is_cert_update_for_auto_patching_explicitly_enabled(self):
         # type: () -> bool
@@ -307,18 +308,18 @@ class ExecutionConfig(object):
         is_uefi_cert_update_enabled = True
         if self.enable_uefi_cert_update_for_auto_patching is not None and not self.__is_truthy(self.enable_uefi_cert_update_for_auto_patching):
             is_uefi_cert_update_enabled = False
-            self.composite_logger.log_debug("UEFI cert update config value from disk: [EnableUefiCertUpdateForAutoPatching={0}]. Computed value of [IsUefiCertUpdateForAutoPatchingExplicitlyEnabled={1}]"
-                                                .format(str(self.enable_uefi_cert_update_for_auto_patching), str(is_uefi_cert_update_enabled)))
+            self.composite_logger.log_debug("UEFI cert update config value from disk: [EnableUefiCertUpdateForAutoPatching={0}]. Computed value of [IsUefiCertUpdateForAutoPatchingExplicitlyDisabled={1}]"
+                                                .format(str(self.enable_uefi_cert_update_for_auto_patching), str(not is_uefi_cert_update_enabled)))
         return not is_uefi_cert_update_enabled
 
-    def is_cert_update_for_non_auto_patching_explicitly_enabled(self):
+    def is_cert_update_for_all_patching_explicitly_enabled(self):
         # type: () -> bool
-        """ Verifies if certificate update for non auto patching is enabled explicitly """
+        """ Verifies if certificate update for all patching operations is enabled explicitly """
         is_uefi_cert_update_enabled = False
-        if self.enable_uefi_cert_update_for_non_auto_patching is not None and self.__is_truthy(self.enable_uefi_cert_update_for_non_auto_patching):
+        if self.enable_uefi_cert_update_for_all_patching is not None and self.__is_truthy(self.enable_uefi_cert_update_for_all_patching):
             is_uefi_cert_update_enabled = True
-            self.composite_logger.log_debug("UEFI cert update config value from disk: [EnableUefiCertUpdateForNonAutoPatching={0}]. Computed value of [IsUefiCertUpdateForNonAutoPatchingExplicitlyEnabled={1}]"
-                                                .format(str(self.enable_uefi_cert_update_for_non_auto_patching), str(is_uefi_cert_update_enabled)))
+            self.composite_logger.log_debug("UEFI cert update config value from disk: [EnableUefiCertUpdateForAllPatching={0}]. Computed value of [IsUefiCertUpdateForAllPatchingExplicitlyEnabled={1}]"
+                                            .format(str(self.enable_uefi_cert_update_for_all_patching), str(is_uefi_cert_update_enabled)))
         return is_uefi_cert_update_enabled
 
     @staticmethod

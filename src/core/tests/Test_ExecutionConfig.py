@@ -56,29 +56,29 @@ class TestExecutionConfig(unittest.TestCase):
         # UEFI in-VM customer config does not exist
         runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=False, config="UEFI")
         self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=False,
-                                  expected_enable_auto_patching=None, expected_enable_non_auto_patching=None)
+                                   expected_enable_auto_patching=None, expected_enable_all_patching=None)
         self.__teardown(runtime)
 
     def test_uefi_config_when_file_read_raises_exception(self):
         uefi_settings = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
-            "EnableUefiCertUpdateForAutoPatching": True
+            "EnableUEFICertUpdateForAutoPatching": True
         }
         runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
         self.backup_read_with_retry = runtime.env_layer.file_system.read_with_retry
         runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
         exec_config = ExecutionConfig(runtime.env_layer, runtime.composite_logger, str(runtime.argv))
         self.__assert_uefi_configs(execution_config=exec_config, expected_file_exists=True,
-                                  expected_enable_auto_patching=None, expected_enable_non_auto_patching=None)
+                                   expected_enable_auto_patching=None, expected_enable_all_patching=None)
         runtime.env_layer.file_system.read_with_retry = self.backup_read_with_retry
         self.__teardown(runtime)
 
 
-    def __assert_uefi_configs(self, execution_config, expected_file_exists, expected_enable_auto_patching, expected_enable_non_auto_patching):
+    def __assert_uefi_configs(self, execution_config, expected_file_exists, expected_enable_auto_patching, expected_enable_all_patching):
         self.assertEqual(os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS), expected_file_exists)
         self.assertEqual(execution_config.enable_uefi_cert_update_for_auto_patching, expected_enable_auto_patching)
-        self.assertEqual(execution_config.enable_uefi_cert_update_for_non_auto_patching, expected_enable_non_auto_patching)
+        self.assertEqual(execution_config.enable_uefi_cert_update_for_all_patching, expected_enable_all_patching)
 
     def __setup_and_init_execution_config(self, write_to_file=False, config=None, config_settings=None):
         argument_composer = ArgumentComposer()
@@ -174,12 +174,12 @@ class TestExecutionConfig(unittest.TestCase):
 
         self.__teardown(runtime)
 
-    def test_is_cert_update_for_non_auto_patching_explicitly_enabled(self):
-        """Tests is_cert_update_for_non_auto_patching_explicitly_enabled() returns True only for explicitly set truthy values.
+    def test_is_cert_update_for_all_patching_explicitly_enabled(self):
+        """Tests is_cert_update_for_all_patching_explicitly_enabled() returns True only for explicitly set truthy values.
         Follows the same truthy evaluation rules as the auto patching equivalent."""
         runtime, execution_config = self.__setup_and_init_execution_config()
 
-        # [value for enable_uefi_cert_update_for_non_auto_patching, expected_result for is_cert_update_for_non_auto_patching_explicitly_enabled]
+        # [value for enable_uefi_cert_update_for_all_patching, expected_result for is_cert_update_for_all_patching_explicitly_enabled]
         test_cases = [
             # Not set - not explicitly enabled
             [None,    False],
@@ -201,9 +201,9 @@ class TestExecutionConfig(unittest.TestCase):
         ]
 
         for value, expected in test_cases:
-            execution_config.enable_uefi_cert_update_for_non_auto_patching = value
-            self.assertEqual(execution_config.is_cert_update_for_non_auto_patching_explicitly_enabled(), expected,
-                             msg="Failed for enable_uefi_cert_update_for_non_auto_patching={0}".format(repr(value)))
+            execution_config.enable_uefi_cert_update_for_all_patching = value
+            self.assertEqual(execution_config.is_cert_update_for_all_patching_explicitly_enabled(), expected,
+                             msg="Failed for enable_uefi_cert_update_for_all_patching={0}".format(repr(value)))
 
         self.__teardown(runtime)
 

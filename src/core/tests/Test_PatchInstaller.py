@@ -80,17 +80,25 @@ class TestPatchInstaller(unittest.TestCase):
     # endregion
 
     # region Utility functions (update cert tests)
-    def _create_update_certs_runtime(self, enable_uefi_cert_update=True, health_store_id=None, operation=Constants.INSTALLATION, reboot_setting=None, package_manager_name=Constants.APT):
+    def _create_update_certs_runtime(self, enable_uefi_cert_update=True, health_store_id=None, operation=Constants.INSTALLATION, reboot_setting=None, package_manager_name=Constants.APT,
+                                     enable_uefi_cert_update_for_auto_patching=None, enable_uefi_cert_update_for_all_patching=None, use_per_mode_uefi_cert_update_settings=False):
+
         argument_composer = ArgumentComposer()
         argument_composer.health_store_id = health_store_id
         argument_composer.operation = operation
         if reboot_setting is not None:
             argument_composer.reboot_setting = reboot_setting
+
+        if not use_per_mode_uefi_cert_update_settings:
+            enable_uefi_cert_update_for_auto_patching = bool(enable_uefi_cert_update)
+            enable_uefi_cert_update_for_all_patching = bool(enable_uefi_cert_update)
+
         config_file_path = Constants.AzGPSPaths.UEFI_SETTINGS
         config_settings = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": True if enable_uefi_cert_update else False,
+            Constants.UEFISettings.ENABLED_BY: "TestSetup",
+            Constants.UEFISettings.LAST_MODIFIED: "2026-04-21",
+            Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE_FOR_AUTO_PATCHING: enable_uefi_cert_update_for_auto_patching,
+            Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE_FOR_ALL_PATCHING: enable_uefi_cert_update_for_all_patching,
         }
         self.__write_config_settings_to_file(config_settings, config_file_path=config_file_path)
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, package_manager_name)
@@ -1150,19 +1158,27 @@ class TestPatchInstaller(unittest.TestCase):
     # region Unit Tests for Certificate Update Allow/Deny Logic
     def test_cert_update_allow_deny_with_various_config_combinations(self):
         """Test cert update allow/deny across APT (default-allow) and non-APT (default-deny) package managers
-        with various EnableUEFICertUpdate configuration combinations.
+        with various EnableUEFICertUpdateForAutoPatching / EnableUEFICertUpdateForAllPatching configuration combinations.
         When cert update is expected to proceed: try_update_certs returns False, producing a
         'Certificates may not have been updated' error to confirm it was reached.
         When cert update is expected to be blocked: try_update_certs raises an exception; the absence
-        of that error in status confirms it was never called."""
+        of that error in status confirms it was never called.
 
-        # Use case 1: APT - both config flags not set (None) - cert update proceeds by default
-        name_uc1 = "APT_default_allow"
+        APT cert update logic (new):
+        - If EnableUEFICertUpdateForAllPatching=True (all patching enabled): allowed for any installation operation (auto or non-auto).
+        - If EnableUEFICertUpdateForAutoPatching=False (auto explicitly disabled): blocked for auto (default) patching; non-default also falls through to blocked.
+        - Default (no explicit config): allowed only for auto (default) patching (health_store_id is set).
+
+        Non-APT cert update logic:
+        - Allowed only when EnableUEFICertUpdateForAutoPatching=True and this is a default (auto) patching operation."""
+
+        # Use case 1: APT - both config flags not set (None) during default (auto) patching - cert update proceeds by default
+        name_uc1 = "APT_default_allow_auto_patching"
         package_manager_uc1 = Constants.APT
-        health_store_id_uc1 = None
+        health_store_id_uc1 = "pub_off_sku_2025.01.01"
         reboot_setting_uc1 = 'IfRequired'
         enable_auto_uc1 = None
-        enable_non_auto_uc1 = None
+        enable_all_uc1 = None
         mock_detect_cvm_uc1 = self.mock_detect_confidential_vm_returns_false
         mock_hibernation_uc1 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
         mock_latest_certs_uc1 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
@@ -1170,13 +1186,13 @@ class TestPatchInstaller(unittest.TestCase):
         mock_try_update_certs_uc1 = self.mock_update_certs_returns_false
         expected_cert_update_called_uc1 = True
 
-        # Use case 2: APT - auto-patching explicitly disabled - cert update is blocked
+        # Use case 2: APT - auto-patching explicitly disabled during non-default patching - cert update is blocked
         name_uc2 = "APT_auto_explicitly_disabled"
         package_manager_uc2 = Constants.APT
         health_store_id_uc2 = None
         reboot_setting_uc2 = None
         enable_auto_uc2 = False
-        enable_non_auto_uc2 = None
+        enable_all_uc2 = None
         mock_detect_cvm_uc2 = None
         mock_hibernation_uc2 = None
         mock_latest_certs_uc2 = None
@@ -1184,27 +1200,28 @@ class TestPatchInstaller(unittest.TestCase):
         mock_try_update_certs_uc2 = self.mock_try_update_certs_raise_exception
         expected_cert_update_called_uc2 = False
 
-        # Use case 3: APT hybrid mode (auto=False, non_auto=True) during default patching - cert update is blocked
-        name_uc3 = "APT_hybrid_mode_default_patching_blocked"
+        # Use case 3: APT all patching explicitly enabled (all_patching=True) during default patching - cert update is allowed
+        # EnableUEFICertUpdateForAllPatching=True takes precedence and allows cert update for any installation operation
+        name_uc3 = "APT_all_patching_enabled_default_patching_allowed"
         package_manager_uc3 = Constants.APT
         health_store_id_uc3 = "pub_off_sku_2025.01.01"
-        reboot_setting_uc3 = None
+        reboot_setting_uc3 = 'IfRequired'
         enable_auto_uc3 = False
-        enable_non_auto_uc3 = True
-        mock_detect_cvm_uc3 = None
-        mock_hibernation_uc3 = None
-        mock_latest_certs_uc3 = None
-        mock_should_reboot_uc3 = None
-        mock_try_update_certs_uc3 = self.mock_try_update_certs_raise_exception
-        expected_cert_update_called_uc3 = False
+        enable_all_uc3 = True
+        mock_detect_cvm_uc3 = self.mock_detect_confidential_vm_returns_false
+        mock_hibernation_uc3 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
+        mock_latest_certs_uc3 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
+        mock_should_reboot_uc3 = self.mock_should_reboot_before_cert_update_returns_false
+        mock_try_update_certs_uc3 = self.mock_update_certs_returns_false
+        expected_cert_update_called_uc3 = True
 
-        # Use case 4: APT hybrid mode (auto=False, non_auto=True) during non-default patching - cert update is allowed
-        name_uc4 = "APT_hybrid_mode_non_default_patching_allowed"
+        # Use case 4: APT all patching explicitly enabled (all_patching=True) during non-default patching - cert update is allowed
+        name_uc4 = "APT_all_patching_enabled_non_default_patching_allowed"
         package_manager_uc4 = Constants.APT
         health_store_id_uc4 = None
         reboot_setting_uc4 = 'IfRequired'
         enable_auto_uc4 = False
-        enable_non_auto_uc4 = True
+        enable_all_uc4 = True
         mock_detect_cvm_uc4 = self.mock_detect_confidential_vm_returns_false
         mock_hibernation_uc4 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
         mock_latest_certs_uc4 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
@@ -1218,7 +1235,7 @@ class TestPatchInstaller(unittest.TestCase):
         health_store_id_uc5 = "pub_off_sku_2025.01.01"
         reboot_setting_uc5 = None
         enable_auto_uc5 = None
-        enable_non_auto_uc5 = None
+        enable_all_uc5 = None
         mock_detect_cvm_uc5 = None
         mock_hibernation_uc5 = None
         mock_latest_certs_uc5 = None
@@ -1232,7 +1249,7 @@ class TestPatchInstaller(unittest.TestCase):
         health_store_id_uc6 = "pub_off_sku_2025.01.01"
         reboot_setting_uc6 = 'IfRequired'
         enable_auto_uc6 = True
-        enable_non_auto_uc6 = None
+        enable_all_uc6 = None
         mock_detect_cvm_uc6 = self.mock_detect_confidential_vm_returns_false
         mock_hibernation_uc6 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
         mock_latest_certs_uc6 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
@@ -1246,7 +1263,7 @@ class TestPatchInstaller(unittest.TestCase):
         health_store_id_uc7 = None
         reboot_setting_uc7 = None
         enable_auto_uc7 = True
-        enable_non_auto_uc7 = None
+        enable_all_uc7 = None
         mock_detect_cvm_uc7 = None
         mock_hibernation_uc7 = None
         mock_latest_certs_uc7 = None
@@ -1254,24 +1271,43 @@ class TestPatchInstaller(unittest.TestCase):
         mock_try_update_certs_uc7 = self.mock_try_update_certs_raise_exception
         expected_cert_update_called_uc7 = False
 
+        # Use case 8: APT - both config flags not set (None) during non-default patching - cert update is blocked by default
+        name_uc8 = "APT_default_deny_all_patching"
+        package_manager_uc8 = Constants.APT
+        health_store_id_uc8 = None
+        reboot_setting_uc8 = None
+        enable_auto_uc8 = None
+        enable_all_uc8 = None
+        mock_detect_cvm_uc8 = None
+        mock_hibernation_uc8 = None
+        mock_latest_certs_uc8 = None
+        mock_should_reboot_uc8 = None
+        mock_try_update_certs_uc8 = self.mock_try_update_certs_raise_exception
+        expected_cert_update_called_uc8 = False
+
         test_input_output_table = [
-            [name_uc1, package_manager_uc1, health_store_id_uc1, reboot_setting_uc1, enable_auto_uc1, enable_non_auto_uc1, mock_detect_cvm_uc1, mock_hibernation_uc1, mock_latest_certs_uc1, mock_should_reboot_uc1, mock_try_update_certs_uc1, expected_cert_update_called_uc1],
-            [name_uc2, package_manager_uc2, health_store_id_uc2, reboot_setting_uc2, enable_auto_uc2, enable_non_auto_uc2, mock_detect_cvm_uc2, mock_hibernation_uc2, mock_latest_certs_uc2, mock_should_reboot_uc2, mock_try_update_certs_uc2, expected_cert_update_called_uc2],
-            [name_uc3, package_manager_uc3, health_store_id_uc3, reboot_setting_uc3, enable_auto_uc3, enable_non_auto_uc3, mock_detect_cvm_uc3, mock_hibernation_uc3, mock_latest_certs_uc3, mock_should_reboot_uc3, mock_try_update_certs_uc3, expected_cert_update_called_uc3],
-            [name_uc4, package_manager_uc4, health_store_id_uc4, reboot_setting_uc4, enable_auto_uc4, enable_non_auto_uc4, mock_detect_cvm_uc4, mock_hibernation_uc4, mock_latest_certs_uc4, mock_should_reboot_uc4, mock_try_update_certs_uc4, expected_cert_update_called_uc4],
-            [name_uc5, package_manager_uc5, health_store_id_uc5, reboot_setting_uc5, enable_auto_uc5, enable_non_auto_uc5, mock_detect_cvm_uc5, mock_hibernation_uc5, mock_latest_certs_uc5, mock_should_reboot_uc5, mock_try_update_certs_uc5, expected_cert_update_called_uc5],
-            [name_uc6, package_manager_uc6, health_store_id_uc6, reboot_setting_uc6, enable_auto_uc6, enable_non_auto_uc6, mock_detect_cvm_uc6, mock_hibernation_uc6, mock_latest_certs_uc6, mock_should_reboot_uc6, mock_try_update_certs_uc6, expected_cert_update_called_uc6],
-            [name_uc7, package_manager_uc7, health_store_id_uc7, reboot_setting_uc7, enable_auto_uc7, enable_non_auto_uc7, mock_detect_cvm_uc7, mock_hibernation_uc7, mock_latest_certs_uc7, mock_should_reboot_uc7, mock_try_update_certs_uc7, expected_cert_update_called_uc7],
+            [name_uc1, package_manager_uc1, health_store_id_uc1, reboot_setting_uc1, enable_auto_uc1, enable_all_uc1, mock_detect_cvm_uc1, mock_hibernation_uc1, mock_latest_certs_uc1, mock_should_reboot_uc1, mock_try_update_certs_uc1, expected_cert_update_called_uc1],
+            [name_uc2, package_manager_uc2, health_store_id_uc2, reboot_setting_uc2, enable_auto_uc2, enable_all_uc2, mock_detect_cvm_uc2, mock_hibernation_uc2, mock_latest_certs_uc2, mock_should_reboot_uc2, mock_try_update_certs_uc2, expected_cert_update_called_uc2],
+            [name_uc3, package_manager_uc3, health_store_id_uc3, reboot_setting_uc3, enable_auto_uc3, enable_all_uc3, mock_detect_cvm_uc3, mock_hibernation_uc3, mock_latest_certs_uc3, mock_should_reboot_uc3, mock_try_update_certs_uc3, expected_cert_update_called_uc3],
+            [name_uc4, package_manager_uc4, health_store_id_uc4, reboot_setting_uc4, enable_auto_uc4, enable_all_uc4, mock_detect_cvm_uc4, mock_hibernation_uc4, mock_latest_certs_uc4, mock_should_reboot_uc4, mock_try_update_certs_uc4, expected_cert_update_called_uc4],
+            [name_uc5, package_manager_uc5, health_store_id_uc5, reboot_setting_uc5, enable_auto_uc5, enable_all_uc5, mock_detect_cvm_uc5, mock_hibernation_uc5, mock_latest_certs_uc5, mock_should_reboot_uc5, mock_try_update_certs_uc5, expected_cert_update_called_uc5],
+            [name_uc6, package_manager_uc6, health_store_id_uc6, reboot_setting_uc6, enable_auto_uc6, enable_all_uc6, mock_detect_cvm_uc6, mock_hibernation_uc6, mock_latest_certs_uc6, mock_should_reboot_uc6, mock_try_update_certs_uc6, expected_cert_update_called_uc6],
+            [name_uc7, package_manager_uc7, health_store_id_uc7, reboot_setting_uc7, enable_auto_uc7, enable_all_uc7, mock_detect_cvm_uc7, mock_hibernation_uc7, mock_latest_certs_uc7, mock_should_reboot_uc7, mock_try_update_certs_uc7, expected_cert_update_called_uc7],
+            [name_uc8, package_manager_uc8, health_store_id_uc8, reboot_setting_uc8, enable_auto_uc8, enable_all_uc8, mock_detect_cvm_uc8, mock_hibernation_uc8, mock_latest_certs_uc8, mock_should_reboot_uc8, mock_try_update_certs_uc8, expected_cert_update_called_uc8],
         ]
 
         for row in test_input_output_table:
-            name, package_manager, health_store_id, reboot_setting, enable_auto, enable_non_auto, mock_detect_cvm, mock_hibernation, mock_latest_certs, mock_should_reboot, mock_try_update_certs, expected_cert_update_called = row
+            name, package_manager, health_store_id, reboot_setting, enable_auto, enable_all, mock_detect_cvm, mock_hibernation, mock_latest_certs, mock_should_reboot, mock_try_update_certs, expected_cert_update_called = row
 
-            runtime = self._create_update_certs_runtime(health_store_id=health_store_id, reboot_setting=reboot_setting, package_manager_name=package_manager)
+            runtime = self._create_update_certs_runtime(
+                health_store_id=health_store_id,
+                reboot_setting=reboot_setting,
+                package_manager_name=package_manager,
+                enable_uefi_cert_update_for_auto_patching=enable_auto,
+                enable_uefi_cert_update_for_all_patching=enable_all,
+                use_per_mode_uefi_cert_update_settings=True)
             runtime.status_handler.set_current_operation(Constants.INSTALLATION)
             runtime.status_handler.set_installation_substatus_json()
-            runtime.execution_config.enable_uefi_cert_update_for_auto_patching = enable_auto
-            runtime.execution_config.enable_uefi_cert_update_for_non_auto_patching = enable_non_auto
 
             backup_detect_cvm = runtime.env_layer.detect_confidential_vm
             backup_hibernation = runtime.package_manager.is_hibernation_enabled_for_cert_update
@@ -1386,10 +1422,13 @@ class TestPatchInstaller(unittest.TestCase):
         for row in test_input_output_table:
             name, health_store_id, reboot_setting, enable_auto, mock_detect_cvm, mock_hibernation, mock_latest_certs, mock_should_reboot, mock_try_update_certs, expected_present, expected_absent = row
 
-            runtime = self._create_update_certs_runtime(health_store_id=health_store_id, reboot_setting=reboot_setting)
+            runtime = self._create_update_certs_runtime(
+                health_store_id=health_store_id,
+                reboot_setting=reboot_setting,
+                enable_uefi_cert_update_for_auto_patching=enable_auto,
+                use_per_mode_uefi_cert_update_settings=True)
             runtime.status_handler.set_current_operation(Constants.INSTALLATION)
             runtime.status_handler.set_installation_substatus_json()
-            runtime.execution_config.enable_uefi_cert_update_for_auto_patching = enable_auto
 
             backup_detect_cvm = runtime.env_layer.detect_confidential_vm
             backup_hibernation = runtime.package_manager.is_hibernation_enabled_for_cert_update

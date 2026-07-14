@@ -90,7 +90,7 @@ class Constants(object):
 
     class UEFISettings(EnumBackport):
         ENABLE_UEFI_CERT_UPDATE_FOR_AUTO_PATCHING = 'EnableUEFICertUpdateForAutoPatching'
-        ENABLE_UEFI_CERT_UPDATE_FOR_NON_AUTO_PATCHING = 'EnableUEFICertUpdateForNonAutoPatching'
+        ENABLE_UEFI_CERT_UPDATE_FOR_ALL_PATCHING= 'EnableUEFICertUpdateForAllPatching'
         ENABLED_BY = 'EnabledBy'
         LAST_MODIFIED = 'LastModified'
 
