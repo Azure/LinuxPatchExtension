@@ -89,8 +89,8 @@ class ServiceManager(SystemctlManager):
     # endregion
 
     # region - Service Unit Management
-    def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="forking", wanted_by="multi-user.target"):
-        """ Note: Service type defaults to forking because of sh to py process fork """
+    def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="simple", wanted_by="multi-user.target"):
+        """ The auto-assessment shell runs Python in the foreground, so the service type defaults to simple. """
         service_unit_content_template = "\n[Unit]" + \
                                "\nDescription={0}" + \
                                "\nAfter={1}\n" + \
