@@ -272,7 +272,7 @@ class ExecutionConfig(object):
 
     def __fetch_uefi_cert_update_settings(self):
         # type: () -> (any, any)
-        """  Reads customer provided config on UEFI cert update from disk and returns the values for both uefi update enabled
+        """ Reads customer provided config on UEFI cert update from disk and returns the values for both UEFI update enabled
         for auto patching and all patching operations. If not found, returns None for both values."""
         enable_uefi_cert_update_for_auto_patching = None
         enable_uefi_cert_update_for_all_patching = None

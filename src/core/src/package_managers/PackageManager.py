@@ -590,10 +590,10 @@ class PackageManager(object):
         """ Checks if a reboot is required before updating certificates """
         pass
 
-    def is_cert_update_supported(self):
+    def is_cert_update_expected(self):
         # type: () -> bool
         """ Checks whether certificate update is supported. This should be overridden in individual package managers if they have specific criteria for cert update support. """
-        """For all package managers: cert update is only allowed if explicitly enabled for auto patching."""
+        """ For all package managers: cert update is only allowed if explicitly enabled for auto patching."""
         if self.execution_config.is_cert_update_for_auto_patching_explicitly_enabled():
             self.composite_logger.log_debug("Certificate update enabled on this VM for an auto patching operation. Verifying if current operation is an auto patching operation")
             if self.execution_config.is_default_patching():

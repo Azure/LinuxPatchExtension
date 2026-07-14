@@ -974,7 +974,7 @@ class TestPatchInstaller(unittest.TestCase):
             backup_detect_confidential_vm_by_imds = runtime.env_layer.detect_confidential_vm_by_imds
             backup_hibernation = runtime.package_manager.is_hibernation_enabled_for_cert_update
             backup_latest_certs = runtime.package_manager.are_latest_certs_present
-            backup_is_cert_update_supported = runtime.package_manager.is_cert_update_supported
+            backup_is_cert_update_supported = runtime.package_manager.is_cert_update_expected
             backup_try_update_certs = runtime.package_manager.try_update_certs
 
             if "mock_should_reboot" in use_case:
@@ -988,7 +988,7 @@ class TestPatchInstaller(unittest.TestCase):
             if "mock_latest_certs" in use_case:
                 runtime.package_manager.are_latest_certs_present = use_case["mock_latest_certs"]
             if "mock_is_cert_update_supported" in use_case:
-                runtime.package_manager.is_cert_update_supported = use_case["mock_is_cert_update_supported"]
+                runtime.package_manager.is_cert_update_expected = use_case["mock_is_cert_update_supported"]
             if "mock_try_update_certs" in use_case:
                 runtime.package_manager.try_update_certs = use_case["mock_try_update_certs"]
 
@@ -1012,7 +1012,7 @@ class TestPatchInstaller(unittest.TestCase):
             runtime.env_layer.detect_confidential_vm_by_imds = backup_detect_confidential_vm_by_imds
             runtime.package_manager.is_hibernation_enabled_for_cert_update = backup_hibernation
             runtime.package_manager.are_latest_certs_present = backup_latest_certs
-            runtime.package_manager.is_cert_update_supported = backup_is_cert_update_supported
+            runtime.package_manager.is_cert_update_expected = backup_is_cert_update_supported
             runtime.package_manager.try_update_certs = backup_try_update_certs
             runtime.stop()
 

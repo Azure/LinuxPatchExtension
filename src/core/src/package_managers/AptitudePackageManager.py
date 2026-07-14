@@ -1150,10 +1150,10 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log_debug("[APM][UpdateCerts] Shell step succeeded. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out)))
         return True, out
 
-    def is_cert_update_supported(self):
+    def is_cert_update_expected(self):
         # type: () -> bool
         """ Checks whether certificate update is supported """
-        """For apt (Canonical): determines whether cert update is allowed based on explicit configuration.
+        """ For apt (Canonical): determines whether cert update is allowed based on explicit configuration.
         - If cert update is explicitly enabled for all patching (EnableUEFICertUpdateForAllPatching=True):
           cert update is allowed for any patch installation operation, auto or non-auto.
         - If cert update is explicitly disabled for auto patching (EnableUEFICertUpdateForAutoPatching=False):

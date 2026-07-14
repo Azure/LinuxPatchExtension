@@ -803,7 +803,7 @@ class PatchInstaller(object):
     def try_update_certificates(self):
         # type: () -> None
         """ Attempts to update certificates on the machine """
-        if not self.package_manager.is_cert_update_supported():
+        if not self.package_manager.is_cert_update_expected():
             self.composite_logger.log_debug("Certificate update not performed: system configuration restricts certificate updates")
             return
 

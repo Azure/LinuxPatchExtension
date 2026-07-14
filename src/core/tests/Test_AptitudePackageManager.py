@@ -1636,7 +1636,7 @@ class TestAptitudePackageManager(unittest.TestCase):
                 package_manager.execution_config.enable_uefi_cert_update_for_all_patching = enable_all
 
                 self.assertEqual(
-                    package_manager.is_cert_update_supported(),
+                    package_manager.is_cert_update_expected(),
                     expected_result,
                     "Failed use case: {0}".format(name)
                 )
