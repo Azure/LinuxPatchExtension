@@ -26,6 +26,7 @@ class PackageManager(object):
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         self.env_layer = env_layer
+        self.execution_config = execution_config
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
         self.status_handler = status_handler
@@ -54,7 +55,6 @@ class PackageManager(object):
         self.REBOOT_PENDING_FILE_PATH = '/var/run/reboot-required'
 
         # Update certificates in factory defaults
-        self.is_certificate_update_enabled_for_package_manager = False # NOTE: This should be removed once certificate update is enabled for all package managers
         self.check_mokutil_exists_cmd = "command -v mokutil"
         self.get_kek_cert_status_cmd = "mokutil --kek | grep 'CN='"
         self.get_db_cert_status_cmd = "mokutil --db | grep 'CN='"
@@ -589,5 +589,22 @@ class PackageManager(object):
     def is_reboot_required_before_cert_update(self):
         """ Checks if a reboot is required before updating certificates """
         pass
+
+    def is_cert_update_expected(self):
+        # type: () -> bool
+        """ Checks whether certificate update is supported. This should be overridden in individual package managers if they have specific criteria for cert update support. """
+        """ For all package managers: cert update is only allowed if explicitly enabled for auto patching."""
+        if self.execution_config.is_cert_update_for_auto_patching_explicitly_enabled():
+            self.composite_logger.log_debug("Certificate update enabled on this VM for an auto patching operation. Verifying if current operation is an auto patching operation")
+            if self.execution_config.is_default_patching():
+                self.composite_logger.log_debug("UEFI certificate update will be attempted in this auto patching operation")
+                return True
+            else:
+                self.composite_logger.log_debug("UEFI certificate will NOT be updated since this is not an auto patching operation. Continuing without certificate update.")
+                return False
+
+        # Default: not allowed unless explicitly enabled
+        self.composite_logger.log_debug("UEFI certificate update will NOT be attempted since this operation does not meet update criteria. Continuing without certificate update.")
+        return False
     # endregion
 

@@ -77,9 +77,8 @@ class PatchInstaller(object):
                 self.composite_logger.log_debug("Attempting to reboot the machine prior to patch installation as there is a reboot pending...")
                 reboot_manager.start_reboot_if_required_and_time_available(maintenance_window.get_remaining_time_in_minutes(None, False))
 
-        # Update certificates if feature flag to update certs is set
-        if self.execution_config.enable_uefi_cert_update and self.package_manager.is_certificate_update_enabled_for_package_manager:
-            self.try_update_certificates_for_default_patching()
+        # Update boot certificates if enabled
+        self.try_update_certificates()
 
         if self.execution_config.max_patch_publish_date != str():
             self.package_manager.set_max_patch_publish_date(self.execution_config.max_patch_publish_date)
@@ -801,11 +800,11 @@ class PatchInstaller(object):
 
         return max_batch_size_for_packages
 
-    def try_update_certificates_for_default_patching(self):
+    def try_update_certificates(self):
         # type: () -> None
-        """ Attempts to update certificates on the machine for default patching"""
-        if not self.__is_default_patching():
-            self.composite_logger.log_debug("Not updating certificates since this is not a default patching operation.")
+        """ Attempts to update certificates on the machine """
+        if not self.package_manager.is_cert_update_expected():
+            self.composite_logger.log_debug("Certificate update not performed: system configuration restricts certificate updates")
             return
 
         if self.__are_prerequisites_for_updating_certs_met():
@@ -820,13 +819,6 @@ class PatchInstaller(object):
                 error_msg = "An error was encountered while attempting to update certificates. Continuing with patch installation... [Error: {0}]".format(str(e))
                 self.composite_logger.log_error(error_msg)
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
-
-    def __is_default_patching(self):
-        # type: () -> bool
-        """ Returns true if the patching run is a default patching run"""
-        return (self.execution_config.health_store_id is not None and
-                self.execution_config.health_store_id != "" and
-                self.execution_config.operation.lower() == Constants.INSTALLATION.lower())
 
     def __are_prerequisites_for_updating_certs_met(self):
         # type: () -> bool
