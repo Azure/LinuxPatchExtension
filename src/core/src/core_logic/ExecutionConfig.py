@@ -322,6 +322,13 @@ class ExecutionConfig(object):
                                             .format(str(self.enable_uefi_cert_update_for_all_patching), str(is_uefi_cert_update_enabled)))
         return is_uefi_cert_update_enabled
 
+    def is_default_patching(self):
+        # type: () -> bool
+        """ Returns true if the patching run is a default patching run"""
+        return (self.health_store_id is not None and
+                self.health_store_id != "" and
+                self.operation.lower() == Constants.INSTALLATION.lower())
+
     @staticmethod
     def __is_truthy(value):
         # type: (any) -> bool

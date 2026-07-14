@@ -77,6 +77,12 @@ class TestPatchInstaller(unittest.TestCase):
 
     def mock_try_update_certs_returns_true(self):
         return True
+
+    def mock_is_cert_update_supported_returns_true(self):
+        return True
+
+    def mock_is_cert_update_supported_returns_false(self):
+        return False
     # endregion
 
     # region Utility functions (update cert tests)
@@ -828,6 +834,18 @@ class TestPatchInstaller(unittest.TestCase):
                 "expected_present": [],
                 "expected_absent": ["Certificates may not have been updated"]
             },
+            # Use case 2b: package manager support gate should block certificate updates before any prerequisites run
+            {
+                "name": "package_manager_disallows_cert_update",
+                "enable_uefi_cert_update": True,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": "IfRequired",
+                "mock_is_cert_update_supported": self.mock_is_cert_update_supported_returns_false,
+                "mock_detect_confidential_vm": self.mock_detect_confidential_vm_raises_exception,
+                "expected_present": [],
+                "expected_absent": ["attempting to update certificates", "Certificates may not have been updated", "Unable to determine whether the VM is a Confidential VM"]
+            },
             # Use case 3: try_update_certs should NOT be called when health_store_id is an empty string (not a default patching operation)
             {
                 "name": "not_default_patching_health_store_id_empty",
@@ -956,6 +974,7 @@ class TestPatchInstaller(unittest.TestCase):
             backup_detect_confidential_vm_by_imds = runtime.env_layer.detect_confidential_vm_by_imds
             backup_hibernation = runtime.package_manager.is_hibernation_enabled_for_cert_update
             backup_latest_certs = runtime.package_manager.are_latest_certs_present
+            backup_is_cert_update_supported = runtime.package_manager.is_cert_update_supported
             backup_try_update_certs = runtime.package_manager.try_update_certs
 
             if "mock_should_reboot" in use_case:
@@ -968,6 +987,8 @@ class TestPatchInstaller(unittest.TestCase):
                 runtime.package_manager.is_hibernation_enabled_for_cert_update = use_case["mock_hibernation"]
             if "mock_latest_certs" in use_case:
                 runtime.package_manager.are_latest_certs_present = use_case["mock_latest_certs"]
+            if "mock_is_cert_update_supported" in use_case:
+                runtime.package_manager.is_cert_update_supported = use_case["mock_is_cert_update_supported"]
             if "mock_try_update_certs" in use_case:
                 runtime.package_manager.try_update_certs = use_case["mock_try_update_certs"]
 
@@ -991,6 +1012,7 @@ class TestPatchInstaller(unittest.TestCase):
             runtime.env_layer.detect_confidential_vm_by_imds = backup_detect_confidential_vm_by_imds
             runtime.package_manager.is_hibernation_enabled_for_cert_update = backup_hibernation
             runtime.package_manager.are_latest_certs_present = backup_latest_certs
+            runtime.package_manager.is_cert_update_supported = backup_is_cert_update_supported
             runtime.package_manager.try_update_certs = backup_try_update_certs
             runtime.stop()
 

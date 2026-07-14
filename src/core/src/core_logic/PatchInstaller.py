@@ -803,7 +803,7 @@ class PatchInstaller(object):
     def try_update_certificates(self):
         # type: () -> None
         """ Attempts to update certificates on the machine """
-        if not self.__is_cert_update_allowed():
+        if not self.package_manager.is_cert_update_supported():
             self.composite_logger.log_debug("Certificate update not performed: system configuration restricts certificate updates")
             return
 
@@ -819,76 +819,6 @@ class PatchInstaller(object):
                 error_msg = "An error was encountered while attempting to update certificates. Continuing with patch installation... [Error: {0}]".format(str(e))
                 self.composite_logger.log_error(error_msg)
                 self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
-
-    def __is_cert_update_allowed(self):
-        # type: () -> bool
-        """Determines if certificate update is allowed based on package manager type and configuration."""
-        if self.package_manager_name == Constants.APT:
-            return self.__is_cert_update_allowed_for_apt()
-        else:
-            return self.__is_cert_update_allowed_for_non_apt()
-
-    def __is_cert_update_allowed_for_apt(self):
-        # type: () -> bool
-        """For apt (Canonical): determines whether cert update is allowed based on explicit configuration.
-        - If cert update is explicitly enabled for all patching (EnableUEFICertUpdateForAllPatching=True):
-          cert update is allowed for any patch installation operation, auto or non-auto.
-        - If cert update is explicitly disabled for auto patching (EnableUEFICertUpdateForAutoPatching=False):
-          cert update is blocked for auto (default) patching operations.
-        - Default (no explicit config): cert update is allowed only for auto (default) patching operations.
-        - Cert update will NOT be applied for anything outside of these conditions. """
-        if self.execution_config.is_cert_update_for_all_patching_explicitly_enabled():
-            # Hybrid mode: allow for all patching operation
-            self.composite_logger.log_debug("Certificate update enabled on this VM for all patching operations for Canonical. Verifying if current operation is patch installation...")
-            if self.execution_config.operation.lower() == Constants.INSTALLATION.lower():
-                self.composite_logger.log_debug("UEFI certificate update will be attempted in this patch installation operation")
-                return True
-            else:
-                self.composite_logger.log_debug("UEFI certificate will NOT be updated since this is not a patch installation operation")
-                return False
-        elif self.execution_config.is_cert_update_for_auto_patching_explicitly_disabled():
-            # Explicitly disabled for auto patching
-            self.composite_logger.log_debug("UEFI certificate update is disabled for auto patching operations on Canonical. Verifying if this is an auto patching operation...")
-            if self.__is_default_patching():
-                self.composite_logger.log_debug("UEFI certificate will NOT be updated for this auto patching operation as per user configuration. Continuing without certificate update.")
-                return False
-        else:
-            # Default: allowed for Auto Patching
-            if self.__is_default_patching():
-                self.composite_logger.log_debug("UEFI certificate update is allowed by default for auto patching operation. Certificate update will be attempted")
-                return True
-
-        self.composite_logger.log_debug("UEFI certificate update will NOT be attempted since this operation does not meet update criteria. Continuing without certificate update.")
-        return False
-
-    def __is_cert_update_allowed_for_non_apt(self):
-        # type: () -> bool
-        """For non-apt package managers: cert update is only allowed if explicitly enabled for auto patching."""
-        if self.execution_config.is_cert_update_for_auto_patching_explicitly_enabled():
-            self.composite_logger.log_debug("Certificate update enabled on this VM for an auto patching operation. Verifying if current operation is an auto patching operation")
-            if self.__is_default_patching():
-                self.composite_logger.log_debug("UEFI certificate will be updated in this auto patching operation")
-                return True
-            else:
-                self.composite_logger.log_debug("UEFI certificate will not be updated since this is not an auto patching operation")
-                return False
-
-        # Default: not allowed for non-apt unless explicitly enabled
-        return False
-
-    def __is_default_patching(self):
-        # type: () -> bool
-        """ Returns true if the patching run is a default patching run"""
-        return (self.execution_config.health_store_id is not None and
-                self.execution_config.health_store_id != "" and
-                self.execution_config.operation.lower() == Constants.INSTALLATION.lower())
-
-    def __is_not_default_patching(self):
-        # type: () -> bool
-        """ Returns true if the patching run is not default patching run"""
-        return ((self.execution_config.health_store_id is None or
-                self.execution_config.health_store_id == "") and
-                self.execution_config.operation.lower() == Constants.INSTALLATION.lower())
 
     def __are_prerequisites_for_updating_certs_met(self):
         # type: () -> bool

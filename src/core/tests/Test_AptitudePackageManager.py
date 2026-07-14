@@ -1605,6 +1605,46 @@ class TestAptitudePackageManager(unittest.TestCase):
                 )
         finally:
             package_manager.env_layer.run_command_output = backup_run_command_output
+
+    def test_is_cert_update_supported__with_various_use_cases(self):
+        """Test AptitudePackageManager.is_cert_update_supported across APT-specific configuration combinations."""
+        package_manager = self.container.get('package_manager')
+
+        backup_health_store_id = package_manager.execution_config.health_store_id
+        backup_operation = package_manager.execution_config.operation
+        backup_enable_auto = package_manager.execution_config.enable_uefi_cert_update_for_auto_patching
+        backup_enable_all = package_manager.execution_config.enable_uefi_cert_update_for_all_patching
+
+        test_input_output_table = [
+            ["default_patching_allowed_by_default", "pub_off_sku_2025.01.01", Constants.INSTALLATION, None, None, True],
+            ["non_default_patching_blocked_by_default", None, Constants.ASSESSMENT, None, None, False],
+            ["all_patching_enabled_allows_default_patching", "pub_off_sku_2025.01.01", Constants.INSTALLATION, False, True, True],
+            ["all_patching_enabled_allows_non_default_patching", None, Constants.INSTALLATION, False, True, True],
+            ["auto_explicitly_disabled_blocks_default_patching", "pub_off_sku_2025.01.01", Constants.INSTALLATION, False, None, False],
+            ["auto_explicitly_disabled_blocks_non_default_patching", None, Constants.ASSESSMENT, False, None, False],
+            ["auto_explicitly_enabled_allows_default_patching", "pub_off_sku_2025.01.01", Constants.INSTALLATION, True, None, True],
+            ["auto_explicitly_enabled_blocks_non_default_patching", None, Constants.ASSESSMENT, True, None, False],
+        ]
+
+        try:
+            for row in test_input_output_table:
+                name, health_store_id, operation, enable_auto, enable_all, expected_result = row
+
+                package_manager.execution_config.health_store_id = health_store_id
+                package_manager.execution_config.operation = operation
+                package_manager.execution_config.enable_uefi_cert_update_for_auto_patching = enable_auto
+                package_manager.execution_config.enable_uefi_cert_update_for_all_patching = enable_all
+
+                self.assertEqual(
+                    package_manager.is_cert_update_supported(),
+                    expected_result,
+                    "Failed use case: {0}".format(name)
+                )
+        finally:
+            package_manager.execution_config.health_store_id = backup_health_store_id
+            package_manager.execution_config.operation = backup_operation
+            package_manager.execution_config.enable_uefi_cert_update_for_auto_patching = backup_enable_auto
+            package_manager.execution_config.enable_uefi_cert_update_for_all_patching = backup_enable_all
     # endregion
 
 
