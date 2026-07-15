@@ -16,12 +16,10 @@
 import datetime
 import json
 import os
-import signal
 import sys
 import unittest
 
 from core.src.bootstrap.Constants import Constants
-from core.src.core_logic.AutoAssessmentTimeout import AutoAssessmentTimeoutError
 from core.src.service_interfaces.TelemetryWriter import TelemetryWriter
 from core.tests.library.ArgumentComposer import ArgumentComposer
 from core.tests.library.RuntimeCompositor import RuntimeCompositor
@@ -59,36 +57,6 @@ class TestPatchAssessor(unittest.TestCase):
         with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
             file_contents = json.loads(file_handle.read())
             self.assertTrue('Customer environment error: Investigate and resolve unexpected return code (100) from package manager on command: ' in str(file_contents))
-
-    def test_auto_assessment_timeout_is_terminal_and_not_retried(self):
-        refresh_repo_calls = []
-
-        def raise_auto_assessment_timeout():
-            refresh_repo_calls.append(True)
-            raise AutoAssessmentTimeoutError(Constants.AUTO_ASSESSMENT_TIMEOUT_ERROR_MSG)
-
-        self.runtime.execution_config.exec_auto_assess_only = True
-        self.runtime.patch_assessor.should_auto_assessment_run = lambda: True
-        self.runtime.package_manager.refresh_repo = raise_auto_assessment_timeout
-
-        self.assertRaises(AutoAssessmentTimeoutError, self.runtime.patch_assessor.start_assessment)
-        self.assertEqual(1, len(refresh_repo_calls))
-        with open(self.runtime.execution_config.status_file_path, 'r') as file_handle:
-            file_contents = json.loads(file_handle.read())
-            self.assertIn(Constants.AUTO_ASSESSMENT_TIMEOUT_ERROR_MSG, str(file_contents))
-            self.assertIn(Constants.STATUS_ERROR.lower(), str(file_contents))
-
-    def test_auto_assessment_signal_is_handled_and_previous_handler_is_restored(self):
-        if not hasattr(signal, "SIGUSR1"):
-            self.skipTest("SIGUSR1 is not available on this platform.")
-
-        previous_handler = signal.getsignal(signal.SIGUSR1)
-        self.runtime.execution_config.exec_auto_assess_only = True
-        self.runtime.patch_assessor.should_auto_assessment_run = lambda: True
-        self.runtime.package_manager.refresh_repo = lambda: os.kill(os.getpid(), signal.SIGUSR1)
-
-        self.assertRaises(AutoAssessmentTimeoutError, self.runtime.patch_assessor.start_assessment)
-        self.assertEqual(previous_handler, signal.getsignal(signal.SIGUSR1))
 
     def test_assessment_telemetry_fail(self):
         backup_telemetry_writer = self.runtime.telemetry_writer

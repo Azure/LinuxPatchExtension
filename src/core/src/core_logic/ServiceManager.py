@@ -47,10 +47,7 @@ class ServiceManager(SystemctlManager):
     def create_and_set_service_idem(self):
         """ Idempotent creation and setting of the service associated with the service the class is instantiated with """
         self.remove_service()
-        exec_start = "/bin/bash \"{0}\"".format(self.service_exec_path)
-        self.create_service_unit_file(
-            exec_start=exec_start,
-            desc=Constants.AUTO_ASSESSMENT_SERVICE_DESC)
+        self.create_service_unit_file(exec_start="/bin/bash " + self.service_exec_path, desc=Constants.AUTO_ASSESSMENT_SERVICE_DESC)
         self.systemctl_daemon_reload()
         self.enable_service()
         if not self.start_service():
@@ -93,13 +90,12 @@ class ServiceManager(SystemctlManager):
 
     # region - Service Unit Management
     def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="simple", wanted_by="multi-user.target"):
-        """ Create a service unit that tracks the foreground auto-assessment process. """
+        """ The auto-assessment shell runs Python in the foreground, so the service type defaults to simple. """
         service_unit_content_template = "\n[Unit]" + \
                                "\nDescription={0}" + \
                                "\nAfter={1}\n" + \
                                "\n[Service]" + \
                                "\nType={2}" + \
-                               "\nKillMode=control-group" + \
                                "\nExecStart={3}\n" + \
                                "\n[Install]" + \
                                "\nWantedBy={4}"

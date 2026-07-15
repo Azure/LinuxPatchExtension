@@ -47,9 +47,7 @@ class TestServiceManager(unittest.TestCase):
     def mock_invoke_systemctl(self, command, description):
         self.service_manager.invoke_systemctl_called = True
 
-        if "daemon-reload" in command:
-            return 0, "Reloading daemon"
-        elif "start" in command and "restart" not in command:
+        if "start" in command and "restart" not in command:
             return 0, "Service started"
         elif "stop" in command:
             return 0, "Service stopped"
@@ -64,30 +62,14 @@ class TestServiceManager(unittest.TestCase):
         elif "is-active" in command:
             return 0, "Checking if service is active"
 
-    def test_create_service_unit_file_uses_simple_contract(self):
+    def test_create_service_unit_file_uses_simple_service_type(self):
         self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission
         self.service_manager.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
-        self.service_manager.create_service_unit_file(
-            exec_start="/bin/bash path",
-            desc="Microsoft Azure Linux Patch Extension - Auto Assessment")
+        self.service_manager.create_service_unit_file(exec_start="/bin/bash " + self.service_manager.service_exec_path, desc="Microsoft Azure Linux Patch Extension - Auto Assessment")
 
         self.assertEqual("/etc/systemd/system/test_service.service", self.written_service_unit_path)
         self.assertIn("\nType=simple\n", self.written_service_unit_content)
-        self.assertIn("\nKillMode=control-group\n", self.written_service_unit_content)
-        self.assertIn("\nExecStart=/bin/bash path\n", self.written_service_unit_content)
-        self.assertNotIn("\nPIDFile=", self.written_service_unit_content)
-        self.assertNotIn("\nTimeoutStartSec=", self.written_service_unit_content)
-
-    def test_create_and_set_service_idem_tracks_foreground_launcher(self):
-        self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission
-        self.service_manager.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
-        self.service_manager.invoke_systemctl = self.mock_invoke_systemctl
-
-        self.service_manager.create_and_set_service_idem()
-
-        self.assertIn("\nType=simple\n", self.written_service_unit_content)
-        self.assertIn("\nExecStart=/bin/bash \"path\"\n", self.written_service_unit_content)
-        self.assertNotIn("/run/test_service.pid", self.written_service_unit_content)
+        self.assertNotIn("\nType=forking\n", self.written_service_unit_content)
 
     def test_start_service(self):
         # Set method calls

@@ -118,16 +118,11 @@ class ProcessHandler(object):
             self.logger.log_debug("Path resolutions for auto-assessment. [CmdCore={0}][ExecDir={1}][CorePy={2}][AssessSh={3}][CoreCmdSh={4}]"
                                   .format(cmd_core_py_path, exec_dir, core_py_path, auto_assess_sh_path, core_process_command))
 
-            # Keep the launched process in the foreground for Type=simple.
-            # timeout signals the process group so package-manager children are
-            # interrupted too; SIGKILL is the pre-hour backstop.
+            # generating exec script
             auto_assess_sh_data = "#!/usr/bin/env bash" +\
                                   "\n# Copyright 2021 Microsoft Corporation." + \
-                                  "\nset -eu" + \
                                   "\ncd \"$(dirname \"$0\")\"" + \
-                                  "\nexec timeout -s USR1 -k " + Constants.AUTO_ASSESSMENT_TIMEOUT_GRACE_PERIOD + \
-                                  " " + Constants.AUTO_ASSESSMENT_TIMEOUT + \
-                                  " " + core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True"
+                                  "\n" + core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True"
 
             # stage exec script
             if os.path.exists(auto_assess_sh_path):

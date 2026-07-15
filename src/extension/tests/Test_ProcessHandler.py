@@ -38,9 +38,6 @@ class TestProcessHandler(unittest.TestCase):
         self.utility = runtime.utility
         self.json_file_handler = runtime.json_file_handler
         self.env_layer = runtime.env_layer
-        self.written_auto_assess_path = None
-        self.written_auto_assess_data = None
-        self.removed_auto_assess_path = None
         dir_path = os.path.join(os.path.pardir, "tests", "helpers")
         self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
         self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -69,13 +66,6 @@ class TestProcessHandler(unittest.TestCase):
 
     def mock_run_command_to_set_auto_assess_shell_file_permission(self, cmd, no_output=False, chk_err=False):
         return 0, "permissions set"
-
-    def mock_write_auto_assess_shell_file(self, file_path_or_handle, data, mode='a+'):
-        self.written_auto_assess_path = file_path_or_handle
-        self.written_auto_assess_data = data
-
-    def mock_remove_auto_assess_shell_file(self, file_path):
-        self.removed_auto_assess_path = file_path
 
     def mock_subprocess_popen_process_not_running_after_launch(self, command, shell, stdout, stderr):
         self.process.pid = 1
@@ -170,38 +160,6 @@ class TestProcessHandler(unittest.TestCase):
 
         # resetting mocks
         self.env_layer.run_command_output = run_command_output_backup
-
-    def test_stage_auto_assess_sh_safely_runs_core_in_foreground_with_deadline(self):
-        process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
-        run_command_output_backup = process_handler.env_layer.run_command_output
-        write_with_retry_backup = process_handler.env_layer.file_system.write_with_retry
-        path_exists_backup = os.path.exists
-        remove_backup = os.remove
-        process_handler.env_layer.run_command_output = self.mock_run_command_to_set_auto_assess_shell_file_permission
-        process_handler.env_layer.file_system.write_with_retry = self.mock_write_auto_assess_shell_file
-        os.path.exists = lambda path: True
-        os.remove = self.mock_remove_auto_assess_shell_file
-
-        try:
-            core_path = os.path.join(os.getcwd(), Constants.CORE_CODE_FILE_NAME)
-            process_handler.stage_auto_assess_sh_safely("python " + core_path)
-
-            self.assertTrue(self.written_auto_assess_path.endswith(Constants.CORE_AUTO_ASSESS_SH_FILE_NAME))
-            self.assertEqual(self.removed_auto_assess_path, self.written_auto_assess_path)
-            expected_command = "\nexec timeout -s USR1 -k {0} {1} python ".format(
-                Constants.AUTO_ASSESSMENT_TIMEOUT_GRACE_PERIOD,
-                Constants.AUTO_ASSESSMENT_TIMEOUT)
-            self.assertIn(expected_command, self.written_auto_assess_data)
-            self.assertIn(" -" + Constants.AUTO_ASSESS_ONLY + " True", self.written_auto_assess_data)
-            self.assertNotIn("pid_file", self.written_auto_assess_data)
-            self.assertNotIn("child_pid", self.written_auto_assess_data)
-            self.assertNotIn(" &", self.written_auto_assess_data)
-            self.assertNotIn("nohup", self.written_auto_assess_data)
-        finally:
-            process_handler.env_layer.run_command_output = run_command_output_backup
-            process_handler.env_layer.file_system.write_with_retry = write_with_retry_backup
-            os.path.exists = path_exists_backup
-            os.remove = remove_backup
 
     def test_start_daemon(self):
         # setting mocks

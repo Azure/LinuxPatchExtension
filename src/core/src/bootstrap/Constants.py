@@ -179,8 +179,7 @@ class Constants(object):
 
     # To separately preserve assessment + auto-assessment state information
     ASSESSMENT_STATE_FILE = "AssessmentState.json"
-    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT55M"          # soft deadline; the launcher enforces a hard stop before the hourly trigger
-    AUTO_ASSESSMENT_TIMEOUT_ERROR_MSG = "Automatic patch assessment exceeded its maximum runtime of 55 minutes."
+    AUTO_ASSESSMENT_MAXIMUM_DURATION = "PT1H"           # maximum time assessment is expected to take
     AUTO_ASSESSMENT_CRON_INTERVAL = "PT1H"              # wake up to check for persistent assessment information this frequently
     AUTO_ASSESSMENT_INTERVAL_BUFFER = "PT1H"            # allow for an hour's buffer from max interval passed down (PT6H) to keep within "max" SLA
 
