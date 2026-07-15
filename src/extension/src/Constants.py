@@ -46,6 +46,8 @@ class Constants(object):
     STATUS_FILE_EXTENSION = '.status'
     CORE_CODE_FILE_NAME = 'MsftLinuxPatchCore.py'
     CORE_AUTO_ASSESS_SH_FILE_NAME = "MsftLinuxPatchAutoAssess.sh"
+    AUTO_ASSESSMENT_TIMEOUT = "55m"
+    AUTO_ASSESSMENT_TIMEOUT_GRACE_PERIOD = "4m"
     LOG_FILE_EXTENSION = '.log'
     LOG_FILES_TO_RETAIN = 15
     MAX_LOG_FILES_ALLOWED = 40

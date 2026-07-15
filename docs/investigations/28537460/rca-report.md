@@ -23,11 +23,13 @@ assessment in the foreground.
   `ProcessHandler.stage_auto_assess_sh_safely()` generates a shell script that
   invokes `MsftLinuxPatchCore.py` synchronously, without daemonizing or
   backgrounding it. `Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION` describes an
-  expected one-hour operation window but is not an enforced wall-clock limit.
-- **Fix validation**: A systemd 239 smoke test used a two-second
-  `TimeoutStartSec`; the forking launcher returned in 32 ms, remained
-  `active (running)` after the deadline, published a PID matching `MainPID`,
-  and the complete service process was terminated on stop.
+  expected one-hour operation window but was not an enforced wall-clock limit.
+- **Fix validation**: An accelerated systemd 239 smoke test used a five-second
+  soft deadline and a four-second grace period. The foreground service wrote a
+  terminal assessment error at the soft deadline. A process that ignored the
+  soft signal was killed at the nine-second hard deadline. An accelerated
+  recurring timer started two bounded runs 11 seconds apart, including after
+  the first service run exited with timeout status.
 
 ## Root Cause
 
@@ -61,22 +63,39 @@ status, leaving the control plane with a stale in-progress state.
 
 ## Selected Fix
 
-Keep `Type=forking`, but make the generated shell wrapper satisfy that
-lifecycle contract. The wrapper starts Python in the background, writes its PID
-to `/run/MsftLinuxPatchAutoAssess.pid`, verifies that the child launched, and
-then exits. The generated unit declares the matching `PIDFile`, keeps
-`KillMode=control-group`, removes the PID file after shutdown, and limits the
-launcher startup phase to 30 seconds.
+Use `Type=simple` because the wrapper and Core are foreground processes, then
+bound that foreground execution below the hourly timer interval. The generated
+wrapper replaces itself with:
 
-systemd can therefore complete service startup promptly while continuing to
-track the Python assessment as the main process. Slow package operations are no
-longer charged against `TimeoutStartSec`, and service stop operations still
-terminate the complete assessment cgroup. The extension rewrites the launcher
-with the latest contract when it starts Core, so upgrades replace wrappers
-created by earlier extension versions.
+```text
+timeout -s USR1 -k 4m 55m <python-core-command> -autoAssessmentOnly True
+```
 
-No `RuntimeMaxSec` is added. Older supported systemd versions do not
-consistently support that directive, and a forceful systemd runtime timeout can
-terminate Core before it writes terminal assessment status. A future portable
-application-level watchdog should enforce the operation deadline and write
-terminal status before exiting.
+`exec` keeps systemd tracking the timeout supervisor directly. At 55 minutes,
+GNU `timeout` sends `SIGUSR1` to the supervised process group. During automatic
+assessment, Core converts that signal to a dedicated
+`AutoAssessmentTimeoutError`, bypasses package-manager retries, and writes an
+`Error` assessment status. The prior signal handler is restored after the
+assessment so repeated Core invocations in the same process remain isolated.
+
+If graceful handling is blocked, such as a process in an uninterruptible kernel
+wait, GNU `timeout` sends `SIGKILL` after a further four minutes.
+`KillMode=control-group` ensures systemd owns the complete process tree. The
+hard upper bound is therefore 59 minutes, leaving one minute before the
+unchanged `OnUnitActiveSec=1h` timer boundary. systemd does not overlap
+instances of the same service, and the completed service can be activated by
+the next timer event.
+
+This design is selected instead of daemonizing because no daemon lifecycle is
+needed: the work is periodic, finite, and should remain under systemd
+supervision. It is selected instead of only increasing `TimeoutStartSec`
+because that would continue treating the entire assessment as startup and
+would not bound a real hang. `RuntimeMaxSec` is not used because systemd 219 is
+in the supported range and does not provide that directive. The extension
+already depends on GNU `timeout` for bootstrap checks, so the launcher does not
+introduce a new package dependency.
+
+Terminal status at the soft deadline is best-effort for interruptible
+userspace hangs. The 59-minute cgroup kill is the authoritative safety
+guarantee for uninterruptible work, where no in-process implementation can
+guarantee an additional status write.

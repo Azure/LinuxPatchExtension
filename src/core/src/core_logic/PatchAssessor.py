@@ -18,10 +18,12 @@
 import datetime
 import json
 import os
+import signal
 import shutil
 import sys
 import time
 from core.src.bootstrap.Constants import Constants
+from core.src.core_logic.AutoAssessmentTimeout import AutoAssessmentTimeoutError
 from core.src.core_logic.Stopwatch import Stopwatch
 
 
@@ -39,6 +41,8 @@ class PatchAssessor(object):
         self.package_manager_name = self.package_manager.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY)
         self.assessment_state_file_path = os.path.join(self.execution_config.config_folder, Constants.ASSESSMENT_STATE_FILE)
         self.stopwatch = Stopwatch(self.env_layer, self.telemetry_writer, self.composite_logger)
+        self.__auto_assessment_timeout_handler_registered = False
+        self.__previous_auto_assessment_timeout_handler = None
 
     def start_assessment(self):
         """ Start a patch assessment """
@@ -58,59 +62,96 @@ class PatchAssessor(object):
         self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_TRANSITIONING)
         retry_count = 0
 
-        for i in range(0, Constants.MAX_ASSESSMENT_RETRY_COUNT):
-            try:
-                self.composite_logger.log("\n\nGetting available patches...")
-                self.package_manager.refresh_repo()
-                self.status_handler.reset_assessment_data()
+        self.__register_auto_assessment_timeout_handler()
+        try:
+            for i in range(0, Constants.MAX_ASSESSMENT_RETRY_COUNT):
+                try:
+                    self.composite_logger.log("\n\nGetting available patches...")
+                    self.package_manager.refresh_repo()
+                    self.status_handler.reset_assessment_data()
 
-                if self.lifecycle_manager is not None:
-                    self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
+                    if self.lifecycle_manager is not None:
+                        self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
 
-                # All updates
-                retry_count = retry_count + 1
-                
-                # All updates
-                packages, package_versions = self.package_manager.get_all_updates()
-                self.telemetry_writer.write_event("Full assessment: " + str(packages), Constants.TelemetryEventLevel.Verbose)
-                self.status_handler.set_package_assessment_status(packages, package_versions)
-                if self.lifecycle_manager is not None:
-                    self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
-                sec_packages, sec_package_versions = self.package_manager.get_security_updates()
+                    # All updates
+                    retry_count = retry_count + 1
 
-                # Tag security updates
-                self.telemetry_writer.write_event("Security assessment: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
-                self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, Constants.PackageClassification.SECURITY)
+                    packages, package_versions = self.package_manager.get_all_updates()
+                    self.telemetry_writer.write_event("Full assessment: " + str(packages), Constants.TelemetryEventLevel.Verbose)
+                    self.status_handler.set_package_assessment_status(packages, package_versions)
+                    if self.lifecycle_manager is not None:
+                        self.lifecycle_manager.lifecycle_status_check()     # may terminate the code abruptly, as designed
+                    sec_packages, sec_package_versions = self.package_manager.get_security_updates()
 
-                # Set the security-esm packages in status.
-                self.package_manager.set_security_esm_package_status(Constants.ASSESSMENT, packages=[])
+                    # Tag security updates
+                    self.telemetry_writer.write_event("Security assessment: " + str(sec_packages), Constants.TelemetryEventLevel.Verbose)
+                    self.status_handler.set_package_assessment_status(sec_packages, sec_package_versions, Constants.PackageClassification.SECURITY)
 
-                # ensure reboot status is set
-                reboot_pending = self.package_manager.is_reboot_pending()
-                self.status_handler.set_reboot_pending(reboot_pending)
+                    # Set the security-esm packages in status.
+                    self.package_manager.set_security_esm_package_status(Constants.ASSESSMENT, packages=[])
 
-                self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
-                break   # avoid retries for success
+                    # ensure reboot status is set
+                    reboot_pending = self.package_manager.is_reboot_pending()
+                    self.status_handler.set_reboot_pending(reboot_pending)
 
-            except Exception as error:
-                if i < Constants.MAX_ASSESSMENT_RETRY_COUNT - 1:
-                    error_msg = 'Retriable error retrieving available patches: ' + repr(error)
-                    self.composite_logger.log_warning(error_msg)
-                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-                    time.sleep(2*(i + 1))
-                else:
-                    error_msg = 'Error retrieving available patches: ' + repr(error)
-                    self.composite_logger.log_error(error_msg)
-                    self.write_assessment_perf_logs(retry_count, Constants.TaskStatus.FAILED, error_msg)
-                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-                    if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
-                        error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-                    self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+                    self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_SUCCESS)
+                    break   # avoid retries for success
+
+                except AutoAssessmentTimeoutError:
                     raise
+
+                except Exception as error:
+                    if i < Constants.MAX_ASSESSMENT_RETRY_COUNT - 1:
+                        error_msg = 'Retriable error retrieving available patches: ' + repr(error)
+                        self.composite_logger.log_warning(error_msg)
+                        self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+                        time.sleep(2*(i + 1))
+                    else:
+                        error_msg = 'Error retrieving available patches: ' + repr(error)
+                        self.composite_logger.log_error(error_msg)
+                        self.write_assessment_perf_logs(retry_count, Constants.TaskStatus.FAILED, error_msg)
+                        self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+                        if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
+                            error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+                        self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+                        raise
+        except AutoAssessmentTimeoutError as error:
+            error_msg = str(error)
+            self.composite_logger.log_error(error_msg)
+            self.write_assessment_perf_logs(retry_count, Constants.TaskStatus.FAILED, error_msg)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
+            if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
+                error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            self.status_handler.set_assessment_substatus_json(status=Constants.STATUS_ERROR)
+            raise
+        finally:
+            self.__restore_auto_assessment_timeout_handler()
 
         self.write_assessment_perf_logs(retry_count, Constants.TaskStatus.SUCCEEDED, "")
         self.composite_logger.log("\nPatch assessment completed.\n")
         return True
+
+    def __register_auto_assessment_timeout_handler(self):
+        if not self.execution_config.exec_auto_assess_only:
+            return
+        if not hasattr(signal, "SIGUSR1"):
+            self.composite_logger.log_warning("SIGUSR1 is unavailable; Core cannot gracefully handle the automatic assessment soft deadline.")
+            return
+
+        self.__previous_auto_assessment_timeout_handler = signal.getsignal(signal.SIGUSR1)
+        signal.signal(signal.SIGUSR1, self.__raise_auto_assessment_timeout)
+        self.__auto_assessment_timeout_handler_registered = True
+
+    def __restore_auto_assessment_timeout_handler(self):
+        if not self.__auto_assessment_timeout_handler_registered:
+            return
+
+        signal.signal(signal.SIGUSR1, self.__previous_auto_assessment_timeout_handler)
+        self.__auto_assessment_timeout_handler_registered = False
+
+    @staticmethod
+    def __raise_auto_assessment_timeout(signal_number, current_stack_frame):
+        raise AutoAssessmentTimeoutError(Constants.AUTO_ASSESSMENT_TIMEOUT_ERROR_MSG)
 
     def write_assessment_perf_logs(self, retry_count, task_status, error_msg):
         assessment_perf_log = "[{0}={1}][{2}={3}][{4}={5}][{6}={7}][{8}={9}][{10}={11}]".format(

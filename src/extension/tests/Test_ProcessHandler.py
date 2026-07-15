@@ -171,7 +171,7 @@ class TestProcessHandler(unittest.TestCase):
         # resetting mocks
         self.env_layer.run_command_output = run_command_output_backup
 
-    def test_stage_auto_assess_sh_safely_daemonizes_core_process(self):
+    def test_stage_auto_assess_sh_safely_runs_core_in_foreground_with_deadline(self):
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
         run_command_output_backup = process_handler.env_layer.run_command_output
         write_with_retry_backup = process_handler.env_layer.file_system.write_with_retry
@@ -188,15 +188,14 @@ class TestProcessHandler(unittest.TestCase):
 
             self.assertTrue(self.written_auto_assess_path.endswith(Constants.CORE_AUTO_ASSESS_SH_FILE_NAME))
             self.assertEqual(self.removed_auto_assess_path, self.written_auto_assess_path)
-            self.assertIn("\nif [ \"$#\" -ne 1 ]; then\n", self.written_auto_assess_data)
-            self.assertIn("\npid_file=\"$1\"\n", self.written_auto_assess_data)
-            self.assertIn("\n(\n    exec python ", self.written_auto_assess_data)
-            self.assertIn(" -" + Constants.AUTO_ASSESS_ONLY + " True\n) &", self.written_auto_assess_data)
-            self.assertIn("\nchild_pid=$!\n", self.written_auto_assess_data)
-            self.assertIn("\nif ! printf '%s\\n' \"$child_pid\" > \"$pid_file\"; then\n", self.written_auto_assess_data)
-            self.assertIn("\n    kill \"$child_pid\" 2>/dev/null || true\n", self.written_auto_assess_data)
-            self.assertIn("\nif ! kill -0 \"$child_pid\" 2>/dev/null; then\n", self.written_auto_assess_data)
-            self.assertIn("\n    rm -f \"$pid_file\"\n", self.written_auto_assess_data)
+            expected_command = "\nexec timeout -s USR1 -k {0} {1} python ".format(
+                Constants.AUTO_ASSESSMENT_TIMEOUT_GRACE_PERIOD,
+                Constants.AUTO_ASSESSMENT_TIMEOUT)
+            self.assertIn(expected_command, self.written_auto_assess_data)
+            self.assertIn(" -" + Constants.AUTO_ASSESS_ONLY + " True", self.written_auto_assess_data)
+            self.assertNotIn("pid_file", self.written_auto_assess_data)
+            self.assertNotIn("child_pid", self.written_auto_assess_data)
+            self.assertNotIn(" &", self.written_auto_assess_data)
             self.assertNotIn("nohup", self.written_auto_assess_data)
         finally:
             process_handler.env_layer.run_command_output = run_command_output_backup
