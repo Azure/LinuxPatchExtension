@@ -118,11 +118,35 @@ class ProcessHandler(object):
             self.logger.log_debug("Path resolutions for auto-assessment. [CmdCore={0}][ExecDir={1}][CorePy={2}][AssessSh={3}][CoreCmdSh={4}]"
                                   .format(cmd_core_py_path, exec_dir, core_py_path, auto_assess_sh_path, core_process_command))
 
-            # generating exec script
+            # Generate a forking launcher. The parent exits after publishing the
+            # background Python process PID for systemd to track.
             auto_assess_sh_data = "#!/usr/bin/env bash" +\
                                   "\n# Copyright 2021 Microsoft Corporation." + \
+                                  "\nset -eu" + \
+                                  "\nif [ \"$#\" -ne 1 ]; then" + \
+                                  "\n    echo \"Expected PID file path as the only argument.\" >&2" + \
+                                  "\n    exit 64" + \
+                                  "\nfi" + \
+                                  "\npid_file=\"$1\"" + \
+                                  "\nrm -f \"$pid_file\"" + \
                                   "\ncd \"$(dirname \"$0\")\"" + \
-                                  "\n" + core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True"
+                                  "\n(" + \
+                                  "\n    exec " + core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True" + \
+                                  "\n) &" + \
+                                  "\nchild_pid=$!" + \
+                                  "\nif ! printf '%s\\n' \"$child_pid\" > \"$pid_file\"; then" + \
+                                  "\n    kill \"$child_pid\" 2>/dev/null || true" + \
+                                  "\n    wait \"$child_pid\" 2>/dev/null || true" + \
+                                  "\n    rm -f \"$pid_file\"" + \
+                                  "\n    exit 1" + \
+                                  "\nfi" + \
+                                  "\nif ! kill -0 \"$child_pid\" 2>/dev/null; then" + \
+                                  "\n    child_exit_code=1" + \
+                                  "\n    wait \"$child_pid\" || child_exit_code=$?" + \
+                                  "\n    rm -f \"$pid_file\"" + \
+                                  "\n    exit \"$child_exit_code\"" + \
+                                  "\nfi" + \
+                                  "\nexit 0"
 
             # stage exec script
             if os.path.exists(auto_assess_sh_path):
@@ -210,4 +234,3 @@ class ProcessHandler(object):
             if Constants.ERROR_ADDED_TO_STATUS not in repr(error):
                 error.args = (error.args, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             raise
-

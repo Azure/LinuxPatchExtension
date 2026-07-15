@@ -47,7 +47,9 @@ class TestServiceManager(unittest.TestCase):
     def mock_invoke_systemctl(self, command, description):
         self.service_manager.invoke_systemctl_called = True
 
-        if "start" in command and "restart" not in command:
+        if "daemon-reload" in command:
+            return 0, "Reloading daemon"
+        elif "start" in command and "restart" not in command:
             return 0, "Service started"
         elif "stop" in command:
             return 0, "Service stopped"
@@ -62,14 +64,40 @@ class TestServiceManager(unittest.TestCase):
         elif "is-active" in command:
             return 0, "Checking if service is active"
 
-    def test_create_service_unit_file_uses_simple_service_type(self):
+    def test_create_service_unit_file_uses_forking_contract(self):
         self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission
         self.service_manager.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
-        self.service_manager.create_service_unit_file(exec_start="/bin/bash " + self.service_manager.service_exec_path, desc="Microsoft Azure Linux Patch Extension - Auto Assessment")
+        self.service_manager.create_service_unit_file(
+            exec_start="/bin/bash path /run/test_service.pid",
+            desc="Microsoft Azure Linux Patch Extension - Auto Assessment",
+            pid_file="/run/test_service.pid")
 
         self.assertEqual("/etc/systemd/system/test_service.service", self.written_service_unit_path)
-        self.assertIn("\nType=simple\n", self.written_service_unit_content)
-        self.assertNotIn("\nType=forking\n", self.written_service_unit_content)
+        self.assertIn("\nType=forking\n", self.written_service_unit_content)
+        self.assertIn("\nPIDFile=/run/test_service.pid\n", self.written_service_unit_content)
+        self.assertIn("\nKillMode=control-group\n", self.written_service_unit_content)
+        self.assertIn("\nTimeoutStartSec=30s\n", self.written_service_unit_content)
+        self.assertIn("\nExecStopPost=/bin/rm -f /run/test_service.pid\n", self.written_service_unit_content)
+
+    def test_create_service_unit_file_requires_pid_file_for_forking_service(self):
+        self.assertRaises(
+            ValueError,
+            self.service_manager.create_service_unit_file,
+            exec_start="/bin/bash path",
+            desc="Microsoft Azure Linux Patch Extension - Auto Assessment")
+
+    def test_create_and_set_service_idem_passes_pid_file_to_launcher(self):
+        self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission
+        self.service_manager.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
+        self.service_manager.invoke_systemctl = self.mock_invoke_systemctl
+
+        self.service_manager.create_and_set_service_idem()
+
+        self.assertIn("\nType=forking\n", self.written_service_unit_content)
+        self.assertIn("\nPIDFile=/run/test_service.pid\n", self.written_service_unit_content)
+        self.assertIn(
+            "\nExecStart=/bin/bash \"path\" \"/run/test_service.pid\"\n",
+            self.written_service_unit_content)
 
     def test_start_service(self):
         # Set method calls

@@ -38,6 +38,9 @@ class TestProcessHandler(unittest.TestCase):
         self.utility = runtime.utility
         self.json_file_handler = runtime.json_file_handler
         self.env_layer = runtime.env_layer
+        self.written_auto_assess_path = None
+        self.written_auto_assess_data = None
+        self.removed_auto_assess_path = None
         dir_path = os.path.join(os.path.pardir, "tests", "helpers")
         self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
         self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -66,6 +69,13 @@ class TestProcessHandler(unittest.TestCase):
 
     def mock_run_command_to_set_auto_assess_shell_file_permission(self, cmd, no_output=False, chk_err=False):
         return 0, "permissions set"
+
+    def mock_write_auto_assess_shell_file(self, file_path_or_handle, data, mode='a+'):
+        self.written_auto_assess_path = file_path_or_handle
+        self.written_auto_assess_data = data
+
+    def mock_remove_auto_assess_shell_file(self, file_path):
+        self.removed_auto_assess_path = file_path
 
     def mock_subprocess_popen_process_not_running_after_launch(self, command, shell, stdout, stderr):
         self.process.pid = 1
@@ -161,6 +171,39 @@ class TestProcessHandler(unittest.TestCase):
         # resetting mocks
         self.env_layer.run_command_output = run_command_output_backup
 
+    def test_stage_auto_assess_sh_safely_daemonizes_core_process(self):
+        process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
+        run_command_output_backup = process_handler.env_layer.run_command_output
+        write_with_retry_backup = process_handler.env_layer.file_system.write_with_retry
+        path_exists_backup = os.path.exists
+        remove_backup = os.remove
+        process_handler.env_layer.run_command_output = self.mock_run_command_to_set_auto_assess_shell_file_permission
+        process_handler.env_layer.file_system.write_with_retry = self.mock_write_auto_assess_shell_file
+        os.path.exists = lambda path: True
+        os.remove = self.mock_remove_auto_assess_shell_file
+
+        try:
+            core_path = os.path.join(os.getcwd(), Constants.CORE_CODE_FILE_NAME)
+            process_handler.stage_auto_assess_sh_safely("python " + core_path)
+
+            self.assertTrue(self.written_auto_assess_path.endswith(Constants.CORE_AUTO_ASSESS_SH_FILE_NAME))
+            self.assertEqual(self.removed_auto_assess_path, self.written_auto_assess_path)
+            self.assertIn("\nif [ \"$#\" -ne 1 ]; then\n", self.written_auto_assess_data)
+            self.assertIn("\npid_file=\"$1\"\n", self.written_auto_assess_data)
+            self.assertIn("\n(\n    exec python ", self.written_auto_assess_data)
+            self.assertIn(" -" + Constants.AUTO_ASSESS_ONLY + " True\n) &", self.written_auto_assess_data)
+            self.assertIn("\nchild_pid=$!\n", self.written_auto_assess_data)
+            self.assertIn("\nif ! printf '%s\\n' \"$child_pid\" > \"$pid_file\"; then\n", self.written_auto_assess_data)
+            self.assertIn("\n    kill \"$child_pid\" 2>/dev/null || true\n", self.written_auto_assess_data)
+            self.assertIn("\nif ! kill -0 \"$child_pid\" 2>/dev/null; then\n", self.written_auto_assess_data)
+            self.assertIn("\n    rm -f \"$pid_file\"\n", self.written_auto_assess_data)
+            self.assertNotIn("nohup", self.written_auto_assess_data)
+        finally:
+            process_handler.env_layer.run_command_output = run_command_output_backup
+            process_handler.env_layer.file_system.write_with_retry = write_with_retry_backup
+            os.path.exists = path_exists_backup
+            os.remove = remove_backup
+
     def test_start_daemon(self):
         # setting mocks
         get_python_cmd_backup = ProcessHandler.get_python_cmd
@@ -210,4 +253,3 @@ class TestProcessHandler(unittest.TestCase):
 if __name__ == '__main__':
     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestProcessHandler)
     unittest.TextTestRunner(verbosity=2).run(SUITE)
-

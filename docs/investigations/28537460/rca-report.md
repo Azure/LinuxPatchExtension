@@ -14,7 +14,7 @@ assessment in the foreground.
   `MsftLinuxPatchAutoAssess.service` timing out and receiving SIGTERM after
   approximately 90 seconds.
 - **Historical patterns**: Bug 24467908 and PR 203 changed this unit from
-  `Type=notify` to `Type=forking`. Bug 30347555 and PR 286 fixed a separate
+  `Type=notify` to `Type=forking`. Bug 30347555 and PR 303 fixed a separate
   unbounded YUM retry path with the same portal symptom. Bug 33342595 reports
   the same systemd timeout signature at fleet scale.
 - **Source code findings**:
@@ -22,8 +22,12 @@ assessment in the foreground.
   `MsftLinuxPatchAutoAssess` unit and defaults it to `Type=forking`.
   `ProcessHandler.stage_auto_assess_sh_safely()` generates a shell script that
   invokes `MsftLinuxPatchCore.py` synchronously, without daemonizing or
-  backgrounding it. Auto-assessment execution is allowed to take up to one hour
-  by `Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION`.
+  backgrounding it. `Constants.AUTO_ASSESSMENT_MAXIMUM_DURATION` describes an
+  expected one-hour operation window but is not an enforced wall-clock limit.
+- **Fix validation**: A systemd 239 smoke test used a two-second
+  `TimeoutStartSec`; the forking launcher returned in 32 ms, remained
+  `active (running)` after the deadline, published a PID matching `MainPID`,
+  and the complete service process was terminated on stop.
 
 ## Root Cause
 
@@ -41,7 +45,7 @@ status, leaving the control plane with a stale in-progress state.
 ## Competing Hypotheses
 
 1. **The package manager is stuck indefinitely**: Historical Bug 30347555
-   demonstrated an unbounded YUM mitigation loop, but PR 286 added repeated
+   demonstrated an unbounded YUM mitigation loop, but PR 303 added repeated
    error detection and a retry ceiling. Package-manager latency can expose the
    90-second service timeout, but normal slow work should not cause systemd to
    kill an assessment whose configured operation window is one hour.
@@ -57,13 +61,22 @@ status, leaving the control plane with a stale in-progress state.
 
 ## Selected Fix
 
-Change the generated service's default type from `forking` to `simple`.
-`Type=simple` considers the service started after launching the foreground
-process, so the 90-second startup deadline no longer terminates valid long-
-running assessment work. The process remains tracked by systemd for stop and
-failure handling.
+Keep `Type=forking`, but make the generated shell wrapper satisfy that
+lifecycle contract. The wrapper starts Python in the background, writes its PID
+to `/run/MsftLinuxPatchAutoAssess.pid`, verifies that the child launched, and
+then exits. The generated unit declares the matching `PIDFile`, keeps
+`KillMode=control-group`, removes the PID file after shutdown, and limits the
+launcher startup phase to 30 seconds.
 
-No 30-minute `RuntimeMaxSec` is added. The repository explicitly permits
-auto-assessment to take up to one hour, and older supported systemd versions
-do not consistently support that directive. Existing operation-level duration
-and package-manager retry controls remain the appropriate runtime safeguards.
+systemd can therefore complete service startup promptly while continuing to
+track the Python assessment as the main process. Slow package operations are no
+longer charged against `TimeoutStartSec`, and service stop operations still
+terminate the complete assessment cgroup. The extension rewrites the launcher
+with the latest contract when it starts Core, so upgrades replace wrappers
+created by earlier extension versions.
+
+No `RuntimeMaxSec` is added. Older supported systemd versions do not
+consistently support that directive, and a forceful systemd runtime timeout can
+terminate Core before it writes terminal assessment status. A future portable
+application-level watchdog should enforce the operation deadline and write
+terminal status before exiting.

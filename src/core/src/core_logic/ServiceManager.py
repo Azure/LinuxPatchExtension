@@ -24,6 +24,7 @@ class ServiceManager(SystemctlManager):
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, service_info):
         super(ServiceManager, self).__init__(env_layer, execution_config, composite_logger, telemetry_writer, service_info)
         self.__systemd_service_unit_path = "/etc/systemd/system/{0}.service"
+        self.__systemd_service_pid_path = "/run/{0}.pid"
 
         self.service_start_cmd = "sudo systemctl start {0}.service"
         self.service_stop_cmd = "sudo systemctl stop {0}.service"
@@ -47,7 +48,12 @@ class ServiceManager(SystemctlManager):
     def create_and_set_service_idem(self):
         """ Idempotent creation and setting of the service associated with the service the class is instantiated with """
         self.remove_service()
-        self.create_service_unit_file(exec_start="/bin/bash " + self.service_exec_path, desc=Constants.AUTO_ASSESSMENT_SERVICE_DESC)
+        pid_file = self.__systemd_service_pid_path.format(self.service_name)
+        exec_start = "/bin/bash \"{0}\" \"{1}\"".format(self.service_exec_path, pid_file)
+        self.create_service_unit_file(
+            exec_start=exec_start,
+            desc=Constants.AUTO_ASSESSMENT_SERVICE_DESC,
+            pid_file=pid_file)
         self.systemctl_daemon_reload()
         self.enable_service()
         if not self.start_service():
@@ -89,17 +95,29 @@ class ServiceManager(SystemctlManager):
     # endregion
 
     # region - Service Unit Management
-    def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="simple", wanted_by="multi-user.target"):
-        """ The auto-assessment shell runs Python in the foreground, so the service type defaults to simple. """
+    def create_service_unit_file(self, exec_start, desc, pid_file=None, after="network.target", service_type="forking", wanted_by="multi-user.target"):
+        """ Create a service unit that tracks the daemonized auto-assessment process. """
+        if service_type == "forking" and not pid_file:
+            raise ValueError("A PID file is required for a forking service.")
+
+        forking_options = ""
+        if service_type == "forking":
+            forking_options = "\nPIDFile={0}" + \
+                              "\nKillMode=control-group" + \
+                              "\nTimeoutStartSec=30s" + \
+                              "\nExecStopPost=/bin/rm -f {0}"
+            forking_options = forking_options.format(pid_file)
+
         service_unit_content_template = "\n[Unit]" + \
                                "\nDescription={0}" + \
                                "\nAfter={1}\n" + \
                                "\n[Service]" + \
                                "\nType={2}" + \
-                               "\nExecStart={3}\n" + \
+                               "{3}" + \
+                               "\nExecStart={4}\n" + \
                                "\n[Install]" + \
-                               "\nWantedBy={4}"
-        service_unit_content = service_unit_content_template.format(desc, after, service_type, exec_start, wanted_by)
+                               "\nWantedBy={5}"
+        service_unit_content = service_unit_content_template.format(desc, after, service_type, forking_options, exec_start, wanted_by)
         service_unit_path = self.__systemd_service_unit_path.format(self.service_name)
         self.env_layer.file_system.write_with_retry(service_unit_path, service_unit_content)
         self.env_layer.run_command_output("sudo chmod 644 " + service_unit_path) # 644 = Owner: RW; Group: R; Others: R
