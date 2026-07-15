@@ -16,6 +16,7 @@
 
 """The is base package manager, which defines the package management relevant operations"""
 import os
+import re
 from abc import ABCMeta, abstractmethod
 from core.src.bootstrap.Constants import Constants
 import time
@@ -82,6 +83,48 @@ class PackageManager(object):
     def invoke_package_manager(self, command):
         out, code = self.invoke_package_manager_advanced(command, raise_on_exception=True)
         return out
+
+    def add_package_manager_failure_to_status(self, code, output):
+        error_msg = self.format_package_manager_failure_message(code, output)
+        self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+        return error_msg
+
+    def format_package_manager_failure_message(self, code, output):
+        package_manager_name = str(self.get_package_manager_setting(Constants.PKG_MGR_SETTING_IDENTITY, "package manager")).upper()
+        message = "{0} failed with exit code {1}".format(package_manager_name, str(code))
+        output_summary = self.__get_customer_error_output_summary(output)
+        message += ": {0}".format(output_summary) if output_summary else ". Review extension logs for details."
+
+        message_size_limit = Constants.STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS
+        return message[:message_size_limit - 3] + "..." if len(message) > message_size_limit else message
+
+    @staticmethod
+    def __get_customer_error_output_summary(output):
+        if output is None:
+            return str()
+
+        actionable_error_pattern = re.compile(
+            r"\b(error|failed|failure|unable|cannot|could not|denied|not found|no space|timed out|timeout|conflict|broken|unmet|invalid|expired|refused|unreachable|locked|warning|unexpected)\b",
+            re.IGNORECASE)
+        output_lines = []
+        for line in str(output).splitlines():
+            sanitized_line = PackageManager.__sanitize_customer_error_line(line)
+            if sanitized_line:
+                output_lines.append(sanitized_line)
+
+        for line in reversed(output_lines):
+            if actionable_error_pattern.search(line):
+                return line
+
+        return output_lines[-1] if output_lines else str()
+
+    @staticmethod
+    def __sanitize_customer_error_line(line):
+        sanitized_line = re.sub(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", str(line))
+        sanitized_line = re.sub(r"(?i)(https?://)[^/\s@]+@", r"\1***@", sanitized_line)
+        sanitized_line = re.sub(r"(?i)(authorization:\s*(?:bearer|basic)\s+)\S+", r"\1***", sanitized_line)
+        sanitized_line = re.sub(r"(?i)\b(password|passwd|pwd|token|access_token|client_secret|sig|api_key|apikey)=([^\s&;]+)", r"\1=***", sanitized_line)
+        return re.sub(r"\s+", " ", sanitized_line).strip()
 
     def get_available_updates(self, package_filter):
         """Returns List of all installed packages with available updates."""
@@ -607,4 +650,3 @@ class PackageManager(object):
         self.composite_logger.log_debug("UEFI certificate update will NOT be attempted since this operation does not meet update criteria. Continuing without certificate update.")
         return False
     # endregion
-

@@ -123,6 +123,7 @@ class ZypperPackageManager(PackageManager):
         """Get missing updates using the command input"""
         self.composite_logger.log_verbose("[ZPM] Invoking package manager. [Command={0}]".format(str(command)))
         repo_refresh_services_attempted = False
+        reported_error_codes = set()
 
         for i in range(1, self.package_manager_max_retries + 1):
             self.set_lock_timeout_and_backup_original()
@@ -148,7 +149,9 @@ class ZypperPackageManager(PackageManager):
 
                 self.log_errors_on_invoke(command, out, code)
                 error_msg = 'Unexpected return code (' + str(code) + ') from package manager on command: ' + command
-                self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+                if code not in reported_error_codes:
+                    self.add_package_manager_failure_to_status(code, out)
+                    reported_error_codes.add(code)
 
                 # Not a retriable error code, so raise an exception
                 if code not in self.zypper_retriable_exit_codes and raise_on_exception:
@@ -161,7 +164,6 @@ class ZypperPackageManager(PackageManager):
                     continue
                 else:
                     error_msg = "Unable to invoke package manager (retries exhausted) [{0}][RetryCount={1}]".format(error_msg, str(i))
-                    self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
                     if raise_on_exception:
                         raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
             else:  # verbose diagnostic log
@@ -891,4 +893,3 @@ class ZypperPackageManager(PackageManager):
         """ Checks if a reboot is required before updating certificates """
         return False
     # endregion
-

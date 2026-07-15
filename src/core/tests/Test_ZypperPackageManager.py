@@ -667,7 +667,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Should reach max retries - 1 and then succeed, per the code above
         self.assertEqual(counter[0], package_manager.package_manager_max_retries - 1)
-        self.assertFalse(self.is_string_in_status_file('Unexpected return code (4) from package manager on command: sudo zypper refresh'))
+        self.assertFalse(self.is_string_in_status_file('ZYPPER failed with exit code 4'))
 
         # Case 2: UnalignedPath to HappyPath (retry a few times and then success)
         counter = [0]
@@ -683,7 +683,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Should reach max retries - 1 and then succeed, per the code above
         self.assertEqual(counter[0], package_manager.package_manager_max_retries - 1)
-        self.assertTrue(self.is_string_in_status_file('Unexpected return code (7) from package manager on command: sudo zypper refresh'))
+        self.assertTrue(self.is_string_in_status_file('ZYPPER failed with exit code 7: System management is locked'))
 
         # Case 3: NonexistentErrorCodePath to HappyPath (should not retry since error code is not supported)
         counter = [0]
@@ -697,7 +697,7 @@ class TestZypperPackageManager(unittest.TestCase):
             self.fail('Package manager should fail without retrying')
         except Exception as error:
             self.assertEqual(counter[0], 1)  # invoke should only be called once
-            self.assertTrue(self.is_string_in_status_file('Unexpected return code (999999) from package manager on command: sudo zypper refresh'))
+            self.assertTrue(self.is_string_in_status_file('ZYPPER failed with exit code 999999: Unexpected return code (100)'))
             self.assertTrue('Unexpected return code (999999) from package manager on command: sudo zypper refresh' in repr(error))
 
         # Case 4: SadPath (retry and ultimately fail)
@@ -713,7 +713,7 @@ class TestZypperPackageManager(unittest.TestCase):
         except Exception as error:
             # Should reach max retries * 2 and fail (since it started at max retries)
             self.assertEqual(counter[0], package_manager.package_manager_max_retries * 2)
-            self.assertTrue(self.is_string_in_status_file('Unexpected return code (7) from package manager on command: sudo zypper refresh'))
+            self.assertTrue(self.is_string_in_status_file('ZYPPER failed with exit code 7: System management is locked'))
             self.assertTrue('Unexpected return code (7) from package manager on command: sudo zypper refresh' in repr(error))
 
         package_manager.env_layer.run_command_output = backup_mocked_method
@@ -752,7 +752,7 @@ class TestZypperPackageManager(unittest.TestCase):
 
         # Should try twice: once fail, fix repos, then try again and succeed
         self.assertEqual(counter[0], 2)
-        self.assertFalse(self.is_string_in_status_file('Unexpected return code (6) from package manager on command'))
+        self.assertFalse(self.is_string_in_status_file('ZYPPER failed with exit code 6'))
 
         # Case 2: AnotherSadPath (no repos defined -> still no repos defined)
         counter = [0]
@@ -774,7 +774,7 @@ class TestZypperPackageManager(unittest.TestCase):
         except Exception as error:
             # Should try twice - once to fail and refresh repo, twice to ultimately fail with same error code (non-retriable)
             self.assertEqual(counter[0], 2)
-            self.assertTrue(self.is_string_in_status_file('Unexpected return code (6) from package manager on command: sudo zypper refresh'))
+            self.assertTrue(self.is_string_in_status_file('ZYPPER failed with exit code 6: Warning: There are no enabled repositories defined.'))
             self.assertTrue('Unexpected return code (6) from package manager on command: sudo zypper refresh' in repr(error))
 
         package_manager.env_layer.run_command_output = backup_mocked_method
@@ -818,7 +818,7 @@ class TestZypperPackageManager(unittest.TestCase):
         package_manager.invoke_package_manager(cmd_to_run)
         self.assertEqual(counter[0], 1)
         self.assertEqual(replacefiles_counter[0], 1)
-        self.assertFalse(self.is_string_in_status_file('Unexpected return code (8) from package manager on command'))
+        self.assertFalse(self.is_string_in_status_file('ZYPPER failed with exit code 8'))
 
         package_manager.env_layer.run_command_output = backup_mocked_method
 
@@ -865,5 +865,4 @@ class TestZypperPackageManager(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
 
