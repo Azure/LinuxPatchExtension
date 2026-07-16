@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -158,10 +159,67 @@ class TestTelemetryWriter(unittest.TestCase):
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         os.listdir = backup_os_listdir
 
+    # ==================== Unit tests for credential sanitization in telemetry ====================
+    def _read_event_from_file(self, file_index=None, event_index=-1):
+        """
+        Helper method to open and read an event from an event file in the events folder.
+        Args:
+            file_index: Index of the event file to read. If None, uses latest file (default: None for latest file)
+            event_index: Index of the event within the file (default: -1 for last event)
+        Returns: The parsed event dictionary from the JSON file
+        """
+        event_files = [pos_json for pos_json in os.listdir(self.runtime.telemetry_writer.events_folder_path) if
+                       re.search('^[0-9]+.json$', pos_json)][-1]
+
+        with open(os.path.join(self.runtime.telemetry_writer.events_folder_path, event_files), 'r+') as f:
+            events = json.load(f)
+            f.close()
+            return events[event_index]
+    #
+    def _validate_sanitized_event(self, expected_message, task_name=None, event_index=-1, file_index=None):
+        """
+        Helper method to validate an event's message and task name against expected values.
+        This internally calls _read_event_from_file to retrieve the event.
+        Args:
+            expected_message: The expected sanitized message
+            task_name: The expected task name (optional validation)
+            event_index: Index of the event within the file (default: -1 for last event)
+            file_index: Index of the event file (default: None for latest file)
+        """
+        event = self._read_event_from_file(file_index=file_index, event_index=event_index)
+        self.assertIsNotNone(event)
+        self.assertEqual(expected_message, event["Message"])
+        if task_name is not None:
+            self.assertEqual(task_name, event["TaskName"])
+    #
+    # def test_sanitize_credentials_multiple_urls_with_credentials_leak(self):
+    #     """ Test sanitization with multiple URLs containing credentials """
+    #     self.telemetry_writer.write_event("Failed to fetch from https://user1:pass1@host1.com/api and http://user2:pass2@host2.com/data", Constants.TelemetryEventLevel.Error, "Test Task")
+    #
+    #     self._validate_sanitized_event("Failed to fetch from https://user1@host1.com/api and http://user2@host2.com/data", task_name="Test Task", event_index=-1)
+    #
+    # def test_sanitize_credentials_with_no_credentials_in_input_with_credentials_leak(self):
+    #     """  ERROR with 401 status code from jfrog.io """
+    #     self.telemetry_writer.write_event("ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml", Constants.TelemetryEventLevel.Error, "Test Task")
+    #
+    #     self._validate_sanitized_event("ERROR: Failed to download metadata for repo 'packages-microsoft-com-prod': Status code: 401 for https://cec-aa.jfrog.io/artifactory/glib-rpm-hel9-lts-microsoft-com/repodata/repomd.xml", task_name="Test Task", event_index=-1)
+    #
+    # def test_sanitize_credentials_with_error_and_credentials_leak(self):
+    #     """  Curl error with buildbot:BuildBotToken credentials """
+    #     self.telemetry_writer.write_event("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
+    #                "retrieve mirrorlist https://buildbot:BuildBotToken@mirror.example.com/repodata/repomd.xml", Constants.TelemetryEventLevel.Error, "Test Task")
+    #
+    #     self._validate_sanitized_event("Curl error (6): Couldn't resolve host 'packages.microsoft.com' Could not "
+    #                        "retrieve mirrorlist https://buildbot@mirror.example.com/repodata/repomd.xml", task_name="Test Task", event_index=-1)
+    #
+    def test_sanitize_credentials_expired_with_credentials_leak(self):
+        """ ERROR with expired SSL certs and TESTTOKEN123456 """
+        self.telemetry_writer.write_event("ERROR: Customer environment error (expired SSL certs):Command=sudo yum update -y --disablerepo='*' Status code: 401 "
+                   "for https://testuser:TESTTOKEN123456@packages-microsoft-com-prod/CENTRAL.rpm", Constants.TelemetryEventLevel.Error, "Test Task")
+        self._validate_sanitized_event("ERROR: Customer environment error (expired SSL certs):Command=sudo yum update -y --disablerepo='*' Status code: 401 "
+                   "for https://testuser@packages-microsoft-com-prod/CENTRAL.rpm", task_name="Test Task", event_index=-1)
+
 
 if __name__ == '__main__':
-    SUITE = unittest.TestLoader().loadTestsFromTestCase(TestTelemetryWriter)
-    unittest.TextTestRunner(verbosity=2).run(SUITE)
-
-
-
+     SUITE = unittest.TestLoader().loadTestsFromTestCase(TestTelemetryWriter)
+     unittest.TextTestRunner(verbosity=2).run(SUITE)

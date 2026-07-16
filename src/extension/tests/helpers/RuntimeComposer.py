@@ -4,6 +4,7 @@ import time
 import uuid
 
 from extension.src.Constants import Constants
+from extension.src.CredentialSanitizer import CredentialSanitizer
 from extension.src.EnvLayer import EnvLayer
 from extension.src.EnvHealthManager import EnvHealthManager
 from extension.src.TelemetryWriter import TelemetryWriter
@@ -21,7 +22,8 @@ class RuntimeComposer(object):
         self.json_file_handler = JsonFileHandler(self.logger)
         self.env_layer = EnvLayer()
         self.env_health_manager = EnvHealthManager(self.env_layer)
-        self.telemetry_writer = TelemetryWriter(self.logger, self.env_layer)
+        self.credential_sanitizer = CredentialSanitizer(self.logger)
+        self.telemetry_writer = TelemetryWriter(self.logger, self.env_layer, self.credential_sanitizer)
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
         self.env_health_manager.check_sudo_status = self.mock_check_sudo_status
