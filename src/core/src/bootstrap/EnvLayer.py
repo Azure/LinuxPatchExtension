@@ -192,6 +192,65 @@ class EnvLayer(object):
                 raise
             return None
 
+    def detect_confidential_vm(self):
+        # type: () -> tuple
+        """Returns whether the current VM is a Confidential VM and the detection details."""
+        if self.platform.os_type() == 'Windows':
+            return False, str()
+
+        is_confidential_vm, detection_details = self.detect_confidential_vm_by_imds()
+        if is_confidential_vm:
+            return is_confidential_vm, detection_details
+
+        is_confidential_vm, detection_details = self.detect_confidential_vm_by_fde()
+        if is_confidential_vm:
+            return is_confidential_vm, detection_details
+
+        return False, str()
+
+    def detect_confidential_vm_by_fde(self):
+        # type: () -> tuple
+        """Runs the FDE-based CVM detection script and returns whether it detected a Confidential VM."""
+        command_output = str()
+
+        try:
+            detection_shim_path = self.__get_fde_detection_shim_path()
+            detection_script = self.file_system.read_with_retry(detection_shim_path)
+            if detection_script is None or str(detection_script).strip() == str():
+                raise Exception("FDE_DETECTION_SHIM_EMPTY:{0}".format(str(detection_shim_path)))
+
+            code, out = self.run_command_output('bash "{0}"'.format(detection_shim_path), False, False)
+            command_output = str(out).strip() if out is not None else str()
+            return code == 0 and re.search(r'\bFDE\s*=\s*true\b', command_output, re.IGNORECASE) is not None, command_output
+        except Exception as e:
+            raise Exception("FDE_DETECTION_ERROR:{0}; OUTPUT:{1}".format(str(e), command_output))
+
+    @staticmethod
+    def __get_fde_detection_shim_path():
+        # type: () -> str
+        """Resolves the FDE detection shim path for both source and packaged layouts."""
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        shim_base_dir = os.path.dirname(current_dir) if os.path.basename(current_dir) == 'bootstrap' else current_dir
+        shim_path = os.path.join(shim_base_dir, Constants.DETECT_CVM_SHIM_FILE_NAME)
+
+        if os.path.isfile(shim_path):
+            return shim_path
+
+
+        raise Exception("FDE_DETECTION_SHIM_NOT_FOUND:{0}".format(str(shim_path)))
+
+    def detect_confidential_vm_by_imds(self):
+        # type: () -> tuple
+        """Queries Azure IMDS and returns whether the VM reports ConfidentialVM security type."""
+        command = 'curl -s --connect-timeout 2 --max-time 2 -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2025-04-07"'
+
+        code, out = self.run_command_output(command, False, False)
+        command_output = str(out).strip() if out is not None else str()
+        if code == 0 and re.search(r'"securityType"\s*:\s*"ConfidentialVM"', command_output, re.IGNORECASE) is not None:
+            return True, 'IMDS:ConfidentialVM'
+
+        return False, str()
+
     def run_command_output(self, cmd, no_output=False, chk_err=True):
         # type: (str, bool, bool) -> (int, any)
         """ Wrapper for subprocess.check_output. Execute 'cmd'. Returns return code and STDOUT, trapping expected exceptions. Reports exceptions to Error if chk_err parameter is True """
