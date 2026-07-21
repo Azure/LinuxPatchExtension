@@ -233,6 +233,7 @@ class TestExecutionConfig(unittest.TestCase):
             [self.mock_run_command_for_dnf_not_found, str()],
             [self.mock_run_command_for_dnf_wrong_version, str()],
             [self.mock_run_command_for_dnf_version_command_failure, str()]
+        ]
           
         for row in test_input_output_table:
             self.envlayer.run_command_output = row[0]
