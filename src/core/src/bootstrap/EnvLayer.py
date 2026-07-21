@@ -106,7 +106,7 @@ class EnvLayer(object):
         # Example: ['Azure Linux', '4.0', '']
         os_name, os_version, os_code = self.platform.linux_distribution()
 
-        # Check for Rhel 10 ( uses dnf4)
+        # Check for Rhel 10(uses dnf4)
         if self.is_distro_rhel_10(os_name):
             if not self.__is_dnf_available():
                 error_msg = "Expected package manager dnf not found on this rhel 10 VM"
