@@ -15,7 +15,6 @@
 # Requires Python 2.7+
 
 """The is base package manager, which defines the package management relevant operations"""
-import json
 import os
 from abc import ABCMeta, abstractmethod
 from core.src.bootstrap.Constants import Constants
@@ -27,6 +26,7 @@ class PackageManager(object):
 
     def __init__(self, env_layer, execution_config, composite_logger, telemetry_writer, status_handler):
         self.env_layer = env_layer
+        self.execution_config = execution_config
         self.composite_logger = composite_logger
         self.telemetry_writer = telemetry_writer
         self.status_handler = status_handler
@@ -498,31 +498,21 @@ class PackageManager(object):
         pass
 
     # region Update certificates in factory defaults
-    # TODO (Before removing in-VM feature flag): This update should not be done in CVMs in current form
-    def update_certs(self):
-        # 1. Fetch and Log current certs on the VM NOTE: Common across distros
-            # ensure mokutil exists
-            # if not, install mokutil
-            # If success, fetch cert detail
-            # If not, throw exception and stop
-            # log output
-        # 2. If 2023 certs already exists, do nothing
-        # 3. If not, perform all the steps to update certs
-        # 4. Validate and log new certs were installed
+    def ensure_mokutil_available_for_cert_checks(self):
+        # type: () -> bool
+        """Ensures mokutil is available before certificate status checks."""
+        if self.is_mokutil_installed():
+            return True
 
-        self.composite_logger.log_verbose("[PM] Updating current certificates if needed...")
-        is_mokutil_installed = self.is_mokutil_installed()
-        try_install_mokutil_status = False
-        if not is_mokutil_installed:
-            try_install_mokutil_status = self.try_install_mokutil()
+        self.composite_logger.log_verbose("[PM][Certs] Mokutil is not installed. Attempting installation before cert check.")
+        try_install_mokutil_status = self.try_install_mokutil()
+        if try_install_mokutil_status:
+            return True
 
-        if is_mokutil_installed or try_install_mokutil_status:
-            self.try_update_certs()
-        else:
-            error_msg = "[PM][UpdateCerts] Mokutil is not installed and could not be installed. Cannot fetch current certs."
-            self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+        error_msg = "[PM][UpdateCerts] Mokutil is not installed and could not be installed. Cannot fetch current certs."
+        self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+        self.composite_logger.log_error(error_msg)
+        raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
     def is_mokutil_installed(self):
         # type: () -> bool
@@ -537,6 +527,17 @@ class PackageManager(object):
         kek_code, kek_out = self.fetch_current_certs(Constants.Certificates.KEK, self.get_kek_cert_status_cmd, raise_on_exception=False)
         db_code, db_out = self.fetch_current_certs(Constants.Certificates.DB, self.get_db_cert_status_cmd, raise_on_exception=False)
         return self.is_latest_cert_installed(kek_code, kek_out) and self.is_latest_cert_installed(db_code, db_out)
+
+    def are_latest_certs_present_with_mokutil_check(self):
+        # type: () -> bool
+        """ Checks if the latest certs (i.e. 2023 certs) are already installed on the machine based on mokutil output, ensuring mokutil is available for the check."""
+        are_latest_certs_present = False
+        try:
+            if self.ensure_mokutil_available_for_cert_checks():
+                are_latest_certs_present = self.are_latest_certs_present()
+        except Exception as e:
+            self.composite_logger.log_warning("Unable to determine whether latest certs are already installed before UEFI certificate update.[Error: {0}]".format( str(e)))
+        return are_latest_certs_present
 
     def fetch_current_certs(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
         # type: (str, str, bool) -> (int, str)
@@ -577,5 +578,33 @@ class PackageManager(object):
     def try_update_certs(self):
         """ Attempts to update certificate status """
         pass
+
+    @abstractmethod
+    def is_hibernation_enabled_for_cert_update(self):
+        # type: () -> bool
+        """Checks whether hibernation is enabled."""
+        pass
+
+    @abstractmethod
+    def is_reboot_required_before_cert_update(self):
+        """ Checks if a reboot is required before updating certificates """
+        pass
+
+    def is_cert_update_expected(self):
+        # type: () -> bool
+        """ Checks whether certificate update is supported. This should be overridden in individual package managers if they have specific criteria for cert update support. """
+        """ For all package managers: cert update is only allowed if explicitly enabled for auto patching."""
+        if self.execution_config.is_cert_update_for_auto_patching_explicitly_enabled():
+            self.composite_logger.log_debug("Certificate update enabled on this VM for an auto patching operation. Verifying if current operation is an auto patching operation")
+            if self.execution_config.is_default_patching():
+                self.composite_logger.log_debug("UEFI certificate update will be attempted in this auto patching operation")
+                return True
+            else:
+                self.composite_logger.log_debug("UEFI certificate will NOT be updated since this is not an auto patching operation. Continuing without certificate update.")
+                return False
+
+        # Default: not allowed unless explicitly enabled
+        self.composite_logger.log_debug("UEFI certificate update will NOT be attempted since this operation does not meet update criteria. Continuing without certificate update.")
+        return False
     # endregion
 
