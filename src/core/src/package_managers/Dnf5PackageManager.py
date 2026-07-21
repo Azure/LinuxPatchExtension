@@ -263,9 +263,9 @@ class Dnf5PackageManager(PackageManager):
         code, output = self.env_layer.run_command_output(cmd, False, False)
         self.composite_logger.log_verbose("[DNF5] Dependency simulation. [Command={0}][Code={1}]".format(cmd, str(code)))
         if code not in self.dnf5_simulation_valid_exit_codes:
-            self.composite_logger.log_error("[DNF5] Unexpected failure. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output))
+            self.composite_logger.log_error("[DNF5] Unexpected failure during dependency simulation. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output))
             error_msg = "DNF5 dependency simulation failed. Investigate and resolve unexpected return code({0}) from package manager on command: {1} ".format(str(code), cmd)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         dependencies = self.extract_dependencies(output, packages)
