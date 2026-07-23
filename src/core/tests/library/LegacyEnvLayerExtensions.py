@@ -1091,6 +1091,22 @@ class LegacyEnvLayerExtensions():
                         output = (
                             "Installed packages\n"
                             "rubygem-json.x86_64 2.13.2-2.azl4~20260501 azurelinux-base\n")
+                    elif cmd.find("sudo dnf5 install --assumeno --skip-broken openssl") > -1:
+                        code = 0
+                        output = "Updating and loading repositories:\n" + \
+                                 "Repositories loaded.\n" + \
+                                 "Package                                   Arch    Version                                   Repository                                Size\n" + \
+                                 "Upgrading:\n" + \
+                                 " openssl                                  x86_64  1:3.5.4-7.azl4                            azurelinux-base                        1.8 MiB\n" + \
+                                 "   replacing openssl                      x86_64  1:3.5.4-4.azl4                            64806a6b30824b51aafe6d2d87587286       1.8 MiB\n" + \
+                                 " openssl-libs                             x86_64  1:3.5.4-7.azl4                            azurelinux-base                        6.5 MiB\n" + \
+                                 "   replacing openssl-libs                 x86_64  1:3.5.4-4.azl4                            64806a6b30824b51aafe6d2d87587286       6.5 MiB\n" + \
+                                 "Transaction Summary:\n" + \
+                                 " Upgrading:          2 packages\n" + \
+                                 " Replacing:          2 packages\n\n" + \
+                                 "Total size of inbound packages is 3 MiB. Need to download 3 MiB.\n" + \
+                                 "After this operation, 32 B extra will be used (install 8 MiB, remove 8 MiB).\n" + \
+                                 "Operation aborted by the user."
             elif self.legacy_test_type == 'FailInstallPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0

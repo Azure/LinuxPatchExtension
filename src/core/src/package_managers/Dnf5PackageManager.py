@@ -310,7 +310,7 @@ class Dnf5PackageManager(PackageManager):
 
             #  Remove input packages (support both pkg and pkg.arch)
             if len(dependent_package_name) != 0 and dependent_package_name not in packages and dependent_package_name not in dependencies:
-                self.composite_logger.log_verbose("[DNF5] > Dependency detected: " + dependent_package_name)
+                self.composite_logger.log_debug("[DNF5] > Dependency detected: " + dependent_package_name)
                 dependencies.append(dependent_package_name)
 
         return dependencies
@@ -434,7 +434,7 @@ class Dnf5PackageManager(PackageManager):
 
             code, service_output = self.env_layer.run_command_output(self.dnf5_automatic_configuration_service, False, False)
             exec_start_line = ""
-            #Only print ExecStart details
+            # Only print ExecStart details
             for line in service_output.splitlines():
                 if line.strip().startswith("ExecStart"):
                     exec_start_line = line.strip()
@@ -448,12 +448,7 @@ class Dnf5PackageManager(PackageManager):
             default_download_updates_value, default_apply_updates_value, override_download_updates_value, override_apply_updates_value = self.__get_default_and_override_config_values()
 
             download_updates_value = (override_download_updates_value if override_download_updates_value != "" else default_download_updates_value)
-
-            apply_updates_value = (
-                override_apply_updates_value
-                if override_apply_updates_value != ""
-                else default_apply_updates_value
-            )
+            apply_updates_value = (override_apply_updates_value if override_apply_updates_value != "" else default_apply_updates_value)
 
             if download_updates_value == "":
                 self.composite_logger.log_verbose("[DNF5] Machine did not have any value set for [Setting={0}]".format(str(self.download_updates_identifier_text)))
@@ -526,7 +521,7 @@ class Dnf5PackageManager(PackageManager):
         if override_config_file is not None:
             return
 
-        self.composite_logger.log_debug("[DNF5] Override configuration file does not exist.Creating it from default configuration.")
+        self.composite_logger.log_debug("[DNF5] Override configuration file does not exist. Creating it from default configuration.")
         default_config = self.env_layer.file_system.read_with_retry(self.os_patch_default_configuration_settings_file_path)
         self.env_layer.file_system.write_with_retry(self.os_patch_override_configuration_settings_file_path, default_config, mode='w+')
 
@@ -563,19 +558,17 @@ class Dnf5PackageManager(PackageManager):
                     } """
         try:
             self.composite_logger.log_verbose("[DNF5] Ensuring there is a backup of the default patch state for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
-
             image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
             # verify if existing backup is valid if not, write to backup
             is_backup_valid = self.is_image_default_patch_configuration_backup_valid(image_default_patch_configuration_backup)
 
             if is_backup_valid:
-                self.composite_logger.log_debug("[DNF5] Since extension has a valid backup, no need to log the current settings again. ""[Default Auto OS update settings={0}] [File path={1}]".format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
+                self.composite_logger.log_debug("[DNF5] Since extension has a valid backup, no need to log the current settings again.[Default Auto OS update settings={0}] [File path={1}]".format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
             else:
                 self.composite_logger.log_debug("[DNF5] Since the backup is invalid, will add a new backup with the current auto OS update settings")
                 self.composite_logger.log_verbose("[DNF5] Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
 
                 is_service_installed, enable_on_reboot_value, _, _ = self.__get_current_auto_os_updates_setting_on_machine()
-
                 default_download_updates_value, default_apply_updates_value, override_download_updates_value, override_apply_updates_value = self.__get_default_and_override_config_values()
 
                 backup_image_default_patch_configuration_json_to_add = {
@@ -593,23 +586,22 @@ class Dnf5PackageManager(PackageManager):
                     }
                 }
                 image_default_patch_configuration_backup.update(backup_image_default_patch_configuration_json_to_add)
-
                 self.composite_logger.log_debug("[DNF5] Logging default system configuration settings for auto OS updates. [Settings={0}] [Log file path={1}]"
-                                                .format(str(image_default_patch_configuration_backup),self.image_default_patch_configuration_backup_path))
-                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path,'{0}'.format(json.dumps(image_default_patch_configuration_backup)),mode='w+')
+                                                .format(str(image_default_patch_configuration_backup), self.image_default_patch_configuration_backup_path))
+                self.env_layer.file_system.write_with_retry(self.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(image_default_patch_configuration_backup)), mode='w+')
         except Exception as error:
             self.composite_logger.log_error("[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error)))
             self.status_handler.add_error_to_status("[DNF5] Exception during fetching and logging default auto update settings on the machine. [Exception={0}]".format(repr(error)), Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
     def __get_default_and_override_config_values(self):
-        self.composite_logger.log_debug("[DNF5] Reading default configuration file. [Path={0}]".format(self.os_patch_default_configuration_settings_file_path))
+        self.composite_logger.log_verbose("[DNF5] Reading default configuration file. [Path={0}]".format(self.os_patch_default_configuration_settings_file_path))
         default_download_updates_value, default_apply_updates_value = self.__get_config_values(self.os_patch_default_configuration_settings_file_path)
-        self.composite_logger.log_debug("[DNF5] Default configuration values found.[download_updates={0}][apply_updates={1}]".format(default_download_updates_value, default_apply_updates_value))
+        self.composite_logger.log_verbose("[DNF5] Default configuration values found.[download_updates={0}][apply_updates={1}]".format(default_download_updates_value, default_apply_updates_value))
 
-        self.composite_logger.log_debug("[DNF5] Reading override configuration file. [Path={0}]".format(self.os_patch_override_configuration_settings_file_path))
+        self.composite_logger.log_verbose("[DNF5] Reading override configuration file. [Path={0}]".format(self.os_patch_override_configuration_settings_file_path))
         override_download_updates_value, override_apply_updates_value = self.__get_config_values(self.os_patch_override_configuration_settings_file_path)
-        self.composite_logger.log_debug("[DNF5] Override configuration values found.[download_updates={0}][apply_updates={1}]".format(override_download_updates_value, override_apply_updates_value))
+        self.composite_logger.log_verbose("[DNF5] Override configuration values found.[download_updates={0}][apply_updates={1}]".format(override_download_updates_value, override_apply_updates_value))
 
         return default_download_updates_value, default_apply_updates_value, override_download_updates_value, override_apply_updates_value
 
@@ -617,10 +609,10 @@ class Dnf5PackageManager(PackageManager):
         download_updates_value = ""
         apply_updates_value = ""
 
-        self.composite_logger.log_debug("[DNF5] Reading config file. [Path={0}]".format(config_file_path))
+        self.composite_logger.log_verbose("[DNF5] Reading config file. [Path={0}]".format(config_file_path))
         config = self.env_layer.file_system.read_with_retry(config_file_path, raise_if_not_found=False)
         if config is None:
-            self.composite_logger.log_debug("[DNF5] Config file not found. [Path={0}]".format(config_file_path))
+            self.composite_logger.log_verbose("[DNF5] Config file not found. [Path={0}]".format(config_file_path))
             return download_updates_value, apply_updates_value
 
         settings = config.strip().split('\n')
@@ -629,15 +621,14 @@ class Dnf5PackageManager(PackageManager):
             match = re.search(self.download_updates_identifier_text + self.auto_update_config_pattern_match_text, str(setting))
             if match is not None:
                 download_updates_value = match.group(1)
-                self.composite_logger.log_debug("[DNF5] Found download_updates setting.[Value={0}]".format(download_updates_value))
+                self.composite_logger.log_verbose("[DNF5] Found download_updates setting.[Value={0}]".format(download_updates_value))
 
             match = re.search(self.apply_updates_identifier_text + self.auto_update_config_pattern_match_text, str(setting))
             if match is not None:
                 apply_updates_value = match.group(1)
-                self.composite_logger.log_debug("[DNF5] Found apply_updates setting.[Value={0}]".format(apply_updates_value))
+                self.composite_logger.log_verbose("[DNF5] Found apply_updates setting.[Value={0}]".format(apply_updates_value))
 
-        self.composite_logger.log_debug("[DNF5] Finished parsing configuration values.[Path={0}][DownloadUpdates={1}][ApplyUpdates={2}]".format(config_file_path, download_updates_value, apply_updates_value))
-
+        self.composite_logger.log_verbose("[DNF5] Finished parsing configuration values.[Path={0}][DownloadUpdates={1}][ApplyUpdates={2}]".format(config_file_path, download_updates_value, apply_updates_value))
         return download_updates_value, apply_updates_value
 
     def is_image_default_patch_configuration_backup_valid(self, image_default_patch_configuration_backup):
@@ -645,45 +636,30 @@ class Dnf5PackageManager(PackageManager):
         return self.is_backup_valid_for_dnf5_automatic(image_default_patch_configuration_backup)
 
     def is_backup_valid_for_dnf5_automatic(self, image_default_patch_configuration_backup):
-            default_backup_valid = self.__is_backup_valid(
-                image_default_patch_configuration_backup,
-                self.os_patch_default_configuration_backup_key
-            )
-
-            override_backup_valid = self.__is_backup_valid(
-                image_default_patch_configuration_backup,
-                self.os_patch_override_configuration_backup_key
-            )
+            default_backup_valid = self.__is_backup_valid(image_default_patch_configuration_backup, self.os_patch_default_configuration_backup_key)
+            override_backup_valid = self.__is_backup_valid(image_default_patch_configuration_backup, self.os_patch_override_configuration_backup_key)
 
             if default_backup_valid and override_backup_valid:
-                self.composite_logger.log_debug(
-                    "[DNF5] Extension has a valid backup for default and override dnf5-automatic configuration settings"
-                )
+                self.composite_logger.log_debug("[DNF5] Extension has a valid backup for default and override dnf5-automatic configuration settings")
                 return True
 
-            self.composite_logger.log_debug(
-                "[DNF5] Extension does not have a valid backup for default and override dnf5-automatic configuration settings"
-            )
+            self.composite_logger.log_debug("[DNF5] Extension does not have a valid backup for default and override dnf5-automatic configuration settings")
             return False
 
     def __is_backup_valid(self, image_default_patch_configuration_backup, backup_key):
         return (backup_key in image_default_patch_configuration_backup
-                and self.dnf5_automatic_download_updates_identifier_text
-                in image_default_patch_configuration_backup[backup_key]
-                and self.dnf5_automatic_apply_updates_identifier_text
-                in image_default_patch_configuration_backup[backup_key]
-                and self.dnf5_automatic_enable_on_reboot_identifier_text
-                in image_default_patch_configuration_backup[backup_key]
-                and self.dnf5_automatic_installation_state_identifier_text
-                in image_default_patch_configuration_backup[backup_key])
+                and self.dnf5_automatic_download_updates_identifier_text in image_default_patch_configuration_backup[backup_key]
+                and self.dnf5_automatic_apply_updates_identifier_text in image_default_patch_configuration_backup[backup_key]
+                and self.dnf5_automatic_enable_on_reboot_identifier_text in image_default_patch_configuration_backup[backup_key]
+                and self.dnf5_automatic_installation_state_identifier_text in image_default_patch_configuration_backup[backup_key])
 
-    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="no",config_pattern_match_text="", config_file_path=None):
+    def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="no", config_pattern_match_text="", config_file_path=None):
         try:
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
             if config_file_path is None:
                 config_file_path = self.os_patch_override_configuration_settings_file_path
-            self.composite_logger.log_debug("[DNF5] Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]".format(
-                    str(patch_configuration_sub_setting), value))
+            self.composite_logger.log_debug("[DNF5] Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]"
+                                    .format(str(patch_configuration_sub_setting), value))
             os_patch_configuration_settings = self.env_layer.file_system.read_with_retry(config_file_path)
             patch_configuration_sub_setting_to_update = patch_configuration_sub_setting + ' = ' + value
             patch_configuration_sub_setting_found_in_file = False
@@ -701,10 +677,9 @@ class Dnf5PackageManager(PackageManager):
             if not patch_configuration_sub_setting_found_in_file:
                 updated_patch_configuration_sub_setting += patch_configuration_sub_setting_to_update + "\n"
 
-            self.env_layer.file_system.write_with_retry(config_file_path,'{0}'.format(updated_patch_configuration_sub_setting.lstrip()),mode='w+')
+            self.env_layer.file_system.write_with_retry(config_file_path,'{0}'.format(updated_patch_configuration_sub_setting.lstrip()), mode='w+')
         except Exception as error:
-            error_msg = "[DNF5] Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(
-                str(patch_configuration_sub_setting), repr(error))
+            error_msg = "[DNF5] Error occurred while updating system configuration settings for auto OS updates. [Patch Configuration={0}] [Error={1}]".format(str(patch_configuration_sub_setting), repr(error))
             self.composite_logger.log_error(error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
@@ -728,19 +703,10 @@ class Dnf5PackageManager(PackageManager):
             return
 
         default_download_updates_value, default_apply_updates_value, override_download_updates_value, override_apply_updates_value = self.__get_default_and_override_config_values()
-        self.composite_logger.log_verbose("[DNF5] Logging current configuration settings for auto OS updates "
-        "[Service={0}]""[Is_Service_Installed={1}]""[Machine_default_update_enable_on_reboot={2}]""[Effective_download_updates={3}]"
-        "[Effective_apply_updates={4}]"
-        "[Default_download_updates={5}]""[Default_apply_updates={6}]""[Override_download_updates={7}]""[Override_apply_updates={8}]"
-        .format(str(self.current_auto_os_update_service), str(is_service_installed), str(enable_on_reboot_value),
-        str(download_updates_value),
-        str(apply_updates_value),
-        str(default_download_updates_value),
-        str(default_apply_updates_value),
-        str(override_download_updates_value),
-        str(override_apply_updates_value)))
-        # self.composite_logger.log_verbose("[DNF5] Logging current configuration settings for auto OS updates [Service={0}][Is_Service_Installed={1}][Machine_default_update_enable_on_reboot={2}]".format(
-        #         str(self.current_auto_os_update_service), str(is_service_installed), str(enable_on_reboot_value)))
+        self.composite_logger.log_verbose("[DNF5] Logging current configuration settings for auto OS updates [Service={0}][Is_Service_Installed={1}][Machine_default_update_enable_on_reboot={2}][Effective_download_updates={3}]"
+                                            "[Effective_apply_updates={4}][Default_download_updates={5}][Default_apply_updates={6}][Override_download_updates={7}][Override_apply_updates={8}]"
+        .format(str(self.current_auto_os_update_service), str(is_service_installed), str(enable_on_reboot_value), str(download_updates_value), str(apply_updates_value),
+                        str(default_download_updates_value), str(default_apply_updates_value), str(override_download_updates_value), str(override_apply_updates_value)))
 
         image_default_patch_configuration_backup = self.__get_image_default_patch_configuration_backup()
         self.composite_logger.log_verbose("[DNF5] Logging system default configuration settings for auto OS updates. [Settings={0}]".format(str(image_default_patch_configuration_backup)))
@@ -753,14 +719,6 @@ class Dnf5PackageManager(PackageManager):
             self.__restore_default_configuration_from_backup(default_backup)
             self.__restore_override_configuration_from_backup(override_backup)
             self.__restore_enable_on_reboot_state_from_backup(default_backup)
-            # download_updates_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.download_updates_identifier_text]
-            # apply_updates_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.apply_updates_identifier_text]
-            # enable_on_reboot_value_from_backup = image_default_patch_configuration_backup[self.current_auto_os_update_service][self.enable_on_reboot_identifier_text]
-            #
-            # self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, download_updates_value_from_backup, self.auto_update_config_pattern_match_text)
-            # self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, apply_updates_value_from_backup, self.auto_update_config_pattern_match_text)
-            # if str(enable_on_reboot_value_from_backup).lower() == 'true':
-            #     self.enable_auto_update_on_reboot()
         else:
             self.composite_logger.log_debug("[DNF5] Since the backup is invalid or does not exist for current service, we won't be able to revert auto OS patch settings to their system default value. [Service={0}]".format(str(self.current_auto_os_update_service)))
 
@@ -773,103 +731,52 @@ class Dnf5PackageManager(PackageManager):
             self.composite_logger.log_debug("[DNF5] Override configuration file does not exist. Nothing to remove. [Path={0}]".format(self.os_patch_override_configuration_settings_file_path))
             return
 
-        self.composite_logger.log_debug("[DNF5] Removing override configuration file to restore machine default. [Path={0}]".format(self.os_patch_override_configuration_settings_file_path) )
-
+        self.composite_logger.log_debug("[DNF5] Removing override configuration file to restore machine default.[Path={0}]".format(self.os_patch_override_configuration_settings_file_path))
         code, out = self.env_layer.run_command_output(self.dnf5_automatic_remove_override_configuration_file_cmd, False, False)
 
         if code != 0:
-            error_msg = "[DNF5] Error removing override configuration file. [Command={0}][Code={1}][Output={2}]".format(
-                self.dnf5_automatic_remove_override_configuration_file_cmd,
-                str(code),
-                out
-            )
+            error_msg = "[DNF5] Error removing override configuration file. [Command={0}][Code={1}][Output={2}]".format(self.dnf5_automatic_remove_override_configuration_file_cmd, str(code), out)
             self.composite_logger.log_error(error_msg)
-            self.status_handler.add_error_to_status(
-                error_msg,
-                Constants.PatchOperationErrorCodes.OPERATION_FAILED
-            )
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
-        self.composite_logger.log_debug(
-            "[DNF5] Removed override configuration file. [Command={0}][Code={1}][Output={2}]"
-            .format(self.dnf5_automatic_remove_override_configuration_file_cmd, str(code), out)
-        )
+        self.composite_logger.log_debug("[DNF5] Removed override configuration file. [Command={0}][Code={1}][Output={2}]".format(self.dnf5_automatic_remove_override_configuration_file_cmd, str(code), out))
 
     def __restore_default_configuration_from_backup(self, default_backup):
         """Restore default dnf5-automatic configuration to its backed up state."""
-
         default_download_updates = default_backup[self.download_updates_identifier_text]
         default_apply_updates = default_backup[self.apply_updates_identifier_text]
 
         self.composite_logger.log_debug("[DNF5] Restoring default dnf5-automatic configuration values from backup.[Path={0}][download_updates={1}][apply_updates={2}]"
-            .format(self.os_patch_default_configuration_settings_file_path, str(default_download_updates),str(default_apply_updates)
-            )
-        )
+            .format(self.os_patch_default_configuration_settings_file_path, str(default_download_updates), str(default_apply_updates)))
 
-        self.update_os_patch_configuration_sub_setting(
-            self.download_updates_identifier_text,
-            default_download_updates,
-            self.auto_update_config_pattern_match_text,
-            self.os_patch_default_configuration_settings_file_path
-        )
-
-        self.update_os_patch_configuration_sub_setting(
-            self.apply_updates_identifier_text,
-            default_apply_updates,
-            self.auto_update_config_pattern_match_text,
-            self.os_patch_default_configuration_settings_file_path
-        )
+        self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, default_download_updates, self.auto_update_config_pattern_match_text, self.os_patch_default_configuration_settings_file_path)
+        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, default_apply_updates, self.auto_update_config_pattern_match_text, self.os_patch_default_configuration_settings_file_path)
 
     def __restore_override_configuration_from_backup(self, override_backup):
         """Restore override dnf5-automatic configuration to its backed up state."""
-
         override_download_updates = override_backup[self.download_updates_identifier_text]
         override_apply_updates = override_backup[self.apply_updates_identifier_text]
 
         # Empty values indicate override file did not exist before onboarding.
         if override_download_updates == "" and override_apply_updates == "":
-            self.composite_logger.log_debug(
-                "[DNF5] Override dnf5-automatic configuration did not exist before onboarding. "
-                "Removing override configuration file if it exists."
-            )
-
+            self.composite_logger.log_debug("[DNF5] Override dnf5-automatic configuration did not exist before onboarding.Removing override configuration file if it exists.")
             self.__remove_override_configuration_if_exists()
             return
 
-        self.composite_logger.log_debug(
-            "[DNF5] Restoring override dnf5-automatic configuration values from backup. "
-            "[Path={0}][download_updates={1}][apply_updates={2}]"
-            .format(
-                self.os_patch_override_configuration_settings_file_path,
-                str(override_download_updates),
-                str(override_apply_updates)
-            )
-        )
+        self.composite_logger.log_debug("[DNF5] Restoring override dnf5-automatic configuration values from backup. [Path={0}][download_updates={1}][apply_updates={2}]".format(
+                self.os_patch_override_configuration_settings_file_path, str(override_download_updates), str(override_apply_updates)))
 
         self.__ensure_override_configuration_exists()
 
-        self.update_os_patch_configuration_sub_setting(
-            self.download_updates_identifier_text,
-            override_download_updates,
-            self.auto_update_config_pattern_match_text,
-            self.os_patch_override_configuration_settings_file_path
-        )
-
-        self.update_os_patch_configuration_sub_setting(
-            self.apply_updates_identifier_text,
-            override_apply_updates,
-            self.auto_update_config_pattern_match_text,
-            self.os_patch_override_configuration_settings_file_path
-        )
+        self.update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, override_download_updates, self.auto_update_config_pattern_match_text, self.os_patch_override_configuration_settings_file_path)
+        self.update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, override_apply_updates, self.auto_update_config_pattern_match_text, self.os_patch_override_configuration_settings_file_path)
 
     def __restore_enable_on_reboot_state_from_backup(self, default_backup):
         enable_on_reboot_value = default_backup[self.enable_on_reboot_identifier_text]
 
         if str(enable_on_reboot_value).lower() == 'true':
-            self.composite_logger.log_debug(
-                "[DNF5] Restoring dnf5-automatic timer to enabled state from backup."
-            )
-
+            self.composite_logger.log_debug("[DNF5] Restoring dnf5-automatic timer to enabled state from backup.")
             self.enable_auto_update_on_reboot()
 
     def enable_auto_update_on_reboot(self):
@@ -885,7 +792,7 @@ class Dnf5PackageManager(PackageManager):
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:
-            self.composite_logger.log_debug("[DNF5] Enabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code),out))
+            self.composite_logger.log_debug("[DNF5] Enabled auto update on reboot.[Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
 
     def __get_image_default_patch_configuration_backup(self):
         """ Get image_default_patch_configuration_backup file"""
