@@ -199,9 +199,23 @@ class ProcessHandler(object):
                 # According to "man 2 kill" possible error values are (EINVAL, EPERM, ESRCH) Thus considering this as an error
                 return False
 
+    def is_process_patching_operation(self, pid):
+        try:
+            with self.env_layer.file_system.open("/proc/{0}/cmdline".format(str(pid)), mode="r") as cmdline_file:
+                cmdline = cmdline_file.read()
+                if Constants.CORE_CODE_FILE_NAME in cmdline:
+                    self.logger.log_debug("Process is a patching operation. [PID={0}]".format(str(pid)))
+                    return True
+                else:
+                    self.logger.log_debug("Process is not a patching operation. [PID={0}]".format(str(pid)))
+                    return False
+        except Exception as error:
+            self.logger.log_debug("Error checking if process is a patching operation. [PID={0}] [Error={1}]".format(str(pid), repr(error)))
+            return True  # If we cannot determine, assume it is a patching operation to be safe
+
     def kill_process(self, pid):
         try:
-            if self.is_process_running(pid):
+            if self.is_process_running(pid) and self.is_process_patching_operation(pid):
                 self.logger.log("Terminating process: [PID={0}]".format(str(pid)))
                 os.kill(pid, signal.SIGTERM)
         except OSError as error:
