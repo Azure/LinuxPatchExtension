@@ -49,7 +49,7 @@ class TestProcessHandler(unittest.TestCase):
     def mock_is_process_running_to_return_true(self, pid):
         return True
 
-    def mock_is_process_running_to_return_true(self, pid):
+    def mock_is_process_patching_operation_to_return_true(self, pid):
         return True
 
     def mock_os_kill_to_raise_exception(self, pid, sig):
