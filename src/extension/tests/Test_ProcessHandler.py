@@ -49,6 +49,9 @@ class TestProcessHandler(unittest.TestCase):
     def mock_is_process_running_to_return_true(self, pid):
         return True
 
+    def mock_is_process_running_to_return_true(self, pid):
+        return True
+
     def mock_os_kill_to_raise_exception(self, pid, sig):
         raise OSError
 
@@ -133,6 +136,8 @@ class TestProcessHandler(unittest.TestCase):
         # setting mocks
         is_process_running_backup = ProcessHandler.is_process_running
         ProcessHandler.is_process_running = self.mock_is_process_running_to_return_true
+        is_process_patching_operation_backup = ProcessHandler.is_process_patching_operation
+        ProcessHandler.is_process_patching_operation = self.mock_is_process_patching_operation_to_return_true
         os_kill_backup = os.kill
         os.kill = self.mock_os_kill_to_raise_exception
 
@@ -143,6 +148,7 @@ class TestProcessHandler(unittest.TestCase):
 
         # reseting mocks
         ProcessHandler.is_process_running = is_process_running_backup
+        ProcessHandler.is_process_patching_operation = is_process_patching_operation_backup
         os.kill = os_kill_backup
 
     def test_get_python_cmd(self):
