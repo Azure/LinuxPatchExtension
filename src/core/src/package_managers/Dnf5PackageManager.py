@@ -91,7 +91,11 @@ class Dnf5PackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(command, False, False)
         is_valid_not_installed = (self.dnf5_list_installed_command_patterns in command and code == self.dnf5_not_installed_exit_code and self.dnf5_not_installed_text in (out or ""))
 
-        if code in self.dnf_exitcode_ok or is_valid_not_installed:
+        # DNF5 dependency simulation using `upgrade --assumeno` may return non-standard exit codes. Successful simulations and transaction
+        # resolution failures can both return exit code 1, therefore both command output and exit code are evaluated.
+        is_valid_dependency_simulation = (self.single_package_upgrade_simulation_cmd in command and code in self.dnf5_simulation_valid_exit_codes)
+
+        if code in self.dnf_exitcode_ok or is_valid_not_installed or is_valid_dependency_simulation:
             self.composite_logger.log_debug('[DNF5] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         else:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -257,16 +261,7 @@ class Dnf5PackageManager(PackageManager):
         # Gets the dependent list from packages.Refer dnf5_output_expected_format.txt for examples of output formats.
         package_names = " ".join(packages)
         cmd = self.single_package_upgrade_simulation_cmd + package_names
-        # DNF5 dependency simulation using `upgrade --assumeno` may return non-standard exit codes. Successful simulations and transaction
-        # resolution failures can both return exit code 1, therefore both command output and exit code are evaluated.
-        code, output = self.env_layer.run_command_output(cmd, False, False)
-        self.composite_logger.log_verbose("[DNF5] Dependency simulation. [Command={0}][Code={1}]".format(cmd, str(code)))
-        if code not in self.dnf5_simulation_valid_exit_codes:
-            self.composite_logger.log_error("[DNF5] Unexpected failure. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output))
-            error_msg = "DNF5 dependency simulation failed. Investigate and resolve unexpected return code({0}) from package manager on command: {1} ".format(str(code), cmd)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-
+        output = self.invoke_package_manager(cmd)
         dependencies = self.extract_dependencies(output, packages)
         self.composite_logger.log_verbose("[DNF5] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd), str(packages), len(dependencies)))
         return dependencies
