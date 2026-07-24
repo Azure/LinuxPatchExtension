@@ -15,6 +15,7 @@
 # Requires Python 2.7+
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -47,6 +48,7 @@ class TestProcessHandler(unittest.TestCase):
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        shutil.rmtree(self.test_dir)
         self.process.kill()
 
     def mock_is_process_running_to_return_true(self, pid):
