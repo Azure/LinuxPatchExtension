@@ -73,6 +73,9 @@ class TestProcessHandler(unittest.TestCase):
     def mock_file_system_open_to_return_proc_cmdline(self, path, mode):
         return open(self.proc_cmdline_path, mode=mode)
 
+    def mock_file_system_open_raises_exception(self, path, mode):
+        raise FileNotFoundError
+
     def mock_run_command_to_set_auto_assess_shell_file_permission(self, cmd, no_output=False, chk_err=False):
         return 0, "permissions set"
 
@@ -242,6 +245,13 @@ class TestProcessHandler(unittest.TestCase):
         pid = 1234
         
         self.assertFalse(process_handler.is_process_patching_operation(pid))
+
+        self.env_layer.file_system.open = self.mock_file_system_open_raises_exception
+
+        process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
+        pid = 1234
+
+        self.assertTrue(process_handler.is_process_patching_operation(pid))
 
         # resetting mocks
         self.env_layer.file_system.open = backup_file_system_open
