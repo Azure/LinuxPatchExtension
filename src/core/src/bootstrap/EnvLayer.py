@@ -117,7 +117,8 @@ class EnvLayer(object):
 
             code, out, version = self.__get_dnf_version()
             if version:
-                if version.startswith('5'):
+                major_version = version.split('.')[0]
+                if major_version == '5':
                     return Constants.DNF5
                 print("Error: Expected dnf version 5 on this Azure Linux4 VM. Found: {0}".format(version))
                 return str()

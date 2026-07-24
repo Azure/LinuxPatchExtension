@@ -84,19 +84,16 @@ class TestExecutionConfig(unittest.TestCase):
     def mock_run_command_for_dnf_not_found(self, cmd, no_output=False, chk_err=False):
         return -1, ''
 
-    def mock_run_command_for_dnf_wrong_version(self, cmd, no_output=False, chk_err=False):
+    def mock_run_command_for_dnf_version_command(self, cmd, usecase="success"):
         if "which dnf" in cmd:
-            return 0, '/usr/bin/dnf'
+            return 0, "/usr/bin/dnf"
         if "dnf --version" in cmd:
-            return 0, 'dnf version 4.14.0'
-        return -1, ''
-
-    def mock_run_command_for_dnf_version_command_failure(self, cmd, no_output=False, chk_err=False):
-        if "which dnf" in cmd:
-            return 0, '/usr/bin/dnf'
-        if "dnf --version" in cmd:
-            return -1, 'dnf version command failure'
-        return -1, ''
+            if usecase == "wrong_version":
+                return 0, "dnf version 4.14.0"
+            if usecase == "version_command_failure":
+                return -1, "dnf version command failure"
+            return 0, "dnf version 5.2.6"
+        return -1, ""
 
     def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
         return '4.0.0'
@@ -156,22 +153,25 @@ class TestExecutionConfig(unittest.TestCase):
         self.backup_distro_os_release_attr = distro.os_release_attr
 
         test_input_output_table = [
-            [self.mock_run_command_for_apt, self.mock_linux_distribution, Constants.APT, self.mock_distro_os_release_attr_return_none],
-            [self.mock_run_command_for_dnf5, self.mock_linux_distribution_to_return_azure_linux_4, Constants.DNF5, self.mock_distro_os_release_attr_return_azure_linux_4],
-            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_3, Constants.TDNF, self.mock_distro_os_release_attr_return_azure_linux_3],
-            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, str(), self.mock_distro_os_release_attr_return_none],  # check for Azure Linux machine which does not have tdnf
-            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, Constants.TDNF, self.mock_distro_os_release_attr_return_azure_linux_2],
-            [self.mock_run_command_for_yum, self.mock_linux_distribution, Constants.YUM, self.mock_distro_os_release_attr_return_none],
-            [self.mock_run_command_for_zypper, self.mock_linux_distribution, Constants.ZYPPER, self.mock_distro_os_release_attr_return_none],
-            [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, str(), self.mock_distro_os_release_attr_return_none],    # no matches for any package manager
+            [self.mock_run_command_for_apt, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, Constants.APT],
+            [self.mock_run_command_for_dnf5, self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, Constants.DNF5],
+            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_azure_linux_3, Constants.TDNF],
+            [self.mock_run_command_for_yum, self.mock_linux_distribution_to_return_azure_linux_3, self.mock_distro_os_release_attr_return_none, str()],  # check for Azure Linux machine which does not have tdnf
+            [self.mock_run_command_for_tdnf, self.mock_linux_distribution_to_return_azure_linux_2, self.mock_distro_os_release_attr_return_azure_linux_2, Constants.TDNF],
+            [self.mock_run_command_for_yum, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, Constants.YUM],
+            [self.mock_run_command_for_zypper, self.mock_linux_distribution,  self.mock_distro_os_release_attr_return_none, Constants.ZYPPER],
+            [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, str()], # no matches for any package manager
+            [self.mock_run_command_for_dnf_not_found, self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()],
+            [lambda cmd, no_output, chk_err=False: self.mock_run_command_for_dnf_version_command(cmd, "wrong_version"), self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()],
+            [lambda cmd, no_output, chk_err=False: self.mock_run_command_for_dnf_version_command(cmd,"version_command_failure"), self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()]
         ]
 
         for row in test_input_output_table:
             self.envlayer.run_command_output = row[0]
             self.envlayer.platform.linux_distribution = row[1]
-            distro.os_release_attr = row[3]
+            distro.os_release_attr = row[2]
             package_manager = self.envlayer.get_package_manager()
-            self.assertEqual(package_manager, row[2])
+            self.assertEqual(package_manager, row[3])
 
         # test for Windows
         platform.system = self.mock_platform_system_windows
@@ -218,34 +218,6 @@ class TestExecutionConfig(unittest.TestCase):
         # restore original methods
         distro.os_release_attr = self.backup_envlayer_distro_os_release_attr
 
-    def test_get_package_manager_dnf5_error_cases(self):
-        """Test dnf5 error cases in get_package_manager"""
-        self.backup_platform_system = platform.system
-        self.backup_linux_distribution = self.envlayer.platform.linux_distribution
-        self.backup_run_command_output = self.envlayer.run_command_output
-        self.backup_distro_os_release_attr = distro.os_release_attr
-
-        platform.system = self.mock_platform_system
-        self.envlayer.platform.linux_distribution = self.mock_linux_distribution_to_return_azure_linux_4
-        distro.os_release_attr = self.mock_distro_os_release_attr_return_azure_linux_4
-
-        test_input_output_table = [
-            [self.mock_run_command_for_dnf_not_found, str()],
-            [self.mock_run_command_for_dnf_wrong_version, str()],
-            [self.mock_run_command_for_dnf_version_command_failure, str()]
-        ]
-          
-        for row in test_input_output_table:
-            self.envlayer.run_command_output = row[0]
-            result = self.envlayer.get_package_manager()
-            self.assertEqual(result, row[1])
-
-        # restore original methods
-        self.envlayer.run_command_output = self.backup_run_command_output
-        self.envlayer.platform.linux_distribution = self.backup_linux_distribution
-        distro.os_release_attr = self.backup_distro_os_release_attr
-        platform.system = self.backup_platform_system
-         
     def test_detect_confidential_vm_by_fde(self):
         backup_run_command_output = self.envlayer.run_command_output
         backup_read_with_retry = self.envlayer.file_system.read_with_retry
@@ -366,10 +338,10 @@ class TestExecutionConfig(unittest.TestCase):
         code, out = self.mock_run_command_for_dnf5('which not-dnf')
         self.assertEqual(code, -1)
 
-        code, out = self.mock_run_command_for_dnf_wrong_version('dnf --v')
+        code, out = self.mock_run_command_for_dnf_version_command('dnf --v', "wrong_version")
         self.assertEqual(code, -1)
 
-        code, out = self.mock_run_command_for_dnf_version_command_failure('dnf --v')
+        code, out = self.mock_run_command_for_dnf_version_command('dnf --v', "version_command_failure")
         self.assertEqual(code, -1)
 
         code, out = self.mock_run_command_for_tdnf('which not-tdnf')
