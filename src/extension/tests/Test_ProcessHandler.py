@@ -17,6 +17,7 @@
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from extension.src.Constants import Constants
 from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
@@ -39,7 +40,8 @@ class TestProcessHandler(unittest.TestCase):
         self.json_file_handler = runtime.json_file_handler
         self.env_layer = runtime.env_layer
         dir_path = os.path.join(os.path.pardir, "tests", "helpers")
-        self.proc_cmdline_path = os.path.join(dir_path, "proc_cmdline")
+        self.test_dir = tempfile.mkdtemp()
+        self.proc_cmdline_path = os.path.join(self.test_dir, "proc_cmdline")
         self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
         self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
