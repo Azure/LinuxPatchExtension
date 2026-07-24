@@ -246,6 +246,7 @@ class TestProcessHandler(unittest.TestCase):
         
         self.assertFalse(process_handler.is_process_patching_operation(pid))
 
+        # process cmdline exception
         self.env_layer.file_system.open = self.mock_file_system_open_raises_exception
 
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
