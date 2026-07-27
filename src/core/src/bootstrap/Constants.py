@@ -89,7 +89,8 @@ class Constants(object):
         LAST_MODIFIED = 'LastModified'
 
     class UEFISettings(EnumBackport):
-        ENABLE_UEFI_CERT_UPDATE = 'EnableUEFICertUpdate'
+        ENABLE_UEFI_CERT_UPDATE_FOR_AUTO_PATCHING = 'EnableUEFICertUpdateForAutoPatching'
+        ENABLE_UEFI_CERT_UPDATE_FOR_ALL_PATCHING = 'EnableUEFICertUpdateForAllPatching'
         ENABLED_BY = 'EnabledBy'
         LAST_MODIFIED = 'LastModified'
 
@@ -100,6 +101,9 @@ class Constants(object):
     class Certificates(EnumBackport):
         KEK = "KEK"
         DB = "DB"
+
+    # Confidential VM detection shim script name
+    DETECT_CVM_SHIM_FILE_NAME = "external_dependencies/DetectConfidentialVMShim.sh"
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"

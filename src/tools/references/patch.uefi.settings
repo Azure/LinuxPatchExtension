@@ -1,1 +1,1 @@
-{"EnableUEFICertUpdate": "true", "EnabledBy": "LSG", "LastModified": "2026-05-23"}
+{"EnableUEFICertUpdateForAutoPatching": "true", "EnableUEFICertUpdateForAllPatching": "true", "EnabledBy": "LSG", "LastModified": "2026-05-23"}

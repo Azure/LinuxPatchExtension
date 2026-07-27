@@ -1130,5 +1130,13 @@ class YumPackageManager(PackageManager):
     def try_update_certs(self):
         """ Attempts to update certificate status """
         pass
+
+    def is_hibernation_enabled_for_cert_update(self):
+        """Checks whether hibernation is enabled."""
+        return False
+
+    def is_reboot_required_before_cert_update(self):
+        """ Checks if a reboot is required before updating certificates """
+        return False
     # endregion
 

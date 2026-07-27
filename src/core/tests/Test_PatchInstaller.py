@@ -33,23 +33,81 @@ class TestPatchInstaller(unittest.TestCase):
         pass
 
     # region Mocks
-    def mock_update_certs_raise_exception(self):
+    def mock_try_update_certs_raise_exception(self):
         raise Exception("Simulated cert update failure")
+
+    def mock_update_certs_returns_false(self):
+        return False
+
+    def mock_detect_confidential_vm_raises_exception(self):
+        raise Exception("Simulated VM detection failure")
+
+    def mock_detect_confidential_vm_by_imds_returns_true(self):
+        return True, 'IMDS:ConfidentialVM'
+
+    def mock_detect_confidential_vm_returns_false(self):
+        return False, str()
+
+    def mock_should_reboot_before_cert_update_returns_true(self):
+        return True
+
+    def mock_should_reboot_before_cert_update_returns_false(self):
+        return False
+
+    def mock_start_reboot_if_required_and_time_available_returns_false(self, current_time):
+        return False
+
+    def mock_start_reboot_if_required_and_time_available_raises_exception(self, current_time):
+        raise Exception("Simulated reboot failure")
+
+    def mock_is_hibernation_enabled_for_cert_update_returns_true(self):
+        return True
+
+    def mock_is_hibernation_enabled_for_cert_update_returns_false(self):
+        return False
+
+    def mock_is_hibernation_enabled_for_cert_update_raises_exception(self):
+        raise Exception("Simulated hibernation detection failure")
+
+    def mock_are_latest_certs_present_with_mokutil_check_returns_true(self):
+        return True
+
+    def mock_are_latest_certs_present_with_mokutil_check_returns_false(self):
+        return False
+
+    def mock_try_update_certs_returns_true(self):
+        return True
+
+    def mock_is_cert_update_supported_returns_true(self):
+        return True
+
+    def mock_is_cert_update_supported_returns_false(self):
+        return False
     # endregion
 
     # region Utility functions (update cert tests)
-    def _create_update_certs_runtime(self, enable_uefi_cert_update=True, health_store_id=None, operation=Constants.INSTALLATION):
+    def _create_update_certs_runtime(self, enable_uefi_cert_update=True, health_store_id=None, operation=Constants.INSTALLATION, reboot_setting=None, package_manager_name=Constants.APT,
+                                     enable_uefi_cert_update_for_auto_patching=None, enable_uefi_cert_update_for_all_patching=None, use_per_mode_uefi_cert_update_settings=False):
+
         argument_composer = ArgumentComposer()
         argument_composer.health_store_id = health_store_id
         argument_composer.operation = operation
+        if reboot_setting is not None:
+            argument_composer.reboot_setting = reboot_setting
+
+        if not use_per_mode_uefi_cert_update_settings:
+            enable_uefi_cert_update_for_auto_patching = bool(enable_uefi_cert_update)
+            enable_uefi_cert_update_for_all_patching = bool(enable_uefi_cert_update)
+
         config_file_path = Constants.AzGPSPaths.UEFI_SETTINGS
         config_settings = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": True if enable_uefi_cert_update else False,
+            Constants.UEFISettings.ENABLED_BY: "TestSetup",
+            Constants.UEFISettings.LAST_MODIFIED: "2026-04-21",
+            Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE_FOR_AUTO_PATCHING: enable_uefi_cert_update_for_auto_patching,
+            Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE_FOR_ALL_PATCHING: enable_uefi_cert_update_for_all_patching,
         }
         self.__write_config_settings_to_file(config_settings, config_file_path=config_file_path)
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, package_manager_name)
         return runtime
 
     @staticmethod
@@ -58,10 +116,14 @@ class TestPatchInstaller(unittest.TestCase):
             f.write(json.dumps(config_settings))
 
     @staticmethod
-    def _track_method_call(obj, method_name):
-        call_count = []
-        setattr(obj, method_name, lambda: call_count.append(True))
-        return call_count
+    def _get_installation_error_messages(runtime):
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+        installation_substatus = [item for item in substatus_file_data if item["name"] == Constants.PATCH_INSTALLATION_SUMMARY][0]
+        installation_message = json.loads(installation_substatus["formattedMessage"]["message"])
+        error_details = installation_message["errors"]["details"]
+        return [error["message"] for error in error_details]
     # endregion
 
     def test_yum_install_updates_maintenance_window_exceeded(self):
@@ -748,76 +810,682 @@ class TestPatchInstaller(unittest.TestCase):
         runtime.stop()
 
     # region test update certs
-    def test_try_update_certificates_for_default_patching(self):
-        """ Test update certificates code path depending on different configurations """
+    def test_try_update_certificates__with_various_use_cases(self):
+        """Test update certificate flow using consolidated use cases without losing scenario coverage."""
 
-        # Use case 1: Feature flag is off
-        enable_uefi_cert_update_usecase1 = False
-        health_store_id_usecase1 = "pub_off_sku_2025.01.01"
-        operation_usecase1 = Constants.INSTALLATION
-        method_to_track_usecase1 = 'try_update_certificates_for_default_patching'
-        is_package_manager_method_usecase1 = False
-        number_of_times_method_called_usecase1 = 0
+        use_cases = [
+            # Use case 1: Feature flag is off
+            {
+                "name": "feature_flag_off",
+                "enable_uefi_cert_update": False,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": None,
+                "expected_present": [],
+                "expected_absent": ["Certificates may not have been updated"]
+            },
+            # Use case 2: try_update_certs should NOT be called when health_store_id is None (not a default patching operation)
+            {
+                "name": "not_default_patching_health_store_id_none",
+                "enable_uefi_cert_update": True,
+                "health_store_id": None,
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": None,
+                "expected_present": [],
+                "expected_absent": ["Certificates may not have been updated"]
+            },
+            # Use case 2b: package manager support gate should block certificate updates before any prerequisites run
+            {
+                "name": "package_manager_disallows_cert_update",
+                "enable_uefi_cert_update": True,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": "IfRequired",
+                "mock_is_cert_update_supported": self.mock_is_cert_update_supported_returns_false,
+                "mock_detect_confidential_vm": self.mock_detect_confidential_vm_raises_exception,
+                "expected_present": [],
+                "expected_absent": ["attempting to update certificates", "Certificates may not have been updated", "Unable to determine whether the VM is a Confidential VM"]
+            },
+            # Use case 3: try_update_certs should NOT be called when health_store_id is an empty string (not a default patching operation)
+            {
+                "name": "not_default_patching_health_store_id_empty",
+                "enable_uefi_cert_update": True,
+                "health_store_id": str(),
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": None,
+                "expected_present": [],
+                "expected_absent": ["Certificates may not have been updated"]
+            },
+            # Use case 4: try_update_certs should NOT be called during Assessment (not a default patching operation)
+            {
+                "name": "not_default_patching_assessment_operation",
+                "enable_uefi_cert_update": True,
+                "health_store_id": None,
+                "operation": Constants.ASSESSMENT,
+                "reboot_setting": None,
+                "expected_present": [],
+                "expected_absent": ["Certificates may not have been updated"]
+            },
+            # Use case 5: try_update_certs SHOULD be called when this is default patching and all prerequisites are met
+            {
+                "name": "default_patching_prereqs_met_update_certs_returns_false",
+                "enable_uefi_cert_update": True,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": "IfRequired",
+                "mock_should_reboot": self.mock_should_reboot_before_cert_update_returns_false,
+                "mock_detect_confidential_vm": self.mock_detect_confidential_vm_returns_false,
+                "mock_hibernation": self.mock_is_hibernation_enabled_for_cert_update_returns_false,
+                "mock_latest_certs": self.mock_are_latest_certs_present_with_mokutil_check_returns_false,
+                "expected_present": ["Certificates may not have been updated"],
+                "expected_absent": []
+            },
+            # Use case 6: update_certs should NOT be called when reboot is required but reboot setting is 'Never'
+            {
+                "name": "reboot_required_but_reboot_setting_never",
+                "enable_uefi_cert_update": True,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": "Never",
+                "mock_should_reboot": self.mock_should_reboot_before_cert_update_returns_true,
+                "mock_detect_confidential_vm": self.mock_detect_confidential_vm_returns_false,
+                "mock_hibernation": self.mock_is_hibernation_enabled_for_cert_update_returns_false,
+                "mock_latest_certs": self.mock_are_latest_certs_present_with_mokutil_check_returns_false,
+                "expected_present": ["reboot first"],
+                "expected_absent": []
+            },
+            # Use case 7: update_certs should NOT be called when VM is a CVM
+            {
+                "name": "skip_when_confidential_vm",
+                "enable_uefi_cert_update": True,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": "IfRequired",
+                "mock_should_reboot": self.mock_should_reboot_before_cert_update_returns_false,
+                "mock_detect_confidential_vm_by_imds": self.mock_detect_confidential_vm_by_imds_returns_true,
+                "expected_present": [],
+                "expected_absent": ["Confidential VM", "Certificates may not have been updated"]
+            },
+            # Use case 8: update_certs should NOT be called when hibernation is enabled
+            {
+                "name": "hibernation_enabled",
+                "enable_uefi_cert_update": True,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": "IfRequired",
+                "mock_should_reboot": self.mock_should_reboot_before_cert_update_returns_false,
+                "mock_detect_confidential_vm": self.mock_detect_confidential_vm_returns_false,
+                "mock_hibernation": self.mock_is_hibernation_enabled_for_cert_update_returns_true,
+                "expected_present": ["Turn off hibernation"],
+                "expected_absent": []
+            },
+            # Use case 9: update_certs should NOT be called when latest certs are already present
+            {
+                "name": "latest_certs_already_present",
+                "enable_uefi_cert_update": True,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": "IfRequired",
+                "mock_should_reboot": self.mock_should_reboot_before_cert_update_returns_true,
+                "mock_detect_confidential_vm": self.mock_detect_confidential_vm_returns_false,
+                "mock_hibernation": self.mock_is_hibernation_enabled_for_cert_update_returns_false,
+                "mock_latest_certs": self.mock_are_latest_certs_present_with_mokutil_check_returns_true,
+                "expected_present": [],
+                "expected_absent": ["Certificates may not have been updated"]
+            },
+            # Use case 10: exception from update_certs should be swallowed and recorded in status
+            {
+                "name": "update_certs_raises_exception_is_swallowed_and_reported",
+                "enable_uefi_cert_update": True,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": "IfRequired",
+                "mock_should_reboot": self.mock_should_reboot_before_cert_update_returns_false,
+                "mock_detect_confidential_vm": self.mock_detect_confidential_vm_returns_false,
+                "mock_hibernation": self.mock_is_hibernation_enabled_for_cert_update_returns_false,
+                "mock_latest_certs": self.mock_are_latest_certs_present_with_mokutil_check_returns_false,
+                "mock_try_update_certs": self.mock_try_update_certs_raise_exception,
+                "expected_present": ["attempting to update certificates"],
+                "expected_absent": []
+            },
+            # Use case 11: if confidential-VM detection throws, cert update should be skipped without cert-update failure status
+            {
+                "name": "skip_when_detect_confidential_vm_raises_exception",
+                "enable_uefi_cert_update": True,
+                "health_store_id": "pub_off_sku_2025.01.01",
+                "operation": Constants.INSTALLATION,
+                "reboot_setting": None,
+                "mock_detect_confidential_vm": self.mock_detect_confidential_vm_raises_exception,
+                "expected_present": [],
+                "expected_absent": ["Unable to determine whether the VM is a Confidential VM", "Certificates may not have been updated"]
+            }
+        ]
 
-        # Use case 2: update_certs should NOT be called when health_store_id is None i.e. not a default patching operation
-        enable_uefi_cert_update_usecase2 = True
-        health_store_id_usecase2 = None
-        operation_usecase2 = Constants.INSTALLATION
-        method_to_track_usecase2 = 'update_certs'
-        is_package_manager_method_usecase2 = True
-        number_of_times_method_called_usecase2= 0
+        for use_case in use_cases:
+            runtime = self._create_update_certs_runtime(
+                enable_uefi_cert_update=bool(use_case["enable_uefi_cert_update"]),
+                health_store_id=use_case["health_store_id"],
+                operation=use_case["operation"],
+                reboot_setting=use_case["reboot_setting"]
+            )
 
-        # Use case 3: """update_certs should NOT be called when health_store_id is an empty string i.e. not a default patching operation
-        enable_uefi_cert_update_usecase3 = True
-        health_store_id_usecase3 = str()
-        operation_usecase3 = Constants.INSTALLATION
-        method_to_track_usecase3 = 'update_certs'
-        is_package_manager_method_usecase3 = True
-        number_of_times_method_called_usecase3 = 0
+            backup_should_reboot = runtime.package_manager.is_reboot_required_before_cert_update
+            backup_detect_confidential_vm = runtime.env_layer.detect_confidential_vm
+            backup_detect_confidential_vm_by_imds = runtime.env_layer.detect_confidential_vm_by_imds
+            backup_hibernation = runtime.package_manager.is_hibernation_enabled_for_cert_update
+            backup_latest_certs = runtime.package_manager.are_latest_certs_present
+            backup_is_cert_update_supported = runtime.package_manager.is_cert_update_expected
+            backup_try_update_certs = runtime.package_manager.try_update_certs
 
-        # Use case 4: update_certs should NOT be called when operation is Assessment (not Installation). i.e. not default patching operation
-        enable_uefi_cert_update_usecase4 = True
-        health_store_id_usecase4 = None
-        operation_usecase4 = Constants.ASSESSMENT
-        method_to_track_usecase4 = 'update_certs'
-        is_package_manager_method_usecase4 = True
-        number_of_times_method_called_usecase4 = 0
+            if "mock_should_reboot" in use_case:
+                runtime.package_manager.is_reboot_required_before_cert_update = use_case["mock_should_reboot"]
+            if "mock_detect_confidential_vm" in use_case:
+                runtime.env_layer.detect_confidential_vm = use_case["mock_detect_confidential_vm"]
+            if "mock_detect_confidential_vm_by_imds" in use_case:
+                runtime.env_layer.detect_confidential_vm_by_imds = use_case["mock_detect_confidential_vm_by_imds"]
+            if "mock_hibernation" in use_case:
+                runtime.package_manager.is_hibernation_enabled_for_cert_update = use_case["mock_hibernation"]
+            if "mock_latest_certs" in use_case:
+                runtime.package_manager.are_latest_certs_present = use_case["mock_latest_certs"]
+            if "mock_is_cert_update_supported" in use_case:
+                runtime.package_manager.is_cert_update_expected = use_case["mock_is_cert_update_supported"]
+            if "mock_try_update_certs" in use_case:
+                runtime.package_manager.try_update_certs = use_case["mock_try_update_certs"]
 
-        # Use case 5: update_certs SHOULD be called when feature flag is on, health_store_id is set, and operation is Installation (for default patching)
-        enable_uefi_cert_update_usecase5 = True
-        health_store_id_usecase5 = "pub_off_sku_2025.01.01"
-        operation_usecase5 = Constants.INSTALLATION
-        method_to_track_usecase5 = 'update_certs'
-        is_package_manager_method_usecase5 = True
-        number_of_times_method_called_usecase5 = 1
+            runtime.patch_installer.start_installation(simulate=True)
+            error_messages = self._get_installation_error_messages(runtime)
+
+            for expected_message in use_case["expected_present"]:
+                self.assertTrue(
+                    any(expected_message in message for message in error_messages),
+                    "Expected '{0}' for use case '{1}'".format(expected_message, use_case["name"])
+                )
+
+            for forbidden_message in use_case["expected_absent"]:
+                self.assertFalse(
+                    any(forbidden_message in message for message in error_messages),
+                    "Did not expect '{0}' for use case '{1}'".format(forbidden_message, use_case["name"])
+                )
+
+            runtime.package_manager.is_reboot_required_before_cert_update = backup_should_reboot
+            runtime.env_layer.detect_confidential_vm = backup_detect_confidential_vm
+            runtime.env_layer.detect_confidential_vm_by_imds = backup_detect_confidential_vm_by_imds
+            runtime.package_manager.is_hibernation_enabled_for_cert_update = backup_hibernation
+            runtime.package_manager.are_latest_certs_present = backup_latest_certs
+            runtime.package_manager.is_cert_update_expected = backup_is_cert_update_supported
+            runtime.package_manager.try_update_certs = backup_try_update_certs
+            runtime.stop()
+
+    def test_can_continue_cert_update_after_reboot_check(self):
+        """ Test all branches of can_continue_cert_update_after_reboot_check() """
+
+        # Use case 1: Reboot required but reboot setting is 'Never' - should not reboot, should return False
+        reboot_setting_uc1 = 'Never'
+        mock_should_reboot_uc1 = self.mock_should_reboot_before_cert_update_returns_true
+        mock_start_reboot_uc1 = None
+        expected_result_uc1 = False
+        expected_reboot_status_uc1 = Constants.RebootStatus.NOT_NEEDED
+
+        # Use case 2: Reboot required and reboot setting allows it - reboot is initiated, should return False
+        reboot_setting_uc2 = 'IfRequired'
+        mock_should_reboot_uc2 = self.mock_should_reboot_before_cert_update_returns_true
+        mock_start_reboot_uc2 = None
+        expected_result_uc2 = False
+        expected_reboot_status_uc2 = Constants.RebootStatus.STARTED
+
+        # Use case 3: Reboot not required - cert update can continue, should return True
+        reboot_setting_uc3 = 'IfRequired'
+        mock_should_reboot_uc3 = self.mock_should_reboot_before_cert_update_returns_false
+        mock_start_reboot_uc3 = None
+        expected_result_uc3 = True
+        expected_reboot_status_uc3 = Constants.RebootStatus.NOT_NEEDED
+
+        # Use case 4: Reboot required but reboot could not be initiated (returns False) - should return False
+        reboot_setting_uc4 = 'IfRequired'
+        mock_should_reboot_uc4 = self.mock_should_reboot_before_cert_update_returns_true
+        mock_start_reboot_uc4 = self.mock_start_reboot_if_required_and_time_available_returns_false
+        expected_result_uc4 = False
+        expected_reboot_status_uc4 = Constants.RebootStatus.NOT_NEEDED
+
+        # Use case 5: Reboot required but reboot raises an exception - should return False
+        reboot_setting_uc5 = 'IfRequired'
+        mock_should_reboot_uc5 = self.mock_should_reboot_before_cert_update_returns_true
+        mock_start_reboot_uc5 = self.mock_start_reboot_if_required_and_time_available_raises_exception
+        expected_result_uc5 = False
+        expected_reboot_status_uc5 = Constants.RebootStatus.NOT_NEEDED
 
         test_input_output_table = [
-            [enable_uefi_cert_update_usecase1, health_store_id_usecase1, operation_usecase1, method_to_track_usecase1, is_package_manager_method_usecase1, number_of_times_method_called_usecase1],
-            [enable_uefi_cert_update_usecase2, health_store_id_usecase2, operation_usecase2, method_to_track_usecase2, is_package_manager_method_usecase2, number_of_times_method_called_usecase2],
-            [enable_uefi_cert_update_usecase3, health_store_id_usecase3, operation_usecase3, method_to_track_usecase3, is_package_manager_method_usecase3, number_of_times_method_called_usecase3],
-            [enable_uefi_cert_update_usecase4, health_store_id_usecase4, operation_usecase4, method_to_track_usecase4, is_package_manager_method_usecase4, number_of_times_method_called_usecase4],
-            [enable_uefi_cert_update_usecase5, health_store_id_usecase5, operation_usecase5, method_to_track_usecase5, is_package_manager_method_usecase5, number_of_times_method_called_usecase5],
+            [reboot_setting_uc1, mock_should_reboot_uc1, mock_start_reboot_uc1, expected_result_uc1, expected_reboot_status_uc1],
+            [reboot_setting_uc2, mock_should_reboot_uc2, mock_start_reboot_uc2, expected_result_uc2, expected_reboot_status_uc2],
+            [reboot_setting_uc3, mock_should_reboot_uc3, mock_start_reboot_uc3, expected_result_uc3, expected_reboot_status_uc3],
+            [reboot_setting_uc4, mock_should_reboot_uc4, mock_start_reboot_uc4, expected_result_uc4, expected_reboot_status_uc4],
+            [reboot_setting_uc5, mock_should_reboot_uc5, mock_start_reboot_uc5, expected_result_uc5, expected_reboot_status_uc5],
         ]
 
         for row in test_input_output_table:
-            runtime = self._create_update_certs_runtime(enable_uefi_cert_update=bool(row[0]), health_store_id=row[1], operation=row[2])
-            method_called = self._track_method_call(runtime.patch_installer.package_manager if row[4] == True else runtime.patch_installer, row[3])
-            runtime.patch_installer.start_installation(simulate=True)
-            self.assertEqual(len(method_called), row[5], "Failed for row: {row}")
+            reboot_setting, mock_should_reboot, mock_start_reboot, expected_result, expected_reboot_status = row
+
+            runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id="pub_off_sku_2025.01.01", reboot_setting=reboot_setting)
+            backup_should_reboot_before_cert_update = runtime.package_manager.is_reboot_required_before_cert_update
+            backup_start_reboot_if_required_and_time_available = runtime.patch_installer.reboot_manager.start_reboot_if_required_and_time_available
+
+            original_force_reboot = runtime.package_manager.force_reboot
+            runtime.package_manager.is_reboot_required_before_cert_update = mock_should_reboot
+            if mock_start_reboot is not None:
+                runtime.patch_installer.reboot_manager.start_reboot_if_required_and_time_available = mock_start_reboot
+
+            self.assertEqual(runtime.patch_installer.ensure_pre_cert_update_reboot_completed(), expected_result, "Failed for use case with reboot_setting={0}, should_reboot={1}".format(reboot_setting, mock_should_reboot.__name__))
+            self.assertEqual(runtime.status_handler.get_installation_reboot_status(), expected_reboot_status, "Unexpected reboot status for use case with reboot_setting={0}".format(reboot_setting))
+            self.assertEqual(runtime.package_manager.force_reboot, original_force_reboot, "force_reboot was not restored for use case with reboot_setting={0}".format(reboot_setting))
+
+            runtime.package_manager.is_reboot_required_before_cert_update = backup_should_reboot_before_cert_update
+            runtime.patch_installer.reboot_manager.start_reboot_if_required_and_time_available = backup_start_reboot_if_required_and_time_available
             runtime.stop()
 
-    def test_try_update_certs_swallows_exception_from_update_certs(self):
-        """An exception raised by update_certs should be swallowed and not propagate."""
-        runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id="pub_off_sku_2025.01.01")
-        backup_up_update_certs = runtime.patch_installer.package_manager.update_certs
+    def test_can_continue_cert_update_after_hibernation_check(self):
+        """Test all branches of can_continue_cert_update_after_hibernation_check()."""
 
-        runtime.patch_installer.package_manager.update_certs = self.mock_update_certs_raise_exception
-        runtime.patch_installer.start_installation(simulate=True)
+        # Use case 1: Hibernation enabled - cert update should not continue and an error should be recorded.
+        hibernation_check_uc1 = self.mock_is_hibernation_enabled_for_cert_update_returns_true
+        expected_result_uc1 = False
+        expected_hibernation_error_present_uc1 = True
 
-        runtime.patch_installer.package_manager.update_certs = backup_up_update_certs
-        runtime.stop()
+        # Use case 2: Hibernation disabled - cert update can continue.
+        hibernation_check_uc2 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
+        expected_result_uc2 = True
+        expected_hibernation_error_present_uc2 = False
+
+        # Use case 3: Hibernation check throws - cert update should not continue and an error should be recorded.
+        hibernation_check_uc3 = self.mock_is_hibernation_enabled_for_cert_update_raises_exception
+        expected_result_uc3 = False
+        expected_hibernation_error_present_uc3 = True
+
+        test_input_output_table = [
+            [hibernation_check_uc1, expected_result_uc1, expected_hibernation_error_present_uc1, "Turn off hibernation"],
+            [hibernation_check_uc2, expected_result_uc2, expected_hibernation_error_present_uc2, ""],
+            [hibernation_check_uc3, expected_result_uc3, expected_hibernation_error_present_uc3, "Unable to determine hibernation state"],
+        ]
+
+        for row in test_input_output_table:
+            mock_hibernation_check, expected_result, expected_hibernation_error_present, expected_error_substring = row
+
+            runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id="pub_off_sku_2025.01.01", reboot_setting='IfRequired')
+            backup_is_hibernation_enabled_for_cert_update = runtime.package_manager.is_hibernation_enabled_for_cert_update
+
+            runtime.package_manager.is_hibernation_enabled_for_cert_update = mock_hibernation_check
+            runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+            runtime.status_handler.set_installation_substatus_json()
+
+            self.assertEqual(runtime.patch_installer.can_continue_cert_update_after_hibernation_check(), expected_result,
+                             "Failed for hibernation check use case: {0}".format(mock_hibernation_check.__name__))
+
+            with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+                substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+            installation_substatus = [item for item in substatus_file_data if item["name"] == Constants.PATCH_INSTALLATION_SUMMARY][0]
+            installation_message = json.loads(installation_substatus["formattedMessage"]["message"])
+            error_details = installation_message["errors"]["details"]
+            is_hibernation_error_present = any(expected_error_substring in error["message"] for error in error_details)
+            self.assertEqual(is_hibernation_error_present, expected_hibernation_error_present,
+                             "Unexpected hibernation error status for use case: {0}".format(mock_hibernation_check.__name__))
+
+            runtime.package_manager.is_hibernation_enabled_for_cert_update = backup_is_hibernation_enabled_for_cert_update
+            runtime.stop()
+
+    def test_can_continue_cert_update_after_latest_cert_check(self):
+        """Test all branches of can_continue_cert_update_after_latest_cert_check()."""
+
+        # Use case 1: Latest certs already present - cert update should not continue.
+        latest_certs_check_uc1 = self.mock_are_latest_certs_present_with_mokutil_check_returns_true
+        expected_result_uc1 = False
+        expected_latest_cert_error_present_uc1 = False
+
+        # Use case 2: Latest certs not present - cert update can continue.
+        latest_certs_check_uc2 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
+        expected_result_uc2 = True
+        expected_latest_cert_error_present_uc2 = False
+
+        test_input_output_table = [
+            [latest_certs_check_uc1, expected_result_uc1, expected_latest_cert_error_present_uc1],
+            [latest_certs_check_uc2, expected_result_uc2, expected_latest_cert_error_present_uc2],
+        ]
+
+        for row in test_input_output_table:
+            mock_latest_cert_check, expected_result, expected_latest_cert_error_present = row
+
+            runtime = self._create_update_certs_runtime(enable_uefi_cert_update=True, health_store_id="pub_off_sku_2025.01.01", reboot_setting='IfRequired')
+            backup_are_latest_certs_present = runtime.package_manager.are_latest_certs_present_with_mokutil_check
+
+            runtime.package_manager.are_latest_certs_present_with_mokutil_check = mock_latest_cert_check
+            runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+            runtime.status_handler.set_installation_substatus_json()
+
+            self.assertEqual(runtime.patch_installer.can_continue_cert_update_after_latest_cert_check(), expected_result,
+                             "Failed for latest cert check use case: {0}".format(getattr(mock_latest_cert_check, '__name__', 'lambda')))
+
+            with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+                substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+            installation_substatus = [item for item in substatus_file_data if item["name"] == Constants.PATCH_INSTALLATION_SUMMARY][0]
+            installation_message = json.loads(installation_substatus["formattedMessage"]["message"])
+            error_details = installation_message["errors"]["details"]
+            is_latest_cert_error_present = any("latest certs" in error["message"].lower() for error in error_details)
+            self.assertEqual(is_latest_cert_error_present, expected_latest_cert_error_present,
+                             "Unexpected latest cert error status for use case: {0}".format(getattr(mock_latest_cert_check, '__name__', 'lambda')))
+
+            runtime.package_manager.are_latest_certs_present_with_mokutil_check = backup_are_latest_certs_present
+            runtime.stop()
     # endregion
+
+    # region Unit Tests for Certificate Update Allow/Deny Logic
+    def test_cert_update_allow_deny_with_various_config_combinations(self):
+        """Test cert update allow/deny across APT (default-allow) and non-APT (default-deny) package managers
+        with various EnableUEFICertUpdateForAutoPatching / EnableUEFICertUpdateForAllPatching configuration combinations.
+        When cert update is expected to proceed: try_update_certs returns False, producing a
+        'Certificates may not have been updated' error to confirm it was reached.
+        When cert update is expected to be blocked: try_update_certs raises an exception; the absence
+        of that error in status confirms it was never called.
+
+        APT cert update logic (new):
+        - If EnableUEFICertUpdateForAllPatching=True (all patching enabled): allowed for any installation operation (auto or non-auto).
+        - If EnableUEFICertUpdateForAutoPatching=False (auto explicitly disabled): blocked for auto (default) patching; non-default also falls through to blocked.
+        - Default (no explicit config): allowed only for auto (default) patching (health_store_id is set).
+
+        Non-APT cert update logic:
+        - Allowed only when EnableUEFICertUpdateForAutoPatching=True and this is a default (auto) patching operation."""
+
+        # Use case 1: APT - both config flags not set (None) during default (auto) patching - cert update proceeds by default
+        name_uc1 = "APT_default_allow_auto_patching"
+        package_manager_uc1 = Constants.APT
+        health_store_id_uc1 = "pub_off_sku_2025.01.01"
+        reboot_setting_uc1 = 'IfRequired'
+        enable_auto_uc1 = None
+        enable_all_uc1 = None
+        mock_detect_cvm_uc1 = self.mock_detect_confidential_vm_returns_false
+        mock_hibernation_uc1 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
+        mock_latest_certs_uc1 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
+        mock_should_reboot_uc1 = self.mock_should_reboot_before_cert_update_returns_false
+        mock_try_update_certs_uc1 = self.mock_update_certs_returns_false
+        expected_cert_update_called_uc1 = True
+
+        # Use case 2: APT - auto-patching explicitly disabled during non-default patching - cert update is blocked
+        name_uc2 = "APT_auto_explicitly_disabled"
+        package_manager_uc2 = Constants.APT
+        health_store_id_uc2 = None
+        reboot_setting_uc2 = None
+        enable_auto_uc2 = False
+        enable_all_uc2 = None
+        mock_detect_cvm_uc2 = None
+        mock_hibernation_uc2 = None
+        mock_latest_certs_uc2 = None
+        mock_should_reboot_uc2 = None
+        mock_try_update_certs_uc2 = self.mock_try_update_certs_raise_exception
+        expected_cert_update_called_uc2 = False
+
+        # Use case 3: APT all patching explicitly enabled (all_patching=True) during default patching - cert update is allowed
+        # EnableUEFICertUpdateForAllPatching=True takes precedence and allows cert update for any installation operation
+        name_uc3 = "APT_all_patching_enabled_default_patching_allowed"
+        package_manager_uc3 = Constants.APT
+        health_store_id_uc3 = "pub_off_sku_2025.01.01"
+        reboot_setting_uc3 = 'IfRequired'
+        enable_auto_uc3 = False
+        enable_all_uc3 = True
+        mock_detect_cvm_uc3 = self.mock_detect_confidential_vm_returns_false
+        mock_hibernation_uc3 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
+        mock_latest_certs_uc3 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
+        mock_should_reboot_uc3 = self.mock_should_reboot_before_cert_update_returns_false
+        mock_try_update_certs_uc3 = self.mock_update_certs_returns_false
+        expected_cert_update_called_uc3 = True
+
+        # Use case 4: APT all patching explicitly enabled (all_patching=True) during non-default patching - cert update is allowed
+        name_uc4 = "APT_all_patching_enabled_non_default_patching_allowed"
+        package_manager_uc4 = Constants.APT
+        health_store_id_uc4 = None
+        reboot_setting_uc4 = 'IfRequired'
+        enable_auto_uc4 = False
+        enable_all_uc4 = True
+        mock_detect_cvm_uc4 = self.mock_detect_confidential_vm_returns_false
+        mock_hibernation_uc4 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
+        mock_latest_certs_uc4 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
+        mock_should_reboot_uc4 = self.mock_should_reboot_before_cert_update_returns_false
+        mock_try_update_certs_uc4 = self.mock_update_certs_returns_false
+        expected_cert_update_called_uc4 = True
+
+        # Use case 5: Non-APT - both config flags not set (None) - cert update is blocked by default
+        name_uc5 = "non_APT_default_deny"
+        package_manager_uc5 = Constants.TDNF
+        health_store_id_uc5 = "pub_off_sku_2025.01.01"
+        reboot_setting_uc5 = None
+        enable_auto_uc5 = None
+        enable_all_uc5 = None
+        mock_detect_cvm_uc5 = None
+        mock_hibernation_uc5 = None
+        mock_latest_certs_uc5 = None
+        mock_should_reboot_uc5 = None
+        mock_try_update_certs_uc5 = self.mock_try_update_certs_raise_exception
+        expected_cert_update_called_uc5 = False
+
+        # Use case 6: Non-APT - auto-patching explicitly enabled during default patching - cert update is allowed
+        name_uc6 = "non_APT_auto_enabled_default_patching_allowed"
+        package_manager_uc6 = Constants.TDNF
+        health_store_id_uc6 = "pub_off_sku_2025.01.01"
+        reboot_setting_uc6 = 'IfRequired'
+        enable_auto_uc6 = True
+        enable_all_uc6 = None
+        mock_detect_cvm_uc6 = self.mock_detect_confidential_vm_returns_false
+        mock_hibernation_uc6 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
+        mock_latest_certs_uc6 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
+        mock_should_reboot_uc6 = self.mock_should_reboot_before_cert_update_returns_false
+        mock_try_update_certs_uc6 = self.mock_update_certs_returns_false
+        expected_cert_update_called_uc6 = True
+
+        # Use case 7: Non-APT - auto-patching explicitly enabled during non-default patching (health_store_id is None) - cert update is blocked
+        name_uc7 = "non_APT_auto_enabled_non_default_patching_blocked"
+        package_manager_uc7 = Constants.TDNF
+        health_store_id_uc7 = None
+        reboot_setting_uc7 = None
+        enable_auto_uc7 = True
+        enable_all_uc7 = None
+        mock_detect_cvm_uc7 = None
+        mock_hibernation_uc7 = None
+        mock_latest_certs_uc7 = None
+        mock_should_reboot_uc7 = None
+        mock_try_update_certs_uc7 = self.mock_try_update_certs_raise_exception
+        expected_cert_update_called_uc7 = False
+
+        # Use case 8: APT - both config flags not set (None) during non-default patching - cert update is blocked by default
+        name_uc8 = "APT_default_deny_all_patching"
+        package_manager_uc8 = Constants.APT
+        health_store_id_uc8 = None
+        reboot_setting_uc8 = None
+        enable_auto_uc8 = None
+        enable_all_uc8 = None
+        mock_detect_cvm_uc8 = None
+        mock_hibernation_uc8 = None
+        mock_latest_certs_uc8 = None
+        mock_should_reboot_uc8 = None
+        mock_try_update_certs_uc8 = self.mock_try_update_certs_raise_exception
+        expected_cert_update_called_uc8 = False
+
+        test_input_output_table = [
+            [name_uc1, package_manager_uc1, health_store_id_uc1, reboot_setting_uc1, enable_auto_uc1, enable_all_uc1, mock_detect_cvm_uc1, mock_hibernation_uc1, mock_latest_certs_uc1, mock_should_reboot_uc1, mock_try_update_certs_uc1, expected_cert_update_called_uc1],
+            [name_uc2, package_manager_uc2, health_store_id_uc2, reboot_setting_uc2, enable_auto_uc2, enable_all_uc2, mock_detect_cvm_uc2, mock_hibernation_uc2, mock_latest_certs_uc2, mock_should_reboot_uc2, mock_try_update_certs_uc2, expected_cert_update_called_uc2],
+            [name_uc3, package_manager_uc3, health_store_id_uc3, reboot_setting_uc3, enable_auto_uc3, enable_all_uc3, mock_detect_cvm_uc3, mock_hibernation_uc3, mock_latest_certs_uc3, mock_should_reboot_uc3, mock_try_update_certs_uc3, expected_cert_update_called_uc3],
+            [name_uc4, package_manager_uc4, health_store_id_uc4, reboot_setting_uc4, enable_auto_uc4, enable_all_uc4, mock_detect_cvm_uc4, mock_hibernation_uc4, mock_latest_certs_uc4, mock_should_reboot_uc4, mock_try_update_certs_uc4, expected_cert_update_called_uc4],
+            [name_uc5, package_manager_uc5, health_store_id_uc5, reboot_setting_uc5, enable_auto_uc5, enable_all_uc5, mock_detect_cvm_uc5, mock_hibernation_uc5, mock_latest_certs_uc5, mock_should_reboot_uc5, mock_try_update_certs_uc5, expected_cert_update_called_uc5],
+            [name_uc6, package_manager_uc6, health_store_id_uc6, reboot_setting_uc6, enable_auto_uc6, enable_all_uc6, mock_detect_cvm_uc6, mock_hibernation_uc6, mock_latest_certs_uc6, mock_should_reboot_uc6, mock_try_update_certs_uc6, expected_cert_update_called_uc6],
+            [name_uc7, package_manager_uc7, health_store_id_uc7, reboot_setting_uc7, enable_auto_uc7, enable_all_uc7, mock_detect_cvm_uc7, mock_hibernation_uc7, mock_latest_certs_uc7, mock_should_reboot_uc7, mock_try_update_certs_uc7, expected_cert_update_called_uc7],
+            [name_uc8, package_manager_uc8, health_store_id_uc8, reboot_setting_uc8, enable_auto_uc8, enable_all_uc8, mock_detect_cvm_uc8, mock_hibernation_uc8, mock_latest_certs_uc8, mock_should_reboot_uc8, mock_try_update_certs_uc8, expected_cert_update_called_uc8],
+        ]
+
+        for row in test_input_output_table:
+            name, package_manager, health_store_id, reboot_setting, enable_auto, enable_all, mock_detect_cvm, mock_hibernation, mock_latest_certs, mock_should_reboot, mock_try_update_certs, expected_cert_update_called = row
+
+            runtime = self._create_update_certs_runtime(
+                health_store_id=health_store_id,
+                reboot_setting=reboot_setting,
+                package_manager_name=package_manager,
+                enable_uefi_cert_update_for_auto_patching=enable_auto,
+                enable_uefi_cert_update_for_all_patching=enable_all,
+                use_per_mode_uefi_cert_update_settings=True)
+            runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+            runtime.status_handler.set_installation_substatus_json()
+
+            backup_detect_cvm = runtime.env_layer.detect_confidential_vm
+            backup_hibernation = runtime.package_manager.is_hibernation_enabled_for_cert_update
+            backup_latest_certs = runtime.package_manager.are_latest_certs_present_with_mokutil_check
+            backup_should_reboot = runtime.package_manager.is_reboot_required_before_cert_update
+            backup_try_update_certs = runtime.package_manager.try_update_certs
+
+            if mock_detect_cvm is not None:
+                runtime.env_layer.detect_confidential_vm = mock_detect_cvm
+            if mock_hibernation is not None:
+                runtime.package_manager.is_hibernation_enabled_for_cert_update = mock_hibernation
+            if mock_latest_certs is not None:
+                runtime.package_manager.are_latest_certs_present_with_mokutil_check = mock_latest_certs
+            if mock_should_reboot is not None:
+                runtime.package_manager.is_reboot_required_before_cert_update = mock_should_reboot
+            runtime.package_manager.try_update_certs = mock_try_update_certs
+
+            runtime.patch_installer.try_update_certificates()
+
+            error_messages = self._get_installation_error_messages(runtime)
+            if expected_cert_update_called:
+                self.assertTrue(any("Certificates may not have been updated" in msg for msg in error_messages),
+                                "cert update should have proceeded for use case: {0}".format(name))
+            else:
+                self.assertFalse(any("attempting to update certificates" in msg for msg in error_messages),
+                                 "cert update must not have been called for use case: {0}".format(name))
+
+            runtime.env_layer.detect_confidential_vm = backup_detect_cvm
+            runtime.package_manager.is_hibernation_enabled_for_cert_update = backup_hibernation
+            runtime.package_manager.are_latest_certs_present_with_mokutil_check = backup_latest_certs
+            runtime.package_manager.is_reboot_required_before_cert_update = backup_should_reboot
+            runtime.package_manager.try_update_certs = backup_try_update_certs
+            runtime.stop()
+    # endregion
+
+    def test_try_update_certificates__with_various_outcomes(self):
+        """Test try_update_certificates outcomes: blocked early (allow check / prerequisites), update succeeds, update fails, update raises exception."""
+
+        # Use case 1: cert update allowed, all prerequisites met, update succeeds - no cert error should be recorded
+        name_uc1 = "allowed_prereqs_met_success"
+        health_store_id_uc1 = "test_id"
+        reboot_setting_uc1 = 'IfRequired'
+        enable_auto_uc1 = None
+        mock_detect_cvm_uc1 = self.mock_detect_confidential_vm_returns_false
+        mock_hibernation_uc1 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
+        mock_latest_certs_uc1 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
+        mock_should_reboot_uc1 = self.mock_should_reboot_before_cert_update_returns_false
+        mock_try_update_certs_uc1 = self.mock_try_update_certs_returns_true
+        expected_present_uc1 = []
+        expected_absent_uc1 = ["Certificates may not have been updated", "attempting to update certificates"]
+
+        # Use case 2: cert update not allowed (auto-patching explicitly disabled) - try_update_certs must not be reached
+        name_uc2 = "not_allowed_auto_disabled"
+        health_store_id_uc2 = "test_id"
+        reboot_setting_uc2 = None
+        enable_auto_uc2 = False
+        mock_detect_cvm_uc2 = None
+        mock_hibernation_uc2 = None
+        mock_latest_certs_uc2 = None
+        mock_should_reboot_uc2 = None
+        mock_try_update_certs_uc2 = self.mock_try_update_certs_raise_exception
+        expected_present_uc2 = []
+        expected_absent_uc2 = ["attempting to update certificates"]
+
+        # Use case 3: cert update allowed but prerequisites not met (VM is a CVM) - try_update_certs must not be reached
+        name_uc3 = "prereqs_not_met_cvm_detected"
+        health_store_id_uc3 = "test_id"
+        reboot_setting_uc3 = 'IfRequired'
+        enable_auto_uc3 = None
+        mock_detect_cvm_uc3 = self.mock_detect_confidential_vm_by_imds_returns_true
+        mock_hibernation_uc3 = None
+        mock_latest_certs_uc3 = None
+        mock_should_reboot_uc3 = None
+        mock_try_update_certs_uc3 = self.mock_try_update_certs_raise_exception
+        expected_present_uc3 = []
+        expected_absent_uc3 = ["attempting to update certificates"]
+
+        # Use case 4: cert update allowed, all prerequisites met, update returns False - cert error should be recorded
+        name_uc4 = "allowed_prereqs_met_update_fails"
+        health_store_id_uc4 = "test_id"
+        reboot_setting_uc4 = 'IfRequired'
+        enable_auto_uc4 = None
+        mock_detect_cvm_uc4 = self.mock_detect_confidential_vm_returns_false
+        mock_hibernation_uc4 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
+        mock_latest_certs_uc4 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
+        mock_should_reboot_uc4 = self.mock_should_reboot_before_cert_update_returns_false
+        mock_try_update_certs_uc4 = self.mock_update_certs_returns_false
+        expected_present_uc4 = ["Certificates may not have been updated"]
+        expected_absent_uc4 = []
+
+        # Use case 5: cert update allowed, all prerequisites met, update raises exception - exception error should be recorded
+        name_uc5 = "allowed_prereqs_met_update_raises_exception"
+        health_store_id_uc5 = "test_id"
+        reboot_setting_uc5 = 'IfRequired'
+        enable_auto_uc5 = None
+        mock_detect_cvm_uc5 = self.mock_detect_confidential_vm_returns_false
+        mock_hibernation_uc5 = self.mock_is_hibernation_enabled_for_cert_update_returns_false
+        mock_latest_certs_uc5 = self.mock_are_latest_certs_present_with_mokutil_check_returns_false
+        mock_should_reboot_uc5 = self.mock_should_reboot_before_cert_update_returns_false
+        mock_try_update_certs_uc5 = self.mock_try_update_certs_raise_exception
+        expected_present_uc5 = ["attempting to update certificates"]
+        expected_absent_uc5 = []
+
+        test_input_output_table = [
+            [name_uc1, health_store_id_uc1, reboot_setting_uc1, enable_auto_uc1, mock_detect_cvm_uc1, mock_hibernation_uc1, mock_latest_certs_uc1, mock_should_reboot_uc1, mock_try_update_certs_uc1, expected_present_uc1, expected_absent_uc1],
+            [name_uc2, health_store_id_uc2, reboot_setting_uc2, enable_auto_uc2, mock_detect_cvm_uc2, mock_hibernation_uc2, mock_latest_certs_uc2, mock_should_reboot_uc2, mock_try_update_certs_uc2, expected_present_uc2, expected_absent_uc2],
+            [name_uc3, health_store_id_uc3, reboot_setting_uc3, enable_auto_uc3, mock_detect_cvm_uc3, mock_hibernation_uc3, mock_latest_certs_uc3, mock_should_reboot_uc3, mock_try_update_certs_uc3, expected_present_uc3, expected_absent_uc3],
+            [name_uc4, health_store_id_uc4, reboot_setting_uc4, enable_auto_uc4, mock_detect_cvm_uc4, mock_hibernation_uc4, mock_latest_certs_uc4, mock_should_reboot_uc4, mock_try_update_certs_uc4, expected_present_uc4, expected_absent_uc4],
+            [name_uc5, health_store_id_uc5, reboot_setting_uc5, enable_auto_uc5, mock_detect_cvm_uc5, mock_hibernation_uc5, mock_latest_certs_uc5, mock_should_reboot_uc5, mock_try_update_certs_uc5, expected_present_uc5, expected_absent_uc5],
+        ]
+
+        for row in test_input_output_table:
+            name, health_store_id, reboot_setting, enable_auto, mock_detect_cvm, mock_hibernation, mock_latest_certs, mock_should_reboot, mock_try_update_certs, expected_present, expected_absent = row
+
+            runtime = self._create_update_certs_runtime(
+                health_store_id=health_store_id,
+                reboot_setting=reboot_setting,
+                enable_uefi_cert_update_for_auto_patching=enable_auto,
+                use_per_mode_uefi_cert_update_settings=True)
+            runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+            runtime.status_handler.set_installation_substatus_json()
+
+            backup_detect_cvm = runtime.env_layer.detect_confidential_vm
+            backup_hibernation = runtime.package_manager.is_hibernation_enabled_for_cert_update
+            backup_latest_certs = runtime.package_manager.are_latest_certs_present_with_mokutil_check
+            backup_should_reboot = runtime.package_manager.is_reboot_required_before_cert_update
+            backup_try_update_certs = runtime.package_manager.try_update_certs
+
+            if mock_detect_cvm is not None:
+                runtime.env_layer.detect_confidential_vm = mock_detect_cvm
+            if mock_hibernation is not None:
+                runtime.package_manager.is_hibernation_enabled_for_cert_update = mock_hibernation
+            if mock_latest_certs is not None:
+                runtime.package_manager.are_latest_certs_present_with_mokutil_check = mock_latest_certs
+            if mock_should_reboot is not None:
+                runtime.package_manager.is_reboot_required_before_cert_update = mock_should_reboot
+            runtime.package_manager.try_update_certs = mock_try_update_certs
+
+            runtime.patch_installer.try_update_certificates()
+
+            error_messages = self._get_installation_error_messages(runtime)
+            for expected_message in expected_present:
+                self.assertTrue(any(expected_message in msg for msg in error_messages),
+                                "Expected '{0}' for use case: {1}".format(expected_message, name))
+            for absent_message in expected_absent:
+                self.assertFalse(any(absent_message in msg for msg in error_messages),
+                                 "Did not expect '{0}' for use case: {1}".format(absent_message, name))
+
+            runtime.env_layer.detect_confidential_vm = backup_detect_cvm
+            runtime.package_manager.is_hibernation_enabled_for_cert_update = backup_hibernation
+            runtime.package_manager.are_latest_certs_present_with_mokutil_check = backup_latest_certs
+            runtime.package_manager.is_reboot_required_before_cert_update = backup_should_reboot
+            runtime.package_manager.try_update_certs = backup_try_update_certs
+            runtime.stop()
 
 
 if __name__ == '__main__':
     unittest.main()
+

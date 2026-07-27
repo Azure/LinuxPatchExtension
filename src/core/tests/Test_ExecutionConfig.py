@@ -55,149 +55,30 @@ class TestExecutionConfig(unittest.TestCase):
     def test_uefi_config_when_file_does_not_exist(self):
         # UEFI in-VM customer config does not exist
         runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=False, config="UEFI")
-        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=False, expected_enable_uefi_cert_update=False)
+        self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=False,
+                                   expected_enable_auto_patching=None, expected_enable_all_patching=None)
         self.__teardown(runtime)
 
     def test_uefi_config_when_file_read_raises_exception(self):
         uefi_settings = {
             "EnabledBy": "TestSetup",
             "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": "test"
+            "EnableUEFICertUpdateForAutoPatching": True
         }
         runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=uefi_settings)
         self.backup_read_with_retry = runtime.env_layer.file_system.read_with_retry
         runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
         exec_config = ExecutionConfig(runtime.env_layer, runtime.composite_logger, str(runtime.argv))
-        self.__assert_uefi_configs(execution_config=exec_config, expected_file_exists=True, expected_enable_uefi_cert_update=False)
+        self.__assert_uefi_configs(execution_config=exec_config, expected_file_exists=True,
+                                   expected_enable_auto_patching=None, expected_enable_all_patching=None)
         runtime.env_layer.file_system.read_with_retry = self.backup_read_with_retry
         self.__teardown(runtime)
 
-    def test_uefi_config_file_with_enable_uefi_cert_update(self):
-        # Tests UEFI cert update enable set with different values based in uefi config
 
-        # Use Case 1: No UEFI config found on VM
-        uefi_settings_update_cert_when_no_uefi_config = None
-        expected_file_status_when_no_uefi_config = True
-        expected_enable_uefi_when_no_uefi_config = False
-
-        # Use Case 2: UEFI settings are illformed
-        uefi_settings_update_cert_when_enable_not_in_config = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21"
-        }
-        expected_file_status_when_enable_not_in_config = True
-        expected_enable_uefi_when_enable_not_in_config = False
-
-        # Use Case 3: UEFI settings are illformed
-        uefi_settings_update_cert_illformed_config = ["test unexpected config value"]
-        expected_file_status_when_illformed_config = True
-        expected_enable_uefi_when_illformed_config = False
-
-        # Use Case 4: Value set to boolean False
-        uefi_settings_update_cert_false = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": False
-        }
-        expected_file_status_when_update_cert_false = True
-        expected_enable_uefi_when_update_cert_false = False
-
-        # Use Case 5: Value set to random string
-        uefi_settings_when_update_cert_is_str = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": "3"
-        }
-        expected_file_status_when_update_cert_is_str = True
-        expected_enable_uefi_when_update_cert_is_str = False
-
-        # Use Case 6: Value set to random string test 2
-        uefi_settings_when_update_cert_is_str_test2 = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": "test"
-        }
-        expected_file_status_when_update_cert_is_str_test2 = True
-        expected_enable_uefi_when_update_cert_is_str_test2 = False
-
-        # Use Case 7: Value set to float
-        uefi_settings_when_update_cert_is_float = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": 3.1
-        }
-        expected_file_status_when_update_cert_is_float = True
-        expected_enable_uefi_when_update_cert_is_float = False
-
-        # Tests EnableUEFICertUpdate with all acceptable values of true
-        # Use Case 8: Value set to boolean True
-        uefi_settings_when_update_cert_true = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": True
-        }
-        expected_file_status_when_update_cert_true = True
-        expected_enable_uefi_when_update_cert_true = True
-
-        # Use Case 9: Value set to boolean True
-        uefi_settings_when_update_cert_true_str = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": "True"
-        }
-        expected_file_status_when_update_cert_true_str = True
-        expected_enable_uefi_when_update_cert_true_str = True
-
-        # Use Case 10: Value set to boolean True
-        uefi_settings_when_update_cert_true_str_lower_case = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": "true"
-        }
-        expected_file_status_when_update_cert_true_str_lower_case = True
-        expected_enable_uefi_when_update_cert_true_str_lower_case = True
-
-        # Use Case 11: Value set to boolean True
-        uefi_settings_when_update_cert_true_numericstr = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": "1"
-        }
-        expected_file_status_when_update_cert_true_numericstr = True
-        expected_enable_uefi_when_update_cert_true_numericstr = True
-
-        # Use Case 12: Value set to boolean True
-        uefi_settings_when_update_cert_true_numeric = {
-            "EnabledBy": "TestSetup",
-            "LastModified": "2026-04-21",
-            "EnableUEFICertUpdate": 1
-        }
-        expected_file_status_when_update_cert_true_numeric = True
-        expected_enable_uefi_when_update_cert_true_numeric = True
-
-        test_input_output_table = [
-            [uefi_settings_update_cert_when_no_uefi_config, expected_file_status_when_no_uefi_config, expected_enable_uefi_when_no_uefi_config],
-            [uefi_settings_update_cert_when_enable_not_in_config, expected_file_status_when_enable_not_in_config, expected_enable_uefi_when_enable_not_in_config],
-            [uefi_settings_update_cert_illformed_config, expected_file_status_when_illformed_config, expected_enable_uefi_when_illformed_config],
-            [uefi_settings_update_cert_false, expected_file_status_when_update_cert_false, expected_enable_uefi_when_update_cert_false],
-            [uefi_settings_when_update_cert_is_str, expected_file_status_when_update_cert_is_str, expected_enable_uefi_when_update_cert_is_str],
-            [uefi_settings_when_update_cert_is_str_test2, expected_file_status_when_update_cert_is_str_test2, expected_enable_uefi_when_update_cert_is_str_test2],
-            [uefi_settings_when_update_cert_is_float, expected_file_status_when_update_cert_is_float, expected_enable_uefi_when_update_cert_is_float],
-            [uefi_settings_when_update_cert_true, expected_file_status_when_update_cert_true, expected_enable_uefi_when_update_cert_true],
-            [uefi_settings_when_update_cert_true_str, expected_file_status_when_update_cert_true_str, expected_enable_uefi_when_update_cert_true_str],
-            [uefi_settings_when_update_cert_true_str_lower_case, expected_file_status_when_update_cert_true_str_lower_case, expected_enable_uefi_when_update_cert_true_str_lower_case],
-            [uefi_settings_when_update_cert_true_numericstr, expected_file_status_when_update_cert_true_numericstr, expected_enable_uefi_when_update_cert_true_numericstr],
-            [uefi_settings_when_update_cert_true_numeric, expected_file_status_when_update_cert_true_numeric, expected_enable_uefi_when_update_cert_true_numeric]
-        ]
-
-        for row in test_input_output_table:
-            runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="UEFI", config_settings=row[0])
-            self.__assert_uefi_configs(execution_config=execution_config, expected_file_exists=row[1], expected_enable_uefi_cert_update=row[2])
-            self.__teardown(runtime)
-
-    def __assert_uefi_configs(self, execution_config, expected_file_exists, expected_enable_uefi_cert_update):
+    def __assert_uefi_configs(self, execution_config, expected_file_exists, expected_enable_auto_patching, expected_enable_all_patching):
         self.assertEqual(os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS), expected_file_exists)
-        self.assertEqual(execution_config.enable_uefi_cert_update, expected_enable_uefi_cert_update)
+        self.assertEqual(execution_config.enable_uefi_cert_update_for_auto_patching, expected_enable_auto_patching)
+        self.assertEqual(execution_config.enable_uefi_cert_update_for_all_patching, expected_enable_all_patching)
 
     def __setup_and_init_execution_config(self, write_to_file=False, config=None, config_settings=None):
         argument_composer = ArgumentComposer()
@@ -223,6 +104,108 @@ class TestExecutionConfig(unittest.TestCase):
         if os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS):
             os.remove(Constants.AzGPSPaths.UEFI_SETTINGS)
         runtime.stop()
+
+    def test_is_cert_update_for_auto_patching_explicitly_enabled(self):
+        """Tests is_cert_update_for_auto_patching_explicitly_enabled() returns True only for explicitly set truthy values.
+        None (not set) should return False - absence of config is not the same as being explicitly enabled.
+        Only boolean True, string 'True'/'true'/'1', and integer 1 should return True (per __is_truthy logic)."""
+        runtime, execution_config = self.__setup_and_init_execution_config()
+
+        # [value for enable_uefi_cert_update_for_auto_patching, expected_result from is_cert_update_for_auto_patching_explicitly_enabled]
+        test_cases = [
+            # Not set - not explicitly enabled
+            [None,    False],
+            # Truthy values - explicitly enabled
+            [True,    True],
+            ["True",  True],
+            ["true",  True],
+            ["1",     True],
+            [1,       True],
+            # Falsy/invalid values - not explicitly enabled
+            [False,   False],
+            ["False", False],
+            ["false", False],
+            ["0",     False],
+            [0,       False],
+            ["3",     False],
+            ["test",  False],
+            [3.1,     False],
+        ]
+
+        for value, expected in test_cases:
+            execution_config.enable_uefi_cert_update_for_auto_patching = value
+            self.assertEqual(execution_config.is_cert_update_for_auto_patching_explicitly_enabled(), expected,
+                             msg="Failed for enable_uefi_cert_update_for_auto_patching={0}".format(repr(value)))
+
+        self.__teardown(runtime)
+
+    def test_is_cert_update_for_auto_patching_explicitly_disabled(self):
+        """Tests is_cert_update_for_auto_patching_explicitly_disabled() returns True only for explicitly set falsy values.
+        None (not set) should return False - absence of config means not explicitly disabled.
+        Truthy values (True, 'True', '1', 1) should also return False - they are explicitly enabled, not disabled.
+        Only explicitly set non-truthy values (False, 'test', 3.1, etc.) should return True."""
+        runtime, execution_config = self.__setup_and_init_execution_config()
+
+        # [value for enable_uefi_cert_update_for_auto_patching, expected_result for is_cert_update_for_auto_patching_explicitly_disabled]
+        test_cases = [
+            # Not set - not explicitly disabled
+            [None,    False],
+            # Truthy values - not disabled (they are enabled)
+            [True,    False],
+            ["True",  False],
+            ["true",  False],
+            ["1",     False],
+            [1,       False],
+            # Explicitly set to falsy - explicitly disabled
+            [False,   True],
+            ["False", True],
+            ["false", True],
+            ["0",     True],
+            [0,       True],
+            ["3",     True],
+            ["test",  True],
+            [3.1,     True],
+        ]
+
+        for value, expected in test_cases:
+            execution_config.enable_uefi_cert_update_for_auto_patching = value
+            self.assertEqual(execution_config.is_cert_update_for_auto_patching_explicitly_disabled(), expected,
+                             msg="Failed for enable_uefi_cert_update_for_auto_patching={0}".format(repr(value)))
+
+        self.__teardown(runtime)
+
+    def test_is_cert_update_for_all_patching_explicitly_enabled(self):
+        """Tests is_cert_update_for_all_patching_explicitly_enabled() returns True only for explicitly set truthy values.
+        Follows the same truthy evaluation rules as the auto patching equivalent."""
+        runtime, execution_config = self.__setup_and_init_execution_config()
+
+        # [value for enable_uefi_cert_update_for_all_patching, expected_result for is_cert_update_for_all_patching_explicitly_enabled]
+        test_cases = [
+            # Not set - not explicitly enabled
+            [None,    False],
+            # Truthy values - explicitly enabled
+            [True,    True],
+            ["True",  True],
+            ["true",  True],
+            ["1",     True],
+            [1,       True],
+            # Falsy/invalid values - not explicitly enabled
+            [False,   False],
+            ["False", False],
+            ["false", False],
+            ["0",     False],
+            [0,       False],
+            ["3",     False],
+            ["test",  False],
+            [3.1,     False],
+        ]
+
+        for value, expected in test_cases:
+            execution_config.enable_uefi_cert_update_for_all_patching = value
+            self.assertEqual(execution_config.is_cert_update_for_all_patching_explicitly_enabled(), expected,
+                             msg="Failed for enable_uefi_cert_update_for_all_patching={0}".format(repr(value)))
+
+        self.__teardown(runtime)
 
 
 if __name__ == '__main__':
