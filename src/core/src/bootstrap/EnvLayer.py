@@ -81,10 +81,6 @@ class EnvLayer(object):
         """ Checks if the current distro is RHEL 10 """
         return self.__is_matching_distro_and_version(distro_name, Constants.RED_HAT, version_to_match=10)
 
-    def __is_dnf_available(self):
-        code, _ = self.run_command_output('which dnf', False, False)
-        return code == 0
-
     def __get_dnf_version(self):
         code, out = self.run_command_output('dnf --version', False, False)
         # Output : dnf5 version 5.2.18.0
@@ -93,7 +89,7 @@ class EnvLayer(object):
             return code, out, None
 
         first_line = str(out).splitlines()[0].strip()
-        version = first_line.split()[-1]
+        version = first_line.split()[-1].split('.')[0]
         return code, out, version
 
     def get_package_manager(self):
@@ -108,20 +104,15 @@ class EnvLayer(object):
 
         # Check for Rhel 10(uses dnf4)
         if self.is_distro_rhel_10(os_name):
-            if not self.__is_dnf_available():
-                error_msg = "Expected package manager dnf not found on this rhel 10 VM"
-                print("Error: {0}".format(error_msg))
-                return str()
             code, out, version = self.__get_dnf_version()
-            if version:
-                if version.startswith('4'):
-                    return Constants.DNF4
-                error_msg = "Expected dnf version 4 on this rhel 10 VM. Found: {0}".format(version)
-                print("Error: {0}".format(error_msg))
+            if code == 0 and version == '4':
+                return Constants.DNF
+            elif code == 0 and version !='4':
+                print("Error: Expected dnf version not found on this rhel 10 VM. [Expected={0}][Found={1}]".format("4", str(version)))
                 return str()
-            error_msg = "Unable to determine dnf version. Code={0}, Output={1}".format(code, out)
-            print("Error: {0}".format(error_msg))
-            return str()
+            else:
+                print("Error: Expected package manager dnf not found on this rhel 10 VM.")
+                return str()
 
         # Check for Azure Linux 4 or Above( uses dnf5)
         if self.is_distro_azure_linux_4(str(os_name)):
