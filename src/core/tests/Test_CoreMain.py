@@ -1389,7 +1389,7 @@ class TestCoreMain(unittest.TestCase):
         argument_composer.health_store_id = str("pub_off_sku_2025.03.24")
         argument_composer.classifications_to_include = classifications_to_include
         argument_composer.reboot_setting = 'Always'
-        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.DNF4)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.DNF)
         runtime.set_legacy_test_type("HappyPath")
         CoreMain(argument_composer.get_composed_arguments())
 
