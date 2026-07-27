@@ -84,16 +84,29 @@ class TestExecutionConfig(unittest.TestCase):
     def mock_run_command_for_dnf_not_found(self, cmd, no_output=False, chk_err=False):
         return -1, ''
 
-    def mock_run_command_for_dnf_version_command(self, cmd, usecase="success"):
+    def mock_run_command_for_dnf_wrong_version(self, cmd, no_output=False, chk_err=False):
+        return self.mock_run_command_for_dnf_version_command(cmd, no_output, chk_err, "wrong_version")
+
+    def mock_run_command_for_dnf_version_command_failure(self, cmd, no_output=False, chk_err=False):
+        return self.mock_run_command_for_dnf_version_command(cmd, no_output, chk_err, "version_command_failure")
+
+    def mock_run_command_for_dnf_version_command(self, cmd, no_output=False, chk_err=False, usecase="success"):
+        code = -1
+        out = ""
         if "which dnf" in cmd:
-            return 0, "/usr/bin/dnf"
-        if "dnf --version" in cmd:
+            code = 0
+            out = "/usr/bin/dnf"
+        elif "dnf --version" in cmd:
             if usecase == "wrong_version":
-                return 0, "dnf version 4.14.0"
-            if usecase == "version_command_failure":
-                return -1, "dnf version command failure"
-            return 0, "dnf version 5.2.6"
-        return -1, ""
+                code = 0
+                out = "dnf version 4.14.0"
+            elif usecase == "version_command_failure":
+                code = -1
+                out = "dnf version command failure"
+            else:
+                code = 0
+                out = "dnf version 5.2.6"
+        return code, out
 
     def mock_distro_os_release_attr_return_azure_linux_4(self, attribute):
         return '4.0.0'
@@ -162,8 +175,8 @@ class TestExecutionConfig(unittest.TestCase):
             [self.mock_run_command_for_zypper, self.mock_linux_distribution,  self.mock_distro_os_release_attr_return_none, Constants.ZYPPER],
             [lambda cmd, no_output, chk_err: (-1, ''), self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, str()], # no matches for any package manager
             [self.mock_run_command_for_dnf_not_found, self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()],
-            [lambda cmd, no_output, chk_err=False: self.mock_run_command_for_dnf_version_command(cmd, "wrong_version"), self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()],
-            [lambda cmd, no_output, chk_err=False: self.mock_run_command_for_dnf_version_command(cmd,"version_command_failure"), self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()]
+            [self.mock_run_command_for_dnf_wrong_version, self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()],
+            [self.mock_run_command_for_dnf_version_command_failure, self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()]
         ]
 
         for row in test_input_output_table:

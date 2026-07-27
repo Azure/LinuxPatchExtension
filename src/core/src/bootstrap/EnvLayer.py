@@ -90,7 +90,7 @@ class EnvLayer(object):
         # Output : dnf5 version 5.2.18.0
         if code != 0 or not out:
             return code, out, None
-        version = str(out).split()[-1]
+        version = str(out).split()[-1].split('.')[0]
         return code, out, version
 
     def get_package_manager(self):
@@ -111,19 +111,15 @@ class EnvLayer(object):
 
         # Check for Azure Linux 4 or Above( uses dnf5)
         if self.is_distro_azure_linux_4(str(os_name)):
-            if not self.__is_dnf_available():
-                print("Error: Expected package manager dnf not found on this Azure Linux4 VM.")
-                return str()
-
             code, out, version = self.__get_dnf_version()
-            if version:
-                major_version = version.split('.')[0]
-                if major_version == '5':
-                    return Constants.DNF5
-                print("Error: Expected dnf version 5 on this Azure Linux4 VM. Found: {0}".format(version))
+            if code == 0 and version == '5':
+                return Constants.DNF5
+            elif code == 0 and version != '5':
+                print("Error: Expected dnf version not found on this Azure Linux4 VM. [Expected={0}][Found={1}]".format("5", str(version)))
                 return str()
-            print("Error: Unable to determine dnf version. Code={0}, Output={1}".format(code, out))
-            return str()
+            else:
+                print("Error: Expected package manager dnf5 not found on this Azure Linux4 VM")
+                return str()
 
         # Check for Azure Linux (3 and below use TDNF)
         if self.is_distro_azure_linux(str(os_name)):
