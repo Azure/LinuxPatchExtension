@@ -81,10 +81,6 @@ class EnvLayer(object):
         """ Checks if the current distro is RHEL 10 """
         return self.__is_matching_distro_and_version(distro_name, Constants.RED_HAT, version_to_match=10)
 
-    def __is_dnf_available(self):
-        code, _ = self.run_command_output('which dnf', False, False)
-        return code == 0
-
     def __get_dnf_version(self):
         code, out = self.run_command_output('dnf --version', False, False)
         # Output : dnf5 version 5.2.18.0
