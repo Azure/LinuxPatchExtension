@@ -1,12 +1,10 @@
 import os
-import tempfile
 import time
-import uuid
 
 from extension.src.Constants import Constants
 from extension.src.CredentialSanitizer import CredentialSanitizer
-from extension.src.EnvLayer import EnvLayer
 from extension.src.EnvHealthManager import EnvHealthManager
+from extension.src.EnvLayer import EnvLayer
 from extension.src.TelemetryWriter import TelemetryWriter
 from extension.src.Utility import Utility
 from extension.src.file_handlers.JsonFileHandler import JsonFileHandler
@@ -23,19 +21,14 @@ class RuntimeComposer(object):
         self.env_layer = EnvLayer()
         self.env_health_manager = EnvHealthManager(self.env_layer)
         self.credential_sanitizer = CredentialSanitizer(self.logger)
-        print("self.credential_sanitizer", self.credential_sanitizer)
         self.telemetry_writer = TelemetryWriter(self.logger, self.env_layer, self.credential_sanitizer)
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
         self.env_health_manager.check_sudo_status = self.mock_check_sudo_status
-        self.original_mkdtemp = tempfile.mkdtemp
         self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
-
-       # self.is_github_runner = True
 
         if self.is_github_runner:
             pass
-            #tempfile.mkdtemp = mkdtemp_runner
 
     def mock_sleep(self, seconds):
         pass

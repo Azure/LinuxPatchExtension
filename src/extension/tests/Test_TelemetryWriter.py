@@ -5,7 +5,6 @@ import shutil
 import tempfile
 import time
 import unittest
-
 from extension.src.Constants import Constants
 from extension.tests.helpers.RuntimeComposer import RuntimeComposer
 from extension.tests.helpers.VirtualTerminal import VirtualTerminal
