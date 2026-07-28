@@ -23,13 +23,13 @@ import tempfile
 import time
 
 from extension.src.Constants import Constants
-from extension.src.CredentialSanitizer import CredentialSanitizer
 
 
 class TelemetryWriter(object):
     """Class for writing telemetry data to events"""
 
     def __init__(self, logger, env_layer, credential_sanitizer):
+        print("credential_sanitizer", credential_sanitizer)
         self.logger = logger
         self.env_layer = env_layer
         self.events_folder_path = None

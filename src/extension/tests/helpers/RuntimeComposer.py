@@ -23,6 +23,7 @@ class RuntimeComposer(object):
         self.env_layer = EnvLayer()
         self.env_health_manager = EnvHealthManager(self.env_layer)
         self.credential_sanitizer = CredentialSanitizer(self.logger)
+        print("self.credential_sanitizer", self.credential_sanitizer)
         self.telemetry_writer = TelemetryWriter(self.logger, self.env_layer, self.credential_sanitizer)
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
