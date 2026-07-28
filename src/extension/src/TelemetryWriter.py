@@ -38,7 +38,7 @@ class TelemetryWriter(object):
         self.__agent_is_compatible = self.__get_agent_supports_telemetry_from_env_var()
         self.__task_name_watermark = "." + str(datetime.datetime.utcnow().hour) + "." + str(datetime.datetime.utcnow().minute) + "." + str(datetime.datetime.utcnow().second) + "." + str(os.getpid())
         self.__task_name = Constants.TELEMETRY_TASK_NAME + self.__task_name_watermark
-        self.credential_sanitizer = credential_sanitizer or CredentialSanitizer(logger)
+        self.credential_sanitizer = credential_sanitizer
 
     def __new_event_json(self, event_level, message, task_name):
         # Step 1: Sanitize credentials from URIs
