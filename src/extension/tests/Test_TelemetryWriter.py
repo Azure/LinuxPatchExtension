@@ -6,6 +6,7 @@ import time
 import unittest
 
 from extension.src.Constants import Constants
+from extension.src.CredentialSanitizer import CredentialSanitizer
 from extension.tests.helpers.RuntimeComposer import RuntimeComposer
 from extension.tests.helpers.VirtualTerminal import VirtualTerminal
 
@@ -381,6 +382,18 @@ class TestTelemetryWriter(unittest.TestCase):
     #             f.close()
     #     finally:
     #         shutil.rmtree(writer.events_folder_path)
+
+    def test_credential_sanitizer(self):
+        sanitizer = CredentialSanitizer(self.runtime.logger)
+
+        result = sanitizer.sanitize(
+            "https://user:password@example.com/test"
+        )
+
+        self.assertEqual(
+            "https://user@example.com/test",
+            result
+        )
 
 
 if __name__ == '__main__':
