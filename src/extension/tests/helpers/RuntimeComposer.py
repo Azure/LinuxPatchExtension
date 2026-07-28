@@ -34,13 +34,8 @@ class RuntimeComposer(object):
        # self.is_github_runner = True
 
         if self.is_github_runner:
-            def mkdtemp_runner():
-                runner_temp = os.getenv('RUNNER_TEMP')
-                print("RUNNER_TEMP =", runner_temp)
-                temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
-                os.mkdir(temp_path)
-                return temp_path
-            tempfile.mkdtemp = mkdtemp_runner
+            pass
+            #tempfile.mkdtemp = mkdtemp_runner
 
     def mock_sleep(self, seconds):
         pass
