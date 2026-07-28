@@ -41,6 +41,7 @@ class TelemetryWriter(object):
         self.credential_sanitizer = credential_sanitizer
 
     def __new_event_json(self, event_level, message, task_name):
+        print("Inside __new_event_json")
         # Step 1: Sanitize credentials from URIs
         sanitized_message = self.credential_sanitizer.sanitize(message)
         # Step 2: Apply message restrictions (formatting, truncation)
@@ -99,19 +100,24 @@ class TelemetryWriter(object):
 
     def write_event(self, message, event_level=Constants.TelemetryEventLevel.Informational, task_name=Constants.TELEMETRY_TASK_NAME):
         """ Creates and writes event to event file after validating none of the telemetry size restrictions are breached """
+        print("ENTERED write_event")
         try:
             if not self.is_telemetry_supported() or not Constants.TELEMETRY_ENABLED_AT_EXTENSION:
                 return
 
             self.__delete_older_events()
 
+            print("After deleteOlderEvents write_event")
             task_name = self.__task_name if task_name == Constants.TELEMETRY_TASK_NAME else task_name
             event = self.__new_event_json(event_level, message, task_name)
             if len(json.dumps(event)) > Constants.TELEMETRY_EVENT_SIZE_LIMIT_IN_CHARS:
+                print("if After deleteOlderEvents write_event")
                 self.logger.log_telemetry_module_error("Cannot send data to telemetry as it exceeded the acceptable data size. [Data not sent={0}]".format(json.dumps(message)))
             else:
+                print("else After deleteOlderEvents write_event")
                 self.__write_event_using_temp_file(self.events_folder_path, event)
         except Exception as e:
+            print("After deleteOlderEvents write_event exception")
             self.logger.log_telemetry_module_error("Error occurred while writing telemetry events. [Error={0}]".format(repr(e)))
             raise Exception("Internal reporting error. Execution could not complete.")
 
