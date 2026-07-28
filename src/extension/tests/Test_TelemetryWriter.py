@@ -383,17 +383,20 @@ class TestTelemetryWriter(unittest.TestCase):
     #     finally:
     #         shutil.rmtree(writer.events_folder_path)
 
-    def test_credential_sanitizer(self):
-        sanitizer = CredentialSanitizer(self.runtime.logger)
-
-        result = sanitizer.sanitize(
-            "https://user:password@example.com/test"
+    def test_write_event_invokes_sanitizer(self):
+        self.telemetry_writer.write_event(
+            "https://user:password@example.com/test",
+            Constants.TelemetryEventLevel.Error,
+            "Test Task"
         )
 
-        self.assertEqual(
-            "https://user@example.com/test",
-            result
-        )
+        event_file = os.listdir(self.telemetry_writer.events_folder_path)[0]
+
+        with open(os.path.join(self.telemetry_writer.events_folder_path, event_file), "r") as f:
+            events = json.load(f)
+
+        self.assertNotIn("password", events[0]["Message"])
+        self.assertIn("user@example.com", events[0]["Message"])
 
 
 if __name__ == '__main__':

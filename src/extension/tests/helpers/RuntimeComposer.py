@@ -28,10 +28,15 @@ class RuntimeComposer(object):
         time.sleep = self.mock_sleep
         self.env_layer.is_tty_required = self.mock_is_tty_required
         self.env_health_manager.check_sudo_status = self.mock_check_sudo_status
+        self.original_mkdtemp = tempfile.mkdtemp
         self.is_github_runner = os.getenv('RUNNER_TEMP', None) is not None
+
+       # self.is_github_runner = True
 
         if self.is_github_runner:
             def mkdtemp_runner():
+                runner_temp = os.getenv('RUNNER_TEMP')
+                print("RUNNER_TEMP =", runner_temp)
                 temp_path = os.path.join(os.getenv('RUNNER_TEMP'), str(uuid.uuid4()))
                 os.mkdir(temp_path)
                 return temp_path
