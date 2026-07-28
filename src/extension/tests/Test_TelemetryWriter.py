@@ -17,6 +17,7 @@ class TestTelemetryWriter(unittest.TestCase):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
         self.runtime = RuntimeComposer()
         self.telemetry_writer = self.runtime.telemetry_writer
+        self.runtime.logger.telemetry_writer = self.telemetry_writer
         self.telemetry_writer.events_folder_path = tempfile.mkdtemp()
 
     def tearDown(self):
