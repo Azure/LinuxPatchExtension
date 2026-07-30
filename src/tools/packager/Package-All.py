@@ -243,7 +243,7 @@ def main(argv):
 
         # Generate zip
         print('------------- Generating extension zip.')
-        make_archive(os.path.splitext(ext_zip_file_path_src)[0], 'zip', os.path.join(working_directory, 'out'), '..')
+        make_archive(os.path.splitext(ext_zip_file_path_src)[0], 'zip', os.path.join(working_directory, 'out'), '.')
         copyfile(ext_zip_file_path_src, ext_zip_file_path_dest)
         os.remove(ext_zip_file_path_src)
 
