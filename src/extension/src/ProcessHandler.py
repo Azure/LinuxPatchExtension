@@ -214,8 +214,8 @@ class ProcessHandler(object):
                     self.logger.log_debug("Process is not a patching operation. [PID={0}] [CmdLine={1}]".format(str(pid), cmdline))
                     return False
         except Exception as error:
-            self.logger.log_debug("Error checking if process is a patching operation. [PID={0}] [Error={1}]".format(str(pid), repr(error)))
-            return True  # If we cannot determine, assume it is a patching operation to be safe
+            self.logger.log_verbose("Error checking if process is a patching operation. Assuming it is a patching operation. [PID={0}] [Error={1}]".format(str(pid), repr(error)))
+            return True  # If we cannot determine, assume it is a patching operation to be safe, because we do not want to start a patching operation when one is currently running
 
     def kill_process(self, pid):
         try:

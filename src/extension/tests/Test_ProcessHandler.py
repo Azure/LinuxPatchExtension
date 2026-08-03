@@ -226,35 +226,22 @@ class TestProcessHandler(unittest.TestCase):
     def test_is_process_patching_operation(self):
         # setting mocks
         backup_file_system_open = self.env_layer.file_system.open
-        self.env_layer.file_system.open = self.mock_file_system_open_to_return_proc_cmdline
 
-        # process is patching operation
-        is_patching_operation_content = b'/usr/bin/python3.10\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/MsftLinuxPatchCore.py\x00--seqno\x001234\x00--configfile\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/config/1234/config.json\x00--envfile\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/env/1234/env.json\x00--outputfile\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/output/1234/output.json'
-        with open(self.proc_cmdline_path, "wb") as f:
-            f.write(is_patching_operation_content)
-
-        process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
-        pid = 1234
-        
-        self.assertTrue(process_handler.is_process_patching_operation(pid))
-
-        # process is not patching operation
-        is_not_patching_operation_content = b'/usr/bin/python3.10\x00/someother/path/some_other_script.py\x00--somearg\x00somevalue'
-        with open(self.proc_cmdline_path, "wb") as f:
-            f.write(is_not_patching_operation_content)
-
-        process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
-        pid = 1234
-        
-        self.assertFalse(process_handler.is_process_patching_operation(pid))
-
-        # process cmdline exception
-        self.env_layer.file_system.open = self.mock_file_system_open_raises_exception
+        test_input_output_table = [
+            [self.mock_file_system_open_to_return_proc_cmdline, b'/usr/bin/python3.10\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/MsftLinuxPatchCore.py\x00--seqno\x001234\x00--configfile\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/config/1234/config.json\x00--envfile\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/env/1234/env.json\x00--outputfile\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/output/1234/output.json', True],
+            [self.mock_file_system_open_to_return_proc_cmdline, b'/usr/bin/python3.10\x00/someother/path/some_other_script.py\x00--somearg\x00somevalue', False],
+            [self.mock_file_system_open_raises_exception, b'', True]
+        ]
 
         process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
         pid = 1234
 
-        self.assertTrue(process_handler.is_process_patching_operation(pid))
+        for row in test_input_output_table:
+            self.env_layer.file_system.open = row[0]
+            content = row[1]
+            with open(self.proc_cmdline_path, "wb") as f:
+                f.write(content)
+            self.assertEqual(process_handler.is_process_patching_operation(pid), row[2])
 
         # resetting mocks
         self.env_layer.file_system.open = backup_file_system_open
