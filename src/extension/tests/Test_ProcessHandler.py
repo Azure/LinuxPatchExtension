@@ -76,7 +76,7 @@ class TestProcessHandler(unittest.TestCase):
         return open(self.proc_cmdline_path, mode=mode)
 
     def mock_file_system_open_raises_exception(self, path, mode):
-        raise FileNotFoundError
+        raise OSError
 
     def mock_run_command_to_set_auto_assess_shell_file_permission(self, cmd, no_output=False, chk_err=False):
         return 0, "permissions set"
