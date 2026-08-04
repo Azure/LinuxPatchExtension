@@ -57,3 +57,23 @@ The validation plan reproduces the 90-second failure on an Azure Linux VM,
 copies the modified `ServiceManager.py` into the installed extension, regenerates
 the service, and verifies that the same assessment runs beyond 90 seconds and
 completes before 10 minutes.
+
+## Azure VM Validation
+
+- **VM**: Azure RHEL 8.9, systemd 239, Linux Patch Extension 1.6.71.
+- **Reproduction**: Wrapped `/usr/bin/yum` to delay its first invocation by
+  120 seconds and forced auto-assessment to run.
+- **Before the fix**: `systemctl start` failed after exactly 90 seconds.
+  `systemctl show` reported `TimeoutStartUSec=1min 30s`, `Result=timeout`, and
+  the journal recorded `start operation timed out. Terminating.`
+- **Deployment**: Built the extension from this branch, copied the generated
+  `MsftLinuxPatchCore.py` over the installed extension payload, and reran
+  `ConfigurePatching` to regenerate the systemd unit.
+- **After the fix**: The unit retained `Type=forking` and reported
+  `TimeoutStartUSec=10min`. The delayed real assessment completed successfully:
+  the assessment stopwatch reported 136 seconds and systemd reported
+  `Result=success`.
+- **Non-regression**: A subsequent platform-triggered on-demand assessment
+  completed with status `Succeeded`.
+- **Cleanup**: The `yum` wrapper was removed, the original executable was
+  restored, and the auto-assessment timer was active after validation.
