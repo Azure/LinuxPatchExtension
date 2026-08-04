@@ -89,17 +89,18 @@ class ServiceManager(SystemctlManager):
     # endregion
 
     # region - Service Unit Management
-    def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="forking", wanted_by="multi-user.target"):
+    def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="forking", timeout_start_sec="10min", wanted_by="multi-user.target"):
         """ Note: Service type defaults to forking because of sh to py process fork """
         service_unit_content_template = "\n[Unit]" + \
                                "\nDescription={0}" + \
                                "\nAfter={1}\n" + \
                                "\n[Service]" + \
                                "\nType={2}" + \
-                               "\nExecStart={3}\n" + \
+                               "\nExecStart={3}" + \
+                               "\nTimeoutStartSec={4}\n" + \
                                "\n[Install]" + \
-                               "\nWantedBy={4}"
-        service_unit_content = service_unit_content_template.format(desc, after, service_type, exec_start, wanted_by)
+                               "\nWantedBy={5}"
+        service_unit_content = service_unit_content_template.format(desc, after, service_type, exec_start, timeout_start_sec, wanted_by)
         service_unit_path = self.__systemd_service_unit_path.format(self.service_name)
         self.env_layer.file_system.write_with_retry(service_unit_path, service_unit_content)
         self.env_layer.run_command_output("sudo chmod 644 " + service_unit_path) # 644 = Owner: RW; Group: R; Others: R
