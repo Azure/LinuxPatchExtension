@@ -77,3 +77,24 @@ completes before 10 minutes.
   completed with status `Succeeded`.
 - **Cleanup**: The `yum` wrapper was removed, the original executable was
   restored, and the auto-assessment timer was active after validation.
+
+## Supported Distro Sanity Matrix
+
+The same test was repeated on Azure VMs using Linux Patch Extension 1.6.71.
+Each package-manager wrapper delayed only its first invocation by 120 seconds.
+
+| Distribution | Delayed command | Before fix | After fix | Platform assessment |
+| --- | --- | --- | --- | --- |
+| Ubuntu 22.04.5 LTS | `apt-get` | Failed at 90s with `Result=timeout` | Service completed in 157s with `Result=success`; patch assessment completed | `Succeeded` |
+| Ubuntu 24.04.4 LTS | `apt-get` | Failed at 90s with `Result=timeout` | Service completed in 136s with `Result=success`; patch assessment completed | `Succeeded` |
+| SLES 15 SP5 | `zypper refresh` | Failed at 90s with `Result=timeout` | Service completed in 144s with `Result=success`; assessment stopwatch reported 133.1s | `Succeeded` |
+
+All three regenerated units retained `Type=forking` and reported
+`TimeoutStartUSec=10min`. After each run, the original package-manager
+executable was restored and `MsftLinuxPatchAutoAssess.timer` was active.
+
+On Ubuntu, the intentional delay occurred during the
+`ubuntu-advantage-tools` prerequisite step before the assessment stopwatch
+started. The full systemd service duration therefore captures the delayed
+startup, while the logs separately confirm the subsequent patch assessment
+completed successfully.
