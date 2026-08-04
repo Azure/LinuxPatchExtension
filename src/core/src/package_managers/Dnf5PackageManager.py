@@ -36,7 +36,7 @@ class Dnf5PackageManager(PackageManager):
         self.single_package_check_versions = 'sudo dnf5 list --available <PACKAGE-NAME> '
         self.single_package_check_installed = 'sudo dnf5 list --installed <PACKAGE-NAME> '
 
-        self.single_package_upgrade_simulation_cmd = "sudo dnf5 install --assumeno --skip-broken "
+        self.single_package_upgrade_simulation_cmd = "sudo dnf5 upgrade --assumeno "
 
         # Install update
         self.single_package_upgrade_cmd = 'sudo dnf5 -y upgrade '
@@ -48,8 +48,8 @@ class Dnf5PackageManager(PackageManager):
         self.dnf_exitcode_ok = [0, 100]
         # DNF5 valid exit codes for simulation commands
         self.dnf5_simulation_valid_exit_codes = [0, 1]
-        self.dnf5_dependency_failure_text = ["Skipping packages with broken dependencies", "Nothing to do."]
-        self.dnf5_dependency_success_text = "Installing dependencies:"
+        self.dnf5_dependency_failure_text = ["Skipping packages with broken dependencies", "Nothing to do.", "Failed to resolve the transaction:"]
+        self.dnf5_dependency_success_text = ["Installing dependencies:", "Upgrading dependencies:"]
         self.dnf5_dependency_exit_text = "Transaction Summary"
         self.dnf5_not_installed_exit_code = 1
         self.dnf5_not_installed_text = "No matching packages to list"
@@ -92,7 +92,11 @@ class Dnf5PackageManager(PackageManager):
         code, out = self.env_layer.run_command_output(command, False, False)
         is_valid_not_installed = (self.dnf5_list_installed_command_patterns in command and code == self.dnf5_not_installed_exit_code and self.dnf5_not_installed_text in (out or ""))
 
-        if code in self.dnf_exitcode_ok or is_valid_not_installed:
+        # DNF5 dependency simulation using `upgrade --assumeno` may return non-standard exit codes. Successful simulations and transaction
+        # resolution failures can both return exit code 1, therefore both command output and exit code are evaluated.
+        is_valid_dependency_simulation = (self.single_package_upgrade_simulation_cmd in command and code in self.dnf5_simulation_valid_exit_codes)
+
+        if code in self.dnf_exitcode_ok or is_valid_not_installed or is_valid_dependency_simulation:
             self.composite_logger.log_debug('[DNF5] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         else:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -258,17 +262,7 @@ class Dnf5PackageManager(PackageManager):
         # Gets the dependent list from packages.Refer dnf5_output_expected_format.txt for examples of output formats.
         package_names = " ".join(packages)
         cmd = self.single_package_upgrade_simulation_cmd + package_names
-        # Dependency simulation using dnf5 install --assumeno --skip-broken has non-standard exit code behavior. A valid simulation run may return exit code 1 (e.g., "Operation aborted by the user"),
-        # while dependency resolution failures may still return exit code 0 with output indicating skipped packages (e.g., "Skipping packages with broken dependencies" and "Nothing to do.").
-        # calling the runcommand directly to get the output as well as code to determine failure/success cases
-        code, output = self.env_layer.run_command_output(cmd, False, False)
-        self.composite_logger.log_verbose("[DNF5] Dependency simulation. [Command={0}][Code={1}]".format(cmd, str(code)))
-        if code not in self.dnf5_simulation_valid_exit_codes:
-            self.composite_logger.log_error("[DNF5] Unexpected failure. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output))
-            error_msg = "DNF5 dependency simulation failed. Investigate and resolve unexpected return code({0}) from package manager on command: {1} ".format(str(code), cmd)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-
+        output = self.invoke_package_manager(cmd)
         dependencies = self.extract_dependencies(output, packages)
         self.composite_logger.log_verbose("[DNF5] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd), str(packages), len(dependencies)))
         return dependencies
@@ -278,8 +272,8 @@ class Dnf5PackageManager(PackageManager):
         dependencies = []
 
         # Handle non-blocking dependency failure / nothing-to-do cases
-        if all(text in output for text in self.dnf5_dependency_failure_text):
-            self.composite_logger.log_warning("[DNF5] Packages skipped due to broken dependencies (non-blocking)")
+        if any(text in output for text in self.dnf5_dependency_failure_text):
+            self.composite_logger.log_warning("[DNF5] Dependency simulation did not return dependency information (non-blocking)")
             return dependencies
 
         package_arch_to_look_for = ["x86_64", "noarch", "i686", "aarch64"]
@@ -291,7 +285,7 @@ class Dnf5PackageManager(PackageManager):
             line_str = lines[line_index].strip()
 
             # Detect start of dependency section
-            if line_str.startswith(self.dnf5_dependency_success_text):
+            if any(line_str.startswith(text) for text in self.dnf5_dependency_success_text):
                 in_dependency_section = True
 
             #  Detect exit of dependency section
