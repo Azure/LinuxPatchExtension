@@ -204,13 +204,12 @@ class ProcessHandler(object):
             # Patching operation cmdline will look like:
             # /usr/bin/python3.10 /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/MsftLinuxPatchCore.py <args>
             with self.env_layer.file_system.open("/proc/{0}/cmdline".format(str(pid)), mode="rb") as cmdline_file:
-                cmdline = cmdline_file.read()
-                cmdline = cmdline.replace(b'\x00', b' ').decode("utf-8")  # cmdline is null-separated, so replacing nulls with spaces for easier parsing and logging
-                
-                if Constants.CORE_CODE_FILE_NAME in cmdline:
+                cmdline_bytes = cmdline_file.read()
+                if Constants.CORE_CODE_FILE_NAME.encode("utf-8") in cmdline_bytes:
                     self.logger.log_verbose("Process is a patching operation. [PID={0}]".format(str(pid)))
                     return True
                 else:
+                    cmdline = cmdline_bytes.replace(b'\x00', b' ').decode("utf-8", errors="replace")  # cmdline is null-separated
                     self.logger.log_debug("Process is not a patching operation. [PID={0}] [CmdLine={1}]".format(str(pid), cmdline))
                     return False
         except Exception as error:
