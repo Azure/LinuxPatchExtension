@@ -15,8 +15,10 @@
 # Requires Python 2.7+
 
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from extension.src.Constants import Constants
 from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
@@ -39,14 +41,20 @@ class TestProcessHandler(unittest.TestCase):
         self.json_file_handler = runtime.json_file_handler
         self.env_layer = runtime.env_layer
         dir_path = os.path.join(os.path.pardir, "tests", "helpers")
+        self.test_dir = tempfile.mkdtemp()
+        self.proc_cmdline_path = os.path.join(self.test_dir, "proc_cmdline")
         self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
         self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        shutil.rmtree(self.test_dir)
         self.process.kill()
 
     def mock_is_process_running_to_return_true(self, pid):
+        return True
+
+    def mock_is_process_patching_operation_to_return_true(self, pid):
         return True
 
     def mock_os_kill_to_raise_exception(self, pid, sig):
@@ -63,6 +71,12 @@ class TestProcessHandler(unittest.TestCase):
 
     def mock_get_python_cmd(self):
         return "python"
+
+    def mock_file_system_open_to_return_proc_cmdline(self, path, mode):
+        return open(self.proc_cmdline_path, mode=mode)
+
+    def mock_file_system_open_raises_exception(self, path, mode):
+        raise OSError
 
     def mock_run_command_to_set_auto_assess_shell_file_permission(self, cmd, no_output=False, chk_err=False):
         return 0, "permissions set"
@@ -133,6 +147,8 @@ class TestProcessHandler(unittest.TestCase):
         # setting mocks
         is_process_running_backup = ProcessHandler.is_process_running
         ProcessHandler.is_process_running = self.mock_is_process_running_to_return_true
+        is_process_patching_operation_backup = ProcessHandler.is_process_patching_operation
+        ProcessHandler.is_process_patching_operation = self.mock_is_process_patching_operation_to_return_true
         os_kill_backup = os.kill
         os.kill = self.mock_os_kill_to_raise_exception
 
@@ -143,6 +159,7 @@ class TestProcessHandler(unittest.TestCase):
 
         # reseting mocks
         ProcessHandler.is_process_running = is_process_running_backup
+        ProcessHandler.is_process_patching_operation = is_process_patching_operation_backup
         os.kill = os_kill_backup
 
     def test_get_python_cmd(self):
@@ -205,6 +222,29 @@ class TestProcessHandler(unittest.TestCase):
         subprocess.Popen = subprocess_popen_backup
         process_handler.env_layer.run_command_output = run_command_output_backup
         ExtEnvHandler.get_temp_folder = ext_env_handler_get_temp_folder_backup
+    
+    def test_is_process_patching_operation(self):
+        # setting mocks
+        backup_file_system_open = self.env_layer.file_system.open
+
+        test_input_output_table = [
+            [self.mock_file_system_open_to_return_proc_cmdline, b'/usr/bin/python3.10\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/MsftLinuxPatchCore.py\x00--seqno\x001234\x00--configfile\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/config/1234/config.json\x00--envfile\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/env/1234/env.json\x00--outputfile\x00/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/output/1234/output.json', True],
+            [self.mock_file_system_open_to_return_proc_cmdline, b'/usr/bin/python3.10\x00/someother/path/some_other_script.py\x00--somearg\x00somevalue', False],
+            [self.mock_file_system_open_raises_exception, b'', True]
+        ]
+
+        process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
+        pid = 1234
+
+        for row in test_input_output_table:
+            self.env_layer.file_system.open = row[0]
+            content = row[1]
+            with open(self.proc_cmdline_path, "wb") as f:
+                f.write(content)
+            self.assertEqual(process_handler.is_process_patching_operation(pid), row[2])
+
+        # resetting mocks
+        self.env_layer.file_system.open = backup_file_system_open
 
 
 if __name__ == '__main__':
