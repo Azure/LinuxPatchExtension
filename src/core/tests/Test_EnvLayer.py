@@ -75,11 +75,9 @@ class TestExecutionConfig(unittest.TestCase):
         return -1, ''
 
     def mock_run_command_for_dnf4(self, cmd, no_output=False, chk_err=False):
-        if "which dnf" in cmd:
-            return 0, '/usr/bin/dnf'
         if "dnf --version" in cmd:
             return 0, '4.20.0'
-         return -1, ''
+        return -1, ''
      
     def mock_run_command_for_dnf5(self, cmd, no_output=False, chk_err=False):
         if "dnf --version" in cmd:
@@ -101,7 +99,7 @@ class TestExecutionConfig(unittest.TestCase):
         if "dnf --version" in cmd:
             if usecase == "wrong_version":
                 code = 0
-                out = "dnf version 4.14.0"
+                out = "dnf version 6.14.0"
             elif usecase == "version_command_failure":
                 code = -1
                 out = "dnf version command failure"
