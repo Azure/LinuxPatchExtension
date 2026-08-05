@@ -845,3 +845,5 @@ class Dnf5PackageManager(PackageManager):
         """ Checks if a reboot is required before updating certificates """
         return False
     # endregion
+
+
