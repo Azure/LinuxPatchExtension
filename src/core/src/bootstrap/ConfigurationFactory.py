@@ -42,6 +42,7 @@ from core.src.package_managers.DnfPackageManager import DnfPackageManager
 from core.src.package_managers.Dnf5PackageManager import Dnf5PackageManager
 from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
+from core.src.service_interfaces.CredentialSanitizer import CredentialSanitizer
 
 from core.src.service_interfaces.LifecycleManager import LifecycleManager
 from core.src.service_interfaces.LifecycleManagerAzure import LifecycleManagerAzure
@@ -159,9 +160,14 @@ class ConfigurationFactory(object):
                     'telemetry_writer': None  # Has to be initialized without telemetry_writer to avoid running into a circular dependency loop. Telemetry writer within composite logger will be set later after telemetry writer has been initialized
                 }
             },
+            'credential_sanitizer': {
+                'component': CredentialSanitizer,
+                'component_args': ['composite_logger'],
+                'component_kwargs': {}
+            },
             'telemetry_writer': {
                 'component': TelemetryWriter,
-                'component_args': ['env_layer', 'composite_logger'],
+                'component_args': ['env_layer', 'composite_logger', 'credential_sanitizer'],
                 'component_kwargs': {
                     'events_folder_path': events_folder,
                     'telemetry_supported': telemetry_supported
