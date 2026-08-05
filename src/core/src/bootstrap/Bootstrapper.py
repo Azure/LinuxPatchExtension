@@ -49,6 +49,7 @@ class Bootstrapper(object):
         if capture_stdout:
             self.stdout_file_mirror = StdOutFileMirror(self.env_layer, self.file_logger)
         self.composite_logger = self.container.get('composite_logger')
+        self.credential_sanitizer = self.container.get("credential_sanitizer")
         self.telemetry_writer = self.container.get('telemetry_writer')
         self.composite_logger.telemetry_writer = self.telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
 
