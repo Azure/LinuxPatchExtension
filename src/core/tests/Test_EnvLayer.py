@@ -292,7 +292,7 @@ class TestExecutionConfig(unittest.TestCase):
         for row in test_input_output_table:
             distro_name = row[0]()[0]  # Extract distro name from tuple (first element)
             distro.os_release_attr = row[1]
-            result = self.envlayer.is_distro_rhel_10(distro_name)
+            result = self.envlayer.is_distro_rhel(distro_name)
             self.assertEqual(result, row[2])
 
         # restore original methods

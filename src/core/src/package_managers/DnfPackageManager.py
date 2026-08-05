@@ -14,7 +14,7 @@
 #
 # Requires Python 2.7+
 
-"""DnfPackageManager for Rhel 10"""
+"""DnfPackageManager for RHEL"""
 import json
 import re
 

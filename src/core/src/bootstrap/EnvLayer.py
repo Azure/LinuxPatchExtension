@@ -76,9 +76,9 @@ class EnvLayer(object):
         """ Checks if the current distro is Azure Linux 4 """
         return self.__is_matching_distro_and_version(distro_name, Constants.AZURE_LINUX, version_to_match=4)
 
-    def is_distro_rhel_10(self, distro_name):
+    def is_distro_rhel(self, distro_name):
         # type: (str) -> bool
-        """ Checks if the current distro is RHEL 10 """
+        """ Checks if the current distro is RHEL 10. Can be expanded backwards in future"""
         return self.__is_matching_distro_and_version(distro_name, Constants.RED_HAT, version_to_match=10)
 
     def __get_dnf_version(self):
@@ -102,16 +102,16 @@ class EnvLayer(object):
         # Example: ['Azure Linux', '4.0', '']
         os_name, os_version, os_code = self.platform.linux_distribution()
 
-        # Check for Rhel 10(uses dnf4)
-        if self.is_distro_rhel_10(os_name):
+        # Check for RHEL(uses dnf4)
+        if self.is_distro_rhel(os_name):
             code, out, version = self.__get_dnf_version()
             if code == 0 and version == '4':
                 return Constants.DNF
             elif code == 0 and version !='4':
-                print("Error: Expected dnf version not found on this rhel 10 VM. [Expected={0}][Found={1}]".format("4", str(version)))
+                print("Error: Expected dnf version not found on this RHEL 10 VM. [Expected={0}][Found={1}]".format("4", str(version)))
                 return str()
             else:
-                print("Error: Expected package manager dnf not found on this rhel 10 VM.")
+                print("Error: Expected package manager dnf not found on this RHEL 10 VM.")
                 return str()
 
         # Check for Azure Linux 4 or Above( uses dnf5)
