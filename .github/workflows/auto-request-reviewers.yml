@@ -1,4 +1,4 @@
-name: Auto Request Reviewers
+name: Request AzGPS Reviewers
 
 on:
   pull_request:
@@ -22,10 +22,10 @@ jobs:
             const author = context.payload.pull_request.user.login;
 
             const reviewers = [
-              'GAURAVRAMRAWOCHYANI',
+              'GAURAVRAMRAKHYANI',
               'kjohn-msft',
-              'michellemcdeniel',
-              'mirichno',
+              'michellemcdaniel',
+              'mirichmo',
               'nikhim-um',
               'rane-rajasi',
               'SathishMSFT',
