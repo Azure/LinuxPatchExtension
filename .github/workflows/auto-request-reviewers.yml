@@ -5,6 +5,7 @@ on:
     types:
       - opened
       - ready_for_review
+      - synchronize
 
 permissions:
   pull-requests: write
@@ -21,6 +22,7 @@ jobs:
             const author = context.payload.pull_request.user.login;
 
             const reviewers = [
+              'Azure/linuxpatchextensionteam',
               'GAURAVRAMRAKHYANI',
               'kjohn-msft',
               'michellemcdaniel',
