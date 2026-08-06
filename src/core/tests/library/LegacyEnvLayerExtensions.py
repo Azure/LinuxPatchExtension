@@ -1117,7 +1117,7 @@ class LegacyEnvLayerExtensions():
                         output = (
                             "Installed packages\n"
                             "rubygem-json.x86_64 2.13.2-2.azl4~20260501 azurelinux-base\n")
-                    elif cmd.find("sudo dnf5 install --assumeno --skip-broken openssl") > -1:
+                    elif cmd.find("sudo dnf5 upgrade --assumeno openssl") > -1:
                         code = 0
                         output = "Updating and loading repositories:\n" + \
                                  "Repositories loaded.\n" + \

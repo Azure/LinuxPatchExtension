@@ -68,7 +68,7 @@ class TestDnfPackageManager(unittest.TestCase):
                                                                     enable_on_reboot_value=enable_on_reboot_value, installation_state_value=installation_state_value, set_installation_state=set_installation_state)
         package_manager.revert_auto_os_update_to_system_default()
 
-    def __setup_current_auto_os_update_config(self, package_manager, config_value='', config_file_name=""):
+    def __setup_current_auto_os_update_config(self, package_manager, config_value=''):
         # setup current auto OS update config
         default_config_path = os.path.join(self.runtime.execution_config.config_folder, "default_automatic.conf")
         override_config_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
