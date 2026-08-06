@@ -310,7 +310,6 @@ class TestActionHandler(unittest.TestCase):
 
         # Re-init TelemetryWriter since the env var for compatibility is only checked on init
         os.getenv = mock_os_getenv
-        #test
         self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer, self.runtime.credential_sanitizer)
         self.action_handler.telemetry_writer = self.runtime.telemetry_writer
 
