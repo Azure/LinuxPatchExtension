@@ -21,8 +21,9 @@ jobs:
           script: |
             const author = context.payload.pull_request.user.login;
 
+            const teams = ['Azure/linuxpatchextensionteam']
+
             const reviewers = [
-              'Azure/linuxpatchextensionteam',
               'gauravramrakhyani',
               'kjohn-msft',
               'michellemcdaniel',
@@ -44,5 +45,6 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.payload.pull_request.number,
-              reviewers: filtered
+              reviewers: filtered,
+              team_reviewers: teams
             });
