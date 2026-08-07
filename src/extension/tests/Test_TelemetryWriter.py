@@ -38,8 +38,8 @@ class TestTelemetryWriter(unittest.TestCase):
         return ['testevent1.json', 'testevent2.json', 'testevent3.json', 'testevent4.json']
 
     def test_write_event(self):
-        if self.runtime.is_github_runner:
-            return
+        # if self.runtime.is_github_runner:
+        #     return
 
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
