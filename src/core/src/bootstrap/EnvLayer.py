@@ -78,15 +78,26 @@ class EnvLayer(object):
 
     def is_distro_rhel_10(self, distro_name):
         # type: (str) -> bool
-        """ Checks if the current distro is RHEL 10 """
+        """ Checks if the current distro is RHEL 10"""
         return self.__is_matching_distro_and_version(distro_name, Constants.RED_HAT, version_to_match=10)
 
     def __get_dnf_version(self):
+        """
+        This method currently checks for dnf versions on
+        azure linux 4 ad rhel10 system. Both outputs differ in styles.
+        """
+        # Output for dnf5: dnf5 version 5.2.18.0
+        # Output for dnf4:
+        #   4.20.0
+        #     Installed: dnf-0:4.20.0-22.el10_2.noarch at Tue Jul 28 11:30:33 2026
+        #     Built    : Red Hat, Inc. http://bugzilla.redhat.com/bugzilla at Thu Mar 26 13:21:22 2026
+        #
+        #     Installed: rpm-0:4.19.1.1-23.el10.x86_64 at Tue Jul 28 11:30:03 2026
+        #     Built    : Red Hat, Inc. http://bugzilla.redhat.com/bugzilla at Thu Feb  5 12:59:08 2026
         code, out = self.run_command_output('dnf --version', False, False)
-        # Output : dnf5 version 5.2.18.0
         if code != 0 or not out:
             return code, out, None
-        version = str(out).split()[-1].split('.')[0]
+        version = str(out).strip().split('\n')[0].split()[-1].split('.')[0]
         return code, out, version
 
     def get_package_manager(self):
@@ -99,11 +110,17 @@ class EnvLayer(object):
         # Example: ['Azure Linux', '4.0', '']
         os_name, os_version, os_code = self.platform.linux_distribution()
 
-        # Check for unsupported distros
+        # Check for RHEL(uses dnf4)
         if self.is_distro_rhel_10(os_name):
-            error_msg = "This distro is not yet supported in your region. Please review https://aka.ms/VMGuestPatchingCompatibility for more information. [Distro={0}][Version={1}][Code={2}]".format(str(os_name), os_version, os_code)
-            print("Error: {0}".format(error_msg))
-            return str()
+            code, out, version = self.__get_dnf_version()
+            if code == 0 and version == '4':
+                return Constants.DNF
+            elif code == 0 and version !='4':
+                print("Error: Expected dnf version not found on this RHEL 10 VM. [Expected={0}][Found={1}]".format("4", str(version)))
+                return str()
+            else:
+                print("Error: Expected package manager dnf not found on this RHEL 10 VM.")
+                return str()
 
         # Check for Azure Linux 4 or Above( uses dnf5)
         if self.is_distro_azure_linux_4(str(os_name)):
