@@ -73,9 +73,6 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         shutil.rmtree(dir_path)
 
     def test_update_file(self):
-        # if self.runtime.is_github_runner:
-        #     return
-
         file_name = "test"
         dir_path = tempfile.mkdtemp()
         operation = "Assessment"
@@ -91,7 +88,7 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         modified_time = stat_file_name.st_mtime
         self.assertEqual(prev_modified_time, modified_time)
 
-        time.sleep(0.02)  # ensure filesystem mtime granularity is exceeded
+        time.sleep(0.03)  # ensure filesystem mtime granularity is exceeded
         ext_status_handler.update_file(file_name)
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         modified_time = stat_file_name.st_mtime

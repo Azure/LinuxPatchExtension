@@ -38,9 +38,6 @@ class TestTelemetryWriter(unittest.TestCase):
         return ['testevent1.json', 'testevent2.json', 'testevent3.json', 'testevent4.json']
 
     def test_write_event(self):
-        # if self.runtime.is_github_runner:
-        #     return
-
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
         with open(os.path.join(self.telemetry_writer.events_folder_path, os.listdir(self.telemetry_writer.events_folder_path)[0]), 'r+') as f:
             events = json.load(f)
@@ -64,9 +61,6 @@ class TestTelemetryWriter(unittest.TestCase):
                 f.close()
 
     def test_write_multiple_events_in_same_file(self):
-        if self.runtime.is_github_runner:
-            return
-
         time_backup = time.time
         time.time = self.mock_time
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
