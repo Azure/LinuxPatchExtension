@@ -122,7 +122,7 @@ class TestTelemetryWriter(unittest.TestCase):
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task4")
         new_events = os.listdir(self.telemetry_writer.events_folder_path)
         self.assertEqual(len(new_events), 1)
-        self.assertTrue(old_events[0] not in new_events)
+        self.assertNotIn(old_events[0], new_events)
         Constants.TELEMETRY_DIR_SIZE_LIMIT_IN_CHARS = telemetry_dir_size_backup
         Constants.TELEMETRY_EVENT_FILE_SIZE_LIMIT_IN_CHARS = telemetry_event_size_backup
 
