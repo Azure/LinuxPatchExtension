@@ -23,13 +23,13 @@ jobs:
 
             const reviewers = [
               'Azure/linuxpatchextensionteam',
-              'GAURAVRAMRAKHYANI',
+              'gauravramrakhyani',
               'kjohn-msft',
               'michellemcdaniel',
               'mirichmo',
               'nikhim-um',
               'rane-rajasi',
-              'SathishMSFT',
+              'Sathishmsft',
               'yashnap'
             ];
 
