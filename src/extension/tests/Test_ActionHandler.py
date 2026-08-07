@@ -310,7 +310,7 @@ class TestActionHandler(unittest.TestCase):
 
         # Re-init TelemetryWriter since the env var for compatibility is only checked on init
         os.getenv = mock_os_getenv
-        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer)
+        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer, self.runtime.credential_sanitizer)
         self.action_handler.telemetry_writer = self.runtime.telemetry_writer
 
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
@@ -339,7 +339,7 @@ class TestActionHandler(unittest.TestCase):
 
         # Re-init TelemetryWriter since the env var for compatibility is only checked on init
         os.getenv = mock_os_getenv
-        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer)
+        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer, self.runtime.credential_sanitizer)
         self.action_handler.telemetry_writer = self.runtime.telemetry_writer
 
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
@@ -582,7 +582,7 @@ class TestActionHandler(unittest.TestCase):
             '/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.35'
         ]
 
-        all_versions = self.action_handler.filter_files_from_versions(all_versions_including_files);
+        all_versions = self.action_handler.filter_files_from_versions(all_versions_including_files)
         self.assertTrue(len(all_versions) == 2)
         self.assertTrue('/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.36' in all_versions)
         self.assertTrue('/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.35' in all_versions)
