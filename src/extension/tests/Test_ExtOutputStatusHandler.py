@@ -18,6 +18,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 import unittest
 from extension.src.Constants import Constants
 from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
@@ -84,11 +85,13 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         prev_modified_time = stat_file_name.st_mtime
 
+        time.sleep(0.02)
         ext_status_handler.update_file("test1")
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         modified_time = stat_file_name.st_mtime
         self.assertEqual(prev_modified_time, modified_time)
 
+        time.sleep(0.05)  # ensure filesystem mtime granularity is exceeded
         ext_status_handler.update_file(file_name)
         stat_file_name = os.stat(os.path.join(dir_path, file_name + ".status"))
         modified_time = stat_file_name.st_mtime
