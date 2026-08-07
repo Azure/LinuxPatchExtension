@@ -21,7 +21,7 @@ jobs:
           script: |
             const author = context.payload.pull_request.user.login;
 
-            const teams = ['Azure/linuxpatchextensionteam']
+            const teams = ['linuxpatchextensionteam']
 
             const reviewers = [
               'gauravramrakhyani',
