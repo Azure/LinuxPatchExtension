@@ -109,8 +109,8 @@ class TestTelemetryWriter(unittest.TestCase):
     #     self.telemetry_writer.get_file_size = telemetry_get_event_file_size_backup
 
     def test_delete_older_events(self):
-        if self.runtime.is_github_runner:
-            return
+        # if self.runtime.is_github_runner:
+        #     return
 
         # deleting older event files before adding new one
         self.telemetry_writer.write_event("testing telemetry write to file", Constants.TelemetryEventLevel.Error, "Test Task")
