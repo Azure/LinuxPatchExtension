@@ -72,8 +72,8 @@ class TestExtOutputStatusHandler(unittest.TestCase):
         shutil.rmtree(dir_path)
 
     def test_update_file(self):
-        if self.runtime.is_github_runner:
-            return
+        # if self.runtime.is_github_runner:
+        #     return
 
         file_name = "test"
         dir_path = tempfile.mkdtemp()
