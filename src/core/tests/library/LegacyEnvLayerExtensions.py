@@ -1098,20 +1098,6 @@ class LegacyEnvLayerExtensions():
                                 'Repositories loaded.\n'
                                 'Package "rubygem-json-2.13.2-2.azl4~20260501.x86_64" is already installed.\n\n'
                                 'Nothing to do.\n')
-                    elif "hyperv-daemons" in cmd and "--assumeno" in cmd:
-                        code = 1
-                        output = (
-                            "Updating and loading repositories:\n"
-                            "Repositories loaded.\n"
-                            "Package                                                  Arch          Version                                                  Repository                          Size\n"
-                            "Installing:\n"
-                            " hyperv-daemons                                           x86_64        6.10-3.azl4~20260501                                     azurelinux-base                     20.08k\n\n"
-                            "Installing dependencies:\n"
-                            " hyperv-daemons-license                                   noarch        6.10-3.azl4~20260501                                     azurelinux-base                     18.3 KiB\n\n"
-                            "Transaction Summary:\n"
-                            " Installing:         2 packages\n\n"
-                            "Total download size: 135.09k\n"
-                            "Operation aborted by the user.\n")
                     elif "dnf5 list --installed rubygem-json" in cmd:
                         code = 0
                         output = (
