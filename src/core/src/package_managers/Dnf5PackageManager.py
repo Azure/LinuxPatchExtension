@@ -754,7 +754,7 @@ class Dnf5PackageManager(PackageManager):
 
         # Empty values indicate override file did not exist before onboarding.
         if override_download_updates == "" and override_apply_updates == "":
-            self.composite_logger.log_debug("[DNF5] Override dnf5-automatic configuration did not exist before onboarding.Removing override configuration file if it exists.")
+            self.composite_logger.log_debug("[DNF5] Override dnf5-automatic configuration did not exist before onboarding. Removing override configuration file if it exists.")
             self.__remove_override_configuration_if_exists()
             return
 
@@ -786,7 +786,7 @@ class Dnf5PackageManager(PackageManager):
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.OPERATION_FAILED)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         else:
-            self.composite_logger.log_debug("[DNF5] Enabled auto update on reboot.[Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
+            self.composite_logger.log_debug("[DNF5] Enabled auto update on reboot. [Command={0}][Code={1}][Output={2}]".format(command, str(code), out))
 
     def __get_image_default_patch_configuration_backup(self):
         """ Get image_default_patch_configuration_backup file"""

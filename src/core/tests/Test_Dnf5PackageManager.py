@@ -42,7 +42,7 @@ class TestDnfPackageManager(unittest.TestCase):
     def mock_run_command_output_check_update(self, cmd, no_output=False, chk_err=True):
         if "check-update" in cmd:
             return 0, ""
-        return None
+        return 0, ""
 
     def mock_run_command_output_no_reboot(self, cmd, no_output=False, chk_err=True):
         if "needs-restarting" in cmd:
@@ -484,7 +484,6 @@ class TestDnfPackageManager(unittest.TestCase):
                 # restore sys.stdout output
                 sys.stdout = original_stdout
                 self.__assert_std_io(captured_output=captured_output,expected_output=testcase["stdio"]["expected_output"])
-            print("packagemanager" ,dir(package_manager))
             self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(testcase["assertions"]["config_exists"]), config_value_expected=testcase["assertions"]["config_value_expected"])
 
     def test_dedupe_update_packages_to_get_latest_versions(self):
@@ -746,13 +745,19 @@ class TestDnfPackageManager(unittest.TestCase):
 
         # Restart not required (needs-restarting returns code=0)
         self.runtime.set_legacy_test_type('SadPath')
-        self.runtime.env_layer.run_output_command = self.mock_run_command_output_no_reboot
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_no_reboot
         self.assertFalse(package_manager.is_reboot_pending())
 
         # Exception Path
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
+        package_manager.os_patch_override_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "override.conf")
+        self.runtime.write_to_file(package_manager.os_patch_override_configuration_settings_file_path, '[commands]\napply_updates = yes\ndownload_updates = yes\n')
+
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
+        self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting, package_manager.download_updates_identifier_text, "no",
+                                package_manager.auto_update_config_pattern_match_text)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.is_reboot_pending())
 
@@ -784,6 +789,10 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         # Mock file_system.write_with_retry to raise exception
+        package_manager.os_patch_override_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "override.conf")
+        self.runtime.write_to_file(package_manager.os_patch_override_configuration_settings_file_path, '[commands]\napply_updates = yes\ndownload_updates = yes\n')
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
+        self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting, )
 
@@ -792,6 +801,11 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         # Mock file_system.write_with_retry to raise exception
+        package_manager.os_patch_override_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "override.conf")
+        self.runtime.write_to_file(package_manager.os_patch_override_configuration_settings_file_path, '[commands]\napply_updates = yes\ndownload_updates = yes\n')
+
+        self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
+        self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting)
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
         self.assertRaises(Exception, package_manager.backup_image_default_patch_configuration_if_not_exists, )
 
