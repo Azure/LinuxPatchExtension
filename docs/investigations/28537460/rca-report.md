@@ -98,3 +98,29 @@ On Ubuntu, the intentional delay occurred during the
 started. The full systemd service duration therefore captures the delayed
 startup, while the logs separately confirm the subsequent patch assessment
 completed successfully.
+
+## Ten-Minute Timeout Boundary Validation
+
+The fixed unit was retested on new Azure VMs in `westus2` with a 660-second
+delay on the first package-manager invocation. This verifies that the service
+does not remain indefinitely in `activating` after increasing the startup
+timeout.
+
+| Distribution | Delayed command | Configured timeout | Observed result |
+| --- | --- | --- | --- |
+| RHEL 8.9 | `yum -q check-update` | 10 minutes | Timed out at exactly 600s |
+| Ubuntu 22.04.5 LTS | `apt-get install ubuntu-advantage-tools -y` | 10 minutes | Timed out at exactly 600s |
+| Ubuntu 24.04.4 LTS | `apt-get install ubuntu-advantage-tools -y` | 10 minutes | Timed out at exactly 600s |
+| SLES 15 SP5 | `zypper refresh` | 10 minutes | Timed out at exactly 600s |
+
+All units contained `Type=forking` and `TimeoutStartSec=10min`. Each
+`systemctl start` returned 1, and the final service state was
+`ActiveState=failed`, `SubState=failed`, and `Result=timeout`. The journals
+recorded `start operation timed out. Terminating.` at the 600-second boundary.
+
+After each test, the original package-manager executable was restored and
+`MsftLinuxPatchAutoAssess.timer` was active. Complete VM evidence, extracted
+logs, archives, checksums, and the per-distribution report are stored locally
+under:
+
+`artifacts\28537460-timeout-validation-20260811`
