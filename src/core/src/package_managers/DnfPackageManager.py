@@ -31,6 +31,7 @@ class DnfPackageManager(PackageManager):
         # Repo refresh
         self.cmd_clean_cache = "sudo dnf -q clean expire-cache"
         self.cmd_repo_refresh = self.cmd_get_all_updates = "sudo dnf -q check-update"
+        self.cmd_check_security_updates = "sudo dnf -q --security check-update"
 
         # Support to get updates and their dependencies
         self.single_package_check_versions = 'sudo dnf list --available <PACKAGE-NAME> '
@@ -47,10 +48,10 @@ class DnfPackageManager(PackageManager):
         self.dnf_exitcode_ok = [0, 100]
         # DNF valid exit codes for simulation commands
         self.dnf_simulation_valid_exit_codes = [0, 1]
-        self.dnf_not_installed_exit_code = 1
+        self.dnf_no_packages_found_exit_code = 1
 
         # Package manager success/failure text
-        self.dnf_not_installed_text = "No matching packages to list"
+        self.dnf_no_packages_found_text = "No matching packages to list"
         self.dnf_dependency_success_text = ["Installing dependencies:", "Upgrading:", "Dependencies resolved."]
         self.dnf_dependency_exit_text = "Transaction Summary"
         self.dnf_dependency_failure_text = "Skipping packages with broken dependencies"
@@ -94,9 +95,13 @@ class DnfPackageManager(PackageManager):
         self.composite_logger.log_verbose("[DNF] Invoking package manager. [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
         self.validate_dnf_output(out)
-        is_valid_not_installed = (self.dnf_list_installed_command_patterns in command and code == self.dnf_not_installed_exit_code and self.dnf_not_installed_text in (out or ""))
+        is_valid_not_installed = (self.dnf_list_installed_command_patterns in command and code == self.dnf_no_packages_found_exit_code and self.dnf_no_packages_found_text in (out or ""))
 
-        if code in self.dnf_exitcode_ok or is_valid_not_installed:
+        # DNF dependency simulation using `upgrade --assumeno` may return non-standard exit codes. Successful simulations and transaction
+        # resolution failures can both return exit code 1, therefore both command output and exit code are evaluated.
+        is_valid_dependency_simulation = (self.single_package_upgrade_simulation_cmd in command and code in self.dnf_simulation_valid_exit_codes)
+
+        if code in self.dnf_exitcode_ok or is_valid_not_installed or is_valid_dependency_simulation:
             self.composite_logger.log_debug('[DNF] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         else:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -127,16 +132,26 @@ class DnfPackageManager(PackageManager):
         return self.all_updates_cached, self.all_update_versions_cached
 
     def get_security_updates(self):
-        """Get missing security updates. NOTE: Classification based categorization of patches is not available in Rhel 10 as of now"""
-        self.composite_logger.log_verbose("[DNF] Discovering all packages as 'security' packages, since DNF does not support package classification...")
-        security_packages, security_package_versions = self.get_all_updates(cached=False)
+        """Get missing security updates using dnf --security classification"""
+        self.composite_logger.log_verbose("[DNF] Discovering 'security' packages...")
+        out = self.invoke_package_manager(self.cmd_check_security_updates)
+        security_packages, security_package_versions = self.extract_packages_and_versions(out)
         self.composite_logger.log_debug("[DNF] Discovered 'security' packages. [Count={0}]".format(len(security_packages)))
         return security_packages, security_package_versions
 
     def get_other_updates(self):
-        """Get missing other updates."""
+        """Get missing other updates (all updates minus security updates)"""
         self.composite_logger.log_verbose("[DNF] Discovering 'other' packages...")
-        return [], []
+        all_packages, all_package_versions = self.get_all_updates(cached=True)
+        security_packages, security_package_versions = self.get_security_updates()
+        other_packages = []
+        other_package_versions = []
+        for i, package in enumerate(all_packages):
+            if package not in security_packages:
+                other_packages.append(package)
+                other_package_versions.append(all_package_versions[i])
+        self.composite_logger.log_debug("[DNF] Discovered 'other' packages. [Count={0}]".format(len(other_packages)))
+        return other_packages, other_package_versions
 
     def set_max_patch_publish_date(self, max_patch_publish_date=str()):
         pass
@@ -329,14 +344,7 @@ class DnfPackageManager(PackageManager):
         """Returns dependent List for the list of packages"""
         package_names = " ".join(packages)
         cmd = self.single_package_upgrade_simulation_cmd + package_names
-        code, output = self.env_layer.run_command_output(cmd, False, False)
-        self.composite_logger.log_verbose("[DNF] Dependency simulation. [Command={0}][Code={1}]".format(cmd, str(code)))
-        if code not in self.dnf_simulation_valid_exit_codes:
-            self.composite_logger.log_error("[DNF] Unexpected failure during dependency simulation. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), output))
-            error_msg = "DNF dependency simulation failed. Investigate and resolve unexpected return code({0}) from package manager on command: {1} ".format(str(code), cmd)
-            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
-            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
-
+        output = self.invoke_package_manager(cmd)
         dependencies = self.extract_dependencies(output, packages)
         self.composite_logger.log_verbose("[DNF] Resolved dependencies. [Command={0}][Packages={1}][DependencyCount={2}]".format(str(cmd), str(packages), len(dependencies)))
         return dependencies

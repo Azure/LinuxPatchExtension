@@ -567,8 +567,6 @@ class TestDnfPackageManager(unittest.TestCase):
     def test_inclusion_type_other(self):
         """Unit test for dnf package manager with inclusion and Classification = Other. All packages are considered are 'Security' since DNF does not have patch classification"""
         self.runtime.set_legacy_test_type('HappyPath')
-        package_manager = self.container.get('package_manager')
-        self.assertIsNotNone(package_manager)
         self.runtime.stop()
 
         argument_composer = ArgumentComposer()
@@ -577,6 +575,8 @@ class TestDnfPackageManager(unittest.TestCase):
         argument_composer.patches_to_exclude = ["ssh*", "test"]
         self.runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.DNF)
         self.container = self.runtime.container
+        package_manager = self.container.get('package_manager')
+        self.assertIsNotNone(package_manager)
 
         package_filter = self.container.get('package_filter')
         self.assertIsNotNone(package_filter)
@@ -630,7 +630,7 @@ class TestDnfPackageManager(unittest.TestCase):
 
         # Restart not required (needs-restarting returns code=0)
         self.runtime.set_legacy_test_type('SadPath')
-        self.runtime.env_layer.run_output_command = self.mock_run_command_output_no_reboot
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_no_reboot
         self.assertFalse(package_manager.is_reboot_pending())
 
         # Exception Path
@@ -681,16 +681,18 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertTrue(package_manager)
 
         security_packages, security_package_versions  = package_manager.get_security_updates()
-        self.assertTrue(5, security_packages)
-        self.assertTrue(5, security_package_versions)
+        self.assertGreater(len(security_packages), 0)
+        self.assertEqual(len(security_packages), len(security_package_versions))
 
     def test_update_os_patch_configuration_sub_setting_exception_handling(self):
         """Test exception handling when override file write fails"""
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
+        package_manager.os_patch_configuration_settings_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        self.runtime.write_to_file(package_manager.os_patch_configuration_settings_file_path, "apply_updates = yes\n")
         # Mock file_system.write_with_retry to raise exception
         self.runtime.env_layer.file_system.write_with_retry = self.mock_write_with_retry_raise_exception
-        self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting, )
+        self.assertRaises(Exception, package_manager.update_os_patch_configuration_sub_setting, package_manager.dnf_automatic_apply_updates_identifier_text, "no", package_manager.dnf_automatic_config_pattern_match_text)
 
     def test_backup_image_default_patch_configuration_if_not_exists_exception_handling(self):
         """Test exception handling when override file write fails"""

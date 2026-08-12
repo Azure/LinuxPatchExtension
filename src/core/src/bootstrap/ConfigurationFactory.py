@@ -73,21 +73,21 @@ class ConfigurationFactory(object):
 
         self.configurations = {
             'apt_prod_config':    self.new_prod_configuration(Constants.APT, AptitudePackageManager),
-            'dnf_prod_config':   self.new_prod_configuration(Constants.DNF, DnfPackageManager),
+            'dnf_prod_config':    self.new_prod_configuration(Constants.DNF, DnfPackageManager),
             'dnf5_prod_config':   self.new_prod_configuration(Constants.DNF5, Dnf5PackageManager),
             'tdnf_prod_config':   self.new_prod_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_prod_config':    self.new_prod_configuration(Constants.YUM, YumPackageManager),
             'zypper_prod_config': self.new_prod_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_dev_config':     self.new_dev_configuration(Constants.APT, AptitudePackageManager),
-            'dnf_dev_config':    self.new_dev_configuration(Constants.DNF, DnfPackageManager),
+            'dnf_dev_config':     self.new_dev_configuration(Constants.DNF, DnfPackageManager),
             'dnf5_dev_config':    self.new_dev_configuration(Constants.DNF5, Dnf5PackageManager),
             'tdnf_dev_config':    self.new_dev_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_dev_config':     self.new_dev_configuration(Constants.YUM, YumPackageManager),
             'zypper_dev_config':  self.new_dev_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_test_config':    self.new_test_configuration(Constants.APT, AptitudePackageManager),
-            'dnf_test_config':   self.new_test_configuration(Constants.DNF, DnfPackageManager),
+            'dnf_test_config':    self.new_test_configuration(Constants.DNF, DnfPackageManager),
             'dnf5_test_config':   self.new_test_configuration(Constants.DNF5, Dnf5PackageManager),
             'tdnf_test_config':   self.new_test_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
