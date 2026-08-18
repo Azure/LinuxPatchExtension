@@ -55,7 +55,6 @@ class DnfPackageManager(PackageManager):
         self.dnf_dependency_success_text = ["Installing dependencies:", "Upgrading:", "Dependencies resolved."]
         self.dnf_dependency_exit_text = "Transaction Summary"
         self.dnf_dependency_failure_text = "Skipping packages with broken dependencies"
-        self.dnf_subscription_failure_texts = ["Unable to read consumer identity", "This system is not registered with an entitlement server"]
         self.dnf_list_installed_command_patterns = "list --installed"
 
         # Auto OS updates
@@ -94,14 +93,8 @@ class DnfPackageManager(PackageManager):
         """Get missing updates using the command input"""
         self.composite_logger.log_verbose("[DNF] Invoking package manager. [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
-        self.validate_dnf_output(out)
-        is_valid_not_installed = (self.dnf_list_installed_command_patterns in command and code == self.dnf_no_packages_found_exit_code and self.dnf_no_packages_found_text in (out or ""))
 
-        # DNF dependency simulation using `upgrade --assumeno` may return non-standard exit codes. Successful simulations and transaction
-        # resolution failures can both return exit code 1, therefore both command output and exit code are evaluated.
-        is_valid_dependency_simulation = (self.single_package_upgrade_simulation_cmd in command and code in self.dnf_simulation_valid_exit_codes)
-
-        if code in self.dnf_exitcode_ok or is_valid_not_installed or is_valid_dependency_simulation:
+        if code in self.dnf_exitcode_ok or self._is_valid_not_installed(command, code, out) or self._is_valid_dependency_simulation(command, code):
             self.composite_logger.log_debug('[DNF] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         else:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -112,11 +105,17 @@ class DnfPackageManager(PackageManager):
 
         return out, code
 
-    def validate_dnf_output(self, output):
-        for failure_text in self.dnf_subscription_failure_texts:
-            if failure_text in output:
-                self.composite_logger.log_error("[DNF] Subscription/entitlement failure detected. [{0}]".format(failure_text))
-                raise Exception("System is not properly registered with subscription service.")
+    def _is_valid_not_installed(self, command, code, out):
+        """DNF4 returns exit code 1 with 'No matching packages to list' when a package
+        is not installed via 'dnf list --installed <pkg>'. This is a valid response
+        indicating the package is absent, not an error condition."""
+        return self.dnf_list_installed_command_patterns in command and code == self.dnf_no_packages_found_exit_code and self.dnf_no_packages_found_text in (out or "")
+
+    def _is_valid_dependency_simulation(self, command, code):
+        """DNF4 overloads exit code 1 for 'dnf install --assumeno' (dry-run simulation).
+        Both successful simulations and transaction resolution failures return exit code 1,
+        so both 0 and 1 are valid exit codes for simulation commands."""
+        return self.single_package_upgrade_simulation_cmd in command and code in self.dnf_simulation_valid_exit_codes
 
     # region Classification-based (incl. All) update check
     def get_all_updates(self, cached=False):

@@ -81,7 +81,7 @@ class EnvLayer(object):
         """ Checks if the current distro is RHEL 10"""
         return self.__is_matching_distro_and_version(distro_name, Constants.RED_HAT, version_to_match=10)
 
-    def __get_dnf_version(self, package_name='dnf'):
+    def __get_dnf_version(self):
         """Fetches the major version of the dnf package installed on the VM using rpm query."""
         # Output example:
         # $[inGuestLinux@yashna-linux4 ~]$ rpm -q --queryformat '%{VERSION}' dnf5
@@ -92,16 +92,28 @@ class EnvLayer(object):
 
         # inGuestLinux@yashna-rhel10-auto:~$ rpm -q --queryformat '%{VERSION}' dnf
         # 4.20.0
-        code, out = self.run_command_output("rpm -q --queryformat '%{{VERSION}}' {0}".format(package_name), False, False)
-        if code != 0 or not out:
-            return code, out, None
+        for package_name in ('dnf5', 'dnf'):
+            code, out = self.run_command_output("rpm -q --queryformat '%{{VERSION}}' {0}".format(package_name), False, False)
 
-        version_str = str(out).strip()
-        if not version_str or not version_str[0].isdigit():
-            return code, out, None
+            if code != 0 or not out:
+                continue  # try the next package
 
-        major_version = version_str.split('.')[0]
-        return code, out, major_version
+            version_str = str(out).strip()
+            if not version_str or not version_str[0].isdigit():
+                continue  # invalid output, try next
+
+            major_version = version_str.split('.')[0]
+            return code, out, major_version
+
+        return code, out, None  # neither found
+
+    def __log_pkg_mgr_error(self, code, out, version):
+        """Logs an error when the expected package manager or version is not found."""
+        if code == 0:
+            print("Error: Expected dnf version not found. [Found={0}]".format(str(version)))
+        else:
+            print("Error: Expected package manager not found. [Code={0}][Output={1}]".format(str(code), str(out)))
+        return str()
 
     def get_package_manager(self):
         # type: () -> str
@@ -113,28 +125,20 @@ class EnvLayer(object):
         # Example: ['Azure Linux', '4.0', '']
         os_name, os_version, os_code = self.platform.linux_distribution()
 
-        # Check for RHEL 10 (uses dnf4) or Azure Linux 4 (uses dnf5)
-        if self.is_distro_rhel_10(os_name) or self.is_distro_azure_linux_4(str(os_name)):
-            pkg_name = 'dnf5' if self.is_distro_azure_linux_4(str(os_name)) else 'dnf'
-            code, out, version = self.__get_dnf_version(pkg_name)
+        # Fetch dnf version (tries dnf5 first, then dnf)
+        code, out, version = self.__get_dnf_version()
 
-            if self.is_distro_rhel_10(os_name):
-                if code == 0 and version == '4':
-                    return Constants.DNF
-                elif code == 0:
-                    print("Error: Expected dnf version not found on this RHEL 10 VM. [Expected={0}][Found={1}]".format("4", str(version)))
-                else:
-                    print("Error: Expected package manager dnf not found on this RHEL 10 VM. [Code={0}][Output={1}]".format(str(code), str(out)))
-                return str()
+        # Check for RHEL 10 (uses dnf4)
+        if self.is_distro_rhel_10(os_name):
+            if code == 0 and version == "4":
+                return Constants.DNF
+            return self.__log_pkg_mgr_error(code, out, version)
 
-            if self.is_distro_azure_linux_4(str(os_name)):
-                if code == 0 and version == '5':
-                    return Constants.DNF5
-                elif code == 0:
-                    print("Error: Expected dnf version not found on this Azure Linux4 VM. [Expected={0}][Found={1}]".format("5", str(version)))
-                else:
-                    print("Error: Expected package manager dnf5 not found on this Azure Linux4 VM. [Code={0}][Output={1}]".format(str(code), str(out)))
-                return str()
+        # Check for Azure Linux 4 (uses dnf5)
+        if self.is_distro_azure_linux_4(str(os_name)):
+            if code == 0 and version == "5":
+                return Constants.DNF5
+            return self.__log_pkg_mgr_error(code, out, version)
 
         # Check for Azure Linux (3 and below use TDNF)
         if self.is_distro_azure_linux(str(os_name)):
