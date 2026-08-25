@@ -97,9 +97,13 @@ class AptitudePackageManager(PackageManager):
         self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
         self.apt_update_cmd = "sudo apt-get -q update"
         self.min_fwupd_version = "2.0.8" # Refer public docs: https://github.com/fwupd/fwupd/releases/tag/2.0.8 and https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
-        self.get_installed_fwupd_version_cmd = "fwupdmgr --version"
         self.remove_fwupd_cmd = "sudo apt-get purge -y fwupd"
-        self.install_fwupd_cmd = "sudo apt-get install -y fwupd"
+        # NOTE: Per Canonical guidance (https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652), Ubuntu releases older
+        # than 22.04 need fwupd installed via snap instead of apt, since a suitable (>=2.0.0) version is not available in their apt repos. The snap package still exposes
+        # the same 'fwupdmgr' command on PATH (via /snap/bin, which snapd adds to PATH), so the version/refresh/update commands below remain identical either way.
+        self.is_snap_fwupd_required = self.__is_snap_fwupd_required()
+        self.get_installed_fwupd_version_cmd = "fwupdmgr --version"
+        self.install_fwupd_cmd = "sudo snap install fwupd" if self.is_snap_fwupd_required else "sudo apt-get install -y fwupd"
         self.fwupd_refresh_cmd = "sudo fwupdmgr refresh" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
         self.fwupd_update_cmd = "sudo fwupdmgr update -y"
         self.get_uptime_seconds_cmd = "cat /proc/uptime"
@@ -960,6 +964,20 @@ class AptitudePackageManager(PackageManager):
         return self.package_install_expected_avg_time_in_seconds
 
     # region Update certificates in factory defaults
+    def __is_snap_fwupd_required(self):
+        # type: () -> bool
+        """Return True for Ubuntu releases older than 22.04, where Canonical directs users to the fwupd snap."""
+        try:
+            distribution = self.env_layer.platform.linux_distribution()
+            if len(distribution) < 2 or distribution[0].lower() != "ubuntu":
+                return False
+
+            version_parts = distribution[1].split('.')
+            return int(version_parts[0]) < 22
+        except Exception as error:
+            self.composite_logger.log_warning("[APM][Certs] Unable to determine Ubuntu release for fwupd installation method. Using apt. [Error={0}]".format(repr(error)))
+            return False
+
     def is_reboot_required_before_cert_update(self):
         # type: () -> bool
         """ Long-running VMs may not have the minimum firmware required for certificate updates.
@@ -1139,7 +1157,11 @@ class AptitudePackageManager(PackageManager):
     def __run_cert_shell_command(self, command, step_name, raise_on_error=False):
         """Run non-apt utility commands directly."""
         code, out = self.env_layer.run_command_output(command, False, False)
-        if code != 0:
+        if command == self.fwupd_refresh_cmd and code == 2:
+            # fwupd refresh returns 2 when no updates are available. This is not an error for our purposes.
+            self.composite_logger.log_debug("[APM][UpdateCerts] Shell step succeeded (no updates available). [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out)))
+            return True, out
+        elif code != 0:
             msg = "[APM][UpdateCerts] Shell step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out))
             self.composite_logger.log_error(msg)
             self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)

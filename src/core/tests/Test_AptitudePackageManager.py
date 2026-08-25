@@ -51,6 +51,12 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_linux_distribution_to_return_ubuntu_oracular(self):
         return ['Ubuntu', '26.04', 'oracular']
 
+    def mock_linux_distribution_to_return_ubuntu_focal(self):
+        return ['Ubuntu', '20.04', 'focal']
+
+    def mock_linux_distribution_to_return_ubuntu_jammy(self):
+        return ['Ubuntu', '22.04', 'jammy']
+
     def mock_is_pro_working_return_true(self):
         return True
 
@@ -137,6 +143,20 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_run_command_output_fwupd_refresh_fails(self, cmd, no_output=False, chk_err=True):
         self.assertGreater(cmd.find(self.runtime.package_manager.fwupd_refresh_cmd), -1)
         return 1, "Error"
+
+    def mock_run_command_output_with_fwupd_exit_code_overrides(self, cmd, no_output=False, chk_err=True):
+        """Reuse the legacy env layer command mocks and override only the fwupd refresh/update exit codes driven by test state."""
+        code, output = self.legacy_run_command_output(cmd, no_output, chk_err)
+
+        if cmd.find(self.runtime.package_manager.fwupd_refresh_cmd) > -1:
+            if self.fwupd_refresh_code == 2:
+                return self.fwupd_refresh_code, "Nothing to do (no updates available)"
+            return self.fwupd_refresh_code, output if self.fwupd_refresh_code == 0 else "Error"
+
+        if cmd.find(self.runtime.package_manager.fwupd_update_cmd) > -1:
+            return self.fwupd_update_code, output if self.fwupd_update_code == 0 else "Error"
+
+        return code, output
 
     def mock_run_command_output_apt_update_cmd_fails(self, cmd, no_output=False, chk_err=True):
         if cmd.find(self.runtime.package_manager.apt_update_cmd) > -1:
@@ -299,6 +319,45 @@ class TestAptitudePackageManager(unittest.TestCase):
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
         self.assertEqual(len(available_updates), 0)
         self.assertEqual(len(package_versions), 0)
+
+    def test_fwupd_commands_use_snap_only_on_ubuntu_releases_older_than_22_04(self):
+        """Canonical guidance requires the fwupd Snap before Ubuntu 22.04, and the archive package from 22.04 onward. fwupdmgr commands (version/refresh/update) are identical either way."""
+        backup_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+
+        use_cases = [
+            {
+                "name": "ubuntu_20_04_uses_snap",
+                "linux_distribution": self.mock_linux_distribution_to_return_ubuntu_focal,
+                "expected_is_snap_fwupd_required": True,
+                "expected_install_command": "sudo snap install fwupd"
+            },
+            {
+                "name": "ubuntu_22_04_uses_apt",
+                "linux_distribution": self.mock_linux_distribution_to_return_ubuntu_jammy,
+                "expected_is_snap_fwupd_required": False,
+                "expected_install_command": "sudo apt-get install -y fwupd"
+            }
+        ]
+
+        try:
+            for use_case in use_cases:
+                # the Ubuntu release is only read once, in the package manager's constructor, so a fresh runtime/container-built
+                # instance is required per use case (patching an already-constructed package_manager instance is too late)
+                LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = use_case["linux_distribution"]
+                runtime_for_test = RuntimeCompositor(self.argument_composer, True, Constants.APT)
+                try:
+                    package_manager_for_test = runtime_for_test.container.get('package_manager')
+
+                    self.assertEqual(package_manager_for_test.is_snap_fwupd_required, use_case["expected_is_snap_fwupd_required"], "Failed use case: {0}".format(use_case["name"]))
+                    self.assertEqual(package_manager_for_test.install_fwupd_cmd, use_case["expected_install_command"], "Failed use case: {0}".format(use_case["name"]))
+                    # fwupdmgr commands are identical regardless of install method, per Canonical guidance
+                    self.assertEqual(package_manager_for_test.get_installed_fwupd_version_cmd, "fwupdmgr --version", "Failed use case: {0}".format(use_case["name"]))
+                    self.assertEqual(package_manager_for_test.fwupd_refresh_cmd, "sudo fwupdmgr refresh", "Failed use case: {0}".format(use_case["name"]))
+                    self.assertEqual(package_manager_for_test.fwupd_update_cmd, "sudo fwupdmgr update -y", "Failed use case: {0}".format(use_case["name"]))
+                finally:
+                    runtime_for_test.stop()
+        finally:
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = backup_linux_distribution
 
     def test_package_manager(self):
         """Unit test for apt package manager"""
@@ -1563,6 +1622,73 @@ class TestAptitudePackageManager(unittest.TestCase):
                 )
         finally:
             package_manager.env_layer.run_command_output = backup_run_command_output
+
+    def test_try_update_certs_fwupd_exit_code_handling__with_various_use_cases(self):
+        """Only fwupd refresh returning exit code 2 (no updates available) must be treated as success in the cert update flow."""
+        package_manager = self.container.get('package_manager')
+
+        backup_run_command_output = package_manager.env_layer.run_command_output
+        backup_add_error_to_status = package_manager.status_handler.add_error_to_status
+        backup_are_latest_certs_present_with_mokutil_check = package_manager.are_latest_certs_present_with_mokutil_check
+        backup_is_reboot_pending = package_manager.is_reboot_pending
+
+        use_cases = [
+            {
+                "name": "fwupd_refresh_returns_code_2_is_treated_as_no_updates_available_and_succeeds",
+                "fwupd_refresh_code": 2,
+                "fwupd_update_code": 0,
+                "expected_result": True,
+                "expected_error_count": 0
+            },
+            {
+                "name": "fwupd_refresh_returns_code_1_is_treated_as_failure",
+                "fwupd_refresh_code": 1,
+                "fwupd_update_code": 0,
+                "expected_result": False,
+                "expected_error_count": 1
+            },
+            {
+                "name": "fwupd_update_returns_code_2_is_treated_as_failure",
+                "fwupd_refresh_code": 0,
+                "fwupd_update_code": 2,
+                "expected_result": False,
+                "expected_error_count": 1
+            },
+            {
+                "name": "all_fwupd_commands_succeed",
+                "fwupd_refresh_code": 0,
+                "fwupd_update_code": 0,
+                "expected_result": True,
+                "expected_error_count": 0
+            }
+        ]
+
+        try:
+            # reuse the legacy env layer command mocks (fwupdmgr --version, refresh, update, apt-get -q update) and only override exit codes under test
+            self.legacy_run_command_output = backup_run_command_output
+            package_manager.env_layer.run_command_output = self.mock_run_command_output_with_fwupd_exit_code_overrides
+            package_manager.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+            package_manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+            package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+
+            for use_case in use_cases:
+                self.captured_errors_tracking = []
+                self.fwupd_refresh_code = use_case["fwupd_refresh_code"]
+                self.fwupd_update_code = use_case["fwupd_update_code"]
+
+                self.assertEqual(package_manager.try_update_certs(), use_case["expected_result"], "Failed use case: {0}".format(use_case["name"]))
+                self.assertEqual(len(self.captured_errors_tracking), use_case["expected_error_count"], "Failed use case: {0}".format(use_case["name"]))
+
+                if use_case["expected_error_count"] > 0:
+                    self.assertIn("Shell step failed", self.captured_errors_tracking[0][0], "Failed use case: {0}".format(use_case["name"]))
+                    self.assertEqual(self.captured_errors_tracking[0][1], Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE, "Failed use case: {0}".format(use_case["name"]))
+                else:
+                    self.assertEqual(package_manager.status_handler.is_reboot_pending, False, "Failed use case: {0}".format(use_case["name"]))
+        finally:
+            package_manager.env_layer.run_command_output = backup_run_command_output
+            package_manager.status_handler.add_error_to_status = backup_add_error_to_status
+            package_manager.are_latest_certs_present_with_mokutil_check = backup_are_latest_certs_present_with_mokutil_check
+            package_manager.is_reboot_pending = backup_is_reboot_pending
 
     def test_is_hibernation_enabled_for_cert_update__with_various_use_cases(self):
         """Test is_hibernation_enabled_for_cert_update with various hibernation states"""
