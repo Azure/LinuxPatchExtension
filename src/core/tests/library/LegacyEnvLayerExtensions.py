@@ -580,13 +580,10 @@ class LegacyEnvLayerExtensions():
                                   "Building dependency tree... Done"
                                   "Reading state information... Done "
                                   "2 upgraded, 7 newly installed, 0 to remove and 37 not upgraded")
-                    elif cmd.find("sudo snap install fwupd") > -1:
-                        code = 0
-                        output = "fwupd installed"
-                    elif cmd.find("fwupdmgr refresh") > -1:
+                    elif cmd.find("sudo fwupdmgr refresh") > -1:
                         code = 0
                         output = "Success"
-                    elif cmd.find("fwupdmgr update") > -1:
+                    elif cmd.find("sudo fwupdmgr update") > -1:
                         code = 0
                         output = "Successfully installed firmware"
                 elif self.legacy_package_manager_name is Constants.TDNF:
