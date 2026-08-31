@@ -1063,7 +1063,7 @@ class YumPackageManager(PackageManager):
                     continue
 
             process_details = re.split(r'\s+', line.strip())
-            if len(process_details) < 7:
+            if len(process_details) < 7 or line.find("packages excluded") >= 0:
                 self.composite_logger.log_verbose("[YPM] > Inapplicable line: " + str(line))
                 continue
             else:
