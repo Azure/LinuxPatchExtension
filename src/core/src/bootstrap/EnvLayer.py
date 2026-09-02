@@ -107,12 +107,12 @@ class EnvLayer(object):
 
         return code, out, None  # neither found
 
-    def __log_pkg_mgr_error(self, code, out, version):
+    def __log_pkg_mgr_error(self, code, out, version, expected_version):
         """Logs an error when the expected package manager or version is not found."""
         if code == 0:
-            print("Error: Expected dnf version not found. [Found={0}]".format(str(version)))
+            print("Error: Expected dnf version not found. [Expected={0}][Found={1}]".format(str(expected_version), str(version)))
         else:
-            print("Error: Expected package manager not found. [Code={0}][Output={1}]".format(str(code), str(out)))
+            print("Error: Expected package manager not found. [ExpectedVersion={0}][Code={1}][Output={2}]".format(str(expected_version), str(code), str(out)))
         return str()
 
     def get_package_manager(self):
@@ -132,13 +132,13 @@ class EnvLayer(object):
         if self.is_distro_rhel_10(os_name):
             if code == 0 and version == "4":
                 return Constants.DNF
-            return self.__log_pkg_mgr_error(code, out, version)
+            return self.__log_pkg_mgr_error(code, out, version, "4")
 
         # Check for Azure Linux 4 (uses dnf5)
         if self.is_distro_azure_linux_4(str(os_name)):
             if code == 0 and version == "5":
                 return Constants.DNF5
-            return self.__log_pkg_mgr_error(code, out, version)
+            return self.__log_pkg_mgr_error(code, out, version, "5")
 
         # Check for Azure Linux (3 and below use TDNF)
         if self.is_distro_azure_linux(str(os_name)):

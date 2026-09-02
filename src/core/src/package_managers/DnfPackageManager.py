@@ -36,10 +36,10 @@ class DnfPackageManager(PackageManager):
         # Support to get updates and their dependencies
         self.single_package_check_versions = 'sudo dnf list --available <PACKAGE-NAME> '
         self.single_package_check_installed = 'sudo dnf list --installed <PACKAGE-NAME> '
-        self.single_package_upgrade_simulation_cmd = 'sudo dnf install --assumeno --skip-broken '
+        self.single_package_upgrade_simulation_cmd = 'sudo dnf upgrade --assumeno --skip-broken '
 
         # Install update
-        self.single_package_upgrade_cmd = 'sudo dnf -y install '
+        self.single_package_upgrade_cmd = 'sudo dnf -y upgrade '
 
         # Support to check for processes requiring restart
         self.needs_restarting_with_flag = 'sudo LANG=en_US.UTF8 needs-restarting -r'
@@ -195,8 +195,7 @@ class DnfPackageManager(PackageManager):
                 deduped_package_version = deduped_package_versions[deduped_packages.index(package)]
                 duplicate_package_version = package_versions[index]
                 # use custom comparator output 0 (equal), -1 (deduped package version is the lower one), +1 (deduped package version is the greater one)
-                is_deduped_package_latest = self.version_comparator.compare_versions(deduped_package_version,
-                                                                                     duplicate_package_version)
+                is_deduped_package_latest = self.version_comparator.compare_versions(deduped_package_version, duplicate_package_version)
                 if is_deduped_package_latest < 0:
                     deduped_package_versions[deduped_packages.index(package)] = duplicate_package_version
                 continue
@@ -367,8 +366,7 @@ class DnfPackageManager(PackageManager):
 
     def get_product_name_with_arch(self, package_detail, package_arch_to_look_for):
         """Retrieve product name with arch separated by '.'. Note: This format is default in dnf. Refer samples noted within func extract_dependencies() for more clarity"""
-        return package_detail[0] + "." + package_detail[1] if package_detail[1] in package_arch_to_look_for else \
-        package_detail[1]
+        return package_detail[0] + "." + package_detail[1] if package_detail[1] in package_arch_to_look_for else package_detail[1]
 
     def get_package_size(self, output):
         """Retrieve package size from installation output string"""

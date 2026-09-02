@@ -72,10 +72,7 @@ class TestDnfPackageManager(unittest.TestCase):
         return captured_output, original_stdout
 
     def __setup_config_and_invoke_revert_auto_os_to_system_default(self, package_manager, create_current_auto_os_config=True, create_backup_for_system_default_config=True, current_auto_os_update_config_value='', apply_updates_value="",
-                                                                   download_updates_value="",
-                                                                   enable_on_reboot_value=False,
-                                                                   installation_state_value=False,
-                                                                   set_installation_state=True):
+                                                                   download_updates_value="", enable_on_reboot_value=False, installation_state_value=False, set_installation_state=True):
         """ Sets up current auto OS update config, backup for system default config (if requested) and invoke revert to system default """
         # setup current auto OS update config
         if create_current_auto_os_config:
@@ -87,8 +84,7 @@ class TestDnfPackageManager(unittest.TestCase):
                                                                     installation_state_value=installation_state_value, set_installation_state=set_installation_state)
         package_manager.revert_auto_os_update_to_system_default()
 
-    def __setup_current_auto_os_update_config(self, package_manager, config_value='',
-                                              config_file_name="automatic.conf"):
+    def __setup_current_auto_os_update_config(self, package_manager, config_value='', config_file_name="automatic.conf"):
         # setup current auto OS update config
         package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, config_file_name)
         self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, config_value)
@@ -190,11 +186,9 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
 
-        package_manager.dnf_automatic_configuration_file_path = os.path.join(
-            self.runtime.execution_config.config_folder, "automatic.conf")
+        package_manager.dnf_automatic_configuration_file_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
         dnf_automatic_os_patch_configuration_settings = 'apply_updates = no\ndownload_updates = yes\n'
-        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path,
-                                   dnf_automatic_os_patch_configuration_settings)
+        self.runtime.write_to_file(package_manager.dnf_automatic_configuration_file_path, dnf_automatic_os_patch_configuration_settings)
 
         current_auto_os_patch_state = package_manager.get_current_auto_os_patch_state()
 
@@ -410,8 +404,7 @@ class TestDnfPackageManager(unittest.TestCase):
 
         package_manager = self.container.get('package_manager')
         self.assertIsNotNone(package_manager)
-        deduped_packages, deduped_package_versions = package_manager.dedupe_update_packages_to_get_latest_versions(
-            packages, package_versions)
+        deduped_packages, deduped_package_versions = package_manager.dedupe_update_packages_to_get_latest_versions(packages, package_versions)
         self.assertEqual(deduped_packages, [])
         self.assertEqual(deduped_package_versions, [])
 

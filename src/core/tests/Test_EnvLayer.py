@@ -178,6 +178,8 @@ class TestExecutionConfig(unittest.TestCase):
             [self.mock_run_command_for_dnf_wrong_version, self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()],
             [self.mock_run_command_for_dnf_version_command_failure, self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, str()],
             [self.mock_run_command_for_dnf_version_command, self.mock_linux_distribution_to_return_azure_linux_4, self.mock_distro_os_release_attr_return_azure_linux_4, Constants.DNF5],
+            [self.mock_run_command_for_dnf4, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, str()],
+            [self.mock_run_command_for_dnf5, self.mock_linux_distribution, self.mock_distro_os_release_attr_return_none, str()],
         ]
 
         for row in test_input_output_table:
@@ -324,8 +326,7 @@ class TestExecutionConfig(unittest.TestCase):
         self.backup_envlayer_distro_os_release_attr = distro.os_release_attr
 
         test_input_output_table = [
-            [self.mock_linux_distribution_to_return_rhel_10,
-             self.mock_distro_os_release_attr_return_rhel_10, True],
+            [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_rhel_10, True],
             [self.mock_linux_distribution_to_return_rhel_10, self.mock_distro_os_release_attr_return_none, False],
         ]
 
@@ -366,23 +367,6 @@ class TestExecutionConfig(unittest.TestCase):
         self.envlayer.platform.linux_distribution = self.backup_linux_distribution
         distro.os_release_attr = self.backup_distro_os_release_attr
         platform.system = self.backup_platform_system
-
-    def test_mock_command_fallback_paths(self):
-        """Test that mock commands return -1 for unexpected commands"""
-        code, out = self.mock_run_command_for_apt('which apt')
-        self.assertEqual(code, -1)
-
-        code, out = self.mock_run_command_for_dnf4('which not-dnf')
-        self.assertEqual(code, -1)
-
-        code, out = self.mock_run_command_for_dnf_wrong_version('dnf --v')
-        self.assertEqual(code, -1)
-
-        code, out = self.mock_run_command_for_dnf_version_command_failure('dnf --v')
-        self.assertEqual(code, -1)
-
-        code, out = self.mock_run_command_for_tdnf('which not-tdnf')
-        self.assertEqual(code, -1)
 
 if __name__ == '__main__':
     unittest.main()
