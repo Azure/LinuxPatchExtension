@@ -703,7 +703,7 @@ class LegacyEnvLayerExtensions():
                             "dracut-network.x86_64                                            107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
                             "dracut-squash.x86_64                                             107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
                         )
-                    elif cmd.find("dnf -y install") > -1:
+                    elif cmd.find("dnf -y upgrade") > -1:
                         code = 0
                         output = "Complete!\n"
                     elif "needs-restarting" in cmd:
@@ -719,7 +719,7 @@ class LegacyEnvLayerExtensions():
                             "Updating Subscription Management repositories.\n"
                             "Available Packages\n"
                             "python3.x86_64    3.12.13-2.el10_2    rhel-10-baseos-rhui-rpms\n")
-                    elif cmd.find("dnf install --assumeno --skip-broken") > -1 and "hyperv-daemons" in cmd:
+                    elif cmd.find("dnf upgrade --assumeno --skip-broken") > -1 and "hyperv-daemons" in cmd:
                         code = 1
                         output = (
                             "Updating Subscription Management repositories.\n"
