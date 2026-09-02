@@ -94,7 +94,7 @@ class DnfPackageManager(PackageManager):
         self.composite_logger.log_verbose("[DNF] Invoking package manager. [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
 
-        if code in self.dnf_exitcode_ok or self._is_valid_not_installed(command, code, out) or self._is_valid_dependency_simulation(command, code):
+        if code in self.dnf_exitcode_ok or self._is_valid_dependency_simulation(command, code):
             self.composite_logger.log_debug('[DNF] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         else:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -104,12 +104,6 @@ class DnfPackageManager(PackageManager):
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         return out, code
-
-    def _is_valid_not_installed(self, command, code, out):
-        """DNF4 returns exit code 1 with 'No matching packages to list' when a package
-        is not installed via 'dnf list --installed <pkg>'. This is a valid response
-        indicating the package is absent, not an error condition."""
-        return self.dnf_list_installed_command_patterns in command and code == self.dnf_no_packages_found_exit_code and self.dnf_no_packages_found_text in (out or "")
 
     def _is_valid_dependency_simulation(self, command, code):
         """DNF4 overloads exit code 1 for 'dnf install --assumeno' (dry-run simulation).

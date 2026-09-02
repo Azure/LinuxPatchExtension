@@ -982,7 +982,7 @@ class LegacyEnvLayerExtensions():
                     elif "systemctl enable --nows dnf-automatic.timer" in cmd:
                         code = 1
                         output = 'systemctl: unrecognized option --nows'
-                    elif cmd.find("dnf install --assumeno") > -1 and "openssl-999.999" in cmd:
+                    elif cmd.find("dnf upgrade --assumeno") > -1 and "openssl-999.999" in cmd:
                         code = 1
                         output = (
                             "Updating and loading repositories:\n"
@@ -1407,7 +1407,7 @@ class LegacyEnvLayerExtensions():
                         code = 100
                         output = "Failed to install package"
                 elif self.legacy_package_manager_name is Constants.DNF:
-                    if cmd.find("simulate-install") > -1 or cmd.find("dnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
+                    if cmd.find("simulate-install") > -1 or cmd.find("dnf upgrade --assumeno --skip-broken hyperv-daemons-license") > -1:
                         code = 1
                         output = (
                             "Updating Subscription Management repositories.\n"
