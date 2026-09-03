@@ -99,6 +99,154 @@ started. The full systemd service duration therefore captures the delayed
 startup, while the logs separately confirm the subsequent patch assessment
 completed successfully.
 
+## Package-Manager Delay Commands
+
+The validation delayed only the first package-manager invocation. A 120-second
+delay reproduces the original 90-second failure while remaining below the
+10-minute mitigation. A 660-second delay validates that the mitigation remains
+bounded and terminates at 600 seconds.
+
+> Use these commands only on disposable test VMs. Do not run package-manager
+> commands between installing a wrapper and starting auto-assessment, because
+> the first invocation consumes the one-time delay.
+
+### Ubuntu: `apt-get`
+
+The delayed command observed during validation was
+`apt-get install ubuntu-advantage-tools -y`. Use `dpkg-divert` so the original
+package-managed binary is preserved safely:
+
+```bash
+DELAY_SECONDS=120
+
+sudo test ! -e /usr/bin/apt-get.distrib || {
+    echo "apt-get diversion already exists; inspect before continuing."
+    exit 1
+}
+
+sudo dpkg-divert --local --rename --add /usr/bin/apt-get
+
+sudo tee /usr/bin/apt-get >/dev/null <<EOF
+#!/usr/bin/env bash
+MARKER=/var/tmp/lpe-28537460-apt-delay-used
+
+if [ ! -e "\$MARKER" ]; then
+    touch "\$MARKER"
+    logger -t lpe-28537460-repro \
+        "Delaying first apt-get invocation for ${DELAY_SECONDS} seconds"
+    sleep ${DELAY_SECONDS}
+fi
+
+exec /usr/bin/apt-get.distrib "\$@"
+EOF
+
+sudo chmod 755 /usr/bin/apt-get
+sudo rm -f /var/tmp/lpe-28537460-apt-delay-used
+```
+
+Cleanup:
+
+```bash
+sudo rm -f /usr/bin/apt-get
+sudo dpkg-divert --local --rename --remove /usr/bin/apt-get
+sudo rm -f /var/tmp/lpe-28537460-apt-delay-used
+```
+
+### RHEL 8: `yum`
+
+The delayed command was `yum -q check-update`. On RHEL 8, `/usr/bin/yum`
+normally resolves to `/usr/bin/dnf-3`, so the wrapper must invoke `dnf-3`
+directly. Do not create a wrapper backup beside `yum`; rerunning that setup can
+replace the backup with the wrapper and create recursive Bash processes.
+
+```bash
+DELAY_SECONDS=120
+
+test "$(readlink -f /usr/bin/yum)" = "/usr/bin/dnf-3" || {
+    echo "Unexpected yum target; inspect before continuing."
+    exit 1
+}
+
+sudo rm -f /usr/bin/yum
+
+sudo tee /usr/bin/yum >/dev/null <<EOF
+#!/usr/bin/env bash
+MARKER=/var/tmp/lpe-28537460-yum-delay-used
+
+if [ ! -e "\$MARKER" ]; then
+    touch "\$MARKER"
+    logger -t lpe-28537460-repro \
+        "Delaying first yum invocation for ${DELAY_SECONDS} seconds"
+    sleep ${DELAY_SECONDS}
+fi
+
+exec /usr/bin/dnf-3 "\$@"
+EOF
+
+sudo chmod 755 /usr/bin/yum
+sudo restorecon -v /usr/bin/yum
+sudo rm -f /var/tmp/lpe-28537460-yum-delay-used
+```
+
+Cleanup:
+
+```bash
+sudo rm -f /usr/bin/yum
+sudo ln -s dnf-3 /usr/bin/yum
+sudo restorecon -v /usr/bin/yum
+sudo rm -f /var/tmp/lpe-28537460-yum-delay-used
+```
+
+### SLES 15: `zypper`
+
+The delayed command was `zypper refresh`. Preserve the original executable
+once, and abort rather than overwrite the backup if setup is accidentally
+repeated:
+
+```bash
+DELAY_SECONDS=120
+
+sudo test ! -e /usr/bin/zypper.lpe28537460.original || {
+    echo "Existing zypper backup found; inspect before continuing."
+    exit 1
+}
+
+sudo mv /usr/bin/zypper /usr/bin/zypper.lpe28537460.original
+
+sudo tee /usr/bin/zypper >/dev/null <<EOF
+#!/usr/bin/env bash
+MARKER=/var/tmp/lpe-28537460-zypper-delay-used
+
+if [ ! -e "\$MARKER" ]; then
+    touch "\$MARKER"
+    logger -t lpe-28537460-repro \
+        "Delaying first zypper invocation for ${DELAY_SECONDS} seconds"
+    sleep ${DELAY_SECONDS}
+fi
+
+exec /usr/bin/zypper.lpe28537460.original "\$@"
+EOF
+
+sudo chmod 755 /usr/bin/zypper
+sudo rm -f /var/tmp/lpe-28537460-zypper-delay-used
+```
+
+Cleanup:
+
+```bash
+sudo rm -f /usr/bin/zypper
+sudo mv /usr/bin/zypper.lpe28537460.original /usr/bin/zypper
+sudo rm -f /var/tmp/lpe-28537460-zypper-delay-used
+```
+
+For the 10-minute boundary test, set `DELAY_SECONDS=660` in the relevant setup
+block. Before leaving each VM, verify the restored package manager and timer:
+
+```bash
+sudo systemctl start MsftLinuxPatchAutoAssess.timer
+sudo systemctl is-active MsftLinuxPatchAutoAssess.timer
+```
+
 ## Ten-Minute Timeout Boundary Validation
 
 The fixed unit was retested on new Azure VMs in `westus2` with a 660-second
