@@ -97,10 +97,10 @@ class AptitudePackageManager(PackageManager):
         self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
         self.apt_update_cmd = "sudo apt-get -q update"
         self.min_fwupd_version = "2.0.8" # Refer public docs: https://github.com/fwupd/fwupd/releases/tag/2.0.8 and https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
-        self.get_installed_fwupd_version_cmd = "fwupdmgr --version"
         self.remove_fwupd_cmd = "sudo apt-get purge -y fwupd"
+        self.get_installed_fwupd_version_cmd = "fwupdmgr --version"
         self.install_fwupd_cmd = "sudo apt-get install -y fwupd"
-        self.fwupd_refresh_cmd = "sudo fwupdmgr refresh" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
+        self.fwupd_force_refresh_cmd = "sudo fwupdmgr refresh --force" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
         self.fwupd_update_cmd = "sudo fwupdmgr update -y"
         self.get_uptime_seconds_cmd = "cat /proc/uptime"
         self.get_hibernation_state_cmd = "cat /sys/power/disk"
@@ -1032,7 +1032,7 @@ class AptitudePackageManager(PackageManager):
             self.__ensure_fwupd_installation()
 
             # shell fwupd commands to update certificates
-            self.__run_cert_shell_command(self.fwupd_refresh_cmd, step_name="FwupdRefresh", raise_on_error=True)
+            self.__run_cert_shell_command(self.fwupd_force_refresh_cmd, step_name="FwupdRefresh", raise_on_error=False)
             self.__run_cert_shell_command(self.fwupd_update_cmd, step_name="FwupdUpdate", raise_on_error=True)
 
             """ NOTE: They tooling used to update here is fwupd (firmware update manager). In this method of updating certs, the exact version of current certs is never pinned
@@ -1139,7 +1139,11 @@ class AptitudePackageManager(PackageManager):
     def __run_cert_shell_command(self, command, step_name, raise_on_error=False):
         """Run non-apt utility commands directly."""
         code, out = self.env_layer.run_command_output(command, False, False)
-        if code != 0:
+        if command == self.fwupd_force_refresh_cmd:
+            # As per the suggestion from trusted launch VM partners, we need to ignore all errors returned by force refresh command and continue to the next step.
+            self.composite_logger.log_debug("[APM][UpdateCerts] Force refresh shell step executed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out)))
+            return True, out
+        elif code != 0:
             msg = "[APM][UpdateCerts] Shell step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out))
             self.composite_logger.log_error(msg)
             self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)

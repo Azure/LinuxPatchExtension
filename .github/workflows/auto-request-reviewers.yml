@@ -1,0 +1,46 @@
+name: Request AzGPS Reviewers
+
+on:
+  pull_request:
+    types:
+      - opened
+      - ready_for_review
+
+permissions:
+  pull-requests: write
+
+jobs:
+  request-reviewers:
+    if: ${{ github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request reviewers
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const author = context.payload.pull_request.user.login;
+
+            const reviewers = [
+              'GAURAVRAMRAKHYANI',
+              'kjohn-msft',
+              'michellemcdaniel',
+              'mirichmo',
+              'nikhim-um',
+              'rane-rajasi',
+              'SathishMSFT',
+              'yashnap'
+            ];
+
+            const filtered = reviewers.filter(
+              r => r.toLowerCase() !== author.toLowerCase()
+            );
+
+            console.log(`PR author: ${author}`);
+            console.log(`Requesting reviews from: ${filtered.join(", ")}`);
+
+            await github.rest.pulls.requestReviewers({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              reviewers: filtered
+            });
