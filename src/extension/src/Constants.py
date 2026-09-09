@@ -59,6 +59,22 @@ class Constants(object):
     ENABLE_MAX_RUNTIME = 3
     DISABLE_MAX_RUNTIME = 13
 
+    # Auto-assessment runaway protection (Bug 28537460).
+    # Under Type=simple a hung assessment keeps the unit active forever and every
+    # later timer fire becomes a no-op, so the run must be externally bounded.
+    # The bound lives in the generated shell wrapper (GNU timeout) rather than in the
+    # systemd unit, because it has to hold on every systemd version in the fleet -
+    # including pre-229 builds such as EL7 (219) and SLES 12 (228), where unit-level
+    # runtime limits are silently ignored. coreutils timeout is present on all of them,
+    # and the extension already depends on it unguarded in check_sudo_status.
+    # Values are integer seconds (coerced with str() at the single emit site in ProcessHandler).
+    # Invariant enforced by Test_ProcessHandler: budget + grace must complete before the next
+    # hourly timer fire so that fire always finds an inactive unit: 3000 + 180 = 3180s (53m) vs 60m.
+    # Raising the budget past that invariant silently reintroduces Bug 28537460.
+    AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS = 3000      # 50m
+    AUTO_ASSESSMENT_KILL_GRACE_IN_SECS = 180        # 3m -> hard kill by 53m
+    AUTO_ASSESSMENT_TIMER_INTERVAL_IN_SECS = 3600   # hourly; the ceiling the two above must fit inside
+
     # Telemetry Settings
     # Note: these limits are based on number of characters as confirmed with agent team
     TELEMETRY_MSG_SIZE_LIMIT_IN_CHARS = 3072

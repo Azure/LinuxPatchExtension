@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from extension.src.Constants import Constants
 from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
@@ -45,6 +46,8 @@ class TestProcessHandler(unittest.TestCase):
         self.proc_cmdline_path = os.path.join(self.test_dir, "proc_cmdline")
         self.ext_output_status_handler = ExtOutputStatusHandler(self.logger, self.utility, self.json_file_handler, dir_path)
         self.process = subprocess.Popen(["echo", "Hello World!"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.written_auto_assess_sh_path = None
+        self.written_auto_assess_sh_content = None
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
@@ -80,6 +83,10 @@ class TestProcessHandler(unittest.TestCase):
 
     def mock_run_command_to_set_auto_assess_shell_file_permission(self, cmd, no_output=False, chk_err=False):
         return 0, "permissions set"
+
+    def mock_write_with_retry_valid(self, file_path_or_handle, data, mode='a+'):
+        self.written_auto_assess_sh_path = file_path_or_handle
+        self.written_auto_assess_sh_content = data
 
     def mock_subprocess_popen_process_not_running_after_launch(self, command, shell, stdout, stderr):
         self.process.pid = 1
@@ -223,6 +230,100 @@ class TestProcessHandler(unittest.TestCase):
         process_handler.env_layer.run_command_output = run_command_output_backup
         ExtEnvHandler.get_temp_folder = ext_env_handler_get_temp_folder_backup
     
+    def test_auto_assess_sh_is_bounded_by_timeout(self):
+        process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
+        write_backup = process_handler.env_layer.file_system.write_with_retry
+        run_backup = process_handler.env_layer.run_command_output
+        process_handler.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
+        process_handler.env_layer.run_command_output = self.mock_run_command_to_set_auto_assess_shell_file_permission
+
+        process_handler.stage_auto_assess_sh_safely("/usr/bin/python3 /tmp/MsftLinuxPatchCore.py -sequenceNumber 1")
+
+        data = self.written_auto_assess_sh_content
+        self.assertIn(Constants.CORE_AUTO_ASSESS_SH_FILE_NAME, self.written_auto_assess_sh_path)
+        self.assertIn("exec timeout -s TERM -k " + str(Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS)
+                      + " " + str(Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS), data)
+        self.assertIn("-" + Constants.AUTO_ASSESS_ONLY + " True", data)
+        # timeout is a hard dependency the extension already relies on unguarded in
+        # check_sudo_status, which runs during setup before this script is generated. There must
+        # be no conditional fallback here: the only alternative branch would be an unbounded run,
+        # which is the exact failure this wrapper exists to prevent.
+        self.assertNotIn("command -v timeout", data)
+        self.assertNotIn("else", data)
+
+        # the process must be killed within the allocated time budget 
+        # before the next timer interval fires.
+        self.assertLess(Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS
+                        + Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS,
+                        Constants.AUTO_ASSESSMENT_TIMER_INTERVAL_IN_SECS)
+
+        process_handler.env_layer.file_system.write_with_retry = write_backup
+        process_handler.env_layer.run_command_output = run_backup
+
+    def test_auto_assess_sh_actually_terminates_a_hung_run(self):
+        """ Bug 28537460: behavioural proof that the generated wrapper really does kill a hung
+            assessment, rather than merely containing the right text. Executes the exact bytes
+            the extension writes, against a stub Core that never exits.
+
+            POSIX-only. The wrapper is bash + GNU coreutils timeout, and Windows has neither
+            (its timeout.exe is an unrelated command that pauses, and WSL bash cannot resolve
+            Windows paths). CI currently runs windows-latest for both the 3.12 and 2.7 jobs,
+            so this SKIPS there - the authoritative cross-distro evidence remains the live-VM
+            verification on Ubuntu 22.04, RHEL 8.9 and SLES 12 SP5. """
+        if os.name != 'posix':
+            self.skipTest("wrapper is bash + GNU timeout; not runnable on Windows")
+        try:
+            probe = subprocess.Popen(["timeout", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            probe_out = probe.communicate()[0]
+            if probe.returncode != 0 or "coreutils".encode() not in probe_out:
+                self.skipTest("GNU coreutils timeout not available")
+        except OSError:
+            self.skipTest("GNU coreutils timeout not available")
+
+        budget_backup = Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS
+        grace_backup = Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS
+        write_backup = self.env_layer.file_system.write_with_retry
+        run_backup = self.env_layer.run_command_output
+        # a real 50m budget cannot be waited out, so shrink it; the wrapper shape is unchanged
+        Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS = 2
+        Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS = 1
+        stub_dir = tempfile.mkdtemp()
+        try:
+            stub_core_path = os.path.join(stub_dir, Constants.CORE_CODE_FILE_NAME)
+            stub_core = open(stub_core_path, "w")
+            stub_core.write("import time\ntime.sleep(120)\n")   # never exits within the budget
+            stub_core.close()
+
+            process_handler = ProcessHandler(self.logger, self.env_layer, self.ext_output_status_handler)
+            process_handler.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
+            process_handler.env_layer.run_command_output = self.mock_run_command_to_set_auto_assess_shell_file_permission
+            process_handler.stage_auto_assess_sh_safely(sys.executable + " " + stub_core_path + " -sequenceNumber 1")
+
+            # write out the exact generated bytes and execute them
+            sh_path = os.path.join(stub_dir, Constants.CORE_AUTO_ASSESS_SH_FILE_NAME)
+            sh_file = open(sh_path, "w")
+            sh_file.write(self.written_auto_assess_sh_content)
+            sh_file.close()
+            os.chmod(sh_path, 0o755)
+
+            started_at = time.time()
+            proc = subprocess.Popen(["/bin/bash", sh_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc.communicate()
+            elapsed = time.time() - started_at
+
+            # 124 is GNU timeout's budget-expired code, so the kill came from the wrapper and
+            # not from the stub exiting on its own
+            self.assertEqual(124, proc.returncode)
+            self.assertGreaterEqual(elapsed, Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS)
+            self.assertLess(elapsed, Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS
+                            + Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS + 30)
+        finally:
+            Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS = budget_backup
+            Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS = grace_backup
+            self.env_layer.file_system.write_with_retry = write_backup
+            self.env_layer.run_command_output = run_backup
+            shutil.rmtree(stub_dir, ignore_errors=True)
+
     def test_is_process_patching_operation(self):
         # setting mocks
         backup_file_system_open = self.env_layer.file_system.open
