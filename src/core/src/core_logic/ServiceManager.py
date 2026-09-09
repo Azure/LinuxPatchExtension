@@ -90,11 +90,7 @@ class ServiceManager(SystemctlManager):
 
     # region - Service Unit Management
     def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="simple", wanted_by="multi-user.target"):
-        """ Note: Service type is simple because the shell wrapper runs Core in the foreground and never daemonizes.
-            Deliberately no SuccessExitStatus: when the wrapper bounds a runaway, timeout exits 124 and the unit
-            enters failed. That is left visible on purpose - Core is SIGTERM'd without a handler and cannot report
-            the timeout itself, so the failed unit is the only fleet-visible evidence the bound fired. The timer
-            restarts a failed unit regardless, so nothing is gained by masking it. """
+        """ Note: Service type is simple because the shell wrapper runs Core in the foreground."""
         service_unit_content_template = "\n[Unit]" + \
                                "\nDescription={0}" + \
                                "\nAfter={1}\n" + \
