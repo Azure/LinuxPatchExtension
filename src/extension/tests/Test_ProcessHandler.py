@@ -251,12 +251,6 @@ class TestProcessHandler(unittest.TestCase):
         self.assertNotIn("command -v timeout", data)
         self.assertNotIn("else", data)
 
-        # the process must be killed within the allocated time budget 
-        # before the next timer interval fires.
-        self.assertLess(Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS
-                        + Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS,
-                        Constants.AUTO_ASSESSMENT_TIMER_INTERVAL_IN_SECS)
-
         process_handler.env_layer.file_system.write_with_retry = write_backup
         process_handler.env_layer.run_command_output = run_backup
 

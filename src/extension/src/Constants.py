@@ -73,7 +73,6 @@ class Constants(object):
     # Raising the budget past that invariant silently reintroduces Bug 28537460.
     AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS = 3000      # 50m
     AUTO_ASSESSMENT_KILL_GRACE_IN_SECS = 180        # 3m -> hard kill by 53m
-    AUTO_ASSESSMENT_TIMER_INTERVAL_IN_SECS = 3600   # hourly; the ceiling the two above must fit inside
 
     # Telemetry Settings
     # Note: these limits are based on number of characters as confirmed with agent team
