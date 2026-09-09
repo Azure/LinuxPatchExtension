@@ -116,7 +116,7 @@ class DnfPackageManager(PackageManager):
         """Get all missing updates"""
         self.composite_logger.log_verbose("[DNF] Discovering all packages...")
         if cached and not len(self.all_updates_cached) == 0:
-            self.composite_logger.log_debug("[DNF] Get all updates : [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
+            self.composite_logger.log_debug("[DNF] Get all updates: [Cached={0}][PackagesCount={1}]]".format(str(cached), len(self.all_updates_cached)))
             return self.all_updates_cached, self.all_update_versions_cached  # allows for high performance reuse in areas of the code explicitly aware of the cache
 
         out = self.invoke_package_manager(self.cmd_get_all_updates)
@@ -286,10 +286,18 @@ class DnfPackageManager(PackageManager):
                 break
 
             line = re.split(r'\s+', line_str)
+            next_line = []
             dependent_package_name = ""
+
+            if line_index < len(lines) - 1:
+                next_line = re.split(r'\s+', lines[line_index + 1].strip())
 
             if self.is_valid_update(line, package_arch_to_look_for):
                 dependent_package_name = self.get_product_name_with_arch(line, package_arch_to_look_for)
+
+            elif self.is_valid_update(line + next_line, package_arch_to_look_for):
+                dependent_package_name = self.get_product_name_with_arch(line + next_line, package_arch_to_look_for)
+
             else:
                 self.composite_logger.log_verbose("[DNF] Inapplicable line: " + str(line))
                 continue

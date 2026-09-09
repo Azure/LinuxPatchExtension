@@ -57,8 +57,7 @@ class TestDnfPackageManager(unittest.TestCase):
     # region Utility Functions
     def __assert_reverted_automatic_patch_configuration_settings(self, package_manager, config_exists=True, config_value_expected=''):
         if config_exists:
-            reverted_dnf_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(
-                package_manager.dnf_automatic_configuration_file_path)
+            reverted_dnf_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.dnf_automatic_configuration_file_path)
             self.assertIsNotNone(reverted_dnf_automatic_patch_configuration_settings)
         else:
             self.assertFalse(os.path.exists(package_manager.dnf_automatic_configuration_file_path))
@@ -221,8 +220,7 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
 
         # Create backup with service marked as not installed
-        package_manager.image_default_patch_configuration_backup_path = os.path.join(
-            self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
+        package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
         backup_config = {
             "dnf-automatic": {
                 "enable_on_reboot": False,
@@ -412,8 +410,7 @@ class TestDnfPackageManager(unittest.TestCase):
                     'python3.x86_64', 'python3.x86_64', 'hypervvssd.x86_64', 'python3.x86_64', 'python3.x86_64']
         package_versions = ['3.12.3-1.azl3', '102-7.azl3 ', '2.11.5-1.azl3', '3.0-16.azl3', '3.12.9-2.azl3',
                             '3.12.9-1.azl3', '3.12.3-4.azl3', '6.6.78.1-1.azl3', '3.12.3-5.azl3', '3.12.3-5.azl3']
-        deduped_packages, deduped_package_versions = package_manager.dedupe_update_packages_to_get_latest_versions(
-            packages, package_versions)
+        deduped_packages, deduped_package_versions = package_manager.dedupe_update_packages_to_get_latest_versions(packages, package_versions)
 
         self.assertIsNotNone(deduped_packages)
         self.assertNotEqual(deduped_packages, [])
