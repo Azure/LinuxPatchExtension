@@ -19,7 +19,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from extension.src.Constants import Constants
 from extension.src.file_handlers.ExtOutputStatusHandler import ExtOutputStatusHandler
@@ -246,9 +245,12 @@ class TestProcessHandler(unittest.TestCase):
         # timeout is a hard dependency the extension already relies on unguarded in
         # check_sudo_status, which runs during setup before this script is generated. There must
         # be no conditional fallback here: the only alternative branch would be an unbounded run,
-        # which is the exact failure this wrapper exists to prevent.
+        # which is the exact failure this wrapper exists to prevent. Assert that structurally -
+        # exactly one exec, and it is the bounded one on the last line.
         self.assertNotIn("command -v timeout", self.written_auto_assess_sh_content)
-        self.assertNotIn("else", self.written_auto_assess_sh_content)
+        self.assertEqual(1, self.written_auto_assess_sh_content.count("exec "))
+        script_lines = [line for line in self.written_auto_assess_sh_content.split("\n") if line.strip()]
+        self.assertTrue(script_lines[-1].startswith("exec timeout -s TERM -k "))
 
         process_handler.env_layer.file_system.write_with_retry = write_backup
         process_handler.env_layer.run_command_output = run_backup
