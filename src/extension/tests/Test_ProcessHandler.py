@@ -242,11 +242,6 @@ class TestProcessHandler(unittest.TestCase):
         self.assertIn("exec timeout -s TERM -k " + str(Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS)
                       + " " + str(Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS), self.written_auto_assess_sh_content)
         self.assertIn("-" + Constants.AUTO_ASSESS_ONLY + " True", self.written_auto_assess_sh_content)
-        # timeout is a hard dependency the extension already relies on unguarded in
-        # check_sudo_status, which runs during setup before this script is generated. There must
-        # be no conditional fallback here: the only alternative branch would be an unbounded run,
-        # which is the exact failure this wrapper exists to prevent. Assert that structurally -
-        # exactly one exec, and it is the bounded one on the last line.
         self.assertNotIn("command -v timeout", self.written_auto_assess_sh_content)
         self.assertEqual(1, self.written_auto_assess_sh_content.count("exec "))
         script_lines = [line for line in self.written_auto_assess_sh_content.split("\n") if line.strip()]

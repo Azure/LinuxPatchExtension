@@ -61,8 +61,8 @@ class Constants(object):
 
     # Bug 28537460: Under Type=simple a hung assessment keeps the unit active forever and every
     # later timer fire becomes a no-op, so the run must be externally bounded.
-    # Budget + grace must stay under the hourly auto-assessment timer interval
-    # (core AUTO_ASSESSMENT_CRON_INTERVAL = PT1H) so every fire finds an inactive unit.
+    # Maximum Runtime + grace time must stay under the hourly auto-assessment timer interval
+    # (core AUTO_ASSESSMENT_CRON_INTERVAL = PT1H) so process is killed within 1 hour if still running.
     AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS = 3000      # 50m
     AUTO_ASSESSMENT_KILL_GRACE_IN_SECS = 300        # 5m. Kill process after 55 minutes.
 
