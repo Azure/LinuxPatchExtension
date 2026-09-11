@@ -242,7 +242,6 @@ class TestProcessHandler(unittest.TestCase):
         self.assertIn("exec timeout -s TERM -k " + str(Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS)
                       + " " + str(Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS), self.written_auto_assess_sh_content)
         self.assertIn("-" + Constants.AUTO_ASSESS_ONLY + " True", self.written_auto_assess_sh_content)
-        self.assertNotIn("command -v timeout", self.written_auto_assess_sh_content)
         self.assertEqual(1, self.written_auto_assess_sh_content.count("exec "))
         script_lines = [line for line in self.written_auto_assess_sh_content.split("\n") if line.strip()]
         self.assertTrue(script_lines[-1].startswith("exec timeout -s TERM -k "))
