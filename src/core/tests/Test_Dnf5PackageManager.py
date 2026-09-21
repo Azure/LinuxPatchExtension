@@ -18,8 +18,6 @@ import os
 import sys
 import unittest
 
-from core.src import package_managers
-
 # Conditional import for StringIO
 try:
     from StringIO import StringIO  # Python 2
@@ -870,7 +868,6 @@ class TestDnfPackageManager(unittest.TestCase):
         # post-onboarding state: we set both keys to "no"
         self.runtime.write_to_file(default_path, 'apply_updates = yes\ndownload_updates = yes\n')
         self.runtime.write_to_file(override_path, 'apply_updates = no\ndownload_updates = no\n')
-
         # backup captured the ORIGINAL override values (yes/yes); file existed
         self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value="yes", download_updates_value="yes",
                                                                 override_apply_updates_value="yes", override_download_updates_value="yes",
@@ -889,7 +886,6 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.write_to_file(default_path, 'apply_updates = yes\ndownload_updates = yes\n')
         # Pre-existing override file had its own keys; onboarding appended download/apply = no
         self.runtime.write_to_file(override_path, 'keepalive = true\nenable_on_reboot = true\ndownload_updates = no\napply_updates = no\n')
-
         # backup: file existed, but download/apply were absent originally ("")
         self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value="yes", download_updates_value="yes",
                                                                 override_apply_updates_value="", override_download_updates_value="",
