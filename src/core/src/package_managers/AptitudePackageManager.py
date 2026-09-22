@@ -291,6 +291,7 @@ class AptitudePackageManager(PackageManager):
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
+            self.__log_stale_lock_holder_if_present(out)  # NEW: best-effort, log-only lock diagnostics
             error_msg = "Customer environment error: Investigate and resolve unexpected return code ({0}) from package manager on command: {1}".format(str(code), command)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             if raise_on_exception:
@@ -299,6 +300,45 @@ class AptitudePackageManager(PackageManager):
         else:  # verbose diagnostic log
             self.composite_logger.log_debug('[APM] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         return out, code
+
+    def __log_stale_lock_holder_if_present(self, command_output):
+        """ Best-effort, log-only detection of a package-manager lock held by another process.
+            Identifies whether the holder is an orphaned LinuxPatchExtension process from an older
+            version. Does NOT kill the process or remove the lock. """
+        try:
+            if command_output is None or ("Could not get lock" not in command_output and "Unable to lock" not in command_output):
+                return  # not a lock-contention failure, nothing to diagnose
+
+            # apt reports the holder PID directly, e.g. "It is held by process 123456 (apt-get)"
+            pid_match = re.search(r'held by process (\d+)', command_output)
+            if pid_match is None:
+                self.composite_logger.log_warning("[APM] Package manager lock is held, but the holding process id could not be determined from the output.")
+                return
+            holder_pid = pid_match.group(1)
+
+            # Read the holder's elapsed run time (etime) and full command line
+            code, out = self.env_layer.run_command_output("ps -p {0} -o pid=,etime=,cmd=".format(holder_pid), False, False)
+            holder_details = out.strip() if code == 0 else ""
+            if holder_details == "":
+                self.composite_logger.log_warning("[APM] Package manager lock is held by process {0}, but its details could not be read (it may have already exited).".format(holder_pid))
+                return
+
+            # Was the holder launched by a LinuxPatchExtension version? (path contains LinuxPatchExtension-<version>)
+            version_match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', holder_details)
+            if version_match is None:
+                self.composite_logger.log_warning("[APM] Package manager lock is held by a non-extension process. [HolderPid={0}][Holder={1}]".format(holder_pid, holder_details))
+                return
+
+            holder_version = self.version_comparator.extract_version_from_version_str(version_match.group(1))
+            current_version = self.version_comparator.extract_version_from_version_str(str(Constants.EXT_VERSION))
+            is_older_version = current_version != "" and self.version_comparator.compare_versions(holder_version, current_version) < 0
+
+            self.composite_logger.log_warning("[APM] Detected package manager lock held by a LinuxPatchExtension process. No action taken (detection only). "
+                                                "[HolderPid={0}][HolderVersion={1}][CurrentVersion={2}][IsOlderVersion={3}][Holder={4}]"
+                                                .format(holder_pid, holder_version, current_version, str(is_older_version), holder_details))
+        except Exception as error:
+            # detection is best-effort and must not affect the main patch flow
+            self.composite_logger.log_verbose("[APM] Non-fatal: failed while inspecting package manager lock holder. [Error={0}]".format(repr(error)))
 
     def invoke_apt_cache(self, command):
         """Invoke apt-cache using the command input"""
