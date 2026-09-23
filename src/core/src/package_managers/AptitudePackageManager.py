@@ -318,15 +318,17 @@ class AptitudePackageManager(PackageManager):
 
             # Read the holder's elapsed run time (etime) and full command line
             code, out = self.env_layer.run_command_output("ps -p {0} -o pid=,etime=,cmd=".format(holder_pid), False, False)
-            holder_details = out.strip() if code == 0 else ""
-            if holder_details == "":
+            fields = out.strip().split(None, 2) if code == 0 else []
+            if len(fields) < 2:
                 self.composite_logger.log_warning("[APM] Package manager lock is held by process {0}, but its details could not be read (it may have already exited).".format(holder_pid))
                 return
+            holder_metadata = "Pid={0}, Etime={1}".format(fields[0], fields[1])  # allowlisted only
+            holder_cmdline = fields[2] if len(fields) == 3 else ""  # internal use only; never logged
 
             # Was the holder launched by a LinuxPatchExtension version? (path contains LinuxPatchExtension-<version>)
-            version_match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', holder_details)
+            version_match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', holder_cmdline)
             if version_match is None:
-                self.composite_logger.log_warning("[APM] Package manager lock is held by a non-extension process. [HolderPid={0}][Holder={1}]".format(holder_pid, holder_details))
+                self.composite_logger.log_warning("[APM] Package manager lock is held by a non-extension process. [HolderPid={0}]".format(holder_pid))
                 return
 
             holder_version = self.version_comparator.extract_version_from_version_str(version_match.group(1))
@@ -335,7 +337,7 @@ class AptitudePackageManager(PackageManager):
 
             self.composite_logger.log_warning("[APM] Detected package manager lock held by a LinuxPatchExtension process. No action taken (detection only). "
                                                 "[HolderPid={0}][HolderVersion={1}][CurrentVersion={2}][IsOlderVersion={3}][Holder={4}]"
-                                                .format(holder_pid, holder_version, current_version, str(is_older_version), holder_details))
+                                                .format(holder_pid, holder_version, current_version, str(is_older_version), holder_metadata))
         except Exception as error:
             # detection is best-effort and must not affect the main patch flow
             self.composite_logger.log_verbose("[APM] Non-fatal: failed while inspecting package manager lock holder. [Error={0}]".format(repr(error)))
