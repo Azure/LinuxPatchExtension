@@ -249,6 +249,35 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_ensure_mokutil_available_returns_false(self):
         """Mock ensure_mokutil_available_for_cert_checks to return False"""
         return False
+
+    def mock_run_command_output_apt_lock_held_by_stale_lpe_process(self, cmd, no_output=False, chk_err=True):
+        """ Simulates apt-get failing because the lock is held, and the holder being an older-version LPE process. """
+        if cmd.find("ps -p") > -1:
+            # pid, etime (78 days), cmd -> cmd carries the older LinuxPatchExtension-1.6.64 path
+            return 0, "2324709 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp/azgps-src"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)\nE: Unable to lock directory /var/lib/apt/lists/"
+
+    def mock_run_command_output_apt_lock_held_by_non_extension_process(self, cmd, no_output=False, chk_err=True):
+        """ Simulates apt-get failing on a held lock, with the holder being an unrelated (non-extension) process. """
+        if cmd.find("ps -p") > -1:
+            return 0, "2324709 01:02:03 apt-get -q update"   # no LinuxPatchExtension path
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_without_pid(self, cmd, no_output=False, chk_err=True):
+        """ apt reports a lock error but with no resolvable holder PID. """
+        return 100, "Reading package lists...\nE: Could not get lock /var/lib/apt/lists/lock\nE: Unable to lock directory /var/lib/apt/lists/"
+
+    def mock_run_command_output_apt_lock_holder_details_unreadable(self, cmd, no_output=False, chk_err=True):
+        """ Holder PID is known, but ps returns nothing (e.g. the process already exited). """
+        if cmd.find("ps -p") > -1:
+            return 1, ""
+        return 100, "Reading package lists...\nE: Could not get lock /var/lib/apt/lists/lock. It is held by process 999999 (apt-get)\nE: Unable to lock directory /var/lib/apt/lists/"
+
+    def mock_run_command_output_apt_lock_holder_inspection_raises(self, cmd, no_output=False, chk_err=True):
+        """ Forces an exception during holder inspection to exercise the best-effort guard. """
+        if cmd.find("ps -p") > -1:
+            raise Exception("simulated ps failure")
+        return 100, "Reading package lists...\nE: Could not get lock /var/lib/apt/lists/lock. It is held by process 123 (apt-get)\nE: Unable to lock directory /var/lib/apt/lists/"
     # endregion Mocks
 
     # region Utility Functions
@@ -1735,6 +1764,76 @@ class TestAptitudePackageManager(unittest.TestCase):
             package_manager.execution_config.enable_uefi_cert_update_for_all_patching = backup_enable_all
     # endregion
 
+    #Lock detection
+    def test_stale_lock_holder_from_older_extension_version_is_logged(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_stale_lpe_process
+
+        # pin current version so the older/newer comparison is deterministic (dev build has a placeholder)
+        saved_ext_version = Constants.EXT_VERSION
+        Constants.EXT_VERSION = "1.6.71"
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+            Constants.EXT_VERSION = saved_ext_version
+
+        self.__assert_std_io(captured_output, "Detected package manager lock held by a LinuxPatchExtension process")
+        self.__assert_std_io(captured_output, "HolderPid=2324709")
+        self.__assert_std_io(captured_output, "HolderVersion=1.6.64")
+        self.__assert_std_io(captured_output, "CurrentVersion=1.6.71")
+        self.__assert_std_io(captured_output, "IsOlderVersion=True")
+
+    def test_lock_holder_that_is_not_an_extension_process_is_left_untouched(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_non_extension_process
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "held by a non-extension process")
+
+    def test_lock_held_but_holder_pid_not_determinable_is_logged(self):
+        # covers the "PID could not be determined" branch (no 'held by process N' in output)
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_without_pid
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "the holding process id could not be determined")
+
+    def test_lock_holder_details_unreadable_is_logged(self):
+        # covers the "details could not be read" branch (ps returns nothing)
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_holder_details_unreadable
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "its details could not be read")
+
+    def test_lock_holder_inspection_failure_is_non_fatal(self):
+        # covers the best-effort except guard: an inspection failure must not change normal failure behavior
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_holder_inspection_raises
+
+        self.assertRaises(Exception, package_manager.invoke_package_manager, "sudo apt-get -q update")
+    #end region
 
 if __name__ == '__main__':
     unittest.main()
