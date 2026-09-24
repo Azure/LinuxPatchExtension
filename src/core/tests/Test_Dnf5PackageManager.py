@@ -894,6 +894,24 @@ class TestDnfPackageManager(unittest.TestCase):
         # only the two appended keys removed; the pre-existing keys are preserved, file NOT deleted
         self.assertEqual('keepalive = true\nenable_on_reboot = true\n', self.__read_override_config(package_manager))
 
+    def test_revert_override_appends_value_when_key_missing(self):
+        self.runtime.set_legacy_test_type('HappyPath')
+        package_manager = self.container.get('package_manager')
+        default_path = os.path.join(self.runtime.execution_config.config_folder, "default_automatic.conf")
+        override_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
+        package_manager.dnf5_automatic_default_configuration_file_path = default_path
+        package_manager.dnf5_automatic_override_configuration_file_path = override_path
+        self.runtime.write_to_file(default_path, 'apply_updates = yes\ndownload_updates = yes\n')
+        # override file exists but the managed keys were externally removed
+        self.runtime.write_to_file(override_path, 'keepalive = true\n')
+        # backup: file existed, original values were yes/yes
+        self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value="yes", download_updates_value="yes",
+                                                                override_apply_updates_value="yes", override_download_updates_value="yes",
+                                                                installation_state_value=True, set_installation_state=True,
+                                                                override_file_exists=True)
+        package_manager.revert_auto_os_update_to_system_default()
+        self.assertEqual('keepalive = true\ndownload_updates = yes\napply_updates = yes\n', self.__read_override_config(package_manager))
+
 if __name__ == '__main__':
     unittest.main()
 

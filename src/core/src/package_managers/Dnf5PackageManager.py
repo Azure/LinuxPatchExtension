@@ -16,6 +16,7 @@
 
 """Dnf5PackageManager for Azure Linux 4 or above"""
 import json
+import os
 import re
 
 from core.src.core_logic.VersionComparator import VersionComparator
@@ -562,7 +563,7 @@ class Dnf5PackageManager(PackageManager):
                 self.composite_logger.log_debug("[DNF5] Since the backup is invalid, will add a new backup with the current auto OS update settings")
                 self.composite_logger.log_verbose("[DNF5] Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
 
-                override_file_exists = self.env_layer.file_system.read_with_retry(self.os_patch_override_configuration_settings_file_path, raise_if_not_found=False) is not None
+                override_file_exists = os.path.exists(self.os_patch_override_configuration_settings_file_path)
                 is_service_installed, enable_on_reboot_value, _, _ = self.__get_current_auto_os_updates_setting_on_machine()
                 default_download_updates_value, default_apply_updates_value, override_download_updates_value, override_apply_updates_value = self.__get_default_and_override_config_values()
 
@@ -682,22 +683,6 @@ class Dnf5PackageManager(PackageManager):
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
             raise
 
-    def __remove_override_sub_setting(self, patch_configuration_sub_setting, config_pattern_match_text, config_file_path):
-        """ Removes a setting line from the override config (used to undo a key we appended during onboarding). """
-        config = self.env_layer.file_system.read_with_retry(config_file_path, raise_if_not_found=False)
-        if config is None:
-            return
-
-        setting_pattern = patch_configuration_sub_setting + config_pattern_match_text
-        lines_to_keep = []
-        for line in config.strip().split('\n'):
-            is_target_setting = re.search(setting_pattern, line) is not None
-            if not is_target_setting:
-                lines_to_keep.append(line)
-
-        updated_config = '\n'.join(lines_to_keep).lstrip()
-        self.env_layer.file_system.write_with_retry(config_file_path, '{0}\n'.format(updated_config), mode='w+')
-
     def revert_auto_os_update_to_system_default(self):
         """ Reverts the auto OS update patch state on the machine to its system default value, if one exists in our backup file """
         # type () -> None
@@ -785,16 +770,50 @@ class Dnf5PackageManager(PackageManager):
         self.composite_logger.log_debug("[DNF5] Restoring override dnf5-automatic configuration values from backup. [Path={0}][download_updates={1}][apply_updates={2}]".format(
                 self.os_patch_override_configuration_settings_file_path, str(override_download_updates), str(override_apply_updates)))
 
-        # A present key parses to yes/no; "" means the key was absent originally, so remove the one we appended.
-        if override_download_updates in ("yes", "no"):
-            self.__update_os_patch_configuration_sub_setting(self.download_updates_identifier_text, override_download_updates, self.auto_update_config_pattern_match_text, self.os_patch_override_configuration_settings_file_path)
-        else:
-            self.__remove_override_sub_setting(self.download_updates_identifier_text, self.auto_update_config_pattern_match_text, self.os_patch_override_configuration_settings_file_path)
+        override_path = self.os_patch_override_configuration_settings_file_path
+        if not os.path.exists(override_path):
+            self.composite_logger.log_debug("[DNF5] Override configuration file does not exist; nothing to restore. [Path={0}]".format(override_path))
+            return
 
-        if override_apply_updates in ("yes", "no"):
-            self.__update_os_patch_configuration_sub_setting(self.apply_updates_identifier_text, override_apply_updates, self.auto_update_config_pattern_match_text, self.os_patch_override_configuration_settings_file_path)
-        else:
-            self.__remove_override_sub_setting(self.apply_updates_identifier_text, self.auto_update_config_pattern_match_text, self.os_patch_override_configuration_settings_file_path)
+        config = self.__read_override_config(override_path)
+        if not config:
+            self.composite_logger.log_warning("[DNF5] Could not read existing override configuration; skipping restore to avoid overwriting the file. [Path={0}]".format(override_path))
+            return
+
+        self.__apply_override_setting(config, self.download_updates_identifier_text, override_download_updates)
+        self.__apply_override_setting(config, self.apply_updates_identifier_text, override_apply_updates)
+        self.__write_override_config(config, self.os_patch_override_configuration_settings_file_path)
+
+    def __read_override_config(self, config_file_path):
+        """ Reads the config once; returns its lines ([] if the file doesn't exist or cant be read). """
+        self.composite_logger.log_debug("[DNF5] Reading override configuration file")
+        config = self.env_layer.file_system.read_with_retry(config_file_path, raise_if_not_found=False)
+        return [] if config is None else config.strip().split('\n')
+
+    def __apply_override_setting(self, config_lines, identifier, value):
+        """ A present key parses to yes/no; "" means the key was absent originally, so remove the one we appended. """
+        self.composite_logger.log_debug("[DNF5] Applying override settings")
+        pattern = identifier + self.auto_update_config_pattern_match_text
+        found = False
+        new_lines = []
+        for line in config_lines:
+            if re.search(pattern, line) is not None:
+                found = True
+                if value in ("yes", "no"):
+                    new_lines.append(identifier + ' = ' + value)  # replace in place (keeps its section)
+                # else: drop the line (removal)
+            else:
+                new_lines.append(line)
+        if value in ("yes", "no") and not found:
+            new_lines.append(identifier + ' = ' + value)  # append only if truly missing
+        self.composite_logger.log_debug("[DNF5] Finished Applying override settings [Setting={0}][Value={1}]".format(identifier, str(value)))
+        config_lines[:] = new_lines
+
+    def __write_override_config(self, config_lines, config_file_path):
+        """ Writes the config back """
+        self.composite_logger.log_debug("[DNF5] Writing override config")
+        updated = '\n'.join(config_lines).lstrip()
+        self.env_layer.file_system.write_with_retry(config_file_path, '{0}\n'.format(updated), mode='w+')
 
     def __restore_enable_on_reboot_state_from_backup(self, default_backup):
         enable_on_reboot_value = default_backup[self.enable_on_reboot_identifier_text]
