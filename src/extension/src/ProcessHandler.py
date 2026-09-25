@@ -119,10 +119,11 @@ class ProcessHandler(object):
                                   .format(cmd_core_py_path, exec_dir, core_py_path, auto_assess_sh_path, core_process_command))
 
             # generating exec script
+            auto_assess_core_command = core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True"
             auto_assess_sh_data = "#!/usr/bin/env bash" +\
                                   "\n# Copyright 2021 Microsoft Corporation." + \
                                   "\ncd \"$(dirname \"$0\")\"" + \
-                                  "\n" + core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True"
+                                  "\nexec timeout -s TERM -k " + str(Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS) + " " + str(Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS) + " " + auto_assess_core_command
 
             # stage exec script
             if os.path.exists(auto_assess_sh_path):
