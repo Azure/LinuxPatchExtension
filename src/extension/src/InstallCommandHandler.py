@@ -25,7 +25,9 @@ class InstallCommandHandler(object):
         self.ext_env_handler = ext_env_handler
 
     def execute_handler_action(self):
-        self.validate_os_type()
+        os_validation_result = self.validate_os_type()
+        if os_validation_result is not True:
+            return os_validation_result
         self.validate_environment()
         self.logger.log("Install Command Completed")
         return Constants.ExitCode.Okay
@@ -35,7 +37,8 @@ class InstallCommandHandler(object):
         self.logger.log("Validating OS. [Platform={0}]".format(os_type))
         if not os_type.__contains__('linux'):
             error_msg = "Incompatible system: This update is for Linux OS"
-            self.logger.log_error_and_raise_new_exception(error_msg, Exception)
+            self.logger.log_error(error_msg)
+            return Constants.ExitCode.UnsupportedOperatingSystem
         return True
 
     def validate_environment(self):
