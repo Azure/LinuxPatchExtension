@@ -50,9 +50,6 @@ class TestDnfPackageManager(unittest.TestCase):
                        "Reboot should not be necessary.\n")
         return 0, ""
 
-    def mock_run_command_output_remove_override_failure(self, cmd, no_output=False, chk_err=True):
-        return 1, "remove failed"
-
     # region Utility Functions
     def __setup_config_and_invoke_revert_auto_os_to_system_default(self, package_manager, create_current_auto_os_config=True, create_backup_for_system_default_config=True, current_auto_os_update_config_value='', apply_updates_value="",
                                                                    download_updates_value="", override_apply_updates_value="", override_download_updates_value="",enable_on_reboot_value=False, installation_state_value=False, set_installation_state=True):
@@ -80,7 +77,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.runtime.write_to_file(override_config_path, config_value)
 
     def __setup_backup_for_system_default_OS_update_config(self, package_manager, apply_updates_value="", download_updates_value="", override_apply_updates_value="",
-                                                            override_download_updates_value="", enable_on_reboot_value=False, installation_state_value=False, set_installation_state=True, override_file_exists=True):
+                                                            override_download_updates_value="", enable_on_reboot_value=False, installation_state_value=False, set_installation_state=True):
         # setup backup for system default auto OS update config
         package_manager.image_default_patch_configuration_backup_path = os.path.join(self.runtime.execution_config.config_folder, Constants.IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH)
         backup_image_default_patch_configuration_json = {
@@ -90,7 +87,6 @@ class TestDnfPackageManager(unittest.TestCase):
                 package_manager.dnf5_automatic_enable_on_reboot_identifier_text: enable_on_reboot_value
             },
             package_manager.dnf5_override_auto_os_config_backup_key: {
-                package_manager.dnf5_automatic_override_file_exists_identifier_text: override_file_exists,
                 package_manager.dnf5_automatic_apply_updates_identifier_text: override_apply_updates_value,
                 package_manager.dnf5_automatic_download_updates_identifier_text: override_download_updates_value,
             }
@@ -160,7 +156,6 @@ class TestDnfPackageManager(unittest.TestCase):
 
         self.assertEqual(override_backup[package_manager.dnf5_automatic_download_updates_identifier_text], "")
         self.assertEqual(override_backup[package_manager.dnf5_automatic_apply_updates_identifier_text], "")
-        self.assertEqual(override_backup[package_manager.dnf5_automatic_override_file_exists_identifier_text], False)
 
     def test_disable_auto_os_updates_with_installed_services(self):
         self.runtime.set_legacy_test_type('HappyPath')
@@ -196,7 +191,6 @@ class TestDnfPackageManager(unittest.TestCase):
 
         self.assertEqual(override_backup[package_manager.dnf5_automatic_download_updates_identifier_text], "yes")
         self.assertEqual(override_backup[package_manager.dnf5_automatic_apply_updates_identifier_text], "yes")
-        self.assertEqual(override_backup[package_manager.dnf5_automatic_override_file_exists_identifier_text], True)
 
     def test_disable_auto_os_update_failure(self):
         package_manager = self.container.get('package_manager')
@@ -315,7 +309,7 @@ class TestDnfPackageManager(unittest.TestCase):
                 }
             },
             "assertions": {
-                "config_value_expected": 'apply_updates = yes\ndownload_updates = yes\n',
+                "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
                 "config_exists": True
             }
         }
@@ -367,7 +361,7 @@ class TestDnfPackageManager(unittest.TestCase):
                 }
             },
             "assertions": {
-                "config_value_expected": 'test_value = yes\ndownload_updates =\napply_updates = \n',
+                "config_value_expected": 'test_value = yes\n',
                 "config_exists": True
             }
         }
@@ -448,7 +442,7 @@ class TestDnfPackageManager(unittest.TestCase):
             },
             "assertions": {
                 "config_exists": True,
-                "config_value_expected": "apply_updates = yes\ndownload_updates = yes\n"
+                "config_value_expected": "apply_updates = no\ndownload_updates = no\n"
             }
         }
 
@@ -828,16 +822,7 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager.set_security_esm_package_status("op", [])
         package_manager.separate_out_esm_packages([], [])
 
-    def test_remove_override_configuration_failure(self):
-        self.runtime.set_legacy_test_type('HappyPath')
-        package_manager = self.container.get('package_manager')
-        override_config_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
-        package_manager.os_patch_override_configuration_settings_file_path = override_config_path
-        self.runtime.write_to_file(override_config_path, "apply_updates = yes\ndownload_updates = yes\n")
-        self.runtime.env_layer.run_command_output = self.mock_run_command_output_remove_override_failure
-        self.assertRaises(Exception, package_manager._Dnf5PackageManager__remove_override_configuration_if_exists)
-
-    def test_revert_override_takes_remove_branch_when_file_did_not_exist(self):
+    def test_revert_override_removes_keys_without_deleting_file_when_file_did_not_exist(self):
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
 
@@ -846,16 +831,15 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager.dnf5_automatic_default_configuration_file_path = default_path
         package_manager.dnf5_automatic_override_configuration_file_path = override_path
         self.runtime.write_to_file(default_path, 'apply_updates = yes\ndownload_updates = yes\n')
-        self.runtime.write_to_file(override_path, 'apply_updates = no\ndownload_updates = no\n')
-
+        # Override file did not exist pre-onboarding; onboarding created it and the customer later added a key.
+        self.runtime.write_to_file(override_path, 'my_setting = true\ndownload_updates = no\napply_updates = no\n')
+        # backup: override keys were absent originally ("")
         self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value="yes", download_updates_value="yes",
                                                                 override_apply_updates_value="", override_download_updates_value="",
-                                                                installation_state_value=True, set_installation_state=True, override_file_exists=False)
-        captured_output, original_stdout = self.__capture_std_io()
+                                                                installation_state_value=True, set_installation_state=True)
         package_manager.revert_auto_os_update_to_system_default()
-        sys.stdout = original_stdout
-        self.__assert_std_io(captured_output=captured_output,
-                             expected_output="Override dnf5-automatic configuration file did not exist before onboarding. Removing override configuration file if it exists.")
+        # our two keys removed; customer content preserved; file NOT deleted
+        self.assertEqual('my_setting = true\n', self.__read_override_config(package_manager))
 
     def test_revert_override_restores_values_when_keys_existed(self):
         self.runtime.set_legacy_test_type('HappyPath')
@@ -871,7 +855,7 @@ class TestDnfPackageManager(unittest.TestCase):
         # backup captured the ORIGINAL override values (yes/yes); file existed
         self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value="yes", download_updates_value="yes",
                                                                 override_apply_updates_value="yes", override_download_updates_value="yes",
-                                                                installation_state_value=True, set_installation_state=True, override_file_exists=True)
+                                                                installation_state_value=True, set_installation_state=True)
         package_manager.revert_auto_os_update_to_system_default()
         self.assertEqual('apply_updates = yes\ndownload_updates = yes\n', self.__read_override_config(package_manager))
 
@@ -889,7 +873,7 @@ class TestDnfPackageManager(unittest.TestCase):
         # backup: file existed, but download/apply were absent originally ("")
         self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value="yes", download_updates_value="yes",
                                                                 override_apply_updates_value="", override_download_updates_value="",
-                                                                installation_state_value=True, set_installation_state=True, override_file_exists=True)
+                                                                installation_state_value=True, set_installation_state=True)
         package_manager.revert_auto_os_update_to_system_default()
         # only the two appended keys removed; the pre-existing keys are preserved, file NOT deleted
         self.assertEqual('keepalive = true\nenable_on_reboot = true\n', self.__read_override_config(package_manager))
@@ -907,8 +891,7 @@ class TestDnfPackageManager(unittest.TestCase):
         # backup: file existed, original values were yes/yes
         self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value="yes", download_updates_value="yes",
                                                                 override_apply_updates_value="yes", override_download_updates_value="yes",
-                                                                installation_state_value=True, set_installation_state=True,
-                                                                override_file_exists=True)
+                                                                installation_state_value=True, set_installation_state=True)
         package_manager.revert_auto_os_update_to_system_default()
         self.assertEqual('keepalive = true\ndownload_updates = yes\napply_updates = yes\n', self.__read_override_config(package_manager))
 
