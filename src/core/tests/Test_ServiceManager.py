@@ -28,6 +28,8 @@ class TestServiceManager(unittest.TestCase):
         self.service_manager = ServiceManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer,ServiceInfo("AutoAssessment", "Auto assessment service", "path"))
         self.service_manager.service_name = "test_service"
         self.mock_systemd_service_unit_path = "/etc/systemd/system/{0}.service"
+        self.written_service_unit_path = None
+        self.written_service_unit_content = None
 
     def tearDown(self):
         self.runtime.stop()
@@ -38,6 +40,8 @@ class TestServiceManager(unittest.TestCase):
             return 0, "permissions set"
 
     def mock_write_with_retry_valid(self, file_path_or_handle, data, mode='a+'):
+        self.written_service_unit_path = file_path_or_handle
+        self.written_service_unit_content = data
         return
 
     def mock_invoke_systemctl(self, command, description):
@@ -62,6 +66,23 @@ class TestServiceManager(unittest.TestCase):
         self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission
         self.service_manager.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
         self.service_manager.create_service_unit_file(exec_start="/bin/bash " + self.service_manager.service_exec_path, desc="Microsoft Azure Linux Patch Extension - Auto Assessment")
+
+        self.assertEqual("/etc/systemd/system/test_service.service", self.written_service_unit_path)
+        self.assertIn("\nType=simple\n", self.written_service_unit_content)
+        self.assertNotIn("Type=forking", self.written_service_unit_content)
+
+    def test_create_and_set_service_idem_generates_simple_unit(self):
+        """ Guards the production creation path, not just the helper, so a future default flip is caught """
+        self.service_manager.env_layer.run_command_output = self.mock_run_command_to_set_service_file_permission
+        self.service_manager.env_layer.file_system.write_with_retry = self.mock_write_with_retry_valid
+        self.service_manager.invoke_systemctl = self.mock_invoke_systemctl
+        self.service_manager.systemctl_daemon_reload = lambda: None
+
+        self.service_manager.create_and_set_service_idem()
+
+        self.assertIn("\nType=simple\n", self.written_service_unit_content)
+        self.assertNotIn("Type=forking", self.written_service_unit_content)
+        self.assertNotIn("Type=notify", self.written_service_unit_content)
 
     def test_start_service(self):
         # Set method calls
