@@ -651,6 +651,23 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertEqual(out, expected_out)
         self.assertEqual(code, 0)
 
+    def test_auto_issue_mitigation_detects_real_error_alongside_perl_errno(self):
+        # A genuine error must still be mitigated even when a benign "perl-Errno" package line is present in the same output.
+        expected_out = "Installing: perl-Errno-1.28-422.el8.x86_64. Error: Failed to download metadata for repo 'rhui-rhel-8-for-x86_64-baseos-rhui-rpms'"
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        mitigation_attempted = {'called': False}
+        def record_call(output):
+            mitigation_attempted['called'] = True
+            return False
+        package_manager.check_known_issues_and_attempt_fix = record_call
+
+        package_manager.try_mitigate_issues_if_any('testcmd', 0, expected_out)
+
+        self.assertTrue(mitigation_attempted['called'])
+
     def test_disable_auto_os_updates_with_uninstalled_services(self):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
         self.runtime.set_legacy_test_type('SadPath')

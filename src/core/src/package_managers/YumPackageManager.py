@@ -950,7 +950,10 @@ class YumPackageManager(PackageManager):
             self.log_error_mitigation_failure(out, raise_on_exception)
             return code, out
 
-        if ("Error" in out or "Errno" in out) and "perl-Errno" not in out:
+        # Strip the benign "perl-Errno" package token so its "Errno" substring is not misread as an error marker,
+        # while still detecting any genuine errors present elsewhere in the output.
+        out_without_perl_errno = out.replace("perl-Errno", "")
+        if "Error" in out_without_perl_errno or "Errno" in out_without_perl_errno:
             # Preemptively exit the retry loop if the same error string is repeating in the call stack.
             # This implies that self.check_known_issues_and_attempt_fix may have failed to mitigate the error.
             if out in seen_errors:
