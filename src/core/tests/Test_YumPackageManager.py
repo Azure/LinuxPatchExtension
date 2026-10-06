@@ -638,6 +638,19 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertEqual(out, expected_out)
         self.assertTrue(code >= 0)
 
+    def test_auto_issue_mitigation_skips_perl_errno_false_positive(self):
+        # "perl-Errno" contains the substring "Errno" but is not an actual error, so mitigation is skipped and output is returned unchanged.
+        expected_out = "Installing: perl-Errno-1.28-422.el8.x86_64"
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        package_manager.check_known_issues_and_attempt_fix = lambda output: self.fail("perl-Errno must not enter error mitigation")
+        code, out = package_manager.try_mitigate_issues_if_any('testcmd', 0, expected_out)
+
+        self.assertEqual(out, expected_out)
+        self.assertEqual(code, 0)
+
     def test_disable_auto_os_updates_with_uninstalled_services(self):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
         self.runtime.set_legacy_test_type('SadPath')
