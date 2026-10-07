@@ -49,6 +49,10 @@ class TestYumPackageManager(unittest.TestCase):
 
     def mock_linux8_distribution_to_return_redhat(self):
         return ['Red Hat Enterprise Linux Server', '8', 'Ootpa']
+
+    def mock_check_known_issues_and_attempt_fix_record_call(self, output):
+        self.check_known_issues_and_attempt_fix_called = True
+        return False
     #endregion Mocks
 
     # region Utility Functions
@@ -645,9 +649,15 @@ class TestYumPackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager)
 
-        package_manager.check_known_issues_and_attempt_fix = lambda output: self.fail("perl-Errno must not enter error mitigation")
+        self.check_known_issues_and_attempt_fix_called = False
+        backup_check_known_issues_and_attempt_fix = package_manager.check_known_issues_and_attempt_fix
+        package_manager.check_known_issues_and_attempt_fix = self.mock_check_known_issues_and_attempt_fix_record_call
+
         code, out = package_manager.try_mitigate_issues_if_any('testcmd', 0, expected_out)
 
+        package_manager.check_known_issues_and_attempt_fix = backup_check_known_issues_and_attempt_fix
+
+        self.assertFalse(self.check_known_issues_and_attempt_fix_called)
         self.assertEqual(out, expected_out)
         self.assertEqual(code, 0)
 
@@ -658,15 +668,15 @@ class TestYumPackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         self.assertTrue(package_manager)
 
-        mitigation_attempted = {'called': False}
-        def record_call(output):
-            mitigation_attempted['called'] = True
-            return False
-        package_manager.check_known_issues_and_attempt_fix = record_call
+        self.check_known_issues_and_attempt_fix_called = False
+        backup_check_known_issues_and_attempt_fix = package_manager.check_known_issues_and_attempt_fix
+        package_manager.check_known_issues_and_attempt_fix = self.mock_check_known_issues_and_attempt_fix_record_call
 
         package_manager.try_mitigate_issues_if_any('testcmd', 0, expected_out)
 
-        self.assertTrue(mitigation_attempted['called'])
+        package_manager.check_known_issues_and_attempt_fix = backup_check_known_issues_and_attempt_fix
+
+        self.assertTrue(self.check_known_issues_and_attempt_fix_called)
 
     def test_disable_auto_os_updates_with_uninstalled_services(self):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
