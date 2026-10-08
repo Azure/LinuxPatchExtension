@@ -665,7 +665,7 @@ class TestYumPackageManager(unittest.TestCase):
 
         # The genuine error entered the mitigation path and was matched against the known errors list.
         self.__assert_std_io(captured_output, expected_output="[YPM] Found a match within known errors list, attempting a fix...")
-        self.assertTrue(code >= 0)
+        self.assertGreaterEqual(code, 0)
 
     def test_disable_auto_os_updates_with_uninstalled_services(self):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
