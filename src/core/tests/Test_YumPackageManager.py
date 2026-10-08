@@ -638,6 +638,35 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertEqual(out, expected_out)
         self.assertTrue(code >= 0)
 
+    def test_auto_issue_mitigation_skips_perl_errno_false_positive(self):
+        # "perl-Errno" contains the substring "Errno" but is not an actual error, so no mitigation is triggered and the output is returned unchanged.
+        expected_out = "Installing: perl-Errno-1.28-422.el8.x86_64"
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        code, out = package_manager.try_mitigate_issues_if_any('testcmd', 0, expected_out)
+
+        self.assertEqual(out, expected_out)
+        self.assertEqual(code, 0)
+
+    def test_auto_issue_mitigation_detects_real_error_alongside_perl_errno(self):
+        # A benign "perl-Errno" package line must not mask a genuine error in the same output
+        download_metadata_error = "Error: Failed to download metadata for repo 'rhui-rhel-8-for-x86_64-baseos-rhui-rpms': Cannot download repomd.xml: Cannot download repodata/repomd.xml: All mirrors were tried"
+        out_with_perl_errno = "Installing: perl-Errno-1.28-422.el8.x86_64. " + download_metadata_error
+        self.runtime.set_legacy_test_type('IssueMitigationRetryExitAfterMultipleAttempts')
+
+        package_manager = self.container.get('package_manager')
+        self.assertTrue(package_manager)
+
+        captured_output, original_stdout = self.__capture_std_io()
+        code, out = package_manager.try_mitigate_issues_if_any('testcmd', 0, out_with_perl_errno, raise_on_exception = False)
+        sys.stdout = original_stdout
+
+        # The genuine error entered the mitigation path and was matched against the known errors list.
+        self.__assert_std_io(captured_output, expected_output="[YPM] Found a match within known errors list, attempting a fix...")
+        self.assertGreaterEqual(code, 0)
+
     def test_disable_auto_os_updates_with_uninstalled_services(self):
         # no services are installed on the machine. expected o/p: function will complete successfully. Backup file will be created with default values, no auto OS update configuration settings will be updated as there are none
         self.runtime.set_legacy_test_type('SadPath')
