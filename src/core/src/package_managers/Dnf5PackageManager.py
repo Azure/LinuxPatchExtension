@@ -359,6 +359,7 @@ class Dnf5PackageManager(PackageManager):
         self.dnf5_automatic_default_configuration_file_path = '/usr/share/dnf5/dnf5-plugins/automatic.conf'
         self.dnf5_automatic_override_configuration_file_path = '/etc/dnf/automatic.conf'
         self.dnf5_automatic_config_pattern_match_text = ' = (no|yes)'
+        self.dnf5_automatic_config_section_text = '[commands]'
         self.dnf5_automatic_download_updates_identifier_text = "download_updates"
         self.dnf5_automatic_apply_updates_identifier_text = "apply_updates"
         self.dnf5_automatic_enable_on_reboot_identifier_text = "enable_on_reboot"
@@ -414,29 +415,38 @@ class Dnf5PackageManager(PackageManager):
         self.os_patch_default_configuration_backup_key = self.dnf5_default_auto_os_config_backup_key
         self.os_patch_override_configuration_backup_key = self.dnf5_override_auto_os_config_backup_key
 
+    def __is_service_installed_and_enable_on_reboot(self):
+        """Gets the dnf5-automatic install state and whether its timer is set to enable on reboot"""
+        is_service_installed = False
+        enable_on_reboot_value = False
+
+        # install state
+        if not self.is_auto_update_service_installed(self.install_check_cmd):
+            return is_service_installed, enable_on_reboot_value
+
+        code, service_output = self.env_layer.run_command_output(self.dnf5_automatic_configuration_service, False, False)
+        exec_start_line = ""
+        # Only print ExecStart details
+        for line in service_output.splitlines():
+            if line.strip().startswith("ExecStart"):
+                exec_start_line = line.strip()
+                break
+        self.composite_logger.log_debug("[DNF5] dnf5-automatic ExecStart details. [Command={0}][Code={1}][Output={2}]".format(self.dnf5_automatic_configuration_service, str(code), exec_start_line))
+
+        is_service_installed = True
+        enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
+
+        return is_service_installed, enable_on_reboot_value
+
     def __get_current_auto_os_updates_setting_on_machine(self):
         """Gets all auto-OS update settings for dnf5-automatic (DNF5) via config + timer state."""
         try:
             download_updates_value = ""
             apply_updates_value = ""
-            is_service_installed = False
-            enable_on_reboot_value = False
 
-            # install state
-            if not self.is_auto_update_service_installed(self.install_check_cmd):
+            is_service_installed, enable_on_reboot_value = self.__is_service_installed_and_enable_on_reboot()
+            if not is_service_installed:
                 return is_service_installed, enable_on_reboot_value, download_updates_value, apply_updates_value
-
-            code, service_output = self.env_layer.run_command_output(self.dnf5_automatic_configuration_service, False, False)
-            exec_start_line = ""
-            # Only print ExecStart details
-            for line in service_output.splitlines():
-                if line.strip().startswith("ExecStart"):
-                    exec_start_line = line.strip()
-                    break
-            self.composite_logger.log_debug("[DNF5] dnf5-automatic ExecStart details. [Command={0}][Code={1}][Output={2}]".format(self.dnf5_automatic_configuration_service, str(code), exec_start_line))
-
-            is_service_installed = True
-            enable_on_reboot_value = self.is_service_set_to_enable_on_reboot(self.enable_on_reboot_check_cmd)
 
             self.composite_logger.log_verbose("[DNF5] Checking if auto updates are currently enabled...")
             default_download_updates_value, default_apply_updates_value, override_download_updates_value, override_apply_updates_value = self.__get_default_and_override_config_values()
@@ -511,13 +521,16 @@ class Dnf5PackageManager(PackageManager):
         self.composite_logger.log_debug("[DNF5] Successfully disabled auto OS updates using dnf5-automatic")
 
     def __ensure_override_configuration_exists(self):
-        override_config_file = self.env_layer.file_system.read_with_retry(self.os_patch_override_configuration_settings_file_path, raise_if_not_found=False)
-        if override_config_file is not None:
+        """ Ensures the override config file exists before we write to it. We only own download_updates/apply_updates,
+            so when the file is absent we create a minimal one containing just the section those settings belong to,
+            instead of copying the entire default configuration """
+        override_config_file_path = self.os_patch_override_configuration_settings_file_path
+        if os.path.exists(override_config_file_path):
+            self.composite_logger.log_debug("[DNF5] Override configuration file already exists. [Path={0}]".format(override_config_file_path))
             return
 
-        self.composite_logger.log_debug("[DNF5] Override configuration file does not exist. Creating it from default configuration.")
-        default_config = self.env_layer.file_system.read_with_retry(self.os_patch_default_configuration_settings_file_path)
-        self.env_layer.file_system.write_with_retry(self.os_patch_override_configuration_settings_file_path, default_config, mode='w+')
+        self.composite_logger.log_debug("[DNF5] Override configuration file does not exist. Creating a minimal one for the settings we own. [Path={0}]".format(override_config_file_path))
+        self.env_layer.file_system.write_with_retry(override_config_file_path, '{0}\n'.format(self.dnf5_automatic_config_section_text), mode='w+')
 
     def disable_auto_update_on_reboot(self, command):
         """ Disables auto update on reboot by executing systemctl command """
@@ -560,7 +573,7 @@ class Dnf5PackageManager(PackageManager):
                 self.composite_logger.log_debug("[DNF5] Since the backup is invalid, will add a new backup with the current auto OS update settings")
                 self.composite_logger.log_verbose("[DNF5] Fetching current auto OS update settings for [AutoOSUpdateService={0}]".format(str(self.current_auto_os_update_service)))
 
-                is_service_installed, enable_on_reboot_value, _, _ = self.__get_current_auto_os_updates_setting_on_machine()
+                is_service_installed, enable_on_reboot_value = self.__is_service_installed_and_enable_on_reboot()
                 default_download_updates_value, default_apply_updates_value, override_download_updates_value, override_apply_updates_value = self.__get_default_and_override_config_values()
 
                 backup_image_default_patch_configuration_json_to_add = {
@@ -646,9 +659,8 @@ class Dnf5PackageManager(PackageManager):
         return all(key in block for key in required_keys)
 
     def update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value="no", config_pattern_match_text=""):
-        self.__update_os_patch_configuration_sub_setting(patch_configuration_sub_setting, value, config_pattern_match_text, self.os_patch_override_configuration_settings_file_path)
-
-    def __update_os_patch_configuration_sub_setting(self, patch_configuration_sub_setting, value, config_pattern_match_text, config_file_path):
+        """ Updates the given sub setting in the override configuration file, which is the only config file we own """
+        config_file_path = self.os_patch_override_configuration_settings_file_path
         try:
             # note: adding space between the patch_configuration_sub_setting and value since, we will have to do that if we have to add a patch_configuration_sub_setting that did not exist before
             self.composite_logger.log_debug("[DNF5] Updating system configuration settings for auto OS updates. [Patch Configuration Sub Setting={0}] [Value={1}]"
@@ -735,7 +747,7 @@ class Dnf5PackageManager(PackageManager):
             error_msg = "[DNF5] Could not read existing override configuration; skipping restore to avoid overwriting the file.The machine may not have been returned to its pre-onboarding state. [Path={0}]".format(override_path)
             self.composite_logger.log_error(error_msg)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.DEFAULT_ERROR)
-            return
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         self.__apply_override_setting(config, self.download_updates_identifier_text, override_download_updates)
         self.__apply_override_setting(config, self.apply_updates_identifier_text, override_apply_updates)

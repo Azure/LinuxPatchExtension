@@ -94,7 +94,6 @@ class TestDnfPackageManager(unittest.TestCase):
 
         if set_installation_state:
             backup_image_default_patch_configuration_json[package_manager.dnf5_default_auto_os_config_backup_key][package_manager.dnf5_automatic_installation_state_identifier_text] = installation_state_value
-            backup_image_default_patch_configuration_json[package_manager.dnf5_override_auto_os_config_backup_key][package_manager.dnf5_automatic_installation_state_identifier_text] = installation_state_value
         self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, '{0}'.format(json.dumps(backup_image_default_patch_configuration_json)))
 
     @staticmethod
@@ -122,6 +121,15 @@ class TestDnfPackageManager(unittest.TestCase):
     def __read_override_config(self, package_manager):
         return self.runtime.env_layer.file_system.read_with_retry(
             package_manager.dnf5_automatic_override_configuration_file_path, raise_if_not_found=False)
+
+    def __assert_reverted_override_configuration_settings(self, package_manager, override_config_value_expected=None):
+        """ Asserts the override config file, which is the file revert actually restores """
+        reverted_override_configuration_settings = self.__read_override_config(package_manager)
+
+        if override_config_value_expected is None:
+            self.assertIsNone(reverted_override_configuration_settings)
+        else:
+            self.assertEqual(override_config_value_expected, reverted_override_configuration_settings)
     # endregion
 
     def test_refresh_repo(self):
@@ -230,7 +238,7 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager.dnf5_automatic_default_configuration_file_path = default_config_path
         package_manager.dnf5_automatic_override_configuration_file_path = override_config_path
 
-        self.runtime.write_to_file(default_config_path, "apply_updates = yes\ndownload_updates = yes\n")
+        self.runtime.write_to_file(default_config_path, "apply_updates = no\ndownload_updates = no\n")
         self.runtime.write_to_file(override_config_path, "apply_updates = yes\ndownload_updates = yes\n")
 
         is_enabled = package_manager.is_service_set_to_enable_on_reboot(package_manager.enable_on_reboot_check_cmd)
@@ -251,7 +259,7 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager.dnf5_automatic_default_configuration_file_path = default_config_path
         package_manager.dnf5_automatic_override_configuration_file_path = override_config_path
 
-        self.runtime.write_to_file(default_config_path, "apply_updates = no\ndownload_updates = yes\n")
+        self.runtime.write_to_file(default_config_path, "apply_updates = no\ndownload_updates = no\n")
         self.runtime.write_to_file(override_config_path, "apply_updates = no\ndownload_updates = yes\n")
 
         is_enabled = package_manager.is_service_set_to_enable_on_reboot(package_manager.enable_on_reboot_check_cmd)
@@ -301,16 +309,23 @@ class TestDnfPackageManager(unittest.TestCase):
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": True,
-                    "apply_updates_value": "yes",
-                    "download_updates_value": "yes",
-                    "enable_on_reboot_value": True,
-                    "installation_state_value": True,
-                    "set_installation_state": True
+                    "default": {
+                        "apply_updates": "yes",
+                        "download_updates": "yes",
+                        "enable_on_reboot": True,
+                        "installation_state": True,
+                        "set_installation_state": True
+                    },
+                    "override": {
+                        "apply_updates": "yes",
+                        "download_updates": "yes"
+                    }
                 }
             },
             "assertions": {
                 "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
-                "config_exists": True
+                "config_exists": True,
+                "override_config_value_expected": 'apply_updates = yes\ndownload_updates = yes\n'
             }
         }
 
@@ -327,16 +342,23 @@ class TestDnfPackageManager(unittest.TestCase):
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": True,
-                    "apply_updates_value": "",
-                    "download_updates_value": "",
-                    "enable_on_reboot_value": False,
-                    "installation_state_value": False,
-                    "set_installation_state": True
+                    "default": {
+                        "apply_updates": "",
+                        "download_updates": "",
+                        "enable_on_reboot": False,
+                        "installation_state": False,
+                        "set_installation_state": True
+                    },
+                    "override": {
+                        "apply_updates": "",
+                        "download_updates": ""
+                    }
                 }
             },
             "assertions": {
                 "config_value_expected": "",
-                "config_exists": False
+                "config_exists": False,
+                "override_config_value_expected": None
             }
         }
 
@@ -353,16 +375,23 @@ class TestDnfPackageManager(unittest.TestCase):
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": True,
-                    "apply_updates_value": "",
-                    "download_updates_value": "",
-                    "enable_on_reboot_value": False,
-                    "installation_state_value": False,
-                    "set_installation_state": True
+                    "default": {
+                        "apply_updates": "",
+                        "download_updates": "",
+                        "enable_on_reboot": False,
+                        "installation_state": False,
+                        "set_installation_state": True
+                    },
+                    "override": {
+                        "apply_updates": "",
+                        "download_updates": ""
+                    }
                 }
             },
             "assertions": {
                 "config_value_expected": 'test_value = yes\n',
-                "config_exists": True
+                "config_exists": True,
+                "override_config_value_expected": 'test_value = yes\n'
             }
         }
 
@@ -379,16 +408,23 @@ class TestDnfPackageManager(unittest.TestCase):
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": False,
-                    "apply_updates_value": "",
-                    "download_updates_value": "",
-                    "enable_on_reboot_value": False,
-                    "installation_state_value": False,
-                    "set_installation_state": True
+                    "default": {
+                        "apply_updates": "",
+                        "download_updates": "",
+                        "enable_on_reboot": False,
+                        "installation_state": False,
+                        "set_installation_state": True
+                    },
+                    "override": {
+                        "apply_updates": "",
+                        "download_updates": ""
+                    }
                 }
             },
             "assertions": {
                 "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
-                "config_exists": True
+                "config_exists": True,
+                "override_config_value_expected": 'apply_updates = no\ndownload_updates = no\n'
             }
         }
 
@@ -405,16 +441,23 @@ class TestDnfPackageManager(unittest.TestCase):
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": True,
-                    "apply_updates_value": "yes",
-                    "download_updates_value": "yes",
-                    "enable_on_reboot_value": True,
-                    "installation_state_value": False,
-                    "set_installation_state": False
+                    "default": {
+                        "apply_updates": "yes",
+                        "download_updates": "yes",
+                        "enable_on_reboot": True,
+                        "installation_state": False,
+                        "set_installation_state": False
+                    },
+                    "override": {
+                        "apply_updates": "",
+                        "download_updates": ""
+                    }
                 }
             },
             "assertions": {
                 "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
-                "config_exists": True
+                "config_exists": True,
+                "override_config_value_expected": 'apply_updates = no\ndownload_updates = no\n'
             }
         }
 
@@ -427,22 +470,27 @@ class TestDnfPackageManager(unittest.TestCase):
             "config": {
                 "current_auto_update_config": {
                     "create_current_auto_os_config": True,
-                    "current_auto_os_update_config_value": "apply_updates = no\ndownload_updates = no\n"
+                    "current_auto_os_update_config_value": "keepalive = true\napply_updates = no\ndownload_updates = no\n"
                 },
                 "backup_system_default_config": {
                     "create_backup_for_system_default_config": True,
-                    "apply_updates_value": "yes",
-                    "download_updates_value": "yes",
-                    "override_apply_updates_value": "yes",
-                    "override_download_updates_value": "yes",
-                    "enable_on_reboot_value": False,
-                    "installation_state_value": True,
-                    "set_installation_state": True
+                    "default": {
+                        "apply_updates": "yes",
+                        "download_updates": "yes",
+                        "enable_on_reboot": False,
+                        "installation_state": True,
+                        "set_installation_state": True
+                    },
+                    "override": {
+                        "apply_updates": "yes",
+                        "download_updates": "yes"
+                    }
                 }
             },
             "assertions": {
                 "config_exists": True,
-                "config_value_expected": "apply_updates = no\ndownload_updates = no\n"
+                "config_value_expected": "keepalive = true\napply_updates = no\ndownload_updates = no\n",
+                "override_config_value_expected": "keepalive = true\napply_updates = yes\ndownload_updates = yes\n"
             }
         }
 
@@ -463,24 +511,29 @@ class TestDnfPackageManager(unittest.TestCase):
             self.runtime.set_legacy_test_type(testcase["legacy_type"])
             package_manager = self.container.get('package_manager')
 
+            backup_config = testcase["config"]["backup_system_default_config"]
+            default_backup_config = backup_config["default"]
+            override_backup_config = backup_config["override"]
+
             # setup current auto OS update config, backup for system default config and invoke revert to system default
             self.__setup_config_and_invoke_revert_auto_os_to_system_default(package_manager,
                                                                             create_current_auto_os_config=bool(testcase["config"]["current_auto_update_config"]["create_current_auto_os_config"]),
                                                                             current_auto_os_update_config_value=testcase["config"]["current_auto_update_config"]["current_auto_os_update_config_value"],
-                                                                            create_backup_for_system_default_config=bool(testcase["config"]["backup_system_default_config"]["create_backup_for_system_default_config"]),
-                                                                            apply_updates_value=testcase["config"]["backup_system_default_config"]["apply_updates_value"],
-                                                                            download_updates_value=testcase["config"]["backup_system_default_config"]["download_updates_value"],
-                                                                            override_apply_updates_value=testcase["config"]["backup_system_default_config"].get("override_apply_updates_value", ""),
-                                                                            override_download_updates_value=testcase["config"]["backup_system_default_config"].get("override_download_updates_value", ""),
-                                                                            enable_on_reboot_value=bool(testcase["config"]["backup_system_default_config"]["enable_on_reboot_value"]),
-                                                                            installation_state_value=bool(testcase["config"]["backup_system_default_config"]["installation_state_value"]),
-                                                                            set_installation_state=bool(testcase["config"]["backup_system_default_config"]["set_installation_state"]))
+                                                                            create_backup_for_system_default_config=bool(backup_config["create_backup_for_system_default_config"]),
+                                                                            apply_updates_value=default_backup_config["apply_updates"],
+                                                                            download_updates_value=default_backup_config["download_updates"],
+                                                                            override_apply_updates_value=override_backup_config["apply_updates"],
+                                                                            override_download_updates_value=override_backup_config["download_updates"],
+                                                                            enable_on_reboot_value=bool(default_backup_config["enable_on_reboot"]),
+                                                                            installation_state_value=bool(default_backup_config["installation_state"]),
+                                                                            set_installation_state=bool(default_backup_config["set_installation_state"]))
             # assert
             if testcase["stdio"]["capture_output"]:
                 # restore sys.stdout output
                 sys.stdout = original_stdout
                 self.__assert_std_io(captured_output=captured_output,expected_output=testcase["stdio"]["expected_output"])
             self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(testcase["assertions"]["config_exists"]), config_value_expected=testcase["assertions"]["config_value_expected"])
+            self.__assert_reverted_override_configuration_settings(package_manager, override_config_value_expected=testcase["assertions"]["override_config_value_expected"])
 
     def test_dedupe_update_packages_to_get_latest_versions(self):
         packages = []
@@ -680,6 +733,7 @@ class TestDnfPackageManager(unittest.TestCase):
         package_manager.apply_updates_identifier_text = package_manager.dnf5_automatic_apply_updates_identifier_text
         package_manager.auto_update_config_pattern_match_text = package_manager.dnf5_automatic_config_pattern_match_text
 
+        # disable apply_updates when enabled by default
         dnf5_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
         self.runtime.write_to_file(override_config_path, dnf5_automatic_os_patch_configuration_settings)
 
@@ -690,6 +744,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertIn('apply_updates = no', dnf5_automatic_os_patch_configuration_settings_file_path_read)
         self.assertIn('download_updates = yes', dnf5_automatic_os_patch_configuration_settings_file_path_read)
 
+        # disable download_updates when enabled by default
         dnf5_automatic_os_patch_configuration_settings = 'apply_updates = yes\ndownload_updates = yes\n'
         self.runtime.write_to_file(override_config_path, dnf5_automatic_os_patch_configuration_settings)
 
@@ -700,6 +755,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertIn('apply_updates = yes', dnf5_automatic_os_patch_configuration_settings_file_path_read)
         self.assertIn('download_updates = no', dnf5_automatic_os_patch_configuration_settings_file_path_read)
 
+        # disable apply_updates when default patch mode settings file is empty
         dnf5_automatic_os_patch_configuration_settings = ''
         self.runtime.write_to_file(override_config_path, dnf5_automatic_os_patch_configuration_settings)
 
@@ -849,8 +905,9 @@ class TestDnfPackageManager(unittest.TestCase):
         override_path = os.path.join(self.runtime.execution_config.config_folder, "automatic.conf")
         package_manager.dnf5_automatic_default_configuration_file_path = default_path
         package_manager.dnf5_automatic_override_configuration_file_path = override_path
-        # post-onboarding state: we set both keys to "no"
+        # image default config: never modified by onboarding
         self.runtime.write_to_file(default_path, 'apply_updates = yes\ndownload_updates = yes\n')
+        # post-onboarding state: we only set the override config keys to "no"
         self.runtime.write_to_file(override_path, 'apply_updates = no\ndownload_updates = no\n')
         # backup captured the ORIGINAL override values (yes/yes); file existed
         self.__setup_backup_for_system_default_OS_update_config(package_manager, apply_updates_value="yes", download_updates_value="yes",
