@@ -396,7 +396,7 @@ class AptitudePackageManager(PackageManager):
                 return True
             if not self.__is_same_process(holder, current_holder):
                 self.composite_logger.log_warning("[APM] Not signalling the lock holder: the process changed identity (PID reuse). [HolderPid={0}][Signal=SIG{1}]".format(holder_pid, signal_name))
-                return False
+                return True
 
             kill_code, _ = self.env_layer.run_command_output("sudo kill -{0} {1}".format(signal_name, holder_pid), False, False)
             if kill_code != 0:
