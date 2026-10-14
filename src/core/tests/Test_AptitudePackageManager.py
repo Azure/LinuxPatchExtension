@@ -250,17 +250,37 @@ class TestAptitudePackageManager(unittest.TestCase):
         """Mock ensure_mokutil_available_for_cert_checks to return False"""
         return False
 
+    def __mock_run_command_output_apt_lock_held(self, ps_output, exits_on_signal=True, retry_succeeds=True):
+        """ Builds a stateful run_command_output mock for a held apt lock. ps_output is the holder's 'ppid lstart etime cmd'.
+            Once the holder is signalled (and exits_on_signal is set) ps reports it gone and the retried apt command can succeed. """
+        state = {"terminated": False}
+        self.signals_sent = []
+
+        def mock_run_command_output(cmd, no_output=False, chk_err=True):
+            if cmd.find("kill -") > -1:
+                self.signals_sent.append(cmd)
+                state["terminated"] = exits_on_signal
+                return 0, ""
+            if cmd.find("ps -p") > -1:
+                return (1, "") if state["terminated"] else (0, ps_output)
+            if state["terminated"] and retry_succeeds:
+                return 0, "Reading package lists..."
+            return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+        return mock_run_command_output
+
     def mock_run_command_output_apt_lock_held_by_stale_lpe_process(self, cmd, no_output=False, chk_err=True):
-        """ Simulates apt-get failing because the lock is held, and the holder being an older-version LPE process. """
+        """ Simulates apt-get failing because the lock is held, and the holder being an older-version LPE process
+            that is still parented by a live process (so it is not eligible for termination). """
         if cmd.find("ps -p") > -1:
-            # pid, etime (78 days), cmd -> cmd carries the older LinuxPatchExtension-1.6.64 path
-            return 0, "2324709 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp/azgps-src"
-        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)\nE: Unable to lock directory /var/lib/apt/lists/"
+            # ppid, etime (78 days), cmd -> cmd carries the older LinuxPatchExtension-1.6.64 path
+            return 0, "2324709 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp/azgps-src"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
 
     def mock_run_command_output_apt_lock_held_by_non_extension_process(self, cmd, no_output=False, chk_err=True):
         """ Simulates apt-get failing on a held lock, with the holder being an unrelated (non-extension) process. """
         if cmd.find("ps -p") > -1:
-            return 0, "2324709 01:02:03 apt-get -q update"   # no LinuxPatchExtension path
+            return 0, "1 Mon Jan 1 00:00:00 2026 01:02:03 apt-get -q update"   # no LinuxPatchExtension path
         return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
 
     def mock_run_command_output_apt_lock_held_without_pid(self, cmd, no_output=False, chk_err=True):
@@ -1764,27 +1784,205 @@ class TestAptitudePackageManager(unittest.TestCase):
             package_manager.execution_config.enable_uefi_cert_update_for_all_patching = backup_enable_all
     # endregion
 
-    #Lock detection
+    #Lock detection and stale holder recovery
+    def __invoke_apt_and_capture(self, package_manager, expect_failure=True, ext_version="1.6.71"):
+        """ Invokes the package manager with std io captured, pinning the current extension version. """
+        saved_ext_version = Constants.EXT_VERSION
+        Constants.EXT_VERSION = ext_version
+        captured_output, original_stdout = self.__capture_std_io()
+        self.invoke_result = None
+        try:
+            if expect_failure:
+                with self.assertRaises(Exception):
+                    package_manager.invoke_package_manager("sudo apt-get -q update")
+            else:
+                self.invoke_result = package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+            Constants.EXT_VERSION = saved_ext_version
+        return captured_output
+
     def test_stale_lock_holder_from_older_extension_version_is_logged(self):
         package_manager = self.container.get('package_manager')
         self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_stale_lpe_process
 
-        # pin current version so the older/newer comparison is deterministic (dev build has a placeholder)
-        saved_ext_version = Constants.EXT_VERSION
-        Constants.EXT_VERSION = "1.6.71"
-        captured_output, original_stdout = self.__capture_std_io()
-        try:
-            with self.assertRaises(Exception):
-                package_manager.invoke_package_manager("sudo apt-get -q update")
-        finally:
-            sys.stdout = original_stdout
-            Constants.EXT_VERSION = saved_ext_version
+        captured_output = self.__invoke_apt_and_capture(package_manager)
 
         self.__assert_std_io(captured_output, "Detected package manager lock held by a LinuxPatchExtension process")
         self.__assert_std_io(captured_output, "HolderPid=2324709")
         self.__assert_std_io(captured_output, "HolderVersion=1.6.64")
         self.__assert_std_io(captured_output, "CurrentVersion=1.6.71")
         self.__assert_std_io(captured_output, "IsOlderVersion=True")
+
+    def test_stale_lock_holder_is_terminated_and_operation_proceeds(self):
+        # every safety gate passes: orphaned (ppid 1), 78 days old, older extension version
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.__mock_run_command_output_apt_lock_held("1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp")
+
+        captured_output = self.__invoke_apt_and_capture(package_manager, expect_failure=False)
+
+        self.__assert_std_io(captured_output, "Clearing an abandoned LinuxPatchExtension process")
+        self.__assert_std_io(captured_output, "Cleared the abandoned lock holder")
+        self.__assert_std_io(captured_output, "Stale lock-holding process exited; retrying the command once")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])   # terminates the process, not the lock file
+        self.assertEqual(self.invoke_result, "Reading package lists...")   # output of the retried command
+
+    def test_stale_lock_holder_is_escalated_to_sigkill_when_sigterm_is_ignored(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.__mock_run_command_output_apt_lock_held("1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp", exits_on_signal=False)
+
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "Could not clear the abandoned lock holder")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709", "sudo kill -KILL 2324709"])
+
+    def test_lock_holder_with_live_parent_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.__mock_run_command_output_apt_lock_held("5000 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp")
+
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "it is not confidently an abandoned extension apt process")
+        self.__assert_std_io(captured_output, "Ppid=5000")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_that_is_not_old_enough_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.__mock_run_command_output_apt_lock_held("1 Mon Jan 1 00:00:00 2026 09-23:59:59 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp")
+
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "it is not old enough to be considered abandoned")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_with_unparseable_age_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.__mock_run_command_output_apt_lock_held("1 Mon Jan 1 00:00:00 2026 unknown apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp")
+
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "its age could not be determined")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_from_same_or_newer_extension_version_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.__mock_run_command_output_apt_lock_held("1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.71/tmp")
+
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "it is not confidently an abandoned extension apt process")
+        self.__assert_std_io(captured_output, "IsOlderVersion=False")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_that_is_not_an_apt_process_is_left_untouched(self):
+        # the extension launches many processes; only apt/dpkg holders are eligible
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.__mock_run_command_output_apt_lock_held(
+            "1 Mon Jan 1 00:00:00 2026 78-00:14:50 /usr/bin/python3 /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/MsftLinuxPatchCore.py")
+
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "it is not confidently an abandoned extension apt process")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_that_changes_identity_before_termination_is_not_terminated(self):
+        # the PID could be recycled between inspection and termination, so identity is re-validated first
+        package_manager = self.container.get('package_manager')
+        ps_outputs = ["1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp",
+                      "1 Tue Feb 2 10:00:00 2026 00:00:02 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"]   # different start time
+        self.signals_sent = []
+
+        def mock_run_command_output(cmd, no_output=False, chk_err=True):
+            if cmd.find("kill -") > -1:
+                self.signals_sent.append(cmd)
+                return 0, ""
+            if cmd.find("ps -p") > -1:
+                return 0, ps_outputs.pop(0) if len(ps_outputs) > 1 else ps_outputs[0]
+            return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+        self.runtime.env_layer.run_command_output = mock_run_command_output
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "the process changed identity (PID reuse)")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_pid_reused_after_sigterm_is_not_sent_sigkill(self):
+        package_manager = self.container.get('package_manager')
+        original = "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+        recycled = "1 Tue Feb 2 10:00:00 2026 00:00:01 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+        state = {"signalled": False}
+        self.signals_sent = []
+
+        def mock_run_command_output(cmd, no_output=False, chk_err=True):
+            if cmd.find("kill -") > -1:
+                self.signals_sent.append(cmd)
+                state["signalled"] = True
+                return 0, ""
+            if cmd.find("ps -p") > -1:
+                return 0, recycled if state["signalled"] else original
+            return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+        self.runtime.env_layer.run_command_output = mock_run_command_output
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "its PID was reused")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])   # SIGKILL is never sent to the recycled PID
+
+    def test_lock_holder_signal_failure_is_logged(self):
+        package_manager = self.container.get('package_manager')
+        ps_output = "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+
+        def mock_run_command_output(cmd, no_output=False, chk_err=True):
+            if cmd.find("kill -") > -1:
+                return 1, "sudo: a password is required"
+            if cmd.find("ps -p") > -1:
+                return 0, ps_output
+            return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+        self.runtime.env_layer.run_command_output = mock_run_command_output
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "Signalling the lock holder failed")
+        self.__assert_std_io(captured_output, "Signal=SIGTERM")
+
+    def test_lock_holder_termination_that_does_not_release_the_lock_still_fails_the_operation(self):
+        # terminating the holder is not assumed to be sufficient; the retried command is the proof
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.__mock_run_command_output_apt_lock_held("1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp", retry_succeeds=False)
+
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "error persists after clearing the stale lock holder")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])
+
+    def test_lock_holder_with_unparseable_current_extension_version_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.__mock_run_command_output_apt_lock_held("1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp")
+
+        captured_output = self.__invoke_apt_and_capture(package_manager, ext_version="unknown")
+
+        self.__assert_std_io(captured_output, "extension version could not be parsed")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_that_exits_before_being_signalled_lets_operation_proceed(self):
+        package_manager = self.container.get('package_manager')
+        ps_outputs = [(0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"), (1, "")]   # gone when re-validated
+        self.signals_sent = []
+
+        def mock_run_command_output(cmd, no_output=False, chk_err=True):
+            if cmd.find("kill -") > -1:
+                self.signals_sent.append(cmd)
+                return 0, ""
+            if cmd.find("ps -p") > -1:
+                return ps_outputs.pop(0) if len(ps_outputs) > 1 else ps_outputs[0]
+            return (0, "Reading package lists...") if len(ps_outputs) == 1 else (100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)")
+
+        self.runtime.env_layer.run_command_output = mock_run_command_output
+        captured_output = self.__invoke_apt_and_capture(package_manager, expect_failure=False)
+
+        self.__assert_std_io(captured_output, "The abandoned lock holder has exited")
+        self.assertEqual(self.signals_sent, [])
+        self.assertEqual(self.invoke_result, "Reading package lists...")
 
     def test_lock_holder_that_is_not_an_extension_process_is_left_untouched(self):
         package_manager = self.container.get('package_manager')
@@ -1832,7 +2030,10 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
         self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_holder_inspection_raises
 
-        self.assertRaises(Exception, package_manager.invoke_package_manager, "sudo apt-get -q update")
+        captured_output = self.__invoke_apt_and_capture(package_manager)
+
+        self.__assert_std_io(captured_output, "Non-fatal: failed while inspecting package manager lock holder")
+        self.__assert_std_io(captured_output, "simulated ps failure")
     #end region
 
 if __name__ == '__main__':

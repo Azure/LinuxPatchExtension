@@ -244,6 +244,10 @@ class Constants(object):
     MAX_CHECK_SUDO_ATTEMPTS = 6
     MAX_CHECK_SUDO_INTERVAL_IN_SEC = 300
 
+    # Stale package manager lock holder recovery (see AptitudePackageManager)
+    STALE_LOCK_HOLDER_MIN_AGE_IN_DAYS = 10      # a holder must be older than this to be considered abandoned
+    STALE_LOCK_HOLDER_EXIT_GRACE_IN_SEC = 5     # time allowed for the holder to exit after each signal
+
     class PackageBatchConfig(EnumBackport):
         # Batch Patching Parameters
         MAX_BATCH_SIZE_FOR_PACKAGES = 300
