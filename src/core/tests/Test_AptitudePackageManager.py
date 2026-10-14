@@ -1823,7 +1823,7 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         self.__assert_std_io(captured_output, "Clearing an abandoned LinuxPatchExtension process")
         self.__assert_std_io(captured_output, "Cleared the abandoned lock holder")
-        self.__assert_std_io(captured_output, "Stale lock-holding process exited; retrying the command once")
+        self.__assert_std_io(captured_output, "Retrying the command once after clearing the stale lock holder")
         self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])   # terminates the process, not the lock file
         self.assertEqual(self.invoke_result, "Reading package lists...")   # output of the retried command
 
@@ -1885,7 +1885,7 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.__assert_std_io(captured_output, "it is not confidently an abandoned extension apt process")
         self.assertEqual(self.signals_sent, [])
 
-    def test_lock_holder_that_changes_identity_before_termination_is_not_terminated(self):
+    def test_lock_holder_that_changes_identity_before_termination_is_not_signalled_and_retried(self):
         # the PID could be recycled between inspection and termination, so identity is re-validated first
         package_manager = self.container.get('package_manager')
         ps_outputs = ["1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp",
@@ -1898,15 +1898,18 @@ class TestAptitudePackageManager(unittest.TestCase):
                 return 0, ""
             if cmd.find("ps -p") > -1:
                 return 0, ps_outputs.pop(0) if len(ps_outputs) > 1 else ps_outputs[0]
+            if len(ps_outputs) == 1:    # identity has been re-validated, the original holder released the lock
+                return 0, "Reading package lists..."
             return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
 
         self.runtime.env_layer.run_command_output = mock_run_command_output
-        captured_output = self.__invoke_apt_and_capture(package_manager)
+        captured_output = self.__invoke_apt_and_capture(package_manager, expect_failure=False)
 
         self.__assert_std_io(captured_output, "the process changed identity (PID reuse)")
         self.assertEqual(self.signals_sent, [])
+        self.assertEqual(self.invoke_result, "Reading package lists...")
 
-    def test_lock_holder_pid_reused_after_sigterm_is_not_sent_sigkill(self):
+    def test_lock_holder_pid_reused_after_sigterm_is_not_sent_sigkill_and_command_is_retried(self):
         package_manager = self.container.get('package_manager')
         original = "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
         recycled = "1 Tue Feb 2 10:00:00 2026 00:00:01 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
@@ -1920,13 +1923,16 @@ class TestAptitudePackageManager(unittest.TestCase):
                 return 0, ""
             if cmd.find("ps -p") > -1:
                 return 0, recycled if state["signalled"] else original
+            if state["signalled"]:    # the original holder exited after SIGTERM and released the lock
+                return 0, "Reading package lists..."
             return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
 
         self.runtime.env_layer.run_command_output = mock_run_command_output
-        captured_output = self.__invoke_apt_and_capture(package_manager)
+        captured_output = self.__invoke_apt_and_capture(package_manager, expect_failure=False)
 
         self.__assert_std_io(captured_output, "its PID was reused")
         self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])   # SIGKILL is never sent to the recycled PID
+        self.assertEqual(self.invoke_result, "Reading package lists...")
 
     def test_lock_holder_signal_failure_is_logged(self):
         package_manager = self.container.get('package_manager')

@@ -293,8 +293,8 @@ class AptitudePackageManager(PackageManager):
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
             if self.__clear_stale_lock_holder_if_present(out):
-                # the holder exited, which does not guarantee the lock is free; the retry is the authoritative check
-                self.composite_logger.log("[APM] Stale lock-holding process exited; retrying the command once. [Command={0}]".format(command))
+                # the holder is gone, which does not guarantee the lock is free; the retry is the authoritative check
+                self.composite_logger.log("[APM] Retrying the command once after clearing the stale lock holder. [Command={0}]".format(command))
                 code, out = self.env_layer.run_command_output(command, False, False)
                 if code == self.apt_exitcode_ok:
                     self.composite_logger.log_debug('[APM] Invoked package manager after clearing a stale lock holder. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
@@ -387,7 +387,7 @@ class AptitudePackageManager(PackageManager):
 
     def __terminate_stale_lock_holder(self, holder_pid, holder):
         """ Terminates the process (never the lock file), re-validating its identity before every signal.
-            Returns True only after the process is confirmed to be gone. """
+            Returns True when retrying the command is worthwhile, i.e. the holder is gone or was never signalled because its PID was reused. """
         self.composite_logger.log("[APM] Clearing an abandoned LinuxPatchExtension process that is holding the package manager lock. [HolderPid={0}]".format(holder_pid))
         for signal_name in ["TERM", "KILL"]:
             current_holder = self.__get_lock_holder_details(holder_pid)
@@ -409,7 +409,7 @@ class AptitudePackageManager(PackageManager):
                     return True
                 if not self.__is_same_process(holder, current_holder):
                     self.composite_logger.log_warning("[APM] The lock holder exited and its PID was reused; not signalling further. [HolderPid={0}]".format(holder_pid))
-                    return False
+                    return True
                 time.sleep(1)
 
         self.composite_logger.log_warning("[APM] Could not clear the abandoned lock holder; it is still running. [HolderPid={0}]".format(holder_pid))
