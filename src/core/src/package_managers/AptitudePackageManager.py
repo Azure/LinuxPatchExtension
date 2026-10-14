@@ -98,10 +98,10 @@ class AptitudePackageManager(PackageManager):
         self.apt_update_cmd = "sudo apt-get -q update"
         self.min_fwupd_version = "2.0.8" # Refer public docs: https://github.com/fwupd/fwupd/releases/tag/2.0.8 and https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
         self.remove_fwupd_cmd = "sudo apt-get purge -y fwupd"
-        self.get_installed_fwupd_version_cmd = "fwupdmgr --version"
-        self.install_fwupd_cmd = "sudo apt-get install -y fwupd"
-        self.fwupd_force_refresh_cmd = "sudo fwupdmgr refresh --force" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
-        self.fwupd_update_cmd = "sudo fwupdmgr update -y"
+        # Ubuntu releases before 22.04 require the fwupd snap to obtain a recent enough version.
+        self.is_snap_fwupd_required = self.__is_snap_fwupd_required()
+        self.install_fwupd_cmd = "sudo snap install fwupd" if self.is_snap_fwupd_required else "sudo apt-get install -y fwupd"
+        self.__configure_fwupdmgr_commands(self.is_snap_fwupd_required and os.path.exists('/snap/bin/fwupdmgr'))
         self.get_uptime_seconds_cmd = "cat /proc/uptime"
         self.get_hibernation_state_cmd = "cat /sys/power/disk"
         self.pre_cert_reboot_uptime_threshold_seconds = 7 * 24 * 60 * 60 # NOTE: This needs to be reviewed again later as these aren't specific to this class
@@ -1002,6 +1002,19 @@ class AptitudePackageManager(PackageManager):
         return self.package_install_expected_avg_time_in_seconds
 
     # region Update certificates in factory defaults
+    def __is_snap_fwupd_required(self):
+        # type: () -> bool
+        """Use the fwupd snap on Ubuntu releases older than 22.04."""
+        try:
+            distribution = self.env_layer.platform.linux_distribution()
+            if len(distribution) < 2 or distribution[0].lower() != "ubuntu":
+                return False
+
+            return int(distribution[1].split('.')[0]) < 22
+        except Exception as error:
+            self.composite_logger.log_warning("[APM][Certs] Unable to determine Ubuntu release for fwupd installation method. Using apt. [Error={0}]".format(repr(error)))
+            return False
+
     def is_reboot_required_before_cert_update(self):
         # type: () -> bool
         """ Long-running VMs may not have the minimum firmware required for certificate updates.
@@ -1075,16 +1088,22 @@ class AptitudePackageManager(PackageManager):
 
             # shell fwupd commands to update certificates
             self.__run_cert_shell_command(self.fwupd_force_refresh_cmd, step_name="FwupdRefresh", raise_on_error=False)
-            self.__run_cert_shell_command(self.fwupd_update_cmd, step_name="FwupdUpdate", raise_on_error=True)
+            update_code, update_out = self.env_layer.run_command_output(self.fwupd_update_cmd, False, False)
 
             """ NOTE: They tooling used to update here is fwupd (firmware update manager). In this method of updating certs, the exact version of current certs is never pinned
             or set/referred while installing. fwupd fetches and installs latest available certs. This is beneficial because our code doesn't become dated in the future
             (if it was pinned to an old version) but adds the need to verify if the certs we intend to update were applied. Hence the validation on latest certs. """
             if self.are_latest_certs_present_with_mokutil_check():
+                if update_code != self.apt_exitcode_ok:
+                    self.composite_logger.log_warning("[APM][Certs] fwupd update returned a nonzero code, but both latest KEK and db certificates were verified. Ignoring the update failure. [Code={0}][Output={1}]".format(str(update_code), str(update_out)))
+                else:
+                    self.composite_logger.log_debug("[APM][UpdateCerts] Shell step succeeded. [Step=FwupdUpdate][Command={0}][Code={1}][Output={2}]".format(self.fwupd_update_cmd, str(update_code), str(update_out)))
                 self.composite_logger.log("[APM][Certs] Cert update completed and verified.")
                 success = True
             else:
-                msg = "[APM][Certs] Cert update commands completed but latest certs not detected."
+                msg = ("[APM][UpdateCerts] Shell step failed. [Step=FwupdUpdate][Command={0}][Code={1}][Output={2}] Latest KEK and db certificates not verified."
+                       .format(self.fwupd_update_cmd, str(update_code), str(update_out)) if update_code != self.apt_exitcode_ok else
+                       "[APM][Certs] Cert update commands completed but latest certs not detected.")
                 self.composite_logger.log_error(msg)
                 self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
 
@@ -1114,7 +1133,7 @@ class AptitudePackageManager(PackageManager):
         else:
             self.composite_logger.log_debug("[APM][Certs] fwupd is not installed. Installing latest version.")
 
-        self.__run_cert_apt_command(self.install_fwupd_cmd, step_name="InstallFwupd", raise_on_error=True)
+        self.__install_fwupd_for_cert_update()
 
         # Validate that the installed fwupd meets the minimum requirement.
         installed_version = self.__get_installed_fwupd_version()
@@ -1125,6 +1144,32 @@ class AptitudePackageManager(PackageManager):
             raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         return True
+
+    def __install_fwupd_for_cert_update(self):
+        """Prepare snap when needed and install fwupd for certificate updates."""
+        if self.is_snap_fwupd_required:
+            # Refresh snapd immediately before installing fwupd on older Ubuntu releases.
+            self.__refresh_snap_for_fwupd_installation()
+        self.__run_cert_apt_command(self.install_fwupd_cmd, step_name="InstallFwupd", raise_on_error=True)
+        self.__configure_fwupdmgr_commands(self.is_snap_fwupd_required)
+
+    def __refresh_snap_for_fwupd_installation(self):
+        """Best-effort snapd refresh before installing the fwupd snap."""
+        cmd = "sudo snap refresh"
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        if code != self.apt_exitcode_ok:
+            self.composite_logger.log_warning("[APM][Certs] Snap refresh failed; continuing with fwupd snap installation. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
+            return False
+
+        self.composite_logger.log_debug("[APM][Certs] Snap refresh completed. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
+        return True
+
+    def __configure_fwupdmgr_commands(self, use_snap):
+        """Use the snap executable for every fwupdmgr operation when the snap is installed."""
+        fwupdmgr = '/snap/bin/fwupdmgr' if use_snap else 'fwupdmgr'
+        self.get_installed_fwupd_version_cmd = '{0} --version'.format(fwupdmgr)
+        self.fwupd_force_refresh_cmd = 'sudo {0} refresh --force'.format(fwupdmgr)
+        self.fwupd_update_cmd = 'sudo {0} update -y'.format(fwupdmgr)
 
     def __get_installed_fwupd_version(self):
         # type: () -> str
