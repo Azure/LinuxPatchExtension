@@ -183,6 +183,20 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_are_latest_certs_present_return_true(self):
         return True
 
+    def mock_are_latest_certs_present_for_fwupd_update_result(self):
+        return self.fwupd_update_certs_verified
+
+    def mock_run_command_output_with_fwupd_not_installed(self, cmd, no_output=False, chk_err=True):
+        if cmd == self.runtime.package_manager.get_installed_fwupd_version_cmd:
+            return 1, "fwupdmgr: command not found"
+        return self.snap_install_original_run(cmd, no_output, chk_err)
+
+    def mock_invoke_package_manager_advanced_with_failed_snap_install(self, command, raise_on_exception=True):
+        self.snap_install_commands.append(command)
+        if command == self.runtime.package_manager.install_fwupd_cmd:
+            return "snap fwupd installation failed", 1
+        return self.snap_install_original_invoke(command, raise_on_exception)
+
     def mock_run_command_output_uptime_above_threshold(self, cmd, no_output=False, chk_err=True):
         self.assertGreater(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd), -1)
         return 0, "700000.12 123.45"
@@ -1747,8 +1761,17 @@ class TestAptitudePackageManager(unittest.TestCase):
                 "name": "fwupd_update_returns_code_2_but_certs_verified",
                 "fwupd_refresh_code": 0,
                 "fwupd_update_code": 2,
+                "fwupd_update_certs_verified": True,
                 "expected_result": True,
                 "expected_error_count": 0
+            },
+            {
+                "name": "fwupd_update_fails_and_certs_are_not_verified",
+                "fwupd_refresh_code": 0,
+                "fwupd_update_code": 1,
+                "fwupd_update_certs_verified": False,
+                "expected_result": False,
+                "expected_error_count": 1
             },
             {
                 "name": "all_fwupd_commands_succeed",
@@ -1764,13 +1787,14 @@ class TestAptitudePackageManager(unittest.TestCase):
             self.legacy_run_command_output = backup_run_command_output
             package_manager.env_layer.run_command_output = self.mock_run_command_output_with_fwupd_exit_code_overrides
             package_manager.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
-            package_manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+            package_manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_for_fwupd_update_result
             package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
 
             for use_case in use_cases:
                 self.captured_errors_tracking = []
                 self.fwupd_refresh_code = use_case["fwupd_refresh_code"]
                 self.fwupd_update_code = use_case["fwupd_update_code"]
+                self.fwupd_update_certs_verified = use_case.get("fwupd_update_certs_verified", True)
 
                 self.assertEqual(package_manager.try_update_certs(), use_case["expected_result"], "Failed use case: {0}".format(use_case["name"]))
                 self.assertEqual(len(self.captured_errors_tracking), use_case["expected_error_count"], "Failed use case: {0}".format(use_case["name"]))
@@ -1785,6 +1809,38 @@ class TestAptitudePackageManager(unittest.TestCase):
             package_manager.status_handler.add_error_to_status = backup_add_error_to_status
             package_manager.are_latest_certs_present_with_mokutil_check = backup_are_latest_certs_present_with_mokutil_check
             package_manager.is_reboot_pending = backup_is_reboot_pending
+
+    def test_try_update_certs_reports_snap_fwupd_install_failure(self):
+        """The public UEFI flow reports a failed snap fwupd installation."""
+        manager = self.container.get('package_manager')
+        original_invoke = manager.invoke_package_manager_advanced
+        original_run = manager.env_layer.run_command_output
+        original_add_error = manager.status_handler.add_error_to_status
+        self.snap_install_commands = []
+        self.snap_install_original_invoke = original_invoke
+        self.snap_install_original_run = original_run
+
+        try:
+            self.assertTrue(manager.is_snap_fwupd_required)
+            self.assertEqual(manager.install_fwupd_cmd, "sudo snap install fwupd")
+            self.captured_errors_tracking = []
+            manager.invoke_package_manager_advanced = self.mock_invoke_package_manager_advanced_with_failed_snap_install
+            manager.env_layer.run_command_output = self.mock_run_command_output_with_fwupd_not_installed
+            manager.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+
+            self.assertFalse(manager.try_update_certs())
+            self.assertIn(manager.install_fwupd_cmd, self.snap_install_commands)
+            self.assertEqual(len(self.captured_errors_tracking), 1)
+            message, code = self.captured_errors_tracking[0]
+            self.assertIn("Apt step failed", message)
+            self.assertIn("Step=InstallFwupd", message)
+            self.assertIn("Command=sudo snap install fwupd", message)
+            self.assertIn("Output=snap fwupd installation failed", message)
+            self.assertEqual(code, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+        finally:
+            manager.invoke_package_manager_advanced = original_invoke
+            manager.env_layer.run_command_output = original_run
+            manager.status_handler.add_error_to_status = original_add_error
 
     def test_snap_refresh_before_fwupd_installation(self):
         self.snap_test_original_run = self.runtime.env_layer.run_command_output
@@ -1879,6 +1935,8 @@ class TestAptitudePackageManager(unittest.TestCase):
                 self.assertEqual(manager.try_update_certs(), kek_latest and db_latest)
                 self.assertEqual(len(self.captured_errors_tracking), 0 if kek_latest and db_latest else 1)
                 if not (kek_latest and db_latest):
+                    self.assertIn("Shell step failed", self.captured_errors_tracking[0][0])
+                    self.assertIn("failed to send FuFirmware firmware to snapd", self.captured_errors_tracking[0][0])
                     self.assertEqual(self.captured_errors_tracking[0][1], Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
         finally:
             manager.env_layer.run_command_output = original_run
