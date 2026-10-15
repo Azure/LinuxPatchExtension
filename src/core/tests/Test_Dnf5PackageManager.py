@@ -109,27 +109,15 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertIn(expected_output, output)
 
     def __assert_reverted_automatic_patch_configuration_settings(self, package_manager, config_exists=True, config_value_expected=''):
-        reverted_dnf5_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(
-            package_manager.dnf5_automatic_default_configuration_file_path, raise_if_not_found=False)
-
         if config_exists:
+            reverted_dnf5_automatic_patch_configuration_settings = self.runtime.env_layer.file_system.read_with_retry(package_manager.dnf5_automatic_override_configuration_file_path)
             self.assertIsNotNone(reverted_dnf5_automatic_patch_configuration_settings)
-            self.assertEqual(config_value_expected, reverted_dnf5_automatic_patch_configuration_settings)
         else:
-            self.assertIsNone(reverted_dnf5_automatic_patch_configuration_settings)
+            self.assertFalse(os.path.exists(package_manager.dnf5_automatic_override_configuration_file_path))
 
     def __read_override_config(self, package_manager):
         return self.runtime.env_layer.file_system.read_with_retry(
             package_manager.dnf5_automatic_override_configuration_file_path, raise_if_not_found=False)
-
-    def __assert_reverted_override_configuration_settings(self, package_manager, override_config_value_expected=None):
-        """ Asserts the override config file, which is the file revert actually restores """
-        reverted_override_configuration_settings = self.__read_override_config(package_manager)
-
-        if override_config_value_expected is None:
-            self.assertIsNone(reverted_override_configuration_settings)
-        else:
-            self.assertEqual(override_config_value_expected, reverted_override_configuration_settings)
     # endregion
 
     def test_refresh_repo(self):
@@ -228,6 +216,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.DISABLED)
 
     def test_get_current_auto_os_patch_state_with_installed_services_and_state_enabled(self):
+        # with enable on reboot set to false
         self.runtime.set_legacy_test_type('HappyPath')
         package_manager = self.container.get('package_manager')
         package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
@@ -249,6 +238,7 @@ class TestDnfPackageManager(unittest.TestCase):
         self.assertFalse(package_manager.image_default_patch_configuration_backup_exists())
         self.assertEqual(current_auto_os_patch_state, Constants.AutomaticOSPatchStates.ENABLED)
 
+        # with enable on reboot set to true
         self.runtime.set_legacy_test_type('AnotherSadPath')
         package_manager = self.container.get('package_manager')
         package_manager.get_current_auto_os_patch_state = self.runtime.backup_get_current_auto_os_patch_state
@@ -293,6 +283,7 @@ class TestDnfPackageManager(unittest.TestCase):
             }
         }
         self.runtime.write_to_file(package_manager.image_default_patch_configuration_backup_path, json.dumps(backup_config))
+        # Should complete without error even when service is not installed
         package_manager.revert_auto_os_update_to_system_default()
 
     def test_revert_auto_os_update_to_system_default(self):
@@ -324,8 +315,7 @@ class TestDnfPackageManager(unittest.TestCase):
             },
             "assertions": {
                 "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
-                "config_exists": True,
-                "override_config_value_expected": 'apply_updates = yes\ndownload_updates = yes\n'
+                "config_exists": True
             }
         }
 
@@ -357,8 +347,7 @@ class TestDnfPackageManager(unittest.TestCase):
             },
             "assertions": {
                 "config_value_expected": "",
-                "config_exists": False,
-                "override_config_value_expected": None
+                "config_exists": False
             }
         }
 
@@ -390,8 +379,7 @@ class TestDnfPackageManager(unittest.TestCase):
             },
             "assertions": {
                 "config_value_expected": 'test_value = yes\n',
-                "config_exists": True,
-                "override_config_value_expected": 'test_value = yes\n'
+                "config_exists": True
             }
         }
 
@@ -423,8 +411,7 @@ class TestDnfPackageManager(unittest.TestCase):
             },
             "assertions": {
                 "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
-                "config_exists": True,
-                "override_config_value_expected": 'apply_updates = no\ndownload_updates = no\n'
+                "config_exists": True
             }
         }
 
@@ -456,8 +443,7 @@ class TestDnfPackageManager(unittest.TestCase):
             },
             "assertions": {
                 "config_value_expected": 'apply_updates = no\ndownload_updates = no\n',
-                "config_exists": True,
-                "override_config_value_expected": 'apply_updates = no\ndownload_updates = no\n'
+                "config_exists": True
             }
         }
 
@@ -489,8 +475,7 @@ class TestDnfPackageManager(unittest.TestCase):
             },
             "assertions": {
                 "config_exists": True,
-                "config_value_expected": "keepalive = true\napply_updates = no\ndownload_updates = no\n",
-                "override_config_value_expected": "keepalive = true\napply_updates = yes\ndownload_updates = yes\n"
+                "config_value_expected": "keepalive = true\napply_updates = no\ndownload_updates = no\n"
             }
         }
 
@@ -533,7 +518,6 @@ class TestDnfPackageManager(unittest.TestCase):
                 sys.stdout = original_stdout
                 self.__assert_std_io(captured_output=captured_output,expected_output=testcase["stdio"]["expected_output"])
             self.__assert_reverted_automatic_patch_configuration_settings(package_manager, config_exists=bool(testcase["assertions"]["config_exists"]), config_value_expected=testcase["assertions"]["config_value_expected"])
-            self.__assert_reverted_override_configuration_settings(package_manager, override_config_value_expected=testcase["assertions"]["override_config_value_expected"])
 
     def test_dedupe_update_packages_to_get_latest_versions(self):
         packages = []

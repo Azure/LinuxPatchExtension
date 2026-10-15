@@ -529,7 +529,7 @@ class Dnf5PackageManager(PackageManager):
             self.composite_logger.log_debug("[DNF5] Override configuration file already exists. [Path={0}]".format(override_config_file_path))
             return
 
-        self.composite_logger.log_debug("[DNF5] Override configuration file does not exist. Creating a minimal one for the settings we own. [Path={0}]".format(override_config_file_path))
+        self.composite_logger.log_debug("[DNF5] Override configuration file does not exist. Creating a minimal one for the settings needed for automatic patching.[Path={0}]".format(override_config_file_path))
         self.env_layer.file_system.write_with_retry(override_config_file_path, '{0}\n'.format(self.dnf5_automatic_config_section_text), mode='w+')
 
     def disable_auto_update_on_reboot(self, command):
