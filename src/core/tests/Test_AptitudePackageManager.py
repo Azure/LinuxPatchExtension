@@ -197,6 +197,12 @@ class TestAptitudePackageManager(unittest.TestCase):
             return "snap fwupd installation failed", 1
         return self.snap_install_original_invoke(command, raise_on_exception)
 
+    def mock_run_command_output_for_snap_fwupd_helper(self, cmd, no_output=False, chk_err=True):
+        self.assertEqual(cmd, "sudo /snap/bin/fwupdmgr update -y")
+        self.assertFalse(no_output)
+        self.assertFalse(chk_err)
+        return self.snap_fwupd_helper_result
+
     def mock_run_command_output_uptime_above_threshold(self, cmd, no_output=False, chk_err=True):
         self.assertGreater(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd), -1)
         return 0, "700000.12 123.45"
@@ -1839,6 +1845,50 @@ class TestAptitudePackageManager(unittest.TestCase):
             self.assertEqual(code, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
         finally:
             manager.invoke_package_manager_advanced = original_invoke
+            manager.env_layer.run_command_output = original_run
+            manager.status_handler.add_error_to_status = original_add_error
+
+    def test_snap_fwupd_shell_helper_success_and_failure(self):
+        """Cover the private certificate shell helper's success and failure policies."""
+        manager = self.container.get('package_manager')
+        original_run = manager.env_layer.run_command_output
+        original_add_error = manager.status_handler.add_error_to_status
+        command = "sudo /snap/bin/fwupdmgr update -y"
+
+        try:
+            manager.env_layer.run_command_output = self.mock_run_command_output_for_snap_fwupd_helper
+            manager.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+
+            for exit_code, raise_on_error in ((0, False), (1, False), (1, True)):
+                self.snap_fwupd_helper_result = (exit_code, "snap fwupd output")
+                self.captured_errors_tracking = []
+
+                if raise_on_error:
+                    with self.assertRaises(Exception) as raised:
+                        manager._AptitudePackageManager__run_cert_shell_command(
+                            command, "FwupdUpdate", raise_on_error=True)
+                    self.assertEqual(
+                        raised.exception.args[1],
+                        "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+                else:
+                    result = manager._AptitudePackageManager__run_cert_shell_command(
+                        command, "FwupdUpdate", raise_on_error=False)
+                    self.assertEqual(result, (exit_code == 0, "snap fwupd output"))
+
+                self.assertEqual(
+                    len(self.captured_errors_tracking),
+                    0 if exit_code == 0 else 1)
+
+                if exit_code != 0:
+                    message, error_code = self.captured_errors_tracking[0]
+                    self.assertIn("Shell step failed", message)
+                    self.assertIn("Step=FwupdUpdate", message)
+                    self.assertIn("Command=" + command, message)
+                    self.assertIn("Output=snap fwupd output", message)
+                    self.assertEqual(
+                        error_code,
+                        Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+        finally:
             manager.env_layer.run_command_output = original_run
             manager.status_handler.add_error_to_status = original_add_error
 
