@@ -38,8 +38,11 @@ from core.src.local_loggers.CompositeLogger import CompositeLogger
 
 from core.src.package_managers.AptitudePackageManager import AptitudePackageManager
 from core.src.package_managers.AzL3TdnfPackageManager import AzL3TdnfPackageManager
+from core.src.package_managers.DnfPackageManager import DnfPackageManager
+from core.src.package_managers.Dnf5PackageManager import Dnf5PackageManager
 from core.src.package_managers.YumPackageManager import YumPackageManager
 from core.src.package_managers.ZypperPackageManager import ZypperPackageManager
+from core.src.service_interfaces.CredentialSanitizer import CredentialSanitizer
 
 from core.src.service_interfaces.LifecycleManager import LifecycleManager
 from core.src.service_interfaces.LifecycleManagerAzure import LifecycleManagerAzure
@@ -70,17 +73,23 @@ class ConfigurationFactory(object):
 
         self.configurations = {
             'apt_prod_config':    self.new_prod_configuration(Constants.APT, AptitudePackageManager),
-            'tdnf_prod_config': self.new_prod_configuration(Constants.TDNF, AzL3TdnfPackageManager),
+            'dnf_prod_config':    self.new_prod_configuration(Constants.DNF, DnfPackageManager),
+            'dnf5_prod_config':   self.new_prod_configuration(Constants.DNF5, Dnf5PackageManager),
+            'tdnf_prod_config':   self.new_prod_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_prod_config':    self.new_prod_configuration(Constants.YUM, YumPackageManager),
             'zypper_prod_config': self.new_prod_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_dev_config':     self.new_dev_configuration(Constants.APT, AptitudePackageManager),
-            'tdnf_dev_config': self.new_dev_configuration(Constants.TDNF, AzL3TdnfPackageManager),
+            'dnf_dev_config':     self.new_dev_configuration(Constants.DNF, DnfPackageManager),
+            'dnf5_dev_config':    self.new_dev_configuration(Constants.DNF5, Dnf5PackageManager),
+            'tdnf_dev_config':    self.new_dev_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_dev_config':     self.new_dev_configuration(Constants.YUM, YumPackageManager),
             'zypper_dev_config':  self.new_dev_configuration(Constants.ZYPPER, ZypperPackageManager),
 
             'apt_test_config':    self.new_test_configuration(Constants.APT, AptitudePackageManager),
-            'tdnf_test_config': self.new_test_configuration(Constants.TDNF, AzL3TdnfPackageManager),
+            'dnf_test_config':    self.new_test_configuration(Constants.DNF, DnfPackageManager),
+            'dnf5_test_config':   self.new_test_configuration(Constants.DNF5, Dnf5PackageManager),
+            'tdnf_test_config':   self.new_test_configuration(Constants.TDNF, AzL3TdnfPackageManager),
             'yum_test_config':    self.new_test_configuration(Constants.YUM, YumPackageManager),
             'zypper_test_config': self.new_test_configuration(Constants.ZYPPER, ZypperPackageManager)
         }
@@ -116,7 +125,7 @@ class ConfigurationFactory(object):
             print ("Error: Environment configuration not supported - " + str(env))
             return None
 
-        if str(package_manager_name) not in [Constants.APT, Constants.TDNF, Constants.YUM, Constants.ZYPPER]:
+        if str(package_manager_name) not in [Constants.APT, Constants.DNF, Constants.DNF5, Constants.TDNF, Constants.YUM, Constants.ZYPPER]:
             print ("Error: Package manager configuration not supported - " + str(package_manager_name))
             return None
 
@@ -151,9 +160,14 @@ class ConfigurationFactory(object):
                     'telemetry_writer': None  # Has to be initialized without telemetry_writer to avoid running into a circular dependency loop. Telemetry writer within composite logger will be set later after telemetry writer has been initialized
                 }
             },
+            'credential_sanitizer': {
+                'component': CredentialSanitizer,
+                'component_args': ['composite_logger'],
+                'component_kwargs': {}
+            },
             'telemetry_writer': {
                 'component': TelemetryWriter,
-                'component_args': ['env_layer', 'composite_logger'],
+                'component_args': ['env_layer', 'composite_logger', 'credential_sanitizer'],
                 'component_kwargs': {
                     'events_folder_path': events_folder,
                     'telemetry_supported': telemetry_supported

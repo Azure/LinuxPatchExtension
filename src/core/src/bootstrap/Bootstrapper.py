@@ -49,6 +49,7 @@ class Bootstrapper(object):
         if capture_stdout:
             self.stdout_file_mirror = StdOutFileMirror(self.env_layer, self.file_logger)
         self.composite_logger = self.container.get('composite_logger')
+        self.credential_sanitizer = self.container.get("credential_sanitizer")
         self.telemetry_writer = self.container.get('telemetry_writer')
         self.composite_logger.telemetry_writer = self.telemetry_writer  # Need to set telemetry_writer within logger to enable sending all logs to telemetry
 
@@ -122,7 +123,7 @@ class Bootstrapper(object):
         return lifecycle_manager, status_handler
 
     def bootstrap_splash_text(self):
-        self.composite_logger.log("\n\n[%exec_name%] \t -- \t Copyright (c) Microsoft Corporation. All rights reserved. \nApplication version: 3.0.[%exec_sub_ver%]\n\n")
+        self.composite_logger.log("\n\n[%exec_name%] \t -- \t Copyright (c) Microsoft Corporation. All rights reserved. \nVersion: [%exec_ver%], Build Date: [%exec_build_date%].\n\n")
 
     def basic_environment_health_check(self):
         self.composite_logger.log("Python version: " + " ".join(sys.version.splitlines()))

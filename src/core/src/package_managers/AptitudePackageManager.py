@@ -23,6 +23,7 @@ import sys
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
+from core.src.core_logic.VersionComparator import VersionComparator
 from core.src.package_managers.UbuntuProClient import UbuntuProClient
 
 
@@ -88,8 +89,22 @@ class AptitudePackageManager(PackageManager):
 
         self.ubuntu_pro_client_all_updates_cached = []
         self.ubuntu_pro_client_all_updates_versions_cached = []
-        
+        self.version_comparator = VersionComparator()
+
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 81 seconds for apt.
+
+        # Update certificates in factory defaults.
+        self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
+        self.apt_update_cmd = "sudo apt-get -q update"
+        self.min_fwupd_version = "2.0.8" # Refer public docs: https://github.com/fwupd/fwupd/releases/tag/2.0.8 and https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
+        self.remove_fwupd_cmd = "sudo apt-get purge -y fwupd"
+        self.get_installed_fwupd_version_cmd = "fwupdmgr --version"
+        self.install_fwupd_cmd = "sudo apt-get install -y fwupd"
+        self.fwupd_force_refresh_cmd = "sudo fwupdmgr refresh --force" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
+        self.fwupd_update_cmd = "sudo fwupdmgr update -y"
+        self.get_uptime_seconds_cmd = "cat /proc/uptime"
+        self.get_hibernation_state_cmd = "cat /sys/power/disk"
+        self.pre_cert_reboot_uptime_threshold_seconds = 7 * 24 * 60 * 60 # NOTE: This needs to be reviewed again later as these aren't specific to this class
 
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
@@ -183,7 +198,7 @@ class AptitudePackageManager(PackageManager):
 
         for line in sources_content_lines:
             if len(line.strip()) != 0 and not line.strip().startswith("#"):
-                if base_classification == Constants.PackageClassification.SECURITY and "security" not in line:
+                if base_classification == Constants.PackageClassification.SECURITY and "security" not in line and "fips-updates" not in line:
                     continue
                 std_source_list_content += "\n" + self.__apply_max_patch_publish_date(sources_content=line, max_patch_publish_date=max_patch_published_date)
 
@@ -207,7 +222,7 @@ class AptitudePackageManager(PackageManager):
 
                 if len(line.strip()) == 0:  # stanza separating line
                     if stanza != str():
-                        if base_classification == str() or (base_classification == Constants.PackageClassification.SECURITY and "security" in stanza):
+                        if base_classification == str() or (base_classification == Constants.PackageClassification.SECURITY and ("security" in stanza or "fips-updates" in stanza)):
                             std_source_parts_content += self.__apply_max_patch_publish_date(sources_content=stanza, max_patch_publish_date=max_patch_published_date) + '\n'
                         stanza = str()
                         continue
@@ -276,6 +291,7 @@ class AptitudePackageManager(PackageManager):
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
+            self.__log_stale_lock_holder_if_present(out)  # NEW: best-effort, log-only lock diagnostics
             error_msg = "Customer environment error: Investigate and resolve unexpected return code ({0}) from package manager on command: {1}".format(str(code), command)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             if raise_on_exception:
@@ -284,6 +300,47 @@ class AptitudePackageManager(PackageManager):
         else:  # verbose diagnostic log
             self.composite_logger.log_debug('[APM] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         return out, code
+
+    def __log_stale_lock_holder_if_present(self, command_output):
+        """ Best-effort, log-only detection of a package-manager lock held by another process.
+            Identifies whether the holder is an orphaned LinuxPatchExtension process from an older
+            version. Does NOT kill the process or remove the lock. """
+        try:
+            if command_output is None or ("Could not get lock" not in command_output and "Unable to lock" not in command_output):
+                return  # not a lock-contention failure, nothing to diagnose
+
+            # apt reports the holder PID directly, e.g. "It is held by process 123456 (apt-get)"
+            pid_match = re.search(r'held by process (\d+)', command_output)
+            if pid_match is None:
+                self.composite_logger.log_warning("[APM] Package manager lock is held, but the holding process id could not be determined from the output.")
+                return
+            holder_pid = pid_match.group(1)
+
+            # Read the holder's elapsed run time (etime) and full command line
+            code, out = self.env_layer.run_command_output("ps -p {0} -o pid=,etime=,cmd=".format(holder_pid), False, False)
+            fields = out.strip().split(None, 2) if code == 0 else []
+            if len(fields) < 2:
+                self.composite_logger.log_warning("[APM] Package manager lock is held by process {0}, but its details could not be read (it may have already exited).".format(holder_pid))
+                return
+            holder_metadata = "Pid={0}, Etime={1}".format(fields[0], fields[1])  # allowlisted only
+            holder_cmdline = fields[2] if len(fields) == 3 else ""  # internal use only; never logged
+
+            # Was the holder launched by a LinuxPatchExtension version? (path contains LinuxPatchExtension-<version>)
+            version_match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', holder_cmdline)
+            if version_match is None:
+                self.composite_logger.log_warning("[APM] Package manager lock is held by a non-extension process. [HolderPid={0}]".format(holder_pid))
+                return
+
+            holder_version = self.version_comparator.extract_version_from_version_str(version_match.group(1))
+            current_version = self.version_comparator.extract_version_from_version_str(str(Constants.EXT_VERSION))
+            is_older_version = current_version != "" and self.version_comparator.compare_versions(holder_version, current_version) < 0
+
+            self.composite_logger.log_warning("[APM] Detected package manager lock held by a LinuxPatchExtension process. No action taken (detection only). "
+                                                "[HolderPid={0}][HolderVersion={1}][CurrentVersion={2}][IsOlderVersion={3}][Holder={4}]"
+                                                .format(holder_pid, holder_version, current_version, str(is_older_version), holder_metadata))
+        except Exception as error:
+            # detection is best-effort and must not affect the main patch flow
+            self.composite_logger.log_verbose("[APM] Non-fatal: failed while inspecting package manager lock holder. [Error={0}]".format(repr(error)))
 
     def invoke_apt_cache(self, command):
         """Invoke apt-cache using the command input"""
@@ -943,4 +1000,234 @@ class AptitudePackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
+
+    # region Update certificates in factory defaults
+    def is_reboot_required_before_cert_update(self):
+        # type: () -> bool
+        """ Long-running VMs may not have the minimum firmware required for certificate updates.
+        We will reboot VMs with uptime > threshold to load the required firmware version. """
+        """ Return True when certificate update should be preceded by a reboot."""
+        uptime_seconds = self.__get_vm_uptime_seconds()
+        if uptime_seconds is None:
+            # Best-effort check: do not block cert flow if uptime cannot be determined.
+            return False
+
+        requires_reboot = uptime_seconds > self.pre_cert_reboot_uptime_threshold_seconds
+        self.composite_logger.log_debug("[APM][Certs] Pre-cert reboot check. [UptimeInSeconds={0}][ThresholdInSeconds={1}][RequiresReboot={2}]"
+                                        .format(str(uptime_seconds), str(self.pre_cert_reboot_uptime_threshold_seconds), str(requires_reboot)))
+        return requires_reboot
+
+    def is_hibernation_enabled_for_cert_update(self):
+        # type: () -> bool
+        """Returns True when hibernation appears enabled based on /sys/power/disk state."""
+        cmd = self.get_hibernation_state_cmd
+        self.composite_logger.log_verbose('[APM][Certs] Checking hibernation state before cert update. [Command={0}]'.format(cmd))
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        out = str(out) if out is not None else str()
+
+        if code != self.apt_exitcode_ok or out.strip() == str():
+            self.composite_logger.log_debug('[APM][Certs] Unable to determine hibernation state for cert update. Assuming enabled. [Code={0}][Output={1}]'.format(str(code), out))
+            return True
+
+        # Linux shows current mode in brackets; [disabled] means hibernation is turned off.
+        is_hibernation_enabled = '[disabled]' not in out
+        self.composite_logger.log_debug('[APM][Certs] Hibernation state for cert update. [Enabled={0}][RawState={1}]'.format(str(is_hibernation_enabled), out.strip()))
+        return is_hibernation_enabled
+
+    def __get_vm_uptime_seconds(self):
+        # type: () -> any
+        """Return VM uptime in seconds, or None when unavailable."""
+        cmd = self.get_uptime_seconds_cmd
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        self.composite_logger.log_debug("[APM][Certs] VM uptime command executed. [Command={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(out)))
+        if code != self.apt_exitcode_ok:
+            self.composite_logger.log_warning("[APM][Certs] Unable to determine VM uptime. [Command={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(out)))
+            return None
+
+        output = str(out).strip()
+        if output == str() or len(output.split()) == 0:
+            self.composite_logger.log_warning("[APM][Certs] VM uptime command returned an empty result.")
+            return None
+
+        try:
+            return int(float(output.split()[0]))
+        except Exception as error:
+            self.composite_logger.log_warning("[APM][Certs] Failed to parse VM uptime output. [Output={0}][Error={1}]".format(str(output), repr(error)))
+            return None
+
+    def try_install_mokutil(self):
+        # type: () -> bool
+        """ Attempts to install mokutil """
+        cmd = self.install_mokutil_cmd
+        self.composite_logger.log_verbose('[APM] Invoking install mokutil command [Command={0}]'.format(cmd))
+        out, code = self.invoke_package_manager_advanced(cmd, raise_on_exception=False)
+        self.composite_logger.log_debug('[APM] Invoked install mokutil command. [Command={0}][Code={1}][Output={2}]'.format(cmd, str(code), str(out)))
+        return code == 0
+
+    def try_update_certs(self):
+        """ Attempts to update certificate status """
+        self.composite_logger.log("[APM][Certs] Starting cert update flow.")
+
+        success = False
+        try:
+            self.__run_cert_apt_command(self.apt_update_cmd, step_name="AptUpdate", raise_on_error=True)
+            self.__ensure_fwupd_installation()
+
+            # shell fwupd commands to update certificates
+            self.__run_cert_shell_command(self.fwupd_force_refresh_cmd, step_name="FwupdRefresh", raise_on_error=False)
+            self.__run_cert_shell_command(self.fwupd_update_cmd, step_name="FwupdUpdate", raise_on_error=True)
+
+            """ NOTE: They tooling used to update here is fwupd (firmware update manager). In this method of updating certs, the exact version of current certs is never pinned
+            or set/referred while installing. fwupd fetches and installs latest available certs. This is beneficial because our code doesn't become dated in the future
+            (if it was pinned to an old version) but adds the need to verify if the certs we intend to update were applied. Hence the validation on latest certs. """
+            if self.are_latest_certs_present_with_mokutil_check():
+                self.composite_logger.log("[APM][Certs] Cert update completed and verified.")
+                success = True
+            else:
+                msg = "[APM][Certs] Cert update commands completed but latest certs not detected."
+                self.composite_logger.log_error(msg)
+                self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+
+        except Exception as error:
+            self.composite_logger.log_error("[APM][Certs] Exception during cert update flow. [Error={0}]".format(repr(error)))
+
+        if success:
+            # Not explicitly rebooting the VM to honor the customer's reboot preference and to avoid unexpected reboots.
+            # Reboot will only be performed if it is required by the VM after cert update and if the customer has set reboot setting in patch configuration to 'Reboot if required'.
+            self.status_handler.set_reboot_pending(self.is_reboot_pending())
+
+        return success
+
+    def __ensure_fwupd_installation(self):
+        # type: () -> bool
+        """Ensure fwupd is installed at minimum required version for cert update flow."""
+        installed_version = self.__get_installed_fwupd_version()
+        if installed_version != str() and self.__is_min_fwupd_version_installed(installed_version):
+            self.composite_logger.log_debug("[APM][Certs] Existing fwupd version meets minimum requirement. [InstalledVersion={0}][MinimumVersion={1}]"
+                                            .format(installed_version, self.min_fwupd_version))
+            return True
+
+        if installed_version != str():
+            self.composite_logger.log("[APM][Certs] Existing fwupd version is below minimum. Reinstalling latest. [InstalledVersion={0}][MinimumVersion={1}]"
+                                      .format(installed_version, self.min_fwupd_version))
+            self.__run_cert_apt_command(self.remove_fwupd_cmd, step_name="RemoveOldFwupd", raise_on_error=True)
+        else:
+            self.composite_logger.log_debug("[APM][Certs] fwupd is not installed. Installing latest version.")
+
+        self.__run_cert_apt_command(self.install_fwupd_cmd, step_name="InstallFwupd", raise_on_error=True)
+
+        # Validate that the installed fwupd meets the minimum requirement.
+        installed_version = self.__get_installed_fwupd_version()
+        if installed_version == str() or not self.__is_min_fwupd_version_installed(installed_version):
+            msg = "[APM][Certs] fwupd does not meet minimum version requirement after install. [InstalledVersion={0}][MinimumVersion={1}]".format(str(installed_version), str(self.min_fwupd_version))
+            self.composite_logger.log_error(msg)
+            self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+
+        return True
+
+    def __get_installed_fwupd_version(self):
+        # type: () -> str
+        """Return installed fwupd version, or empty string when fwupd is not installed."""
+        cmd = self.get_installed_fwupd_version_cmd
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        self.composite_logger.log_debug("[APM][Certs] Get installed fwupd version command executed. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
+        if code != self.apt_exitcode_ok:
+            self.composite_logger.log_debug("[APM][Certs] fwupd not installed or version could not be determined. [Command={0}][Code={1}][Output={2}]".format(str(cmd), str(code), str(out)))
+            return str()
+
+        output = str(out).strip()
+        if output == str():
+            return str()
+
+        # Partner guidance: use the org.freedesktop.fwupd line from fwupdmgr --version.
+        match = re.search(r'org\.freedesktop\.fwupd\s+([0-9][0-9A-Za-z\.\-:+~]*)', output)
+        if match is None:
+            self.composite_logger.log_debug("[APM][Certs] fwupd version was not found in fwupdmgr output. [Output={0}]".format(output))
+            return str()
+
+        return match.group(1).strip()
+
+    def __is_min_fwupd_version_installed(self, installed_version):
+        # type: (str) -> bool
+        """Use VersionComparator to determine if installed fwupd meets minimum version."""
+        installed_normalized = self.version_comparator.extract_version_from_version_str(str(installed_version))
+        minimum_normalized = self.version_comparator.extract_version_from_version_str(str(self.min_fwupd_version))
+        if installed_normalized == str() or minimum_normalized == str():
+            self.composite_logger.log_debug("[APM][Certs] fwupd version comparison failed to normalize version values. [InstalledVersion={0}][InstalledNormalized={1}][MinimumVersion={2}][MinimumNormalized={3}]"
+                                            .format(str(installed_version), str(installed_normalized), str(self.min_fwupd_version), str(minimum_normalized)))
+            return False
+
+        compare_result = self.version_comparator.compare_versions(installed_normalized, minimum_normalized)
+        meets_minimum = compare_result >= 0
+        self.composite_logger.log_debug("[APM][Certs] fwupd version comparison result. [InstalledVersion={0}][InstalledNormalized={1}][MinimumVersion={2}][MinimumNormalized={3}][CompareResult={4}][MeetsMinimum={5}]"
+                                        .format(str(installed_version), str(installed_normalized), str(self.min_fwupd_version), str(minimum_normalized), str(compare_result), str(meets_minimum)))
+        return meets_minimum
+
+    def __run_cert_apt_command(self, command, step_name, raise_on_error=False):
+        """Run apt/dpkg commands through package-manager wrapper."""
+        out, code = self.invoke_package_manager_advanced(command, raise_on_exception=False)
+        if code != self.apt_exitcode_ok:
+            msg = "[APM][UpdateCerts] Apt step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out))
+            self.composite_logger.log_error(msg)
+            self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            if raise_on_error:
+                raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            return False, out
+
+        self.composite_logger.log_debug("[APM][UpdateCerts] Apt step succeeded. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name,  str(command), str(code), str(out)))
+        return True, out
+
+    def __run_cert_shell_command(self, command, step_name, raise_on_error=False):
+        """Run non-apt utility commands directly."""
+        code, out = self.env_layer.run_command_output(command, False, False)
+        if command == self.fwupd_force_refresh_cmd:
+            # As per the suggestion from trusted launch VM partners, we need to ignore all errors returned by force refresh command and continue to the next step.
+            self.composite_logger.log_debug("[APM][UpdateCerts] Force refresh shell step executed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out)))
+            return True, out
+        elif code != 0:
+            msg = "[APM][UpdateCerts] Shell step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out))
+            self.composite_logger.log_error(msg)
+            self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+            if raise_on_error:
+                raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+            return False, out
+
+        self.composite_logger.log_debug("[APM][UpdateCerts] Shell step succeeded. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out)))
+        return True, out
+
+    def is_cert_update_expected(self):
+        # type: () -> bool
+        """ Checks whether certificate update is supported """
+        """ For apt (Canonical): determines whether cert update is allowed based on explicit configuration.
+        - If cert update is explicitly enabled for all patching (EnableUEFICertUpdateForAllPatching=True):
+          cert update is allowed for any patch installation operation, auto or non-auto.
+        - If cert update is explicitly disabled for auto patching (EnableUEFICertUpdateForAutoPatching=False):
+          cert update is blocked for auto (default) patching operations.
+        - Default (no explicit config): cert update is allowed only for auto (default) patching operations.
+        - Cert update will NOT be applied for anything outside of these conditions. """
+        if self.execution_config.is_cert_update_for_all_patching_explicitly_enabled():
+            # Hybrid mode: allow for all patching operation
+            self.composite_logger.log_debug("Certificate update enabled on this VM for all patching operations for Canonical. Verifying if current operation is patch installation...")
+            if self.execution_config.operation.lower() == Constants.INSTALLATION.lower():
+                self.composite_logger.log_debug("UEFI certificate update will be attempted in this patch installation operation")
+                return True
+            else:
+                self.composite_logger.log_debug("UEFI certificate will NOT be updated since this is not a patch installation operation")
+                return False
+        elif self.execution_config.is_cert_update_for_auto_patching_explicitly_disabled():
+            # Explicitly disabled for auto patching
+            self.composite_logger.log_debug("UEFI certificate update is disabled for auto patching operations on Canonical. Verifying if this is an auto patching operation...")
+            if self.execution_config.is_default_patching():
+                self.composite_logger.log_debug("UEFI certificate will NOT be updated for this auto patching operation as per user configuration. Continuing without certificate update.")
+                return False
+        else:
+            # Default: allowed for Auto Patching
+            if self.execution_config.is_default_patching():
+                self.composite_logger.log_debug("UEFI certificate update is allowed by default for auto patching operation. Certificate update will be attempted")
+                return True
+
+        self.composite_logger.log_debug("UEFI certificate update will NOT be attempted since this operation does not meet update criteria. Continuing without certificate update.")
+        return False
+    # endregion
 

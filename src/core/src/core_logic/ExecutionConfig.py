@@ -92,6 +92,9 @@ class ExecutionConfig(object):
         # EULA config
         self.accept_package_eula = self.__is_eula_accepted_for_all_patches()
 
+        # UEFI config
+        self.enable_uefi_cert_update_for_auto_patching, self.enable_uefi_cert_update_for_all_patching = self.__fetch_uefi_cert_update_settings()
+
     def __transform_execution_config_for_auto_assessment(self):
         self.activity_id = str(uuid.uuid4())
         self.included_classifications_list = self.included_package_name_mask_list = self.excluded_package_name_mask_list = []
@@ -246,9 +249,9 @@ class ExecutionConfig(object):
         try:
             if os.path.exists(Constants.AzGPSPaths.EULA_SETTINGS):
                 eula_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.EULA_SETTINGS) or 'null')
-                accept_eula_for_all_patches = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES)
-                accepted_by = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.ACCEPTED_BY)
-                last_modified = self.__fetch_specific_eula_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
+                accept_eula_for_all_patches = self.__fetch_specific_azgps_setting(eula_settings, Constants.EulaSettings.ACCEPT_EULA_FOR_ALL_PATCHES)
+                accepted_by = self.__fetch_specific_azgps_setting(eula_settings, Constants.EulaSettings.ACCEPTED_BY)
+                last_modified = self.__fetch_specific_azgps_setting(eula_settings, Constants.EulaSettings.LAST_MODIFIED)
                 if accept_eula_for_all_patches is not None and accept_eula_for_all_patches in [True, 'True', 'true', '1', 1]:
                     is_eula_accepted = True
                 self.composite_logger.log_debug("EULA config values from disk: [AcceptEULAForAllPatches={0}] [AcceptedBy={1}] [LastModified={2}]. Computed value of [IsEULAAccepted={3}]"
@@ -261,9 +264,85 @@ class ExecutionConfig(object):
         return is_eula_accepted
 
     @staticmethod
-    def __fetch_specific_eula_setting(settings_source, setting_to_fetch):
-        """ Returns the specific setting value from eula_settings_source or None if not found """
+    def __fetch_specific_azgps_setting(settings_source, setting_to_fetch):
+        """ Returns the specific setting value azgps settings source or None if not found """
         if settings_source is not None and setting_to_fetch is not None and setting_to_fetch in settings_source:
             return settings_source[setting_to_fetch]
         return None
+
+    def __fetch_uefi_cert_update_settings(self):
+        # type: () -> (any, any)
+        """ Reads customer provided config on UEFI cert update from disk and returns the values for both UEFI update enabled
+        for auto patching and all patching operations. If not found, returns None for both values."""
+        enable_uefi_cert_update_for_auto_patching = None
+        enable_uefi_cert_update_for_all_patching = None
+        try:
+            if os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS):
+                uefi_cert_update_settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.UEFI_SETTINGS) or 'null')
+                enable_uefi_cert_update_for_auto_patching = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE_FOR_AUTO_PATCHING)
+                enable_uefi_cert_update_for_all_patching = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLE_UEFI_CERT_UPDATE_FOR_ALL_PATCHING)
+                enabled_by = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.ENABLED_BY)
+                last_modified = self.__fetch_specific_azgps_setting(uefi_cert_update_settings, Constants.UEFISettings.LAST_MODIFIED)
+                self.composite_logger.log_debug("UEFI cert update config values from disk: [EnableUefiCertUpdateForAutoPatching={0}] [EnableUefiCertUpdateForAllPatching={1}] "
+                                                "[EnabledBy={2}] [LastModified={3}].".format(str(enable_uefi_cert_update_for_auto_patching),
+                                                                                             str(enable_uefi_cert_update_for_all_patching), str(enabled_by), str(last_modified)))
+            else:
+                self.composite_logger.log_debug("No UEFI cert update settings found on the VM.")
+        except Exception as error:
+            self.composite_logger.log_debug("Error occurred while reading and parsing UEFI cert update settings. [Error={0}]".format(repr(error)))
+        return enable_uefi_cert_update_for_auto_patching, enable_uefi_cert_update_for_all_patching
+
+    def is_cert_update_for_auto_patching_explicitly_enabled(self):
+        # type: () -> bool
+        """ Verifies if certificate update for auto patching is enabled explicitly """
+        is_uefi_cert_update_enabled = False
+        if self.enable_uefi_cert_update_for_auto_patching is not None and self.__is_truthy(self.enable_uefi_cert_update_for_auto_patching):
+            is_uefi_cert_update_enabled = True
+            self.composite_logger.log_debug("UEFI cert update config value from disk: [EnableUefiCertUpdateForAutoPatching={0}]. Computed value of [IsUefiCertUpdateForAutoPatchingExplicitlyEnabled={1}]"
+                                                .format(str(self.enable_uefi_cert_update_for_auto_patching), str(is_uefi_cert_update_enabled)))
+        return is_uefi_cert_update_enabled
+
+    def is_cert_update_for_auto_patching_explicitly_disabled(self):
+        # type: () -> bool
+        """ Verifies if certificate update for auto patching is disabled explicitly """
+        is_uefi_cert_update_enabled = True
+        if self.enable_uefi_cert_update_for_auto_patching is not None and not self.__is_truthy(self.enable_uefi_cert_update_for_auto_patching):
+            is_uefi_cert_update_enabled = False
+            self.composite_logger.log_debug("UEFI cert update config value from disk: [EnableUefiCertUpdateForAutoPatching={0}]. Computed value of [IsUefiCertUpdateForAutoPatchingExplicitlyDisabled={1}]"
+                                                .format(str(self.enable_uefi_cert_update_for_auto_patching), str(not is_uefi_cert_update_enabled)))
+        return not is_uefi_cert_update_enabled
+
+    def is_cert_update_for_all_patching_explicitly_enabled(self):
+        # type: () -> bool
+        """ Verifies if certificate update for all patching operations is enabled explicitly """
+        is_uefi_cert_update_enabled = False
+        if self.enable_uefi_cert_update_for_all_patching is not None and self.__is_truthy(self.enable_uefi_cert_update_for_all_patching):
+            is_uefi_cert_update_enabled = True
+            self.composite_logger.log_debug("UEFI cert update config value from disk: [EnableUefiCertUpdateForAllPatching={0}]. Computed value of [IsUefiCertUpdateForAllPatchingExplicitlyEnabled={1}]"
+                                            .format(str(self.enable_uefi_cert_update_for_all_patching), str(is_uefi_cert_update_enabled)))
+        return is_uefi_cert_update_enabled
+
+    def is_default_patching(self):
+        # type: () -> bool
+        """ Returns true if the patching run is a default patching run"""
+        return (self.health_store_id is not None and
+                self.health_store_id != "" and
+                self.operation.lower() == Constants.INSTALLATION.lower())
+
+    @staticmethod
+    def __is_truthy(value):
+        # type: (any) -> bool
+        """Case-insensitive truthy evaluator for config values."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value == 1
+
+        # Cross-version text types:
+        # py2 -> (str, unicode)
+        # py3 -> (str, str)
+        text_types = (str, type(u""))
+        if isinstance(value, text_types):
+            return value.strip().lower() in ("true", "1")
+        return False
 

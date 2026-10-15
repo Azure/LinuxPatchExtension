@@ -47,14 +47,73 @@ class EnvLayer(object):
     def is_distro_azure_linux(distro_name):
         return any(x in distro_name for x in Constants.AZURE_LINUX)
 
-    def is_distro_azure_linux_3_or_beyond(self):
-        # type: () -> bool
+    @staticmethod
+    def __try_get_major_version():
+        # type: () -> str or None
+        """ Attempts to get major version from distro.os_release_attr('version').Returns major version as string or None if not available. """
+        version = distro.os_release_attr('version')
+        major = version.split('.')[0] if version else None
+        return major
+
+    def __is_matching_distro_and_version(self, distro_name, distro_to_match, version_to_match):
+        # type: (str, str, int) -> bool
+        """ Checks if distro name matches and version matches the expected version.
+        Returns True if both distro and version match, False otherwise. """
+        if distro_to_match == Constants.AZURE_LINUX and not self.is_distro_azure_linux(str(distro_name)):
+            return False
+        elif distro_to_match == Constants.RED_HAT and not Constants.RED_HAT.lower() in str(distro_name).lower():
+            return False
+        major = self.__try_get_major_version()
+        return major is not None and int(major) == version_to_match
+
+    def is_distro_azure_linux_3(self, distro_name):
+        # type: (str) -> bool
         """ Checks if the current distro is Azure Linux 3 """
-        if self.is_distro_azure_linux(self.platform.linux_distribution()):
-            version = distro.os_release_attr('version')
-            major = version.split('.')[0] if version else None
-            return major is not None and int(major) >= 3
-        return False
+        return self.__is_matching_distro_and_version(distro_name, Constants.AZURE_LINUX, version_to_match=3)
+
+    def is_distro_azure_linux_4(self, distro_name):
+        # type: (str) -> bool
+        """ Checks if the current distro is Azure Linux 4 """
+        return self.__is_matching_distro_and_version(distro_name, Constants.AZURE_LINUX, version_to_match=4)
+
+    def is_distro_rhel_10(self, distro_name):
+        # type: (str) -> bool
+        """ Checks if the current distro is RHEL 10"""
+        return self.__is_matching_distro_and_version(distro_name, Constants.RED_HAT, version_to_match=10)
+
+    def __get_dnf_version(self):
+        """Fetches the major version of the dnf package installed on the VM using rpm query."""
+        # Output example:
+        # $[inGuestLinux@yashna-linux4 ~]$ rpm -q --queryformat '%{VERSION}' dnf5
+        # 5.2.18.0
+
+        # [inGuestLinux@yashna-linux4 ~]$ rpm - q - -queryformat '%{VERSION}' dnf
+        # package dnf is not installed
+
+        # inGuestLinux@yashna-rhel10-auto:~$ rpm -q --queryformat '%{VERSION}' dnf
+        # 4.20.0
+        for package_name in ('dnf5', 'dnf'):
+            code, out = self.run_command_output("rpm -q --queryformat '%{{VERSION}}' {0}".format(package_name), False, False)
+
+            if code != 0 or not out:
+                continue  # try the next package
+
+            version_str = str(out).strip()
+            if not version_str or not version_str[0].isdigit():
+                continue  # invalid output, try next
+
+            major_version = version_str.split('.')[0]
+            return code, out, major_version
+
+        return code, out, None  # neither found
+
+    def __log_pkg_mgr_error(self, code, out, version, expected_version):
+        """Logs an error when the expected package manager or version is not found."""
+        if code == 0:
+            print("Error: Expected dnf version not found. [Expected={0}][Found={1}]".format(str(expected_version), str(version)))
+        else:
+            print("Error: Expected package manager not found. [ExpectedVersion={0}][Code={1}][Output={2}]".format(str(expected_version), str(code), str(out)))
+        return str()
 
     def get_package_manager(self):
         # type: () -> str
@@ -62,7 +121,27 @@ class EnvLayer(object):
         if platform.system() == 'Windows':
             return Constants.APT
 
-        if self.is_distro_azure_linux(str(self.platform.linux_distribution())):
+        # platform.linux_distribution() returns a tuple with distro_name, version and a code
+        # Example: ['Azure Linux', '4.0', '']
+        os_name, os_version, os_code = self.platform.linux_distribution()
+
+        # Fetch dnf version (tries dnf5 first, then dnf)
+        code, out, version = self.__get_dnf_version()
+
+        # Check for RHEL 10 (uses dnf4)
+        if self.is_distro_rhel_10(os_name):
+            if code == 0 and version == "4":
+                return Constants.DNF
+            return self.__log_pkg_mgr_error(code, out, version, "4")
+
+        # Check for Azure Linux 4 (uses dnf5)
+        if self.is_distro_azure_linux_4(str(os_name)):
+            if code == 0 and version == "5":
+                return Constants.DNF5
+            return self.__log_pkg_mgr_error(code, out, version, "5")
+
+        # Check for Azure Linux (3 and below use TDNF)
+        if self.is_distro_azure_linux(str(os_name)):
             code, out = self.run_command_output('which tdnf', False, False)
             if code == 0:
                 return Constants.TDNF
@@ -146,6 +225,65 @@ class EnvLayer(object):
             if raise_if_not_success:
                 raise
             return None
+
+    def detect_confidential_vm(self):
+        # type: () -> tuple
+        """Returns whether the current VM is a Confidential VM and the detection details."""
+        if self.platform.os_type() == 'Windows':
+            return False, str()
+
+        is_confidential_vm, detection_details = self.detect_confidential_vm_by_imds()
+        if is_confidential_vm:
+            return is_confidential_vm, detection_details
+
+        is_confidential_vm, detection_details = self.detect_confidential_vm_by_fde()
+        if is_confidential_vm:
+            return is_confidential_vm, detection_details
+
+        return False, str()
+
+    def detect_confidential_vm_by_fde(self):
+        # type: () -> tuple
+        """Runs the FDE-based CVM detection script and returns whether it detected a Confidential VM."""
+        command_output = str()
+
+        try:
+            detection_shim_path = self.__get_fde_detection_shim_path()
+            detection_script = self.file_system.read_with_retry(detection_shim_path)
+            if detection_script is None or str(detection_script).strip() == str():
+                raise Exception("FDE_DETECTION_SHIM_EMPTY:{0}".format(str(detection_shim_path)))
+
+            code, out = self.run_command_output('bash "{0}"'.format(detection_shim_path), False, False)
+            command_output = str(out).strip() if out is not None else str()
+            return code == 0 and re.search(r'\bFDE\s*=\s*true\b', command_output, re.IGNORECASE) is not None, command_output
+        except Exception as e:
+            raise Exception("FDE_DETECTION_ERROR:{0}; OUTPUT:{1}".format(str(e), command_output))
+
+    @staticmethod
+    def __get_fde_detection_shim_path():
+        # type: () -> str
+        """Resolves the FDE detection shim path for both source and packaged layouts."""
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        shim_base_dir = os.path.dirname(current_dir) if os.path.basename(current_dir) == 'bootstrap' else current_dir
+        shim_path = os.path.join(shim_base_dir, Constants.DETECT_CVM_SHIM_FILE_NAME)
+
+        if os.path.isfile(shim_path):
+            return shim_path
+
+
+        raise Exception("FDE_DETECTION_SHIM_NOT_FOUND:{0}".format(str(shim_path)))
+
+    def detect_confidential_vm_by_imds(self):
+        # type: () -> tuple
+        """Queries Azure IMDS and returns whether the VM reports ConfidentialVM security type."""
+        command = 'curl -s --connect-timeout 2 --max-time 2 -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2025-04-07"'
+
+        code, out = self.run_command_output(command, False, False)
+        command_output = str(out).strip() if out is not None else str()
+        if code == 0 and re.search(r'"securityType"\s*:\s*"ConfidentialVM"', command_output, re.IGNORECASE) is not None:
+            return True, 'IMDS:ConfidentialVM'
+
+        return False, str()
 
     def run_command_output(self, cmd, no_output=False, chk_err=True):
         # type: (str, bool, bool) -> (int, any)

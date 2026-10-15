@@ -19,6 +19,7 @@ import json
 import os
 import re
 import time
+
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
 
@@ -872,4 +873,22 @@ class ZypperPackageManager(PackageManager):
 
     def get_package_install_expected_avg_time_in_seconds(self):
         return self.package_install_expected_avg_time_in_seconds
+
+    # region Update certificates in factory defaults
+    def try_install_mokutil(self):
+        """ Attempts to install mokutil """
+        pass
+
+    def try_update_certs(self):
+        """ Attempts to update certificate status """
+        pass
+
+    def is_hibernation_enabled_for_cert_update(self):
+        """Checks whether hibernation is enabled."""
+        return False
+
+    def is_reboot_required_before_cert_update(self):
+        """ Checks if a reboot is required before updating certificates """
+        return False
+    # endregion
 

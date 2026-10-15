@@ -184,7 +184,9 @@ class ActionHandler(object):
             if exit_code_from_executing_install == Constants.ExitCode.Okay or exit_code_from_executing_install is None:
                 self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Success.lower())
             else:
-                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(), message="Error occurred during extension install", code=exit_code_from_executing_install)
+                self.ext_output_status_handler.write_status_file("", self.seq_no, status=Constants.Status.Error.lower(),
+                                                                 message="Error occurred during extension install. [ExitCode={0}]".format(str(exit_code_from_executing_install)),
+                                                                 code=exit_code_from_executing_install)
             return exit_code_from_executing_install
 
         except Exception as error:

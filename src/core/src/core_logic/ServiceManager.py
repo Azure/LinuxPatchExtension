@@ -36,6 +36,7 @@ class ServiceManager(SystemctlManager):
 
     # region - Service Creation / Removal
     def remove_service(self):
+        """ Remove the service if it exists """
         service_path = self.__systemd_service_unit_path.format(self.service_name)
         if os.path.exists(service_path):
             self.stop_service()
@@ -88,8 +89,8 @@ class ServiceManager(SystemctlManager):
     # endregion
 
     # region - Service Unit Management
-    def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="forking", wanted_by="multi-user.target"):
-        """ Note: Service type defaults to forking because of sh to py process fork """
+    def create_service_unit_file(self, exec_start, desc, after="network.target", service_type="simple", wanted_by="multi-user.target"):
+        """ Note: Service type is simple because the shell wrapper runs Core in the foreground."""
         service_unit_content_template = "\n[Unit]" + \
                                "\nDescription={0}" + \
                                "\nAfter={1}\n" + \

@@ -1,4 +1,4 @@
-PACKAGER_PATH = src//tools/Package-All.py
+PACKAGER_PATH = src//tools//packager//Package-All.py
 BUILD_PATH = build
 ZIP_SRC_PATH = src//out//LinuxPatchExtension.zip
 MANIFEST_PATH = src//extension//src//manifest.xml

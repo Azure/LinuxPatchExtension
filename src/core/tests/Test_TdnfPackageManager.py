@@ -855,6 +855,43 @@ class TestTdnfPackageManager(unittest.TestCase):
         self.assertEqual(package_versions[4], '3.12.3-6.azl3')
         self.assertEqual(package_versions[5], '3.12.9-1.azl3')
 
+    def test_is_cert_update_supported__with_various_use_cases(self):
+        """Test inherited PackageManager.is_cert_update_supported behavior for a non-APT package manager."""
+        package_manager = self.container.get('package_manager')
+
+        backup_health_store_id = package_manager.execution_config.health_store_id
+        backup_operation = package_manager.execution_config.operation
+        backup_enable_auto = package_manager.execution_config.enable_uefi_cert_update_for_auto_patching
+        backup_enable_all = package_manager.execution_config.enable_uefi_cert_update_for_all_patching
+
+        test_input_output_table = [
+            ["default_patching_allowed_when_auto_update_is_explicitly_enabled", "pub_off_sku_2025.01.01", Constants.INSTALLATION, True, None, True],
+            ["default_patching_blocked_when_auto_update_is_explicitly_disabled", "pub_off_sku_2025.01.01", Constants.INSTALLATION, False, None, False],
+            ["non_default_patching_blocked_even_when_auto_update_is_explicitly_enabled", None, Constants.ASSESSMENT, True, None, False],
+            ["all_patching_configuration_is_ignored_for_non_apt_package_managers", "pub_off_sku_2025.01.01", Constants.INSTALLATION, None, True, False],
+            ["non_default_patching_blocked_when_auto_update_is_not_set", None, Constants.ASSESSMENT, None, None, False],
+        ]
+
+        try:
+            for row in test_input_output_table:
+                name, health_store_id, operation, enable_auto, enable_all, expected_result = row
+
+                package_manager.execution_config.health_store_id = health_store_id
+                package_manager.execution_config.operation = operation
+                package_manager.execution_config.enable_uefi_cert_update_for_auto_patching = enable_auto
+                package_manager.execution_config.enable_uefi_cert_update_for_all_patching = enable_all
+
+                self.assertEqual(
+                    package_manager.is_cert_update_expected(),
+                    expected_result,
+                    "Failed use case: {0}".format(name)
+                )
+        finally:
+            package_manager.execution_config.health_store_id = backup_health_store_id
+            package_manager.execution_config.operation = backup_operation
+            package_manager.execution_config.enable_uefi_cert_update_for_auto_patching = backup_enable_auto
+            package_manager.execution_config.enable_uefi_cert_update_for_all_patching = backup_enable_all
+
 
 if __name__ == '__main__':
     unittest.main()

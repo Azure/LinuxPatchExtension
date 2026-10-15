@@ -119,10 +119,11 @@ class ProcessHandler(object):
                                   .format(cmd_core_py_path, exec_dir, core_py_path, auto_assess_sh_path, core_process_command))
 
             # generating exec script
+            auto_assess_core_command = core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True"
             auto_assess_sh_data = "#!/usr/bin/env bash" +\
                                   "\n# Copyright 2021 Microsoft Corporation." + \
                                   "\ncd \"$(dirname \"$0\")\"" + \
-                                  "\n" + core_process_command + " -" + Constants.AUTO_ASSESS_ONLY + " True"
+                                  "\nexec timeout -s TERM -k " + str(Constants.AUTO_ASSESSMENT_KILL_GRACE_IN_SECS) + " " + str(Constants.AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS) + " " + auto_assess_core_command
 
             # stage exec script
             if os.path.exists(auto_assess_sh_path):
@@ -199,9 +200,26 @@ class ProcessHandler(object):
                 # According to "man 2 kill" possible error values are (EINVAL, EPERM, ESRCH) Thus considering this as an error
                 return False
 
+    def is_process_patching_operation(self, pid):
+        try:
+            # Patching operation cmdline will look like:
+            # /usr/bin/python3.10 /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.69/MsftLinuxPatchCore.py <args>
+            with self.env_layer.file_system.open("/proc/{0}/cmdline".format(str(pid)), mode="rb") as cmdline_file:
+                cmdline_bytes = cmdline_file.read()
+                if Constants.CORE_CODE_FILE_NAME.encode("utf-8") in cmdline_bytes:
+                    self.logger.log_verbose("Process is a patching operation. [PID={0}]".format(str(pid)))
+                    return True
+                else:
+                    cmdline = cmdline_bytes.replace(b'\x00', b' ').decode("utf-8", errors="replace")  # cmdline is null-separated
+                    self.logger.log_debug("Process is not a patching operation. [PID={0}] [CmdLine={1}]".format(str(pid), cmdline))
+                    return False
+        except Exception as error:
+            self.logger.log_verbose("Error checking if process is a patching operation. Assuming it is a patching operation. [PID={0}] [Error={1}]".format(str(pid), repr(error)))
+            return True  # If we cannot determine, assume it is a patching operation to be safe, because we do not want to start a patching operation when one is currently running
+
     def kill_process(self, pid):
         try:
-            if self.is_process_running(pid):
+            if self.is_process_running(pid) and self.is_process_patching_operation(pid):
                 self.logger.log("Terminating process: [PID={0}]".format(str(pid)))
                 os.kill(pid, signal.SIGTERM)
         except OSError as error:

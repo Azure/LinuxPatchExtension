@@ -18,6 +18,7 @@ import glob
 import json
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
@@ -310,7 +311,7 @@ class TestActionHandler(unittest.TestCase):
 
         # Re-init TelemetryWriter since the env var for compatibility is only checked on init
         os.getenv = mock_os_getenv
-        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer)
+        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer, self.runtime.credential_sanitizer)
         self.action_handler.telemetry_writer = self.runtime.telemetry_writer
 
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
@@ -339,7 +340,7 @@ class TestActionHandler(unittest.TestCase):
 
         # Re-init TelemetryWriter since the env var for compatibility is only checked on init
         os.getenv = mock_os_getenv
-        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer)
+        self.runtime.telemetry_writer = TelemetryWriter(self.runtime.logger, self.runtime.env_layer, self.runtime.credential_sanitizer)
         self.action_handler.telemetry_writer = self.runtime.telemetry_writer
 
         self.assertTrue(self.action_handler.uninstall() == Constants.ExitCode.Okay)
@@ -462,10 +463,24 @@ class TestActionHandler(unittest.TestCase):
 
         # Uninstall succeeds, seq no available in env var, status file is written
         self.action_handler.seq_no = 1234
-        self.action_handler.install()
+        self.assertEqual(self.action_handler.install(), Constants.ExitCode.Okay)
         self.validate_status_file_on_success(self.action_handler.seq_no)
 
         InstallCommandHandler.validate_os_type = self.backup_validate_os_type
+
+    def test_status_file_on_install_unsupported_os(self):
+        """ An unsupported OS produces an error status with the specific exit code. """
+        original_platform = sys.platform
+        try:
+            sys.platform = 'win32'
+            self.action_handler.seq_no = 1234
+            self.assertEqual(self.action_handler.install(), Constants.ExitCode.UnsupportedOperatingSystem)
+        finally:
+            sys.platform = original_platform
+
+        self.validate_status_file_on_failure(self.action_handler.seq_no,
+                                             "Error occurred during extension install. [ExitCode={0}]".format(Constants.ExitCode.UnsupportedOperatingSystem),
+                                             Constants.ExitCode.UnsupportedOperatingSystem)
 
     def test_status_file_on_install_failed(self):
         """ Validate a basic status file is written if seq no exists in env var """
@@ -479,7 +494,7 @@ class TestActionHandler(unittest.TestCase):
 
         # Uninstall fails, seq no available in env var, status file is written
         self.action_handler.seq_no = 1234
-        self.action_handler.install()
+        self.assertEqual(self.action_handler.install(), Constants.ExitCode.HandlerFailed)
         self.validate_status_file_on_failure(self.action_handler.seq_no, "Error occurred during extension install")
 
         self.action_handler.setup = self.backup_setup
@@ -582,7 +597,7 @@ class TestActionHandler(unittest.TestCase):
             '/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.35'
         ]
 
-        all_versions = self.action_handler.filter_files_from_versions(all_versions_including_files);
+        all_versions = self.action_handler.filter_files_from_versions(all_versions_including_files)
         self.assertTrue(len(all_versions) == 2)
         self.assertTrue('/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.36' in all_versions)
         self.assertTrue('/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.35' in all_versions)

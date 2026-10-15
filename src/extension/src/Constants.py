@@ -27,8 +27,8 @@ class Constants(object):
                     if item == self.__dict__[item]:
                         yield item
 
-    # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.64"
+    # Extension version (will be updated from manifest.xml at compile time)
+    EXT_VERSION = "[%exec_ver%]"
 
     # Runtime environments
     TEST = 'Test'
@@ -58,6 +58,13 @@ class Constants(object):
     # Max runtime for specific commands in minutes
     ENABLE_MAX_RUNTIME = 3
     DISABLE_MAX_RUNTIME = 13
+
+    # Bug 28537460: Under Type=simple a hung assessment keeps the unit active forever and every
+    # later timer fire becomes a no-op, so the run must be externally bounded.
+    # Maximum Runtime + grace time must stay under the hourly auto-assessment timer interval
+    # (core AUTO_ASSESSMENT_CRON_INTERVAL = PT1H) so process is killed within 1 hour if still running.
+    AUTO_ASSESSMENT_MAX_RUNTIME_IN_SECS = 3000      # 50m
+    AUTO_ASSESSMENT_KILL_GRACE_IN_SECS = 300        # 5m. Kill process after 55 minutes.
 
     # Telemetry Settings
     # Note: these limits are based on number of characters as confirmed with agent team

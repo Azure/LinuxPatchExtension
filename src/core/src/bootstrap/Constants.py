@@ -30,8 +30,8 @@ class Constants(object):
     GLOBAL_EXCLUSION_LIST = ""   # if a package needs to be blocked across all of Azure
     UNKNOWN = "Unknown"
 
-    # Extension version (todo: move to a different file)
-    EXT_VERSION = "1.6.64"
+    # Extension version (will be updated from manifest.xml at compile time)
+    EXT_VERSION = "[%exec_ver%]"
 
     # Runtime environments
     TEST = 'Test'
@@ -58,6 +58,7 @@ class Constants(object):
 
     class AzGPSPaths(EnumBackport):
         EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
+        UEFI_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.uefi.settings"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -87,8 +88,22 @@ class Constants(object):
         ACCEPTED_BY = 'AcceptedBy'
         LAST_MODIFIED = 'LastModified'
 
+    class UEFISettings(EnumBackport):
+        ENABLE_UEFI_CERT_UPDATE_FOR_AUTO_PATCHING = 'EnableUEFICertUpdateForAutoPatching'
+        ENABLE_UEFI_CERT_UPDATE_FOR_ALL_PATCHING = 'EnableUEFICertUpdateForAllPatching'
+        ENABLED_BY = 'EnabledBy'
+        LAST_MODIFIED = 'LastModified'
+
     TEMP_FOLDER_DIR_NAME = "tmp"
     TEMP_FOLDER_CLEANUP_ARTIFACT_LIST = ["*.list", "azgps*"]
+
+    # Boot Certificates to update
+    class Certificates(EnumBackport):
+        KEK = "KEK"
+        DB = "DB"
+
+    # Confidential VM detection shim script name
+    DETECT_CVM_SHIM_FILE_NAME = "external_dependencies/DetectConfidentialVMShim.sh"
 
     # File to save default settings for auto OS updates
     IMAGE_DEFAULT_PATCH_CONFIGURATION_BACKUP_PATH = "ImageDefaultPatchConfiguration.bak"
@@ -197,10 +212,12 @@ class Constants(object):
     RED_HAT = 'Red Hat'
     SUSE = 'SUSE'
     CENTOS = 'CentOS'
-    AZURE_LINUX = ['Microsoft Azure Linux', 'Common Base Linux Mariner']
+    AZURE_LINUX = ['Azure Linux', 'Microsoft Azure Linux', 'Common Base Linux Mariner']
 
     # Package Managers
     APT = 'apt'
+    DNF = 'dnf'
+    DNF5 = 'dnf5'
     TDNF = 'tdnf'
     YUM = 'yum'
     ZYPPER = 'zypper'
@@ -299,6 +316,8 @@ class Constants(object):
     STATUS_ERROR_MSG_SIZE_LIMIT_IN_CHARACTERS = 128
     STATUS_ERROR_LIMIT = 5
 
+    LATEST_CERTIFICATE_TIMESTAMP = "2023"
+
     class PatchOperationTopLevelErrorCode(EnumBackport):
         SUCCESS = 0
         ERROR = 1
@@ -312,6 +331,7 @@ class Constants(object):
         NEWER_OPERATION_SUPERSEDED = "NEWER_OPERATION_SUPERSEDED"
         UA_ESM_REQUIRED = "UA_ESM_REQUIRED"
         TRUNCATION = "PACKAGE_LIST_TRUNCATED"
+        CERTIFICATE_UPDATE = "CERTIFICATE_UPDATE"
 
     ERROR_ADDED_TO_STATUS = "Error_added_to_status"
 
