@@ -60,6 +60,12 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_linux_distribution_to_return_debian_bookworm(self):
         return ['Debian', '20', 'bookworm']
 
+    def mock_linux_distribution_to_raise_during_fwupd_detection(self):
+        self.linux_distribution_calls += 1
+        if self.linux_distribution_calls == 6:
+            raise Exception("distribution information unavailable")
+        return ['Ubuntu', '20.04', 'focal']
+
     def mock_os_path_exists_with_fwupd_snap(self, path):
         return path == '/snap/bin/fwupdmgr' or self.original_os_path_exists(path)
 
@@ -401,6 +407,21 @@ class TestAptitudePackageManager(unittest.TestCase):
                 self.assertEqual(manager.get_installed_fwupd_version_cmd, "fwupdmgr --version")
                 self.assertEqual(manager.fwupd_force_refresh_cmd, "sudo fwupdmgr refresh --force")
                 self.assertEqual(manager.fwupd_update_cmd, "sudo fwupdmgr update -y")
+        finally:
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = original_distribution
+
+    def test_fwupd_installation_uses_apt_when_distribution_detection_raises(self):
+        original_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+
+        try:
+            self.runtime.stop()
+            self.linux_distribution_calls = 0
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_raise_during_fwupd_detection
+            self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
+            manager = self.runtime.container.get('package_manager')
+
+            self.assertFalse(manager.is_snap_fwupd_required)
+            self.assertEqual(manager.install_fwupd_cmd, "sudo apt-get install -y fwupd")
         finally:
             LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = original_distribution
 
