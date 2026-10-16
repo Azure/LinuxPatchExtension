@@ -319,7 +319,7 @@ class AptitudePackageManager(PackageManager):
             # apt reports the holder PID directly, e.g. "It is held by process 123456 (apt-get)"
             pid_match = re.search(r'held by process (\d+)', command_output)
             if pid_match is None:
-                self.composite_logger.log_warning("[APM] Package manager lock is held, but the holding process id could not be determined from the output.")
+                self.composite_logger.log_warning("[APM] Package manager lock is held, but the holding process id could not be determined from the output. [Output={0}]".format(command_output))
                 return False
             holder_pid = pid_match.group(1)
 
@@ -389,30 +389,33 @@ class AptitudePackageManager(PackageManager):
         """ Terminates the process (never the lock file), re-validating its identity before every signal.
             Returns True when retrying the command is worthwhile, i.e. the holder is gone or was never signalled because its PID was reused. """
         self.composite_logger.log("[APM] Clearing an abandoned LinuxPatchExtension process that is holding the package manager lock. [HolderPid={0}]".format(holder_pid))
+        last_signal_sent = "None"
         for signal_name in ["TERM", "KILL"]:
-            current_holder = self.__get_lock_holder_details(holder_pid)
-            if current_holder is None:
-                self.composite_logger.log("[APM] The abandoned lock holder has exited. [HolderPid={0}]".format(holder_pid))
-                return True
-            if not self.__is_same_process(holder, current_holder):
-                self.composite_logger.log_warning("[APM] Not signalling the lock holder: the process changed identity (PID reuse). [HolderPid={0}][Signal=SIG{1}]".format(holder_pid, signal_name))
+            if self.__is_lock_holder_gone(holder_pid, holder, last_signal_sent):
                 return True
 
-            kill_code, _ = self.env_layer.run_command_output("sudo kill -{0} {1}".format(signal_name, holder_pid), False, False)
+            kill_code, kill_output = self.env_layer.run_command_output("sudo kill -{0} {1}".format(signal_name, holder_pid), False, False)
             if kill_code != 0:
-                self.composite_logger.log_warning("[APM] Signalling the lock holder failed. [HolderPid={0}][Signal=SIG{1}][Code={2}]".format(holder_pid, signal_name, str(kill_code)))
+                self.composite_logger.log_warning("[APM] Signalling the lock holder failed. [HolderPid={0}][Signal=SIG{1}][Code={2}][Output={3}]".format(holder_pid, signal_name, str(kill_code), str(kill_output)))
+            last_signal_sent = "SIG" + signal_name
 
             for _ in range(0, Constants.STALE_LOCK_HOLDER_EXIT_GRACE_IN_SEC):
-                current_holder = self.__get_lock_holder_details(holder_pid)
-                if current_holder is None:
-                    self.composite_logger.log("[APM] Cleared the abandoned lock holder. [HolderPid={0}][Signal=SIG{1}]".format(holder_pid, signal_name))
-                    return True
-                if not self.__is_same_process(holder, current_holder):
-                    self.composite_logger.log_warning("[APM] The lock holder exited and its PID was reused; not signalling further. [HolderPid={0}]".format(holder_pid))
+                if self.__is_lock_holder_gone(holder_pid, holder, last_signal_sent):
                     return True
                 time.sleep(1)
 
         self.composite_logger.log_warning("[APM] Could not clear the abandoned lock holder; it is still running. [HolderPid={0}]".format(holder_pid))
+        return False
+
+    def __is_lock_holder_gone(self, holder_pid, holder, last_signal_sent):
+        """ Returns True if the holder has exited or its PID now belongs to a different process. """
+        current_holder = self.__get_lock_holder_details(holder_pid)
+        if current_holder is None:
+            self.composite_logger.log("[APM] The abandoned lock holder has exited. [HolderPid={0}][LastSignalSent={1}]".format(holder_pid, last_signal_sent))
+            return True
+        if not self.__is_same_process(holder, current_holder):
+            self.composite_logger.log_warning("[APM] The lock holder's PID was reused by another process; not signalling further. [HolderPid={0}][LastSignalSent={1}]".format(holder_pid, last_signal_sent))
+            return True
         return False
 
     @staticmethod
@@ -427,9 +430,9 @@ class AptitudePackageManager(PackageManager):
         """ Reads the holder's parent pid, start time, elapsed run time and full command line. Returns None if unreadable. """
         code, out = self.env_layer.run_command_output("ps -p {0} -o ppid=,lstart=,etime=,cmd=".format(holder_pid), False, False)
         fields = out.strip().split(None, 7) if code == 0 and out else []  # lstart is 5 tokens, e.g. "Tue Oct 14 08:57:59 2026"
-        if len(fields) < 7 or not fields[0].isdigit():
+        if len(fields) < 8 or not fields[0].isdigit():
             return None
-        return {"ppid": int(fields[0]), "start_time": " ".join(fields[1:6]), "etime": fields[6], "cmd": fields[7] if len(fields) == 8 else ""}
+        return {"ppid": int(fields[0]), "start_time": " ".join(fields[1:6]), "etime": fields[6], "cmd": fields[7]}
 
     def invoke_apt_cache(self, command):
         """Invoke apt-cache using the command input"""
