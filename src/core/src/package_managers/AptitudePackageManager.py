@@ -1155,7 +1155,7 @@ class AptitudePackageManager(PackageManager):
 
     def __refresh_snap_for_fwupd_installation(self):
         """Best-effort snapd refresh before installing the fwupd snap."""
-        cmd = "sudo snap refresh"
+        cmd = "sudo snap refresh snapd"
         code, out = self.env_layer.run_command_output(cmd, False, False)
         if code != self.apt_exitcode_ok:
             self.composite_logger.log_warning("[APM][Certs] Snap refresh failed; continuing with fwupd snap installation. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))

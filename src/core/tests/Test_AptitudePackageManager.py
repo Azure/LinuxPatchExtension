@@ -270,7 +270,7 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def mock_run_command_output_for_snap_refresh_test(self, cmd, no_output=False, chk_err=True):
         self.snap_test_commands.append(cmd)
-        if cmd == "sudo snap refresh" and self.snap_test_refresh_fails:
+        if cmd == "sudo snap refresh snapd" and self.snap_test_refresh_fails:
             return 1, "snap refresh failed"
         if cmd == self.snap_test_manager.get_installed_fwupd_version_cmd:
             if self.snap_test_manager.install_fwupd_cmd in self.snap_test_commands:
@@ -1916,15 +1916,15 @@ class TestAptitudePackageManager(unittest.TestCase):
                 self.assertTrue(manager.try_update_certs())
                 self.assertEqual(len(self.captured_errors_tracking), 0)
                 if version == "2.0.20":
-                    self.assertNotIn("sudo snap refresh", self.snap_test_commands)
+                    self.assertNotIn("sudo snap refresh snapd", self.snap_test_commands)
                 else:
-                    self.assertEqual(self.snap_test_commands[self.snap_test_commands.index(manager.install_fwupd_cmd) - 1], "sudo snap refresh")
+                    self.assertEqual(self.snap_test_commands[self.snap_test_commands.index(manager.install_fwupd_cmd) - 1], "sudo snap refresh snapd")
                     self.assertEqual(manager.get_installed_fwupd_version_cmd, "/snap/bin/fwupdmgr --version")
                     self.assertEqual(manager.fwupd_force_refresh_cmd, "sudo /snap/bin/fwupdmgr refresh --force")
                     self.assertEqual(manager.fwupd_update_cmd, "sudo /snap/bin/fwupdmgr update -y")
                     self.assertIn(manager.fwupd_update_cmd, self.snap_test_commands)
                     if version == "2.0.1":
-                        self.assertLess(self.snap_test_commands.index(manager.remove_fwupd_cmd), self.snap_test_commands.index("sudo snap refresh"))
+                        self.assertLess(self.snap_test_commands.index(manager.remove_fwupd_cmd), self.snap_test_commands.index("sudo snap refresh snapd"))
         finally:
             self.runtime.env_layer.run_command_output = self.snap_test_original_run
             self.runtime.status_handler.add_error_to_status = original_add_error
@@ -1956,7 +1956,7 @@ class TestAptitudePackageManager(unittest.TestCase):
             self.assertFalse(manager.is_snap_fwupd_required)
             self.assertTrue(manager.try_update_certs())
             self.assertEqual(self.captured_errors_tracking, [])
-            self.assertNotIn("sudo snap refresh", self.snap_test_commands)
+            self.assertNotIn("sudo snap refresh snapd", self.snap_test_commands)
             self.assertIn("sudo apt-get install -y fwupd", self.snap_test_commands)
             self.assertIn("sudo fwupdmgr refresh --force", self.snap_test_commands)
             self.assertIn("sudo fwupdmgr update -y", self.snap_test_commands)
