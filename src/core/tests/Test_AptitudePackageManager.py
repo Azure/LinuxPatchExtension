@@ -210,6 +210,16 @@ class TestAptitudePackageManager(unittest.TestCase):
             return 1, 'fwupd metadata refresh failed'
         return self.original_run_command_output(cmd, no_output, chk_err)
 
+    def mock_run_command_output_with_fwupd_purge_failure(self, cmd, no_output=False, chk_err=True):
+        self.fwupd_commands.append(cmd)
+        if cmd == 'sudo apt-get purge -y fwupd':
+            return 100, 'E: Could not get lock /var/lib/dpkg/lock-frontend'
+        return self.original_run_command_output(cmd, no_output, chk_err)
+
+    def mock_log_warning_to_track_fwupd_purge_failure(self, message):
+        self.fwupd_warnings.append(message)
+        self.original_log_warning(message)
+
     def mock_run_command_output_uptime_above_threshold(self, cmd, no_output=False, chk_err=True):
         self.assertGreater(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd), -1)
         return 0, "700000.12 123.45"
@@ -1965,6 +1975,40 @@ class TestAptitudePackageManager(unittest.TestCase):
         finally:
             self.runtime.env_layer.run_command_output = self.original_run_command_output
             self.runtime.status_handler.add_error_to_status = original_add_error
+
+    def test_snap_fwupd_purge_failure_is_warning_only_when_certs_are_verified(self):
+        for snap_installed, expected_command in ((False, 'sudo snap install fwupd'), (True, 'sudo snap refresh fwupd')):
+            self.runtime.stop()
+            self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT, fwupd_snap_installed=snap_installed, fwupd_snap_version='2.0.1')
+            self.container = self.runtime.container
+            manager = self.container.get('package_manager')
+            self.original_run_command_output = self.runtime.env_layer.run_command_output
+            self.original_log_warning = self.runtime.composite_logger.log_warning
+            original_add_error = self.runtime.status_handler.add_error_to_status
+            self.fwupd_commands = []
+            self.fwupd_warnings = []
+            self.captured_errors_tracking = []
+            try:
+                self.runtime.env_layer.run_command_output = self.mock_run_command_output_with_fwupd_purge_failure
+                self.runtime.composite_logger.log_warning = self.mock_log_warning_to_track_fwupd_purge_failure
+                self.runtime.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+                manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+                manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+
+                self.assertTrue(manager.try_update_certs())
+                self.assertEqual(self.captured_errors_tracking, [])
+                self.assertEqual(self.fwupd_commands.count('sudo apt-get purge -y fwupd'), 1)
+                self.assertLess(self.fwupd_commands.index('sudo apt-get purge -y fwupd'), self.fwupd_commands.index('sudo snap refresh snapd'))
+                self.assertLess(self.fwupd_commands.index('sudo snap refresh snapd'), self.fwupd_commands.index(expected_command))
+                self.assertIn('sudo /snap/bin/fwupdmgr refresh --force', self.fwupd_commands)
+                self.assertIn('sudo /snap/bin/fwupdmgr update -y', self.fwupd_commands)
+                self.assertEqual(len(self.fwupd_warnings), 1)
+                self.assertIn('Apt fwupd purge failed; continuing', self.fwupd_warnings[0])
+                self.assertIn('Code=100', self.fwupd_warnings[0])
+            finally:
+                self.runtime.env_layer.run_command_output = self.original_run_command_output
+                self.runtime.composite_logger.log_warning = self.original_log_warning
+                self.runtime.status_handler.add_error_to_status = original_add_error
 
     def test_snap_refresh_before_fwupd_installation(self):
         self.snap_test_original_run = self.runtime.env_layer.run_command_output

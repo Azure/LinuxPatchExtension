@@ -1274,7 +1274,9 @@ class AptitudePackageManager(PackageManager):
         """Prepare snap when needed and install fwupd for certificate updates."""
         if self.is_snap_fwupd_required:
             # Remove the apt package before relying on the snap binary.
-            self.__run_cert_apt_command(self.remove_fwupd_cmd, step_name="RemoveOldFwupd", raise_on_error=False)
+            code, out = self.env_layer.run_command_output(self.remove_fwupd_cmd, False, False)
+            if code != self.apt_exitcode_ok:
+                self.composite_logger.log_warning("[APM][Certs] Apt fwupd purge failed; continuing with fwupd snap installation. [Command={0}][Code={1}][Output={2}]".format(self.remove_fwupd_cmd, str(code), str(out)))
             # Refresh snapd before installing fwupd on older Ubuntu releases.
             self.__refresh_snap_for_fwupd_installation()
         self.__run_cert_apt_command(self.install_fwupd_cmd, step_name="InstallFwupd", raise_on_error=True)
