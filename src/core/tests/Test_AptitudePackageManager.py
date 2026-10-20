@@ -1940,7 +1940,10 @@ class TestAptitudePackageManager(unittest.TestCase):
         ]
 
         try:
-            # reuse the legacy env layer command mocks (fwupdmgr --version, refresh, update, apt-get -q update) and only override exit codes under test
+            # These cases cover the supported fwupd exit-code combinations around the refresh/update flow.
+            # A refresh failure is treated as non-fatal, while an update failure only blocks success when the
+            # cert state cannot be verified. The cases above intentionally exercise both tolerated and fatal
+            # combinations so the behavior stays aligned with the certificate-validation contract.
             self.legacy_run_command_output = backup_run_command_output
             package_manager.env_layer.run_command_output = self.mock_run_command_output_with_fwupd_exit_code_overrides
             package_manager.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
@@ -2018,6 +2021,8 @@ class TestAptitudePackageManager(unittest.TestCase):
             self.runtime.status_handler.add_error_to_status = original_add_error
 
     def test_snap_fwupd_purge_failure_is_warning_only_when_certs_are_verified(self):
+        # This scenario validates the non-fatal purge path: a failed apt purge should only log a warning
+        # when the certs are already confirmed valid; it must not turn into a certificate-update failure.
         for snap_installed, expected_command in ((False, 'sudo snap install fwupd'), (True, 'sudo snap refresh fwupd')):
             self.runtime.stop()
             self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT, fwupd_snap_installed=snap_installed, fwupd_snap_version='2.0.1')
@@ -2052,6 +2057,9 @@ class TestAptitudePackageManager(unittest.TestCase):
                 self.runtime.status_handler.add_error_to_status = original_add_error
 
     def test_snap_refresh_before_fwupd_installation(self):
+        # This matrix exercises the older snap-based path before Jammy. The initial version and Refresh result
+        # are intentionally varied to cover the dependency ordering rules: purge old apt fwupd before snap refresh,
+        # then install refreshed snap fwupd only when the snap requirement isn't already satisfied.
         self.snap_test_original_run = self.runtime.env_layer.run_command_output
         original_add_error = self.runtime.status_handler.add_error_to_status
         try:
@@ -2112,6 +2120,12 @@ class TestAptitudePackageManager(unittest.TestCase):
             manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
             manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
 
+            # On Ubuntu Jammy and newer, fwupd is installed via apt, not the snap path.
+            # The values below cover the two relevant apt-install cases:
+            #  - "" : fwupd is not installed yet, so we should just install it.
+            #  - "2.0.1" : fwupd is installed but below minimum version, so we purge then reinstall it.
+            # The "2.0.20" case is intentionally excluded here because it exercises the older snap-based
+            # flow on releases < 22.04, which is covered by test_snap_refresh_before_fwupd_installation().
             for initial_version in ("", "2.0.1"):
                 self.snap_test_initial_version = initial_version
                 self.snap_test_commands = []
