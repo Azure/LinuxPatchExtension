@@ -78,6 +78,12 @@ class TestAptitudePackageManager(unittest.TestCase):
             return 1, 'fwupdmgr: command not found'
         return self.original_run_command_output(cmd, no_output, chk_err)
 
+    def mock_run_command_output_with_snap_probe_exception(self, cmd, no_output=False, chk_err=True):
+        if cmd == '/snap/bin/fwupdmgr --version' and not self.snap_probe_raised:
+            self.snap_probe_raised = True
+            raise OSError('snap version probe unavailable')
+        return self.original_legacy_runner(cmd, no_output, chk_err)
+
     def mock_is_pro_working_return_true(self):
         return True
 
@@ -558,6 +564,41 @@ class TestAptitudePackageManager(unittest.TestCase):
             self.assertNotIn('sudo snap refresh fwupd', self.fwupd_commands)
         finally:
             LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = original_distribution
+
+    def test_fwupd_snap_probe_exception_falls_back_to_snap_install(self):
+        original_legacy_runner = LegacyEnvLayerExtensions.run_command_output
+        self.original_legacy_runner = self.runtime.legacy_env_layer_extensions.run_command_output
+        self.snap_probe_raised = False
+        try:
+            self.runtime.stop()
+            LegacyEnvLayerExtensions.run_command_output = self.mock_run_command_output_with_snap_probe_exception
+            self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
+            self.container = self.runtime.container
+            manager = self.container.get('package_manager')
+            self.assertTrue(self.snap_probe_raised)
+        finally:
+            LegacyEnvLayerExtensions.run_command_output = original_legacy_runner
+
+        self.original_run_command_output = self.runtime.legacy_env_layer_extensions.run_command_output
+        original_add_error = self.runtime.status_handler.add_error_to_status
+        self.fwupd_commands = []
+        self.captured_errors_tracking = []
+        try:
+            self.runtime.env_layer.run_command_output = self.mock_run_command_output_to_track_fwupd_commands
+            self.runtime.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+            manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+            manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+
+            self.assertTrue(manager.try_update_certs())
+            self.assertIn('sudo snap install fwupd', self.fwupd_commands)
+            self.assertNotIn('sudo snap refresh fwupd', self.fwupd_commands)
+            self.assertNotIn('fwupdmgr --version', self.fwupd_commands)
+            self.assertIn('sudo /snap/bin/fwupdmgr refresh --force', self.fwupd_commands)
+            self.assertIn('sudo /snap/bin/fwupdmgr update -y', self.fwupd_commands)
+            self.assertEqual(self.captured_errors_tracking, [])
+        finally:
+            self.runtime.env_layer.run_command_output = self.original_run_command_output
+            self.runtime.status_handler.add_error_to_status = original_add_error
 
     def test_fwupd_commands_use_snap_path_when_snap_is_already_installed(self):
         original_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
@@ -2065,22 +2106,28 @@ class TestAptitudePackageManager(unittest.TestCase):
             manager = self.container.get('package_manager')
             self.snap_test_original_run = self.runtime.env_layer.run_command_output
             original_add_error = self.runtime.status_handler.add_error_to_status
-            self.snap_test_initial_version = ""
             self.snap_test_refresh_fails = False
-            self.snap_test_commands = []
             self.runtime.env_layer.run_command_output = self.mock_run_command_output_for_snap_refresh_test
             self.runtime.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
             manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
             manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
-            self.captured_errors_tracking = []
-            self.snap_test_commands = []
 
-            self.assertTrue(manager.try_update_certs())
-            self.assertEqual(self.captured_errors_tracking, [])
-            self.assertNotIn("sudo snap refresh snapd", self.snap_test_commands)
-            self.assertIn("sudo apt-get install -y fwupd", self.snap_test_commands)
-            self.assertIn("sudo fwupdmgr refresh --force", self.snap_test_commands)
-            self.assertIn("sudo fwupdmgr update -y", self.snap_test_commands)
+            for initial_version in ("", "2.0.1"):
+                self.snap_test_initial_version = initial_version
+                self.snap_test_commands = []
+                self.captured_errors_tracking = []
+
+                self.assertTrue(manager.try_update_certs())
+                self.assertEqual(self.captured_errors_tracking, [])
+                self.assertNotIn("sudo snap refresh snapd", self.snap_test_commands)
+                self.assertIn("sudo apt-get install -y fwupd", self.snap_test_commands)
+                self.assertIn("sudo fwupdmgr refresh --force", self.snap_test_commands)
+                self.assertIn("sudo fwupdmgr update -y", self.snap_test_commands)
+                if initial_version:
+                    self.assertEqual(self.snap_test_commands.count("sudo apt-get purge -y fwupd"), 1)
+                    self.assertLess(self.snap_test_commands.index("sudo apt-get purge -y fwupd"), self.snap_test_commands.index("sudo apt-get install -y fwupd"))
+                else:
+                    self.assertNotIn("sudo apt-get purge -y fwupd", self.snap_test_commands)
         finally:
             self.runtime.env_layer.run_command_output = self.snap_test_original_run
             LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = original_distribution
