@@ -99,13 +99,44 @@ class AptitudePackageManager(PackageManager):
         self.apt_update_cmd = "sudo apt-get -q update"
         self.min_fwupd_version = "2.0.8" # Refer public docs: https://github.com/fwupd/fwupd/releases/tag/2.0.8 and https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
         self.remove_fwupd_cmd = "sudo apt-get purge -y fwupd"
+        self.apt_fwupd_install_cmd = "sudo apt-get install -y fwupd"
+        self.snap_fwupd_install_cmd = "sudo snap install fwupd"
+        self.snap_fwupd_refresh_cmd = "sudo snap refresh fwupd"
+        self.snapd_refresh_cmd = "sudo snap refresh snapd"
+        self.apt_fwupd_version_cmd = "fwupdmgr --version"
+        self.snap_fwupd_version_cmd = "/snap/bin/fwupdmgr --version"
+        self.apt_fwupd_force_refresh_cmd = "sudo fwupdmgr refresh --force"
+        self.snap_fwupd_force_refresh_cmd = "sudo /snap/bin/fwupdmgr refresh --force"
+        self.apt_fwupd_update_cmd = "sudo fwupdmgr update -y"
+        self.snap_fwupd_update_cmd = "sudo /snap/bin/fwupdmgr update -y"
         # Ubuntu releases before 22.04 require the fwupd snap to obtain a recent enough version.
         self.is_snap_fwupd_required = self.__is_snap_fwupd_required()
-        self.install_fwupd_cmd = "sudo snap install fwupd" if self.is_snap_fwupd_required else "sudo apt-get install -y fwupd"
-        self.__configure_fwupdmgr_commands(self.is_snap_fwupd_required and os.path.exists('/snap/bin/fwupdmgr'))
+        self.install_fwupd_cmd = self.__get_fwupd_snap_install_command() if self.is_snap_fwupd_required else self.apt_fwupd_install_cmd
+        self.get_installed_fwupd_version_cmd = self.snap_fwupd_version_cmd if self.is_snap_fwupd_required else self.apt_fwupd_version_cmd
+        self.fwupd_force_refresh_cmd = self.snap_fwupd_force_refresh_cmd if self.is_snap_fwupd_required else self.apt_fwupd_force_refresh_cmd
+        self.fwupd_update_cmd = self.snap_fwupd_update_cmd if self.is_snap_fwupd_required else self.apt_fwupd_update_cmd
         self.get_uptime_seconds_cmd = "cat /proc/uptime"
         self.get_hibernation_state_cmd = "cat /sys/power/disk"
         self.pre_cert_reboot_uptime_threshold_seconds = 7 * 24 * 60 * 60 # NOTE: This needs to be reviewed again later as these aren't specific to this class
+
+    def __is_fwupd_snap_installed(self):
+        # type: () -> bool
+        """Return True when the fwupd snap version command succeeds."""
+        cmd = self.snap_fwupd_version_cmd
+        try:
+            code, out = self.env_layer.run_command_output(cmd, False, False)
+            self.composite_logger.log_debug("[APM][Certs] Checked for the fwupd snap. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
+            return code == self.apt_exitcode_ok
+        except Exception as error:
+            self.composite_logger.log_debug("[APM][Certs] Unable to determine if the fwupd snap is installed. [Error={0}]".format(repr(error)))
+            return False
+
+    def __get_fwupd_snap_install_command(self):
+        # type: () -> str
+        """Use refresh when the snap version probe succeeds; otherwise install it."""
+        if self.__is_fwupd_snap_installed():
+            return self.snap_fwupd_refresh_cmd
+        return self.snap_fwupd_install_cmd
 
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
@@ -1221,7 +1252,9 @@ class AptitudePackageManager(PackageManager):
         if installed_version != str():
             self.composite_logger.log("[APM][Certs] Existing fwupd version is below minimum. Reinstalling latest. [InstalledVersion={0}][MinimumVersion={1}]"
                                       .format(installed_version, self.min_fwupd_version))
-            self.__run_cert_apt_command(self.remove_fwupd_cmd, step_name="RemoveOldFwupd", raise_on_error=True)
+            # The snap installation flow performs its own best-effort apt package purge.
+            if not self.is_snap_fwupd_required:
+                self.__run_cert_apt_command(self.remove_fwupd_cmd, step_name="RemoveOldFwupd", raise_on_error=True)
         else:
             self.composite_logger.log_debug("[APM][Certs] fwupd is not installed. Installing latest version.")
 
@@ -1240,14 +1273,17 @@ class AptitudePackageManager(PackageManager):
     def __install_fwupd_for_cert_update(self):
         """Prepare snap when needed and install fwupd for certificate updates."""
         if self.is_snap_fwupd_required:
-            # Refresh snapd immediately before installing fwupd on older Ubuntu releases.
+            # Remove the apt package before relying on the snap binary.
+            code, out = self.env_layer.run_command_output(self.remove_fwupd_cmd, False, False)
+            if code != self.apt_exitcode_ok:
+                self.composite_logger.log_warning("[APM][Certs] Apt fwupd purge failed; continuing with fwupd snap installation. [Command={0}][Code={1}][Output={2}]".format(self.remove_fwupd_cmd, str(code), str(out)))
+            # Refresh snapd before installing fwupd on older Ubuntu releases.
             self.__refresh_snap_for_fwupd_installation()
         self.__run_cert_apt_command(self.install_fwupd_cmd, step_name="InstallFwupd", raise_on_error=True)
-        self.__configure_fwupdmgr_commands(self.is_snap_fwupd_required)
 
     def __refresh_snap_for_fwupd_installation(self):
         """Best-effort snapd refresh before installing the fwupd snap."""
-        cmd = "sudo snap refresh snapd"
+        cmd = self.snapd_refresh_cmd
         code, out = self.env_layer.run_command_output(cmd, False, False)
         if code != self.apt_exitcode_ok:
             self.composite_logger.log_warning("[APM][Certs] Snap refresh failed; continuing with fwupd snap installation. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
@@ -1256,12 +1292,6 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log_debug("[APM][Certs] Snap refresh completed. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
         return True
 
-    def __configure_fwupdmgr_commands(self, use_snap):
-        """Use the snap executable for every fwupdmgr operation when the snap is installed."""
-        fwupdmgr = '/snap/bin/fwupdmgr' if use_snap else 'fwupdmgr'
-        self.get_installed_fwupd_version_cmd = '{0} --version'.format(fwupdmgr)
-        self.fwupd_force_refresh_cmd = 'sudo {0} refresh --force'.format(fwupdmgr)
-        self.fwupd_update_cmd = 'sudo {0} update -y'.format(fwupdmgr)
 
     def __get_installed_fwupd_version(self):
         # type: () -> str
