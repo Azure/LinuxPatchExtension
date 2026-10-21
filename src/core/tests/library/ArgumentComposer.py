@@ -49,6 +49,7 @@ class ArgumentComposer(object):
         self.temp_folder = self.__get_custom_folder(scratch_folder, self.__TEMP_FOLDER)
         Constants.AzGPSPaths.EULA_SETTINGS = os.path.join(scratch_folder, "patch.eula.settings")
         Constants.AzGPSPaths.UEFI_SETTINGS = os.path.join(scratch_folder, "patch.uefi.settings")
+        Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS = os.path.join(scratch_folder, "patch.allupdatesfallback.settings")
 
         # config settings
         self.operation = Constants.INSTALLATION

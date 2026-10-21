@@ -95,6 +95,9 @@ class ExecutionConfig(object):
         # UEFI config
         self.enable_uefi_cert_update_for_auto_patching, self.enable_uefi_cert_update_for_all_patching = self.__fetch_uefi_cert_update_settings()
 
+        # All updates fallback config
+        self.install_all_updates_on_zero_install = self.__fetch_all_updates_fallback_setting()
+
     def __transform_execution_config_for_auto_assessment(self):
         self.activity_id = str(uuid.uuid4())
         self.included_classifications_list = self.included_package_name_mask_list = self.excluded_package_name_mask_list = []
@@ -291,6 +294,29 @@ class ExecutionConfig(object):
         except Exception as error:
             self.composite_logger.log_debug("Error occurred while reading and parsing UEFI cert update settings. [Error={0}]".format(repr(error)))
         return enable_uefi_cert_update_for_auto_patching, enable_uefi_cert_update_for_all_patching
+
+    def __fetch_all_updates_fallback_setting(self):
+        # type: () -> any
+        """ Reads customer provided config on all updates fallback from disk. Returns None if not found. """
+        install_all_updates_on_zero_install = None
+        try:
+            if os.path.exists(Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS):
+                settings = json.loads(self.env_layer.file_system.read_with_retry(Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS) or 'null')
+                install_all_updates_on_zero_install = self.__fetch_specific_azgps_setting(settings, Constants.AllUpdatesFallbackSettings.INSTALL_ALL_UPDATES_ON_ZERO_INSTALL)
+                enabled_by = self.__fetch_specific_azgps_setting(settings, Constants.AllUpdatesFallbackSettings.ENABLED_BY)
+                last_modified = self.__fetch_specific_azgps_setting(settings, Constants.AllUpdatesFallbackSettings.LAST_MODIFIED)
+                self.composite_logger.log_debug("All updates fallback config values from disk: [InstallAllUpdatesOnZeroInstall={0}] [EnabledBy={1}] [LastModified={2}]."
+                                                .format(str(install_all_updates_on_zero_install), str(enabled_by), str(last_modified)))
+            else:
+                self.composite_logger.log_debug("No all updates fallback settings found on the VM.")
+        except Exception as error:
+            self.composite_logger.log_debug("Error occurred while reading and parsing all updates fallback settings. [Error={0}]".format(repr(error)))
+        return install_all_updates_on_zero_install
+
+    def is_all_updates_fallback_explicitly_enabled(self):
+        # type: () -> bool
+        """ Verifies if install-all-updates on zero install is enabled explicitly """
+        return self.install_all_updates_on_zero_install is not None and self.__is_truthy(self.install_all_updates_on_zero_install)
 
     def is_cert_update_for_auto_patching_explicitly_enabled(self):
         # type: () -> bool

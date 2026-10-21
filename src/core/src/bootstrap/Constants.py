@@ -59,6 +59,7 @@ class Constants(object):
     class AzGPSPaths(EnumBackport):
         EULA_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.eula.settings"
         UEFI_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.uefi.settings"
+        ALL_UPDATES_FALLBACK_SETTINGS = "/var/lib/azure/linuxpatchextension/patch.allupdatesfallback.settings"
 
     class EnvSettings(EnumBackport):
         LOG_FOLDER = "logFolder"
@@ -91,6 +92,11 @@ class Constants(object):
     class UEFISettings(EnumBackport):
         ENABLE_UEFI_CERT_UPDATE_FOR_AUTO_PATCHING = 'EnableUEFICertUpdateForAutoPatching'
         ENABLE_UEFI_CERT_UPDATE_FOR_ALL_PATCHING = 'EnableUEFICertUpdateForAllPatching'
+        ENABLED_BY = 'EnabledBy'
+        LAST_MODIFIED = 'LastModified'
+
+    class AllUpdatesFallbackSettings(EnumBackport):
+        INSTALL_ALL_UPDATES_ON_ZERO_INSTALL = 'InstallAllUpdatesOnZeroInstall'
         ENABLED_BY = 'EnabledBy'
         LAST_MODIFIED = 'LastModified'
 

@@ -110,6 +110,10 @@ class PatchInstaller(object):
                 self.write_installer_perf_logs(update_run_successful, installed_update_count, retry_count, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.FAILED, error_msg)
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
+        # Install all available updates if enabled and nothing was installed while security updates remain
+        if installed_update_count == 0 and not maintenance_window_exceeded:
+            installed_update_count, update_run_successful, maintenance_window_exceeded = self.try_install_all_updates_on_zero_install(maintenance_window, package_manager, update_run_successful, simulate)
+
         self.composite_logger.log("\nInstalled update count: " + str(installed_update_count) + " (including dependencies)")
 
         self.write_installer_perf_logs(update_run_successful, installed_update_count, retry_count, maintenance_window, maintenance_window_exceeded, Constants.TaskStatus.SUCCEEDED, "")
@@ -218,6 +222,28 @@ class PatchInstaller(object):
             patch_installation_successful = False
 
         return installed_update_count, patch_installation_successful, maintenance_window_exceeded
+
+    def try_install_all_updates_on_zero_install(self, maintenance_window, package_manager, update_run_successful, simulate=False):
+        """ Opt-in only. Re-runs installation with all classifications if no updates were installed and security updates remain. """
+        if not self.execution_config.is_all_updates_fallback_explicitly_enabled():
+            return 0, update_run_successful, False
+
+        security_packages, _ = package_manager.get_security_updates()
+        if len(security_packages) == 0:
+            return 0, update_run_successful, False
+
+        info_msg = "[AllUpdatesFallback] 0 updates installed with {0} security updates pending. Installing all updates per customer opt-in.".format(str(len(security_packages)))
+        self.composite_logger.log_warning(info_msg)
+        self.status_handler.add_error_to_status(info_msg, Constants.PatchOperationErrorCodes.INFORMATIONAL)
+
+        original_classifications = self.package_filter.installation_included_classifications
+        self.package_filter.installation_included_classifications = [Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER]
+        try:
+            installed_update_count, fallback_successful, maintenance_window_exceeded = self.install_updates(maintenance_window, package_manager, simulate)
+        finally:
+            self.package_filter.installation_included_classifications = original_classifications
+
+        return installed_update_count, bool(update_run_successful and fallback_successful), maintenance_window_exceeded
 
     def install_updates(self, maintenance_window, package_manager, simulate=False):
         """wrapper function of installing updates"""

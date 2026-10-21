@@ -74,17 +74,56 @@ class TestExecutionConfig(unittest.TestCase):
         runtime.env_layer.file_system.read_with_retry = self.backup_read_with_retry
         self.__teardown(runtime)
 
+    def test_all_updates_fallback_config_when_file_does_not_exist(self):
+        # All updates fallback in-VM customer config does not exist
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=False, config="AllUpdatesFallback")
+        self.__assert_all_updates_fallback_configs(execution_config=execution_config, expected_file_exists=False,
+                                                    expected_install_all_updates_on_zero_install=None)
+        self.__teardown(runtime)
+
+    def test_all_updates_fallback_config_when_file_exists(self):
+        all_updates_fallback_settings = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-10-21",
+            "InstallAllUpdatesOnZeroInstall": True
+        }
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="AllUpdatesFallback", config_settings=all_updates_fallback_settings)
+        self.__assert_all_updates_fallback_configs(execution_config=execution_config, expected_file_exists=True,
+                                                    expected_install_all_updates_on_zero_install=True)
+        self.__teardown(runtime)
+
+    def test_all_updates_fallback_config_when_file_read_raises_exception(self):
+        all_updates_fallback_settings = {
+            "EnabledBy": "TestSetup",
+            "LastModified": "2026-10-21",
+            "InstallAllUpdatesOnZeroInstall": True
+        }
+        runtime, execution_config = self.__setup_and_init_execution_config(write_to_file=True, config="AllUpdatesFallback", config_settings=all_updates_fallback_settings)
+        self.backup_read_with_retry = runtime.env_layer.file_system.read_with_retry
+        runtime.env_layer.file_system.read_with_retry = self.mock_read_with_retry_raise_exception
+        exec_config = ExecutionConfig(runtime.env_layer, runtime.composite_logger, str(runtime.argv))
+        self.__assert_all_updates_fallback_configs(execution_config=exec_config, expected_file_exists=True,
+                                                    expected_install_all_updates_on_zero_install=None)
+        runtime.env_layer.file_system.read_with_retry = self.backup_read_with_retry
+        self.__teardown(runtime)
+
 
     def __assert_uefi_configs(self, execution_config, expected_file_exists, expected_enable_auto_patching, expected_enable_all_patching):
         self.assertEqual(os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS), expected_file_exists)
         self.assertEqual(execution_config.enable_uefi_cert_update_for_auto_patching, expected_enable_auto_patching)
         self.assertEqual(execution_config.enable_uefi_cert_update_for_all_patching, expected_enable_all_patching)
 
+    def __assert_all_updates_fallback_configs(self, execution_config, expected_file_exists, expected_install_all_updates_on_zero_install):
+        self.assertEqual(os.path.exists(Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS), expected_file_exists)
+        self.assertEqual(execution_config.install_all_updates_on_zero_install, expected_install_all_updates_on_zero_install)
+
     def __setup_and_init_execution_config(self, write_to_file=False, config=None, config_settings=None):
         argument_composer = ArgumentComposer()
         config_file_path = None
         if config is not None and config == "UEFI":
             config_file_path = Constants.AzGPSPaths.UEFI_SETTINGS
+        elif config is not None and config == "AllUpdatesFallback":
+            config_file_path = Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS
 
         if write_to_file:
             self.__write_config_settings_to_file(config_settings, config_file_path=config_file_path)
@@ -100,9 +139,11 @@ class TestExecutionConfig(unittest.TestCase):
 
     @staticmethod
     def __teardown(runtime):
-        # remove the uefi settings file if it exists after the test
+        # remove the uefi and all updates fallback settings files if they exist after the test
         if os.path.exists(Constants.AzGPSPaths.UEFI_SETTINGS):
             os.remove(Constants.AzGPSPaths.UEFI_SETTINGS)
+        if os.path.exists(Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS):
+            os.remove(Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS)
         runtime.stop()
 
     def test_is_cert_update_for_auto_patching_explicitly_enabled(self):
@@ -204,6 +245,40 @@ class TestExecutionConfig(unittest.TestCase):
             execution_config.enable_uefi_cert_update_for_all_patching = value
             self.assertEqual(execution_config.is_cert_update_for_all_patching_explicitly_enabled(), expected,
                              msg="Failed for enable_uefi_cert_update_for_all_patching={0}".format(repr(value)))
+
+        self.__teardown(runtime)
+
+    def test_is_all_updates_fallback_explicitly_enabled(self):
+        """Tests is_all_updates_fallback_explicitly_enabled() returns True only for explicitly set truthy values.
+        None (not set) should return False - fallback is off by default.
+        Follows the same truthy evaluation rules as the UEFI cert update equivalents."""
+        runtime, execution_config = self.__setup_and_init_execution_config()
+
+        # [value for install_all_updates_on_zero_install, expected_result for is_all_updates_fallback_explicitly_enabled]
+        test_cases = [
+            # Not set - not explicitly enabled
+            [None,    False],
+            # Truthy values - explicitly enabled
+            [True,    True],
+            ["True",  True],
+            ["true",  True],
+            ["1",     True],
+            [1,       True],
+            # Falsy/invalid values - not explicitly enabled
+            [False,   False],
+            ["False", False],
+            ["false", False],
+            ["0",     False],
+            [0,       False],
+            ["3",     False],
+            ["test",  False],
+            [3.1,     False],
+        ]
+
+        for value, expected in test_cases:
+            execution_config.install_all_updates_on_zero_install = value
+            self.assertEqual(execution_config.is_all_updates_fallback_explicitly_enabled(), expected,
+                             msg="Failed for install_all_updates_on_zero_install={0}".format(repr(value)))
 
         self.__teardown(runtime)
 

@@ -83,6 +83,28 @@ class TestPatchInstaller(unittest.TestCase):
 
     def mock_is_cert_update_supported_returns_false(self):
         return False
+
+    def mock_get_security_updates_returns_packages(self):
+        return ["sec-pkg-1", "sec-pkg-2"], ["1.0", "2.0"]
+
+    def mock_get_security_updates_returns_empty(self):
+        return [], []
+
+    def mock_install_updates_returns_installed(self, maintenance_window, package_manager, simulate=False):
+        self.captured_install_updates_classifications.append(list(self.package_filter_under_test.installation_included_classifications))
+        return 5, True, False
+
+    def mock_install_updates_returns_zero_installed(self, maintenance_window, package_manager, simulate=False):
+        self.captured_install_updates_classifications.append(list(self.package_filter_under_test.installation_included_classifications))
+        return 0, True, False
+
+    def mock_install_updates_returns_failed_and_window_exceeded(self, maintenance_window, package_manager, simulate=False):
+        self.captured_install_updates_classifications.append(list(self.package_filter_under_test.installation_included_classifications))
+        return 1, False, True
+
+    def mock_install_updates_raises_exception(self, maintenance_window, package_manager, simulate=False):
+        self.captured_install_updates_classifications.append(list(self.package_filter_under_test.installation_included_classifications))
+        raise Exception("Simulated install updates failure")
     # endregion
 
     # region Utility functions (update cert tests)
@@ -124,6 +146,39 @@ class TestPatchInstaller(unittest.TestCase):
         installation_message = json.loads(installation_substatus["formattedMessage"]["message"])
         error_details = installation_message["errors"]["details"]
         return [error["message"] for error in error_details]
+    # endregion
+
+    # region Utility functions (all updates fallback tests)
+    def _create_all_updates_fallback_runtime(self, write_settings_file=True, install_all_updates_on_zero_install=None, package_manager_name=Constants.APT):
+        argument_composer = ArgumentComposer()
+        argument_composer.classifications_to_include = ["Security", "Critical"]
+
+        config_file_path = Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS
+        self._remove_all_updates_fallback_settings_file()
+        if write_settings_file:
+            config_settings = {
+                Constants.AllUpdatesFallbackSettings.ENABLED_BY: "TestSetup",
+                Constants.AllUpdatesFallbackSettings.LAST_MODIFIED: "2026-10-21",
+                Constants.AllUpdatesFallbackSettings.INSTALL_ALL_UPDATES_ON_ZERO_INSTALL: install_all_updates_on_zero_install,
+            }
+            self.__write_config_settings_to_file(config_settings, config_file_path=config_file_path)
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, package_manager_name)
+        return runtime
+
+    @staticmethod
+    def _remove_all_updates_fallback_settings_file():
+        if os.path.exists(Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS):
+            os.remove(Constants.AzGPSPaths.ALL_UPDATES_FALLBACK_SETTINGS)
+
+    @staticmethod
+    def _get_installation_error_messages_including_top_level(runtime):
+        """ A single INFORMATIONAL entry is surfaced in errors.message instead of errors.details, so both are returned """
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+
+        installation_substatus = [item for item in substatus_file_data if item["name"] == Constants.PATCH_INSTALLATION_SUMMARY][0]
+        installation_errors = json.loads(installation_substatus["formattedMessage"]["message"])["errors"]
+        return [installation_errors["message"]] + [error["message"] for error in installation_errors["details"]]
     # endregion
 
     def test_yum_install_updates_maintenance_window_exceeded(self):
@@ -1484,6 +1539,212 @@ class TestPatchInstaller(unittest.TestCase):
             runtime.package_manager.is_reboot_required_before_cert_update = backup_should_reboot
             runtime.package_manager.try_update_certs = backup_try_update_certs
             runtime.stop()
+
+    # region test all updates fallback
+    def test_try_install_all_updates_on_zero_install__with_various_use_cases(self):
+        """Test all updates fallback: opt-in gating, security updates gating, classification override/restore, result propagation and status recording."""
+        all_classifications = sorted([Constants.PackageClassification.CRITICAL, Constants.PackageClassification.SECURITY, Constants.PackageClassification.OTHER])
+
+        use_cases = [
+            # Use case 1: Settings file absent - fallback is off by default
+            {
+                "name": "settings_file_absent",
+                "write_settings_file": False,
+                "install_all_updates_on_zero_install": None,
+                "update_run_successful": True,
+                "mock_get_security_updates": self.mock_get_security_updates_returns_packages,
+                "mock_install_updates": self.mock_install_updates_returns_installed,
+                "expected_result": (0, True, False),
+                "expected_install_updates_call_count": 0,
+                "expected_present": [],
+                "expected_absent": ["[AllUpdatesFallback]"]
+            },
+            # Use case 2: Fallback explicitly disabled
+            {
+                "name": "explicitly_disabled",
+                "write_settings_file": True,
+                "install_all_updates_on_zero_install": False,
+                "update_run_successful": True,
+                "mock_get_security_updates": self.mock_get_security_updates_returns_packages,
+                "mock_install_updates": self.mock_install_updates_returns_installed,
+                "expected_result": (0, True, False),
+                "expected_install_updates_call_count": 0,
+                "expected_present": [],
+                "expected_absent": ["[AllUpdatesFallback]"]
+            },
+            # Use case 3: Enabled but no security updates remain - fallback not taken
+            {
+                "name": "enabled_no_security_updates_remain",
+                "write_settings_file": True,
+                "install_all_updates_on_zero_install": True,
+                "update_run_successful": True,
+                "mock_get_security_updates": self.mock_get_security_updates_returns_empty,
+                "mock_install_updates": self.mock_install_updates_returns_installed,
+                "expected_result": (0, True, False),
+                "expected_install_updates_call_count": 0,
+                "expected_present": [],
+                "expected_absent": ["[AllUpdatesFallback]"]
+            },
+            # Use case 4: Enabled and security updates remain - fallback taken with all classifications
+            {
+                "name": "enabled_security_updates_remain",
+                "write_settings_file": True,
+                "install_all_updates_on_zero_install": True,
+                "update_run_successful": True,
+                "mock_get_security_updates": self.mock_get_security_updates_returns_packages,
+                "mock_install_updates": self.mock_install_updates_returns_installed,
+                "expected_result": (5, True, False),
+                "expected_install_updates_call_count": 1,
+                "expected_present": ["[AllUpdatesFallback] 0 updates installed with 2 security updates pending"],
+                "expected_absent": []
+            },
+            # Use case 5: Original run failure is not masked by a successful fallback
+            {
+                "name": "original_run_failure_not_masked",
+                "write_settings_file": True,
+                "install_all_updates_on_zero_install": True,
+                "update_run_successful": False,
+                "mock_get_security_updates": self.mock_get_security_updates_returns_packages,
+                "mock_install_updates": self.mock_install_updates_returns_installed,
+                "expected_result": (5, False, False),
+                "expected_install_updates_call_count": 1,
+                "expected_present": ["[AllUpdatesFallback]"],
+                "expected_absent": []
+            },
+            # Use case 6: Fallback failure and maintenance window exceeded are propagated
+            {
+                "name": "fallback_failure_and_window_exceeded_propagated",
+                "write_settings_file": True,
+                "install_all_updates_on_zero_install": True,
+                "update_run_successful": True,
+                "mock_get_security_updates": self.mock_get_security_updates_returns_packages,
+                "mock_install_updates": self.mock_install_updates_returns_failed_and_window_exceeded,
+                "expected_result": (1, False, True),
+                "expected_install_updates_call_count": 1,
+                "expected_present": ["[AllUpdatesFallback]"],
+                "expected_absent": []
+            },
+            # Use case 7: install_updates raises - exception propagates and classifications are restored
+            {
+                "name": "install_updates_raises_exception",
+                "write_settings_file": True,
+                "install_all_updates_on_zero_install": True,
+                "update_run_successful": True,
+                "mock_get_security_updates": self.mock_get_security_updates_returns_packages,
+                "mock_install_updates": self.mock_install_updates_raises_exception,
+                "expected_result": None,
+                "expected_install_updates_call_count": 1,
+                "expected_present": ["[AllUpdatesFallback]"],
+                "expected_absent": []
+            }
+        ]
+
+        for use_case in use_cases:
+            runtime = self._create_all_updates_fallback_runtime(
+                write_settings_file=use_case["write_settings_file"],
+                install_all_updates_on_zero_install=use_case["install_all_updates_on_zero_install"])
+            runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+            runtime.status_handler.set_installation_substatus_json()
+
+            self.captured_install_updates_classifications = []
+            self.package_filter_under_test = runtime.patch_installer.package_filter
+            original_classifications = list(runtime.patch_installer.package_filter.installation_included_classifications)
+
+            backup_get_security_updates = runtime.package_manager.get_security_updates
+            backup_install_updates = runtime.patch_installer.install_updates
+
+            runtime.package_manager.get_security_updates = use_case["mock_get_security_updates"]
+            runtime.patch_installer.install_updates = use_case["mock_install_updates"]
+
+            if use_case["expected_result"] is None:
+                self.assertRaises(Exception, runtime.patch_installer.try_install_all_updates_on_zero_install, runtime.maintenance_window, runtime.package_manager, use_case["update_run_successful"])
+            else:
+                result = runtime.patch_installer.try_install_all_updates_on_zero_install(runtime.maintenance_window, runtime.package_manager, use_case["update_run_successful"])
+                self.assertEqual(result, use_case["expected_result"], "Unexpected result for use case '{0}'".format(use_case["name"]))
+
+            self.assertEqual(len(self.captured_install_updates_classifications), use_case["expected_install_updates_call_count"], "Unexpected install_updates call count for use case '{0}'".format(use_case["name"]))
+            for captured_classifications in self.captured_install_updates_classifications:
+                self.assertEqual(sorted(captured_classifications), all_classifications, "Expected all classifications during fallback for use case '{0}'".format(use_case["name"]))
+            self.assertEqual(runtime.patch_installer.package_filter.installation_included_classifications, original_classifications, "Classifications not restored for use case '{0}'".format(use_case["name"]))
+
+            error_messages = self._get_installation_error_messages_including_top_level(runtime)
+
+            for expected_message in use_case["expected_present"]:
+                self.assertTrue(any(expected_message in message for message in error_messages),
+                                "Expected '{0}' for use case '{1}'".format(expected_message, use_case["name"]))
+
+            for forbidden_message in use_case["expected_absent"]:
+                self.assertFalse(any(forbidden_message in message for message in error_messages),
+                                "Did not expect '{0}' for use case '{1}'".format(forbidden_message, use_case["name"]))
+
+            runtime.package_manager.get_security_updates = backup_get_security_updates
+            runtime.patch_installer.install_updates = backup_install_updates
+            runtime.stop()
+            self._remove_all_updates_fallback_settings_file()
+
+    def test_start_installation__all_updates_fallback_with_various_use_cases(self):
+        """Test all updates fallback is reached from start_installation only when nothing was installed in the regular run."""
+
+        use_cases = [
+            # Use case 1: Regular run installed nothing and security updates remain - fallback re-runs installation
+            {
+                "name": "zero_installed_fallback_taken",
+                "mock_install_updates": self.mock_install_updates_returns_zero_installed,
+                "expected_install_updates_call_count": 2,
+                "expected_present": ["[AllUpdatesFallback]"],
+                "expected_absent": []
+            },
+            # Use case 2: Regular run installed updates - fallback not reached
+            {
+                "name": "some_installed_fallback_not_taken",
+                "mock_install_updates": self.mock_install_updates_returns_installed,
+                "expected_install_updates_call_count": 1,
+                "expected_present": [],
+                "expected_absent": ["[AllUpdatesFallback]"]
+            },
+            # Use case 3: Maintenance window exceeded in regular run - fallback not reached
+            {
+                "name": "window_exceeded_fallback_not_taken",
+                "mock_install_updates": self.mock_install_updates_returns_failed_and_window_exceeded,
+                "expected_install_updates_call_count": 1,
+                "expected_present": [],
+                "expected_absent": ["[AllUpdatesFallback]"]
+            }
+        ]
+
+        for use_case in use_cases:
+            runtime = self._create_all_updates_fallback_runtime(install_all_updates_on_zero_install=True)
+            runtime.status_handler.set_current_operation(Constants.INSTALLATION)
+            runtime.status_handler.set_installation_substatus_json()
+
+            self.captured_install_updates_classifications = []
+            self.package_filter_under_test = runtime.patch_installer.package_filter
+
+            backup_get_security_updates = runtime.package_manager.get_security_updates
+            backup_install_updates = runtime.patch_installer.install_updates
+
+            runtime.package_manager.get_security_updates = self.mock_get_security_updates_returns_packages
+            runtime.patch_installer.install_updates = use_case["mock_install_updates"]
+
+            runtime.patch_installer.start_installation(simulate=True)
+
+            self.assertEqual(len(self.captured_install_updates_classifications), use_case["expected_install_updates_call_count"], "Unexpected install_updates call count for use case '{0}'".format(use_case["name"]))
+
+            error_messages = self._get_installation_error_messages_including_top_level(runtime)
+
+            for expected_message in use_case["expected_present"]:
+                self.assertTrue(any(expected_message in message for message in error_messages),
+                                "Expected '{0}' for use case '{1}'".format(expected_message, use_case["name"]))
+
+            for forbidden_message in use_case["expected_absent"]:
+                self.assertFalse(any(forbidden_message in message for message in error_messages),
+                                "Did not expect '{0}' for use case '{1}'".format(forbidden_message, use_case["name"]))
+
+            runtime.package_manager.get_security_updates = backup_get_security_updates
+            runtime.patch_installer.install_updates = backup_install_updates
+            runtime.stop()
+            self._remove_all_updates_fallback_settings_file()
+    # endregion
 
 
 if __name__ == '__main__':
