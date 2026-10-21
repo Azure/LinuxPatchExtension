@@ -24,6 +24,8 @@ class LegacyEnvLayerExtensions():
         self.legacy_package_manager_name = package_manager_name
         self.legacy_test_type = test_type
         self.temp_folder_path = ""
+        self.fwupd_snap_installed = False
+        self.fwupd_snap_version = "2.0.20"
 
     class LegacyPlatform(object):
         def linux_distribution(self):
@@ -545,6 +547,12 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('apt-get install -y -qq mokutil') > -1:
                         code = 0
                         output = "Installed"
+                    elif cmd == "/snap/bin/fwupdmgr --version":
+                        if self.fwupd_snap_installed:
+                            output = "compile   org.freedesktop.fwupd         {0}".format(self.fwupd_snap_version)
+                        else:
+                            code = 1
+                            output = "/snap/bin/fwupdmgr: command not found"
                     elif cmd.find("fwupdmgr --version") > -1:
                         code = 0
                         output = ("compile    info.libusb                   1.0.25\n"
@@ -583,9 +591,14 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("sudo snap refresh") > -1:
                         code = 0
                         output = "All snaps up to date."
+                        if cmd == "sudo snap refresh fwupd":
+                            self.fwupd_snap_installed = True
+                            self.fwupd_snap_version = "2.0.20"
                     elif cmd.find("sudo snap install fwupd") > -1:
                         code = 0
                         output = "fwupd installed"
+                        self.fwupd_snap_installed = True
+                        self.fwupd_snap_version = "2.0.20"
                     elif cmd.find("fwupdmgr refresh") > -1:
                         code = 0
                         output = "Success"
