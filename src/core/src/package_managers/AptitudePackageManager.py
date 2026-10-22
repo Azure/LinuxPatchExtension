@@ -294,6 +294,12 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log("[APM] Refreshing local repo... [SourcePartsDir={0}][SourceList={1}]".format(source_parts_dir, source_list))
         self.invoke_package_manager(self.__generate_command_with_custom_sources(self.cmd_repo_refresh_template, source_parts_dir, source_list))
 
+        # A default-sources refresh makes apt clean up (delete) package lists of any other sources, including dated snapshot lists.
+        # Invalidate the cached snapshot formula so the next snapshot-sourced operation re-fetches its lists instead of running against none.
+        if source_parts_dir == str() and source_list == str() and self.max_patch_publish_date != str() and self.current_source_formula is not None:
+            self.composite_logger.log_debug("[APM] Invalidating cached custom sources after default-sources refresh. [PreviousFormula={0}]".format(str(self.current_source_formula)))
+            self.current_source_formula = None
+
     @staticmethod
     def __generate_command_with_custom_sources(command_template, source_parts=str(), source_list=str()):
         # type: (str, str, str) -> str
@@ -485,14 +491,16 @@ class AptitudePackageManager(PackageManager):
         all_updates = []
         all_updates_versions = []
         ubuntu_pro_client_all_updates_query_success = False
+        # Pro Client queries do not honor custom (snapshot) sources, so its results are not representative under strict SDP
+        use_pro_client_results = self.__pro_client_prereq_met and self.max_patch_publish_date == str()
 
         self.composite_logger.log_verbose("[APM] Discovering all packages...")
         # use Ubuntu Pro Client cached list when the conditions are met.
-        if self.__pro_client_prereq_met and not len(self.ubuntu_pro_client_all_updates_cached) == 0:
+        if use_pro_client_results and not len(self.ubuntu_pro_client_all_updates_cached) == 0:
             all_updates = self.ubuntu_pro_client_all_updates_cached
             all_updates_versions = self.ubuntu_pro_client_all_updates_versions_cached
 
-        elif not self.__pro_client_prereq_met and not len(self.all_updates_cached) == 0:
+        elif not use_pro_client_results and not len(self.all_updates_cached) == 0:
             all_updates = self.all_updates_cached
             all_updates_versions = self.all_update_versions_cached
 
@@ -517,7 +525,7 @@ class AptitudePackageManager(PackageManager):
             if len(all_updates_missed_updates) > 0:     # interesting, for review
                 self.composite_logger.log_debug("[APM-Pro][*] Pro Client only updates found. [Count={0}][Updates={1}]".format(len(all_updates_missed_updates), all_updates_missed_updates))
 
-        if ubuntu_pro_client_all_updates_query_success:     # this needs to be revisited based on logs above
+        if ubuntu_pro_client_all_updates_query_success and use_pro_client_results:     # this needs to be revisited based on logs above
             return self.ubuntu_pro_client_all_updates_cached, self.ubuntu_pro_client_all_updates_versions_cached
         else:
             return self.all_updates_cached, self.all_update_versions_cached

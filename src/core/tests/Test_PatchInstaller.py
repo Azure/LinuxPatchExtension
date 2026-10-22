@@ -366,6 +366,25 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # unsupported in Zypper
         runtime.stop()
 
+    def test_patch_installer_for_azgps_coordinated_warns_on_zero_install(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = "PT235M"
+        argument_composer.health_store_id = "pub_offer_sku_2024.04.01"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+        warnings = []
+        backup_log_warning = runtime.composite_logger.log_warning
+        runtime.composite_logger.log_warning = lambda message: warnings.append(message)
+        runtime.package_manager.install_security_updates_azgps_coordinated = lambda: (0, "0 upgraded, 0 newly installed")     # success exit code, nothing installed
+
+        self.assertTrue(runtime.patch_installer.start_installation())
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "20240401T000000Z")     # strict SDP path retained (no fall-back)
+        zero_install_warnings = [warning for warning in warnings if "Security updates were found but none were installed" in warning]
+        self.assertEqual(len(zero_install_warnings), 1)
+        self.assertIn("[MaxPatchPublishDate=20240401T000000Z]", zero_install_warnings[0])
+        runtime.composite_logger.log_warning = backup_log_warning
+        runtime.stop()
+
     def test_mark_status_completed_esm_required(self):
         obj = MockUpdatesResult()
         obj.mock_import_uaclient_update_module('updates', 'mock_update_list_with_one_esm_update')

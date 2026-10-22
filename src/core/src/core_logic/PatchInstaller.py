@@ -210,6 +210,9 @@ class PatchInstaller(object):
                 else:
                     patch_installation_successful = True
                     break
+
+            if installed_update_count == 0 and len(packages) > 0:
+                self.composite_logger.log_warning("[PI][AzGPS-Coordinated] Security updates were found but none were installed. [SecurityPackageCount={0}][MaxPatchPublishDate={1}]".format(str(len(packages)), self.execution_config.max_patch_publish_date))
         except Exception as error:
             error_msg = "AzGPS strict safe deployment to target date hit a failure. Defaulting to regular upgrades. [MaxPatchPublishDate={0}]".format(self.execution_config.max_patch_publish_date)
             self.composite_logger.log_error(error_msg + "[Error={0}]".format(repr(error)))
