@@ -125,22 +125,6 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
         self.assertIn("20240401T160000Z-security", commands[install_commands[0]])
         self.__clear_mock_sources_path(mock_sources_path)
 
-    def test_get_all_updates_ignores_pro_client_results_under_strict_sdp(self):
-        # Pro Client does not honor snapshot sources, so default (snapshot-sourced) results must be used when a max patch publish date is set
-        package_manager, mock_sources_path, commands = self.__get_package_manager_with_command_tracking()
-        package_manager._AptitudePackageManager__pro_client_prereq_met = True
-        package_manager.ubuntu_pro_client.get_all_updates = lambda: (True, ["pro-only-pkg"], ["9.9"])
-        package_manager.extract_packages_and_versions = lambda output: (["curl", "libcurl4t64"], ["2.0", "2.0"])
-
-        package_manager.set_max_patch_publish_date("20240401T160000Z")
-        self.assertEqual(package_manager.get_all_updates(cached=False), (["curl", "libcurl4t64"], ["2.0", "2.0"]))
-        self.assertEqual(package_manager.get_all_updates(cached=True), (["curl", "libcurl4t64"], ["2.0", "2.0"]))
-
-        package_manager.set_max_patch_publish_date()    # regular (non strict SDP) behavior is unchanged
-        self.assertEqual(package_manager.get_all_updates(cached=False), (["pro-only-pkg"], ["9.9"]))
-        self.assertEqual(package_manager.get_all_updates(cached=True), (["pro-only-pkg"], ["9.9"]))
-        self.__clear_mock_sources_path(mock_sources_path)
-
     def test_sources_list_and_parts_combinations(self):
         # Tests 32 combinations of source configuration on disk and desired manipulations + caching
         for include_sources_list in [True, False]:

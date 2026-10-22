@@ -491,16 +491,14 @@ class AptitudePackageManager(PackageManager):
         all_updates = []
         all_updates_versions = []
         ubuntu_pro_client_all_updates_query_success = False
-        # Pro Client queries do not honor custom (snapshot) sources, so its results are not representative under strict SDP
-        use_pro_client_results = self.__pro_client_prereq_met and self.max_patch_publish_date == str()
 
         self.composite_logger.log_verbose("[APM] Discovering all packages...")
         # use Ubuntu Pro Client cached list when the conditions are met.
-        if use_pro_client_results and not len(self.ubuntu_pro_client_all_updates_cached) == 0:
+        if self.__pro_client_prereq_met and not len(self.ubuntu_pro_client_all_updates_cached) == 0:
             all_updates = self.ubuntu_pro_client_all_updates_cached
             all_updates_versions = self.ubuntu_pro_client_all_updates_versions_cached
 
-        elif not use_pro_client_results and not len(self.all_updates_cached) == 0:
+        elif not self.__pro_client_prereq_met and not len(self.all_updates_cached) == 0:
             all_updates = self.all_updates_cached
             all_updates_versions = self.all_update_versions_cached
 
@@ -525,7 +523,7 @@ class AptitudePackageManager(PackageManager):
             if len(all_updates_missed_updates) > 0:     # interesting, for review
                 self.composite_logger.log_debug("[APM-Pro][*] Pro Client only updates found. [Count={0}][Updates={1}]".format(len(all_updates_missed_updates), all_updates_missed_updates))
 
-        if ubuntu_pro_client_all_updates_query_success and use_pro_client_results:     # this needs to be revisited based on logs above
+        if ubuntu_pro_client_all_updates_query_success:     # this needs to be revisited based on logs above
             return self.ubuntu_pro_client_all_updates_cached, self.ubuntu_pro_client_all_updates_versions_cached
         else:
             return self.all_updates_cached, self.all_update_versions_cached

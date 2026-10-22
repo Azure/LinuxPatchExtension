@@ -193,8 +193,10 @@ class PatchInstaller(object):
             maintenance_window_exceeded = False
 
             install_result = Constants.FAILED
+            verified_security_packages = []
             for i in range(0, Constants.MAX_INSTALLATION_RETRY_COUNT):
                 code, out = package_manager.install_security_updates_azgps_coordinated()
+                installed_update_count += self.reconcile_security_target_versions_azgps_coordinated(package_manager, packages, package_versions, verified_security_packages)
                 installed_update_count += self.perform_status_reconciliation_conditionally(package_manager)
 
                 remaining_time = maintenance_window.get_remaining_time_in_minutes()
@@ -715,6 +717,26 @@ class PatchInstaller(object):
         self.last_still_needed_packages = still_needed_packages
         self.last_still_needed_package_versions = still_needed_package_versions
         self.composite_logger.log_verbose("Completed status reconciliation. Time taken: " + str(time.time() - start_time) + " seconds.")
+        return len(successful_packages)
+
+    def reconcile_security_target_versions_azgps_coordinated(self, package_manager, packages, package_versions, verified_packages):
+        """Marks security packages whose target version is now installed; returns count of newly verified installs.
+           Name-only reconciliation misses these when a newer non-security candidate keeps the package in the all-updates list.
+           Verified packages are removed from last_still_needed_packages so that name-based reconciliation does not count them again."""
+        successful_packages = []
+        successful_package_versions = []
+        for package, package_version in zip(packages, package_versions):
+            if package in verified_packages or not package_manager.is_package_version_installed(package, package_version):
+                continue
+            successful_packages.append(package)
+            successful_package_versions.append(package_version)
+            verified_packages.append(package)
+            if package in self.last_still_needed_packages:
+                index = self.last_still_needed_packages.index(package)
+                self.last_still_needed_packages.pop(index)
+                self.last_still_needed_package_versions.pop(index)
+
+        self.status_handler.set_package_install_status(successful_packages, successful_package_versions, Constants.INSTALLED)
         return len(successful_packages)
     # endregion
 
