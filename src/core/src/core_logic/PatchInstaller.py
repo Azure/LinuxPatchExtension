@@ -197,6 +197,15 @@ class PatchInstaller(object):
             for i in range(0, Constants.MAX_INSTALLATION_RETRY_COUNT):
                 code, out = package_manager.install_security_updates_azgps_coordinated()
                 installed_update_count += self.reconcile_security_target_versions_azgps_coordinated(package_manager, packages, package_versions, verified_security_packages)
+                if code == 0:
+                    # Security updates not available in the target-date snapshot were not selected for this run; name-based reconciliation below overrides confirmed installs
+                    not_selected_packages = []
+                    not_selected_package_versions = []
+                    for package, package_version in zip(packages, package_versions):
+                        if package not in verified_security_packages:
+                            not_selected_packages.append(package)
+                            not_selected_package_versions.append(package_version)
+                    self.status_handler.set_package_install_status(not_selected_packages, not_selected_package_versions, Constants.NOT_SELECTED)
                 installed_update_count += self.perform_status_reconciliation_conditionally(package_manager)
 
                 remaining_time = maintenance_window.get_remaining_time_in_minutes()
@@ -212,15 +221,6 @@ class PatchInstaller(object):
                 else:
                     patch_installation_successful = True
                     break
-
-            # Security updates not available in the target-date snapshot were not selected for this run
-            not_selected_packages = []
-            not_selected_package_versions = []
-            for package, package_version in zip(packages, package_versions):
-                if package not in verified_security_packages:
-                    not_selected_packages.append(package)
-                    not_selected_package_versions.append(package_version)
-            self.status_handler.set_package_install_status(not_selected_packages, not_selected_package_versions, Constants.NOT_SELECTED)
 
             if installed_update_count == 0 and len(packages) > 0:
                 self.composite_logger.log_warning("[PI][AzGPS-Coordinated] Security updates were found but none were installed. [SecurityPackageCount={0}][MaxPatchPublishDate={1}]".format(str(len(packages)), self.execution_config.max_patch_publish_date))
