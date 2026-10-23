@@ -294,6 +294,12 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log("[APM] Refreshing local repo... [SourcePartsDir={0}][SourceList={1}]".format(source_parts_dir, source_list))
         self.invoke_package_manager(self.__generate_command_with_custom_sources(self.cmd_repo_refresh_template, source_parts_dir, source_list))
 
+        # A default-sources refresh makes apt clean up (delete) package lists of any other sources, including dated snapshot lists.
+        # Invalidate the cached snapshot formula so the next snapshot-sourced operation re-fetches its lists instead of running against none.
+        if source_parts_dir == str() and source_list == str() and self.max_patch_publish_date != str() and self.current_source_formula is not None:
+            self.composite_logger.log_debug("[APM] Invalidating cached custom sources after default-sources refresh. [PreviousFormula={0}]".format(str(self.current_source_formula)))
+            self.current_source_formula = None
+
     @staticmethod
     def __generate_command_with_custom_sources(command_template, source_parts=str(), source_list=str()):
         # type: (str, str, str) -> str

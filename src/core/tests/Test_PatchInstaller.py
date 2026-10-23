@@ -33,6 +33,9 @@ class TestPatchInstaller(unittest.TestCase):
         pass
 
     # region Mocks
+    def mock_log_warning_to_capture(self, message):
+        self.captured_warnings.append(message)
+
     def mock_try_update_certs_raise_exception(self):
         raise Exception("Simulated cert update failure")
 
@@ -364,6 +367,52 @@ class TestPatchInstaller(unittest.TestCase):
         self.assertFalse(runtime.patch_installer.start_installation())                 # failure is in unrelated patch installation batch processing
         self.assertEqual(runtime.execution_config.max_patch_publish_date, "20240401T000000Z")
         self.assertEqual(runtime.package_manager.max_patch_publish_date, "")    # unsupported in Zypper
+        runtime.stop()
+
+    def test_patch_installer_for_azgps_coordinated_warns_on_zero_install(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = "PT235M"
+        argument_composer.health_store_id = "pub_offer_sku_2024.04.01"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+        self.captured_warnings = []
+        backup_log_warning = runtime.composite_logger.log_warning
+        runtime.composite_logger.log_warning = self.mock_log_warning_to_capture
+        runtime.package_manager.install_security_updates_azgps_coordinated = lambda: (0, "0 upgraded, 0 newly installed")     # success exit code, nothing installed
+
+        self.assertTrue(runtime.patch_installer.start_installation())
+        self.assertEqual(runtime.package_manager.max_patch_publish_date, "20240401T000000Z")     # strict SDP path retained (no fall-back)
+        zero_install_warnings = [warning for warning in self.captured_warnings if "Security updates were found but none were installed" in warning]
+        self.assertEqual(len(zero_install_warnings), 1)
+        self.assertIn("[MaxPatchPublishDate=20240401T000000Z]", zero_install_warnings[0])
+        runtime.composite_logger.log_warning = backup_log_warning
+        runtime.stop()
+
+    def test_patch_installer_for_azgps_coordinated_counts_security_install_with_newer_updates_candidate(self):
+        argument_composer = ArgumentComposer()
+        argument_composer.maximum_duration = "PT235M"
+        argument_composer.health_store_id = "pub_offer_sku_2024.04.01"
+        runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
+        runtime.set_legacy_test_type('HappyPath')
+        runtime.package_manager.set_max_patch_publish_date("20240401T000000Z")
+        runtime.package_manager.get_all_updates = lambda cached=False: (["curl"], ["3.0"])      # -updates candidate remains available before and after install
+        runtime.package_manager.get_security_updates = lambda: (["curl"], ["2.0"])              # -security candidate
+        runtime.package_manager.install_security_updates_azgps_coordinated = lambda: (0, "1 upgraded, 0 newly installed")
+        runtime.package_manager.is_package_version_installed = lambda package, version: package == "curl" and version == "2.0"
+
+        installed_update_count, update_run_successful, maintenance_window_exceeded = runtime.patch_installer.install_updates_azgps_coordinated(runtime.maintenance_window, runtime.package_manager)
+        self.assertEqual(installed_update_count, 1)
+        self.assertTrue(update_run_successful)
+        self.assertFalse(maintenance_window_exceeded)
+
+        with runtime.env_layer.file_system.open(runtime.execution_config.status_file_path, 'r') as file_handle:
+            substatus_file_data = json.load(file_handle)[0]["status"]["substatus"]
+        installation_substatus = [item for item in substatus_file_data if item["name"] == Constants.PATCH_INSTALLATION_SUMMARY][0]
+        patches = json.loads(installation_substatus["formattedMessage"]["message"])["patches"]
+        self.assertEqual(len(patches), 1)
+        self.assertEqual(patches[0]["name"], "curl")
+        self.assertEqual(patches[0]["version"], "2.0")
+        self.assertEqual(patches[0]["patchInstallationState"], Constants.INSTALLED)
         runtime.stop()
 
     def test_mark_status_completed_esm_required(self):
