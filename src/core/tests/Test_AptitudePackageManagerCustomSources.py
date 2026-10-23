@@ -33,6 +33,15 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
+    # region Mocks
+    def mock_invoke_package_manager_advanced_to_track_commands(self, command, raise_on_exception=True):
+        self.tracked_commands.append(command)
+        return str(), 0
+
+    def mock_ubuntu_pro_client_get_security_updates_returns_failure(self):
+        return False, [], []
+    # endregion
+
     def test_custom_source_invocation_for_security(self):
         def get_custom_sources_to_spec_for_sec(max_patch_published_date=str(), base_classification=str()):
             assert max_patch_published_date is str()
@@ -108,7 +117,7 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
         package_manager, mock_sources_path, commands = self.__get_package_manager_with_command_tracking()
         package_manager.set_max_patch_publish_date("20240401T160000Z")
         package_manager._AptitudePackageManager__pro_client_prereq_met = True
-        package_manager.ubuntu_pro_client.get_security_updates = lambda: (False, [], [])
+        package_manager.ubuntu_pro_client.get_security_updates = self.mock_ubuntu_pro_client_get_security_updates_returns_failure
 
         package_manager.get_security_updates()
         code, out = package_manager.install_security_updates_azgps_coordinated()
@@ -257,17 +266,12 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
     def __get_package_manager_with_command_tracking(self):
         # type: () -> (object, str, list)
         # Returns a package manager wired to mock sources, with every package manager command captured instead of executed
-        commands = []
+        self.tracked_commands = []
         mock_sources_path = self.__prep_scratch_with_sources(include_sources_list=True, include_source_parts_list=False, include_source_parts_debstyle=True)
         package_manager = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
         self.__adapt_package_manager_for_mock_sources(package_manager, mock_sources_path)
-
-        def mock_invoke_package_manager_advanced(command, raise_on_exception=True):
-            commands.append(command)
-            return str(), 0
-
-        package_manager.invoke_package_manager_advanced = mock_invoke_package_manager_advanced
-        return package_manager, mock_sources_path, commands
+        package_manager.invoke_package_manager_advanced = self.mock_invoke_package_manager_advanced_to_track_commands
+        return package_manager, mock_sources_path, self.tracked_commands
 
     @staticmethod
     def __count_custom_source_refreshes(commands):

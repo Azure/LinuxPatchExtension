@@ -33,6 +33,9 @@ class TestPatchInstaller(unittest.TestCase):
         pass
 
     # region Mocks
+    def mock_log_warning_to_capture(self, message):
+        self.captured_warnings.append(message)
+
     def mock_try_update_certs_raise_exception(self):
         raise Exception("Simulated cert update failure")
 
@@ -372,14 +375,14 @@ class TestPatchInstaller(unittest.TestCase):
         argument_composer.health_store_id = "pub_offer_sku_2024.04.01"
         runtime = RuntimeCompositor(argument_composer.get_composed_arguments(), True, Constants.APT)
         runtime.set_legacy_test_type('HappyPath')
-        warnings = []
+        self.captured_warnings = []
         backup_log_warning = runtime.composite_logger.log_warning
-        runtime.composite_logger.log_warning = lambda message: warnings.append(message)
+        runtime.composite_logger.log_warning = self.mock_log_warning_to_capture
         runtime.package_manager.install_security_updates_azgps_coordinated = lambda: (0, "0 upgraded, 0 newly installed")     # success exit code, nothing installed
 
         self.assertTrue(runtime.patch_installer.start_installation())
         self.assertEqual(runtime.package_manager.max_patch_publish_date, "20240401T000000Z")     # strict SDP path retained (no fall-back)
-        zero_install_warnings = [warning for warning in warnings if "Security updates were found but none were installed" in warning]
+        zero_install_warnings = [warning for warning in self.captured_warnings if "Security updates were found but none were installed" in warning]
         self.assertEqual(len(zero_install_warnings), 1)
         self.assertIn("[MaxPatchPublishDate=20240401T000000Z]", zero_install_warnings[0])
         runtime.composite_logger.log_warning = backup_log_warning

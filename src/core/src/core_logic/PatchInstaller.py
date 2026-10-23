@@ -723,6 +723,7 @@ class PatchInstaller(object):
         """Marks security packages whose target version is now installed; returns count of newly verified installs.
            Name-only reconciliation misses these when a newer non-security candidate keeps the package in the all-updates list.
            Verified packages are removed from last_still_needed_packages so that name-based reconciliation does not count them again."""
+        self.composite_logger.log_debug("Starting security target version reconciliation. [SecurityPackageCount={0}][AlreadyVerifiedCount={1}]".format(str(len(packages)), str(len(verified_packages))))
         successful_packages = []
         successful_package_versions = []
         for package, package_version in zip(packages, package_versions):
@@ -737,6 +738,7 @@ class PatchInstaller(object):
                 self.last_still_needed_package_versions.pop(index)
 
         self.status_handler.set_package_install_status(successful_packages, successful_package_versions, Constants.INSTALLED)
+        self.composite_logger.log_debug("Completed security target version reconciliation. [NewlyVerifiedCount={0}][TotalVerifiedCount={1}][StillNeededCount={2}]".format(str(len(successful_packages)), str(len(verified_packages)), str(len(self.last_still_needed_packages))))
         return len(successful_packages)
     # endregion
 
