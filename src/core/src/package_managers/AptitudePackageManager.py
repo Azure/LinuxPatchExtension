@@ -362,8 +362,9 @@ class AptitudePackageManager(PackageManager):
 
             holder = self.__get_lock_holder_details(holder_pid)
             if holder is None:
-                self.composite_logger.log_warning("[APM] Package manager lock is held by process {0}, but its details could not be read (it may have already exited).".format(holder_pid))
-                return False
+                # the lock is tied to the holder process, so if it has exited the lock is already free; the retry is the authoritative check
+                self.composite_logger.log_warning("[APM] Package manager lock is held by process {0}, but its details could not be read (it may have already exited). Retrying the command once.".format(holder_pid))
+                return True
 
             if not self.__is_stale_extension_lock_holder(holder_pid, holder):
                 return False
@@ -397,10 +398,16 @@ class AptitudePackageManager(PackageManager):
                                           "[HolderPid={0}][HolderVersion={1}][CurrentVersion={2}][IsOlderVersion={3}][Holder={4}]"
                                           .format(holder_pid, holder_version, current_version, str(is_older_version), holder_metadata))
 
-        if re.search(r'(^|/)(apt|apt-get|dpkg)(\s|$)', holder_cmdline) is None or holder["ppid"] != 1 or not is_older_version:
-            self.composite_logger.log_warning("[APM] Not clearing the lock holder: it is not confidently an abandoned extension apt process. [HolderPid={0}][Ppid={1}][IsOlderVersion={2}]"
-                                              .format(holder_pid, holder["ppid"], str(is_older_version)))
+        is_apt_process = re.search(r'(^|/)(apt|apt-get|dpkg)(\s|$)', holder_cmdline) is not None
+        is_orphaned, ancestry = (False, "NotEvaluated")
+        if is_apt_process and is_older_version:  # only walk the parent chain when it can change the outcome
+            is_orphaned, ancestry = self.__get_holder_orphan_status(holder_pid, holder, version_match.group(1))
+
+        if not is_apt_process or not is_older_version or not is_orphaned:
+            self.composite_logger.log_warning("[APM] Not clearing the lock holder: it is not confidently an abandoned extension apt process. [HolderPid={0}][Ppid={1}][IsOlderVersion={2}][Ancestry={3}]"
+                                              .format(holder_pid, holder["ppid"], str(is_older_version), ancestry))
             return False
+        self.composite_logger.log("[APM] Lock holder is orphaned: its parent chain reaches PID 1 only through extension wrappers. [HolderPid={0}][Ancestry={1}]".format(holder_pid, ancestry))
 
         holder_age_in_days = self.__get_holder_age_in_days(holder["etime"])
         if holder_age_in_days is None:
@@ -412,6 +419,38 @@ class AptitudePackageManager(PackageManager):
             return False
 
         return True
+
+    def __get_holder_orphan_status(self, holder_pid, holder, holder_version_str):
+        """ The extension runs commands as core -> sh -c -> sudo -> apt-get. When the core dies only the top wrapper is adopted by PID 1,
+            so the holder's own parent stays sudo. The holder is orphaned only if every ancestor up to PID 1 is a sh/sudo wrapper
+            launched by the same extension version. Read-only: ancestors are never signalled.
+            Returns (is_orphaned, ancestry), where ancestry is log-safe, e.g. 101(apt-get)<-100(sudo)<-99(sh)<-1 """
+        wrapper_version_pattern = r'LinuxPatchExtension-' + re.escape(holder_version_str) + r'(?!\d)'
+        ancestry = "{0}({1})".format(holder_pid, self.__get_process_name(holder["cmd"]))
+        current = holder
+
+        for _ in range(0, Constants.STALE_LOCK_HOLDER_MAX_ANCESTRY_DEPTH + 1):
+            parent_pid = current["ppid"]
+            if parent_pid == 1:
+                return True, ancestry + "<-1"
+
+            parent = self.__get_lock_holder_details(parent_pid)
+            if parent is None:
+                return False, ancestry + "<-{0}(Unreadable)".format(parent_pid)
+
+            parent_name = self.__get_process_name(parent["cmd"])
+            ancestry += "<-{0}({1})".format(parent_pid, parent_name)
+            if parent_name not in ("sh", "bash", "dash", "sudo") or re.search(wrapper_version_pattern, parent["cmd"]) is None:
+                return False, ancestry   # live owner, e.g. MsftLinuxPatchCore.py, waagent, or a process the extension did not launch
+            current = parent
+
+        return False, ancestry + "<-(MaxDepthReached)"
+
+    @staticmethod
+    def __get_process_name(cmd):
+        """ Executable basename only, so the full command line is never logged """
+        tokens = cmd.split() if cmd else []
+        return os.path.basename(tokens[0]) if tokens else "Unknown"
 
     @staticmethod
     def __get_holder_age_in_days(etime):

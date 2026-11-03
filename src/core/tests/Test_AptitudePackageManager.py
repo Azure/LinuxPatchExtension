@@ -40,6 +40,10 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.signals_sent = []                  # kill commands seen by the apt lock holder mocks
         self.apt_command_attempts = 0           # used to vary behavior of the apt lock holder mocks
         self.lock_holder_ps_call_count = 0      # used to vary behavior of the apt lock holder mocks
+        self.apt_lock_error = "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"   # shared by the apt lock holder process chain mocks
+        self.holder_cmd = "apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+        self.sudo_wrapper_cmd = "sudo " + self.holder_cmd
+        self.sh_wrapper_cmd = "/bin/sh -c sudo " + self.holder_cmd
         self.backup_ext_version = Constants.EXT_VERSION
         Constants.EXT_VERSION = "1.6.71"       # placeholder in source; pinned so extension versions can be compared
 
@@ -444,6 +448,84 @@ class TestAptitudePackageManager(unittest.TestCase):
         if cmd.find("ps -p") > -1:
             raise Exception("simulated ps failure")
         return 100, "Reading package lists...\nE: Could not get lock /var/lib/apt/lists/lock. It is held by process 123 (apt-get)\nE: Unable to lock directory /var/lib/apt/lists/"
+
+    @staticmethod
+    def __ps_line(ppid, cmd):
+        """ 'ps -p <pid> -o ppid=,lstart=,etime=,cmd=' output for a 78 day old process """
+        return 0, "{0} Mon Jan 1 00:00:00 2026 78-00:14:50 {1}".format(ppid, cmd)
+
+    def __apt_command_fails_on_lock_then_succeeds(self):
+        self.apt_command_attempts += 1
+        return (0, "Reading package lists...") if self.apt_command_attempts > 1 else (100, self.apt_lock_error)
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_orphaned_sudo_and_sh_wrappers(self, cmd, no_output=False, chk_err=True):
+        """ Core died, so only the top sh wrapper was adopted by PID 1 (apt-get <- sudo <- sh <- 1); the holder exits on SIGTERM. """
+        if cmd.find("kill -") > -1:
+            self.signals_sent.append(cmd)
+            return 0, ""
+        if cmd.find("ps -p 2324709") > -1:
+            return (1, "") if len(self.signals_sent) > 0 else self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p 2324708") > -1:
+            return self.__ps_line(2324707, self.sudo_wrapper_cmd)
+        if cmd.find("ps -p 2324707") > -1:
+            return self.__ps_line(1, self.sh_wrapper_cmd)
+        return self.__apt_command_fails_on_lock_then_succeeds()
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_live_core(self, cmd, no_output=False, chk_err=True):
+        """ Holder's wrappers are still owned by a live core process (apt-get <- sudo <- sh <- MsftLinuxPatchCore.py). """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p 2324708") > -1:
+            return self.__ps_line(2324707, self.sudo_wrapper_cmd)
+        if cmd.find("ps -p 2324707") > -1:
+            return self.__ps_line(2324706, self.sh_wrapper_cmd)
+        if cmd.find("ps -p 2324706") > -1:
+            return self.__ps_line(1, "/usr/bin/python3 /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/MsftLinuxPatchCore.py")
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_waagent(self, cmd, no_output=False, chk_err=True):
+        """ Holder's wrapper is owned by the guest agent (apt-get <- sudo <- waagent). """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p 2324708") > -1:
+            return self.__ps_line(2324700, self.sudo_wrapper_cmd)
+        if cmd.find("ps -p 2324700") > -1:
+            return self.__ps_line(1, "python3 -u /usr/sbin/waagent -run-exthandlers")
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_wrapper_from_different_extension_version(self, cmd, no_output=False, chk_err=True):
+        """ Holder is from 1.6.6 but its sudo wrapper is from 1.6.64 (a version that 1.6.6 is a prefix of). """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd.replace("LinuxPatchExtension-1.6.64", "LinuxPatchExtension-1.6.6"))
+        if cmd.find("ps -p 2324708") > -1:
+            return self.__ps_line(1, self.sudo_wrapper_cmd)
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_too_many_wrappers(self, cmd, no_output=False, chk_err=True):
+        """ Every ancestor of the holder is another sh wrapper, so PID 1 is never reached within the max depth. """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p") > -1:
+            pid = int(cmd.split("ps -p ")[1].split()[0])
+            return self.__ps_line(pid - 1, self.sh_wrapper_cmd)
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_with_unreadable_parent(self, cmd, no_output=False, chk_err=True):
+        """ Holder's parent cannot be read by ps. """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p") > -1:
+            return 1, ""
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_that_already_exited(self, cmd, no_output=False, chk_err=True):
+        """ Holder exited between apt reporting it and ps inspecting it; the retried apt command then succeeds. """
+        if cmd.find("kill -") > -1:
+            self.signals_sent.append(cmd)
+            return 0, ""
+        if cmd.find("ps -p") > -1:
+            return 1, ""
+        return self.__apt_command_fails_on_lock_then_succeeds()
     # endregion Mocks
 
     # region Utility Functions
@@ -2441,8 +2523,8 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.__assert_std_io(captured_output, "extension version could not be parsed")
         self.assertEqual(self.signals_sent, [])
 
-    def test_lock_holder_without_command_line_is_treated_as_unreadable_and_not_signalled(self):
-        # ps output with only 7 fields (no cmd) cannot identify the holder safely
+    def test_lock_holder_without_command_line_is_not_signalled_and_command_is_retried(self):
+        # ps output with only 7 fields (no cmd) cannot identify the holder safely, so it is never signalled; the retry decides the outcome
         package_manager = self.container.get('package_manager')
         self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_without_command_line
 
@@ -2454,6 +2536,8 @@ class TestAptitudePackageManager(unittest.TestCase):
             sys.stdout = original_stdout
 
         self.__assert_std_io(captured_output, "its details could not be read")
+        self.__assert_std_io(captured_output, "error persists after clearing the stale lock holder")
+        self.assertEqual(self.signals_sent, [])
 
     def test_lock_holder_that_is_not_an_extension_process_is_left_untouched(self):
         package_manager = self.container.get('package_manager')
@@ -2496,6 +2580,108 @@ class TestAptitudePackageManager(unittest.TestCase):
 
         self.__assert_std_io(captured_output, "Non-fatal: failed while inspecting package manager lock holder")
         self.__assert_std_io(captured_output, "simulated ps failure")
+
+    def test_stale_lock_holder_under_sudo_and_sh_wrappers_is_terminated(self):
+        # core died, so only the top sh wrapper was adopted by PID 1; the holder's own parent is still sudo
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_orphaned_sudo_and_sh_wrappers
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            result = package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(sudo)<-2324707(sh)<-1")
+        self.__assert_std_io(captured_output, "Retrying the command once after clearing the stale lock holder")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])   # only the holder, never its wrappers
+        self.assertEqual(result, "Reading package lists...")
+
+    def test_lock_holder_under_live_core_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_live_core
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(sudo)<-2324707(sh)<-2324706(python3)]")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_under_waagent_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_waagent
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(sudo)<-2324700(python3)]")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_under_wrapper_from_different_extension_version_is_not_terminated(self):
+        # 1.6.6 is a prefix of 1.6.64, so this also verifies the version match is exact
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_wrapper_from_different_extension_version
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(sudo)]")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_chain_exceeding_max_depth_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_too_many_wrappers
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "<-(MaxDepthReached)")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_with_unreadable_parent_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_with_unreadable_parent
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(Unreadable)]")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_that_already_exited_is_not_signalled_and_command_is_retried(self):
+        # the lock is tied to the holder process, so once it is gone the retry succeeds without any termination
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_that_already_exited
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            result = package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "it may have already exited). Retrying the command once.")
+        self.assertEqual(self.signals_sent, [])
+        self.assertEqual(result, "Reading package lists...")
     #end region
 
 if __name__ == '__main__':

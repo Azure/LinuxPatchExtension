@@ -247,6 +247,7 @@ class Constants(object):
     # Stale package manager lock holder recovery (see AptitudePackageManager)
     STALE_LOCK_HOLDER_MIN_AGE_IN_DAYS = 10      # a holder must be older than this to be considered abandoned
     STALE_LOCK_HOLDER_EXIT_GRACE_IN_SEC = 5     # time allowed for the holder to exit after each signal
+    STALE_LOCK_HOLDER_MAX_ANCESTRY_DEPTH = 3    # max sh/sudo wrappers walked above the holder (sh -> sudo -> sudo monitor) before giving up
 
     class PackageBatchConfig(EnumBackport):
         # Batch Patching Parameters
