@@ -425,7 +425,7 @@ class AptitudePackageManager(PackageManager):
             so the holder's own parent stays sudo. The holder is orphaned only if every ancestor up to PID 1 is a sh/sudo wrapper
             launched by the same extension version. Read-only: ancestors are never signalled.
             Returns (is_orphaned, ancestry), where ancestry is log-safe, e.g. 101(apt-get)<-100(sudo)<-99(sh)<-1 """
-        wrapper_version_pattern = r'LinuxPatchExtension-' + re.escape(holder_version_str) + r'(?!\d)'
+        wrapper_version_pattern = r'LinuxPatchExtension-' + re.escape(holder_version_str) + r'(?![\d.])'
         ancestry = "{0}({1})".format(holder_pid, self.__get_process_name(holder["cmd"]))
         current = holder
 
