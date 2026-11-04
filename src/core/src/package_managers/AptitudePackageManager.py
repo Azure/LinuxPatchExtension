@@ -382,12 +382,12 @@ class AptitudePackageManager(PackageManager):
         holder_cmdline = holder["cmd"]  # internal use only; never logged
 
         # Was the holder launched by a LinuxPatchExtension version? (path contains LinuxPatchExtension-<version>)
-        version_match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', holder_cmdline)
-        if version_match is None:
+        holder_version_str = self.__get_extension_version_str(holder_cmdline)
+        if holder_version_str is None:
             self.composite_logger.log_warning("[APM] Package manager lock is held by a non-extension process. [HolderPid={0}]".format(holder_pid))
             return False
 
-        holder_version = self.version_comparator.extract_version_from_version_str(version_match.group(1))
+        holder_version = self.version_comparator.extract_version_from_version_str(holder_version_str)
         current_version = self.version_comparator.extract_version_from_version_str(str(Constants.EXT_VERSION))
         if not holder_version or not current_version:
             self.composite_logger.log_warning("[APM] Not clearing the lock holder: extension version could not be parsed. [HolderPid={0}]".format(holder_pid))
@@ -401,7 +401,7 @@ class AptitudePackageManager(PackageManager):
         is_apt_process = re.search(r'(^|/)(apt|apt-get|dpkg)(\s|$)', holder_cmdline) is not None
         is_orphaned, ancestry = (False, "NotEvaluated")
         if is_apt_process and is_older_version:  # only walk the parent chain when it can change the outcome
-            is_orphaned, ancestry = self.__get_holder_orphan_status(holder_pid, holder, version_match.group(1))
+            is_orphaned, ancestry = self.__get_holder_orphan_status(holder_pid, holder)
 
         if not is_apt_process or not is_older_version or not is_orphaned:
             self.composite_logger.log_warning("[APM] Not clearing the lock holder: it is not confidently an abandoned extension apt process. [HolderPid={0}][Ppid={1}][IsOlderVersion={2}][Ancestry={3}]"
@@ -420,13 +420,16 @@ class AptitudePackageManager(PackageManager):
 
         return True
 
-    def __get_holder_orphan_status(self, holder_pid, holder, holder_version_str):
+    def __get_holder_orphan_status(self, holder_pid, holder):
         """ The extension runs commands as core -> sh -c -> sudo -> apt-get. When the core dies only the top wrapper is adopted by PID 1,
             so the holder's own parent stays sudo. The holder is orphaned only if every ancestor up to PID 1 is a sh/sudo wrapper
-            launched by the same extension version. Read-only: ancestors are never signalled.
+            launched by the same extension version as the holder. Read-only: ancestors are never signalled.
             Returns (is_orphaned, ancestry), where ancestry is log-safe, e.g. 101(apt-get)<-100(sudo)<-99(sh)<-1 """
-        wrapper_version_pattern = r'LinuxPatchExtension-' + re.escape(holder_version_str) + r'(?![\d.])'
         ancestry = "{0}({1})".format(holder_pid, self.__get_process_name(holder["cmd"]))
+        holder_version_str = self.__get_extension_version_str(holder["cmd"])   # derived from the holder itself, so wrappers are always matched against its own version
+        if holder_version_str is None:
+            return False, ancestry + "<-(NoExtensionVersion)"
+        wrapper_version_pattern = r'LinuxPatchExtension-' + re.escape(holder_version_str) + r'(?![\d.])'
         current = holder
 
         for _ in range(0, Constants.STALE_LOCK_HOLDER_MAX_ANCESTRY_DEPTH + 1):
@@ -445,6 +448,12 @@ class AptitudePackageManager(PackageManager):
             current = parent
 
         return False, ancestry + "<-(MaxDepthReached)"
+
+    @staticmethod
+    def __get_extension_version_str(cmd):
+        """ Extension version from a command line launched by the extension (path contains LinuxPatchExtension-<version>), or None """
+        version_match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', cmd) if cmd else None
+        return version_match.group(1) if version_match else None
 
     @staticmethod
     def __get_process_name(cmd):
