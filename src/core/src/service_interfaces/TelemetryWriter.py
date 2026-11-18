@@ -128,8 +128,8 @@ class TelemetryWriter(object):
         return events_folder_path is not None and os.path.exists(events_folder_path)
 
     def __new_event_json(self, event_level, message, task_name):
-        # Step 1: Sanitize credentials from URIs
-        sanitized_message = self.credential_sanitizer.sanitize(message)
+        # Step 1: Sanitize credentials from URIs (payloads may be dicts, e.g. write_package_info)
+        sanitized_message = self.credential_sanitizer.sanitize(str(message))
         # Step 2: Apply message restrictions (formatting, truncation)
         restricted_message = self.__ensure_message_restriction_compliance(sanitized_message)
 

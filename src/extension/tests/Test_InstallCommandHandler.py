@@ -28,6 +28,7 @@ class TestInstallCommandHandler(unittest.TestCase):
 
     def setUp(self):
         VirtualTerminal().print_lowlight("\n----------------- setup test runner -----------------")
+        self.original_platform = sys.platform
         runtime = RuntimeComposer()
         self.logger = runtime.logger
         self.env_layer = runtime.env_layer
@@ -43,6 +44,7 @@ class TestInstallCommandHandler(unittest.TestCase):
 
     def tearDown(self):
         VirtualTerminal().print_lowlight("\n----------------- tear down test runner -----------------")
+        sys.platform = self.original_platform
         # resetting mocks
         self.json_file_handler.get_json_file_content = self.get_json_file_content_backup
         # reset temp folder mock from ExtEnvHandler
@@ -64,7 +66,14 @@ class TestInstallCommandHandler(unittest.TestCase):
         ext_env_handler = ExtEnvHandler(self.logger, self.env_layer, self.json_file_handler)
         install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
         sys.platform = 'win32'
-        self.assertRaises(Exception, install_command_handler.validate_os_type)
+        self.assertEqual(install_command_handler.validate_os_type(), Constants.ExitCode.UnsupportedOperatingSystem)
+
+    def test_execute_action_handler_not_linux(self):
+        ext_env_handler = ExtEnvHandler(self.logger, self.env_layer, self.json_file_handler)
+        install_command_handler = InstallCommandHandler(self.logger, ext_env_handler)
+        sys.platform = 'win32'
+        # The mocked environment has no content; it must not be validated on unsupported OSes.
+        self.assertEqual(install_command_handler.execute_handler_action(), Constants.ExitCode.UnsupportedOperatingSystem)
 
     def test_validate_environment(self):
         config_type = 'handlerEnvironment'

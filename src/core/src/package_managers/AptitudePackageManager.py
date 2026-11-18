@@ -20,6 +20,7 @@ import os
 import re
 import shutil
 import sys
+import time
 
 from core.src.package_managers.PackageManager import PackageManager
 from core.src.bootstrap.Constants import Constants
@@ -97,14 +98,45 @@ class AptitudePackageManager(PackageManager):
         self.install_mokutil_cmd = "sudo apt-get install -y -qq mokutil"
         self.apt_update_cmd = "sudo apt-get -q update"
         self.min_fwupd_version = "2.0.8" # Refer public docs: https://github.com/fwupd/fwupd/releases/tag/2.0.8 and https://discourse.ubuntu.com/t/microsoft-uefi-ca-rotation-what-it-means-for-ubuntu-users-and-vendors/82652
-        self.get_installed_fwupd_version_cmd = "fwupdmgr --version"
         self.remove_fwupd_cmd = "sudo apt-get purge -y fwupd"
-        self.install_fwupd_cmd = "sudo apt-get install -y fwupd"
-        self.fwupd_refresh_cmd = "sudo fwupdmgr refresh" # NOTE: This could be made generic in package manager, depending on what solution type is adopted for other distros
-        self.fwupd_update_cmd = "sudo fwupdmgr update -y"
+        self.apt_fwupd_install_cmd = "sudo apt-get install -y fwupd"
+        self.snap_fwupd_install_cmd = "sudo snap install fwupd"
+        self.snap_fwupd_refresh_cmd = "sudo snap refresh fwupd"
+        self.snapd_refresh_cmd = "sudo snap refresh snapd"
+        self.apt_fwupd_version_cmd = "fwupdmgr --version"
+        self.snap_fwupd_version_cmd = "/snap/bin/fwupdmgr --version"
+        self.apt_fwupd_force_refresh_cmd = "sudo fwupdmgr refresh --force"
+        self.snap_fwupd_force_refresh_cmd = "sudo /snap/bin/fwupdmgr refresh --force"
+        self.apt_fwupd_update_cmd = "sudo fwupdmgr update -y"
+        self.snap_fwupd_update_cmd = "sudo /snap/bin/fwupdmgr update -y"
+        # Ubuntu releases before 22.04 require the fwupd snap to obtain a recent enough version.
+        self.is_snap_fwupd_required = self.__is_snap_fwupd_required()
+        self.install_fwupd_cmd = self.__get_fwupd_snap_install_command() if self.is_snap_fwupd_required else self.apt_fwupd_install_cmd
+        self.get_installed_fwupd_version_cmd = self.snap_fwupd_version_cmd if self.is_snap_fwupd_required else self.apt_fwupd_version_cmd
+        self.fwupd_force_refresh_cmd = self.snap_fwupd_force_refresh_cmd if self.is_snap_fwupd_required else self.apt_fwupd_force_refresh_cmd
+        self.fwupd_update_cmd = self.snap_fwupd_update_cmd if self.is_snap_fwupd_required else self.apt_fwupd_update_cmd
         self.get_uptime_seconds_cmd = "cat /proc/uptime"
         self.get_hibernation_state_cmd = "cat /sys/power/disk"
         self.pre_cert_reboot_uptime_threshold_seconds = 7 * 24 * 60 * 60 # NOTE: This needs to be reviewed again later as these aren't specific to this class
+
+    def __is_fwupd_snap_installed(self):
+        # type: () -> bool
+        """Return True when the fwupd snap version command succeeds."""
+        cmd = self.snap_fwupd_version_cmd
+        try:
+            code, out = self.env_layer.run_command_output(cmd, False, False)
+            self.composite_logger.log_debug("[APM][Certs] Checked for the fwupd snap. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
+            return code == self.apt_exitcode_ok
+        except Exception as error:
+            self.composite_logger.log_debug("[APM][Certs] Unable to determine if the fwupd snap is installed. [Error={0}]".format(repr(error)))
+            return False
+
+    def __get_fwupd_snap_install_command(self):
+        # type: () -> str
+        """Use refresh when the snap version probe succeeds; otherwise install it."""
+        if self.__is_fwupd_snap_installed():
+            return self.snap_fwupd_refresh_cmd
+        return self.snap_fwupd_install_cmd
 
     # region Sources Management
     def __get_custom_sources_to_spec(self, max_patch_published_date=str(), base_classification=str()):
@@ -262,6 +294,12 @@ class AptitudePackageManager(PackageManager):
         self.composite_logger.log("[APM] Refreshing local repo... [SourcePartsDir={0}][SourceList={1}]".format(source_parts_dir, source_list))
         self.invoke_package_manager(self.__generate_command_with_custom_sources(self.cmd_repo_refresh_template, source_parts_dir, source_list))
 
+        # A default-sources refresh makes apt clean up (delete) package lists of any other sources, including dated snapshot lists.
+        # Invalidate the cached snapshot formula so the next snapshot-sourced operation re-fetches its lists instead of running against none.
+        if source_parts_dir == str() and source_list == str() and self.max_patch_publish_date != str() and self.current_source_formula is not None:
+            self.composite_logger.log_debug("[APM] Invalidating cached custom sources after default-sources refresh. [PreviousFormula={0}]".format(str(self.current_source_formula)))
+            self.current_source_formula = None
+
     @staticmethod
     def __generate_command_with_custom_sources(command_template, source_parts=str(), source_list=str()):
         # type: (str, str, str) -> str
@@ -291,6 +329,14 @@ class AptitudePackageManager(PackageManager):
                 raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
         elif code != self.apt_exitcode_ok:
             self.composite_logger.log_warning('[ERROR] Customer environment error. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
+            if self.__clear_stale_lock_holder_if_present(out):
+                # the holder is gone, which does not guarantee the lock is free; the retry is the authoritative check
+                self.composite_logger.log("[APM] Retrying the command once after clearing the stale lock holder. [Command={0}]".format(command))
+                code, out = self.env_layer.run_command_output(command, False, False)
+                if code == self.apt_exitcode_ok:
+                    self.composite_logger.log_debug('[APM] Invoked package manager after clearing a stale lock holder. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
+                    return out, code
+                self.composite_logger.log_warning('[ERROR] Customer environment error persists after clearing the stale lock holder. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
             error_msg = "Customer environment error: Investigate and resolve unexpected return code ({0}) from package manager on command: {1}".format(str(code), command)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             if raise_on_exception:
@@ -299,6 +345,179 @@ class AptitudePackageManager(PackageManager):
         else:  # verbose diagnostic log
             self.composite_logger.log_debug('[APM] Invoked package manager. [Command={0}][Code={1}][Output={2}]'.format(command, str(code), str(out)))
         return out, code
+
+    def __clear_stale_lock_holder_if_present(self, command_output):
+        """ Best-effort recovery for a package-manager lock held by an abandoned LinuxPatchExtension process.
+            Returns True only if a holder was terminated. """
+        try:
+            if command_output is None or ("Could not get lock" not in command_output and "Unable to lock" not in command_output):
+                return False  # not a lock-contention failure, nothing to diagnose
+
+            # apt reports the holder PID directly, e.g. "It is held by process 123456 (apt-get)"
+            pid_match = re.search(r'held by process (\d+)', command_output)
+            if pid_match is None:
+                self.composite_logger.log_warning("[APM] Package manager lock is held, but the holding process id could not be determined from the output. [Output={0}]".format(command_output))
+                return False
+            holder_pid = pid_match.group(1)
+
+            holder = self.__get_lock_holder_details(holder_pid)
+            if holder is None:
+                # the lock is tied to the holder process, so if it has exited the lock is already free; the retry is the authoritative check
+                self.composite_logger.log_warning("[APM] Package manager lock is held by process {0}, but its details could not be read (it may have already exited). Retrying the command once.".format(holder_pid))
+                return True
+
+            if not self.__is_stale_extension_lock_holder(holder_pid, holder):
+                return False
+
+            return self.__terminate_stale_lock_holder(holder_pid, holder)
+        except Exception as error:
+            # detection and recovery are best-effort and must not affect the main patch flow
+            self.composite_logger.log_error("[APM] Non-fatal: failed while inspecting package manager lock holder. [Error={0}]".format(repr(error)))
+            return False
+
+    def __is_stale_extension_lock_holder(self, holder_pid, holder):
+        """ Returns True only if every safety gate passes: an apt/dpkg process launched by an older
+            LinuxPatchExtension version, orphaned (ppid 1) and older than the age threshold. """
+        holder_metadata = "Pid={0}, Ppid={1}, Etime={2}".format(holder_pid, holder["ppid"], holder["etime"])  # allowlisted only
+        holder_cmdline = holder["cmd"]  # internal use only; never logged
+
+        # Was the holder launched by a LinuxPatchExtension version? (path contains LinuxPatchExtension-<version>)
+        holder_version_str = self.__get_extension_version_str(holder_cmdline)
+        if holder_version_str is None:
+            self.composite_logger.log_warning("[APM] Package manager lock is held by a non-extension process. [HolderPid={0}]".format(holder_pid))
+            return False
+
+        holder_version = self.version_comparator.extract_version_from_version_str(holder_version_str)
+        current_version = self.version_comparator.extract_version_from_version_str(str(Constants.EXT_VERSION))
+        if not holder_version or not current_version:
+            self.composite_logger.log_warning("[APM] Not clearing the lock holder: extension version could not be parsed. [HolderPid={0}]".format(holder_pid))
+            return False
+        is_older_version = self.version_comparator.compare_versions(holder_version, current_version) < 0
+
+        self.composite_logger.log_warning("[APM] Detected package manager lock held by a LinuxPatchExtension process. "
+                                          "[HolderPid={0}][HolderVersion={1}][CurrentVersion={2}][IsOlderVersion={3}][Holder={4}]"
+                                          .format(holder_pid, holder_version, current_version, str(is_older_version), holder_metadata))
+
+        is_apt_process = re.search(r'(^|/)(apt|apt-get|dpkg)(\s|$)', holder_cmdline) is not None
+        is_orphaned, ancestry = (False, "NotEvaluated")
+        if is_apt_process and is_older_version:  # only walk the parent chain when it can change the outcome
+            is_orphaned, ancestry = self.__get_holder_orphan_status(holder_pid, holder)
+
+        if not is_apt_process or not is_older_version or not is_orphaned:
+            self.composite_logger.log_warning("[APM] Not clearing the lock holder: it is not confidently an abandoned extension apt process. [HolderPid={0}][Ppid={1}][IsOlderVersion={2}][Ancestry={3}]"
+                                              .format(holder_pid, holder["ppid"], str(is_older_version), ancestry))
+            return False
+        self.composite_logger.log("[APM] Lock holder is orphaned: its parent chain reaches PID 1 only through extension wrappers. [HolderPid={0}][Ancestry={1}]".format(holder_pid, ancestry))
+
+        holder_age_in_days = self.__get_holder_age_in_days(holder["etime"])
+        if holder_age_in_days is None:
+            self.composite_logger.log_warning("[APM] Not clearing the lock holder: its age could not be determined. [HolderPid={0}][Etime={1}]".format(holder_pid, holder["etime"]))
+            return False
+        if holder_age_in_days <= Constants.STALE_LOCK_HOLDER_MIN_AGE_IN_DAYS:
+            self.composite_logger.log_warning("[APM] Not clearing the lock holder: it is not old enough to be considered abandoned. [HolderPid={0}][AgeInDays={1}][MinAgeInDays={2}]"
+                                              .format(holder_pid, str(round(holder_age_in_days, 2)), str(Constants.STALE_LOCK_HOLDER_MIN_AGE_IN_DAYS)))
+            return False
+
+        return True
+
+    def __get_holder_orphan_status(self, holder_pid, holder):
+        """ The extension runs commands as core -> sh -c -> sudo -> apt-get. When the core dies only the top wrapper is adopted by PID 1,
+            so the holder's own parent stays sudo. The holder is orphaned only if every ancestor up to PID 1 is a sh/sudo wrapper
+            launched by the same extension version as the holder. Read-only: ancestors are never signalled.
+            Returns (is_orphaned, ancestry), where ancestry is log-safe, e.g. 101(apt-get)<-100(sudo)<-99(sh)<-1 """
+        ancestry = "{0}({1})".format(holder_pid, self.__get_process_name(holder["cmd"]))
+        holder_version_str = self.__get_extension_version_str(holder["cmd"])   # derived from the holder itself, so wrappers are always matched against its own version
+        if holder_version_str is None:
+            return False, ancestry + "<-(NoExtensionVersion)"
+        wrapper_version_pattern = r'LinuxPatchExtension-' + re.escape(holder_version_str) + r'(?![\d.])'
+        current = holder
+
+        for _ in range(0, Constants.STALE_LOCK_HOLDER_MAX_ANCESTRY_DEPTH + 1):
+            parent_pid = current["ppid"]
+            if parent_pid == 1:
+                return True, ancestry + "<-1"
+
+            parent = self.__get_lock_holder_details(parent_pid)
+            if parent is None:
+                return False, ancestry + "<-{0}(Unreadable)".format(parent_pid)
+
+            parent_name = self.__get_process_name(parent["cmd"])
+            ancestry += "<-{0}({1})".format(parent_pid, parent_name)
+            if parent_name not in ("sh", "bash", "dash", "sudo") or re.search(wrapper_version_pattern, parent["cmd"]) is None:
+                return False, ancestry   # live owner, e.g. MsftLinuxPatchCore.py, waagent, or a process the extension did not launch
+            current = parent
+
+        return False, ancestry + "<-(MaxDepthReached)"
+
+    @staticmethod
+    def __get_extension_version_str(cmd):
+        """ Extension version from a command line launched by the extension (path contains LinuxPatchExtension-<version>), or None """
+        version_match = re.search(r'LinuxPatchExtension-(\d+(?:\.\d+)*)', cmd) if cmd else None
+        return version_match.group(1) if version_match else None
+
+    @staticmethod
+    def __get_process_name(cmd):
+        """ Executable basename only, so the full command line is never logged """
+        tokens = cmd.split() if cmd else []
+        return os.path.basename(tokens[0]) if tokens else "Unknown"
+
+    @staticmethod
+    def __get_holder_age_in_days(etime):
+        """ Converts ps etime, reported as [[DD-]HH:]MM:SS, into days. Returns None if it can't be parsed. """
+        etime_match = re.match(r'^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$', etime)
+        if etime_match is None:
+            return None
+        days, hours, minutes, seconds = [int(part or 0) for part in etime_match.groups()]
+        return days + (hours / 24.0) + (minutes / 1440.0) + (seconds / 86400.0)
+
+    def __terminate_stale_lock_holder(self, holder_pid, holder):
+        """ Terminates the process (never the lock file), re-validating its identity before every signal.
+            Returns True when retrying the command is worthwhile, i.e. the holder is gone or was never signalled because its PID was reused. """
+        self.composite_logger.log("[APM] Clearing an abandoned LinuxPatchExtension process that is holding the package manager lock. [HolderPid={0}]".format(holder_pid))
+        last_signal_sent = "None"
+        for signal_name in ["TERM", "KILL"]:
+            if self.__is_lock_holder_gone(holder_pid, holder, last_signal_sent):
+                return True
+
+            kill_code, kill_output = self.env_layer.run_command_output("sudo kill -{0} {1}".format(signal_name, holder_pid), False, False)
+            if kill_code != 0:
+                self.composite_logger.log_warning("[APM] Signalling the lock holder failed. [HolderPid={0}][Signal=SIG{1}][Code={2}][Output={3}]".format(holder_pid, signal_name, str(kill_code), str(kill_output)))
+            last_signal_sent = "SIG" + signal_name
+
+            for _ in range(0, Constants.STALE_LOCK_HOLDER_EXIT_GRACE_IN_SEC):
+                if self.__is_lock_holder_gone(holder_pid, holder, last_signal_sent):
+                    return True
+                time.sleep(1)
+
+        self.composite_logger.log_warning("[APM] Could not clear the abandoned lock holder; it is still running. [HolderPid={0}]".format(holder_pid))
+        return False
+
+    def __is_lock_holder_gone(self, holder_pid, holder, last_signal_sent):
+        """ Returns True if the holder has exited or its PID now belongs to a different process. """
+        current_holder = self.__get_lock_holder_details(holder_pid)
+        if current_holder is None:
+            self.composite_logger.log("[APM] The abandoned lock holder has exited. [HolderPid={0}][LastSignalSent={1}]".format(holder_pid, last_signal_sent))
+            return True
+        if not self.__is_same_process(holder, current_holder):
+            self.composite_logger.log_warning("[APM] The lock holder's PID was reused by another process; not signalling further. [HolderPid={0}][LastSignalSent={1}]".format(holder_pid, last_signal_sent))
+            return True
+        return False
+
+    @staticmethod
+    def __is_same_process(original_holder, current_holder):
+        """ A PID alone can be recycled, so identity also requires the same start time, parent and command line. """
+        return current_holder is not None \
+            and current_holder["start_time"] == original_holder["start_time"] \
+            and current_holder["ppid"] == original_holder["ppid"] \
+            and current_holder["cmd"] == original_holder["cmd"]
+
+    def __get_lock_holder_details(self, holder_pid):
+        """ Reads the holder's parent pid, start time, elapsed run time and full command line. Returns None if unreadable. """
+        code, out = self.env_layer.run_command_output("ps -p {0} -o ppid=,lstart=,etime=,cmd=".format(holder_pid), False, False)
+        fields = out.strip().split(None, 7) if code == 0 and out else []  # lstart is 5 tokens, e.g. "Tue Oct 14 08:57:59 2026"
+        if len(fields) < 8 or not fields[0].isdigit():
+            return None
+        return {"ppid": int(fields[0]), "start_time": " ".join(fields[1:6]), "etime": fields[6], "cmd": fields[7]}
 
     def invoke_apt_cache(self, command):
         """Invoke apt-cache using the command input"""
@@ -960,6 +1179,19 @@ class AptitudePackageManager(PackageManager):
         return self.package_install_expected_avg_time_in_seconds
 
     # region Update certificates in factory defaults
+    def __is_snap_fwupd_required(self):
+        # type: () -> bool
+        """Use the fwupd snap on Ubuntu releases older than 22.04."""
+        try:
+            distribution = self.env_layer.platform.linux_distribution()
+            if len(distribution) < 2 or distribution[0].lower() != "ubuntu":
+                return False
+
+            return int(distribution[1].split('.')[0]) < 22
+        except Exception as error:
+            self.composite_logger.log_warning("[APM][Certs] Unable to determine Ubuntu release for fwupd installation method. Using apt. [Error={0}]".format(repr(error)))
+            return False
+
     def is_reboot_required_before_cert_update(self):
         # type: () -> bool
         """ Long-running VMs may not have the minimum firmware required for certificate updates.
@@ -1032,17 +1264,23 @@ class AptitudePackageManager(PackageManager):
             self.__ensure_fwupd_installation()
 
             # shell fwupd commands to update certificates
-            self.__run_cert_shell_command(self.fwupd_refresh_cmd, step_name="FwupdRefresh", raise_on_error=True)
-            self.__run_cert_shell_command(self.fwupd_update_cmd, step_name="FwupdUpdate", raise_on_error=True)
+            self.__run_cert_shell_command(self.fwupd_force_refresh_cmd, step_name="FwupdRefresh", raise_on_error=False)
+            update_code, update_out = self.env_layer.run_command_output(self.fwupd_update_cmd, False, False)
 
             """ NOTE: They tooling used to update here is fwupd (firmware update manager). In this method of updating certs, the exact version of current certs is never pinned
             or set/referred while installing. fwupd fetches and installs latest available certs. This is beneficial because our code doesn't become dated in the future
             (if it was pinned to an old version) but adds the need to verify if the certs we intend to update were applied. Hence the validation on latest certs. """
             if self.are_latest_certs_present_with_mokutil_check():
+                if update_code != self.apt_exitcode_ok:
+                    self.composite_logger.log_warning("[APM][Certs] fwupd update returned a nonzero code, but both latest KEK and db certificates were verified. Ignoring the update failure. [Code={0}][Output={1}]".format(str(update_code), str(update_out)))
+                else:
+                    self.composite_logger.log_debug("[APM][UpdateCerts] Shell step succeeded. [Step=FwupdUpdate][Command={0}][Code={1}][Output={2}]".format(self.fwupd_update_cmd, str(update_code), str(update_out)))
                 self.composite_logger.log("[APM][Certs] Cert update completed and verified.")
                 success = True
             else:
-                msg = "[APM][Certs] Cert update commands completed but latest certs not detected."
+                msg = ("[APM][UpdateCerts] Shell step failed. [Step=FwupdUpdate][Command={0}][Code={1}][Output={2}] Latest KEK and db certificates not verified."
+                       .format(self.fwupd_update_cmd, str(update_code), str(update_out)) if update_code != self.apt_exitcode_ok else
+                       "[APM][Certs] Cert update commands completed but latest certs not detected.")
                 self.composite_logger.log_error(msg)
                 self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
 
@@ -1068,11 +1306,13 @@ class AptitudePackageManager(PackageManager):
         if installed_version != str():
             self.composite_logger.log("[APM][Certs] Existing fwupd version is below minimum. Reinstalling latest. [InstalledVersion={0}][MinimumVersion={1}]"
                                       .format(installed_version, self.min_fwupd_version))
-            self.__run_cert_apt_command(self.remove_fwupd_cmd, step_name="RemoveOldFwupd", raise_on_error=True)
+            # The snap installation flow performs its own best-effort apt package purge.
+            if not self.is_snap_fwupd_required:
+                self.__run_cert_apt_command(self.remove_fwupd_cmd, step_name="RemoveOldFwupd", raise_on_error=True)
         else:
             self.composite_logger.log_debug("[APM][Certs] fwupd is not installed. Installing latest version.")
 
-        self.__run_cert_apt_command(self.install_fwupd_cmd, step_name="InstallFwupd", raise_on_error=True)
+        self.__install_fwupd_for_cert_update()
 
         # Validate that the installed fwupd meets the minimum requirement.
         installed_version = self.__get_installed_fwupd_version()
@@ -1083,6 +1323,29 @@ class AptitudePackageManager(PackageManager):
             raise Exception(msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
 
         return True
+
+    def __install_fwupd_for_cert_update(self):
+        """Prepare snap when needed and install fwupd for certificate updates."""
+        if self.is_snap_fwupd_required:
+            # Remove the apt package before relying on the snap binary.
+            code, out = self.env_layer.run_command_output(self.remove_fwupd_cmd, False, False)
+            if code != self.apt_exitcode_ok:
+                self.composite_logger.log_warning("[APM][Certs] Apt fwupd purge failed; continuing with fwupd snap installation. [Command={0}][Code={1}][Output={2}]".format(self.remove_fwupd_cmd, str(code), str(out)))
+            # Refresh snapd before installing fwupd on older Ubuntu releases.
+            self.__refresh_snap_for_fwupd_installation()
+        self.__run_cert_apt_command(self.install_fwupd_cmd, step_name="InstallFwupd", raise_on_error=True)
+
+    def __refresh_snap_for_fwupd_installation(self):
+        """Best-effort snapd refresh before installing the fwupd snap."""
+        cmd = self.snapd_refresh_cmd
+        code, out = self.env_layer.run_command_output(cmd, False, False)
+        if code != self.apt_exitcode_ok:
+            self.composite_logger.log_warning("[APM][Certs] Snap refresh failed; continuing with fwupd snap installation. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
+            return False
+
+        self.composite_logger.log_debug("[APM][Certs] Snap refresh completed. [Command={0}][Code={1}][Output={2}]".format(cmd, str(code), str(out)))
+        return True
+
 
     def __get_installed_fwupd_version(self):
         # type: () -> str
@@ -1139,7 +1402,11 @@ class AptitudePackageManager(PackageManager):
     def __run_cert_shell_command(self, command, step_name, raise_on_error=False):
         """Run non-apt utility commands directly."""
         code, out = self.env_layer.run_command_output(command, False, False)
-        if code != 0:
+        if command == self.fwupd_force_refresh_cmd:
+            # As per the suggestion from trusted launch VM partners, we need to ignore all errors returned by force refresh command and continue to the next step.
+            self.composite_logger.log_debug("[APM][UpdateCerts] Force refresh shell step executed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out)))
+            return True, out
+        elif code != 0:
             msg = "[APM][UpdateCerts] Shell step failed. [Step={0}][Command={1}][Code={2}][Output={3}]".format(step_name, str(command), str(code), str(out))
             self.composite_logger.log_error(msg)
             self.status_handler.add_error_to_status(msg, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)

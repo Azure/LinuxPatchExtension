@@ -37,8 +37,18 @@ class TestAptitudePackageManager(unittest.TestCase):
         self.argument_composer = ArgumentComposer().get_composed_arguments()
         self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
         self.container = self.runtime.container
+        self.signals_sent = []                  # kill commands seen by the apt lock holder mocks
+        self.apt_command_attempts = 0           # used to vary behavior of the apt lock holder mocks
+        self.lock_holder_ps_call_count = 0      # used to vary behavior of the apt lock holder mocks
+        self.apt_lock_error = "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"   # shared by the apt lock holder process chain mocks
+        self.holder_cmd = "apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+        self.sudo_wrapper_cmd = "sudo " + self.holder_cmd
+        self.sh_wrapper_cmd = "/bin/sh -c sudo " + self.holder_cmd
+        self.backup_ext_version = Constants.EXT_VERSION
+        Constants.EXT_VERSION = "1.6.71"       # placeholder in source; pinned so extension versions can be compared
 
     def tearDown(self):
+        Constants.EXT_VERSION = self.backup_ext_version
         self.runtime.stop()
 
     #region Mocks
@@ -50,6 +60,33 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def mock_linux_distribution_to_return_ubuntu_oracular(self):
         return ['Ubuntu', '26.04', 'oracular']
+
+    def mock_linux_distribution_to_return_ubuntu_focal(self):
+        return ['Ubuntu', '20.04', 'focal']
+
+    def mock_linux_distribution_to_return_ubuntu_jammy(self):
+        return ['Ubuntu', '22.04', 'jammy']
+
+    def mock_linux_distribution_to_return_debian_bookworm(self):
+        return ['Debian', '20', 'bookworm']
+
+    def mock_linux_distribution_to_raise_during_fwupd_detection(self):
+        self.linux_distribution_calls += 1
+        if self.linux_distribution_calls == 6:
+            raise Exception("distribution information unavailable")
+        return ['Ubuntu', '20.04', 'focal']
+
+    def mock_run_command_output_to_track_fwupd_commands(self, cmd, no_output=False, chk_err=True):
+        self.fwupd_commands.append(cmd)
+        if cmd == 'fwupdmgr --version' and 'sudo apt-get install -y fwupd' not in self.fwupd_commands:
+            return 1, 'fwupdmgr: command not found'
+        return self.original_run_command_output(cmd, no_output, chk_err)
+
+    def mock_run_command_output_with_snap_probe_exception(self, cmd, no_output=False, chk_err=True):
+        if cmd == '/snap/bin/fwupdmgr --version' and not self.snap_probe_raised:
+            self.snap_probe_raised = True
+            raise OSError('snap version probe unavailable')
+        return self.original_legacy_runner(cmd, no_output, chk_err)
 
     def mock_is_pro_working_return_true(self):
         return True
@@ -135,14 +172,26 @@ class TestAptitudePackageManager(unittest.TestCase):
         return 0, ""
 
     def mock_run_command_output_fwupd_refresh_fails(self, cmd, no_output=False, chk_err=True):
-        self.assertGreater(cmd.find(self.runtime.package_manager.fwupd_refresh_cmd), -1)
+        self.assertGreater(cmd.find(self.runtime.package_manager.fwupd_force_refresh_cmd), -1)
         return 1, "Error"
 
+    def mock_run_command_output_with_fwupd_exit_code_overrides(self, cmd, no_output=False, chk_err=True):
+        """Reuse the legacy env layer command mocks and override only the fwupd refresh/update exit codes driven by test state."""
+        code, output = self.legacy_run_command_output(cmd, no_output, chk_err)
+
+        if cmd.find(self.runtime.package_manager.fwupd_force_refresh_cmd) > -1:
+            if self.fwupd_refresh_code == 2:
+                return self.fwupd_refresh_code, "Nothing to do (no updates available)"
+            return self.fwupd_refresh_code, output if self.fwupd_refresh_code == 0 else "Error"
+
+        if cmd.find(self.runtime.package_manager.fwupd_update_cmd) > -1:
+            return self.fwupd_update_code, output if self.fwupd_update_code == 0 else "Error"
+
+        return code, output
+
     def mock_run_command_output_apt_update_cmd_fails(self, cmd, no_output=False, chk_err=True):
-        if cmd.find(self.runtime.package_manager.apt_update_cmd) > -1:
-            self.latest_apt_update_cmd_attempt += 1
-            if self.latest_apt_update_cmd_attempt == 2:
-                return 1, "Error"
+        if cmd == 'sudo apt-get -q update':
+            return 1, "Error"
         return 0, ""
 
     def mock_is_mokutil_installed_return_false(self):
@@ -150,6 +199,36 @@ class TestAptitudePackageManager(unittest.TestCase):
 
     def mock_are_latest_certs_present_return_true(self):
         return True
+
+    def mock_are_latest_certs_present_for_fwupd_update_result(self):
+        return self.fwupd_update_certs_verified
+
+    def mock_run_command_output_with_fwupd_not_installed(self, cmd, no_output=False, chk_err=True):
+        if cmd == '/snap/bin/fwupdmgr --version':
+            return 1, "fwupdmgr: command not found"
+        return self.snap_install_original_run(cmd, no_output, chk_err)
+
+    def mock_invoke_package_manager_advanced_with_failed_snap_install(self, command, raise_on_exception=True):
+        self.snap_install_commands.append(command)
+        if command == 'sudo snap install fwupd':
+            return "snap fwupd installation failed", 1
+        return self.snap_install_original_invoke(command, raise_on_exception)
+
+    def mock_run_command_output_with_fwupd_force_refresh_failure(self, cmd, no_output=False, chk_err=True):
+        self.fwupd_commands.append(cmd)
+        if cmd == 'sudo /snap/bin/fwupdmgr refresh --force':
+            return 1, 'fwupd metadata refresh failed'
+        return self.original_run_command_output(cmd, no_output, chk_err)
+
+    def mock_run_command_output_with_fwupd_purge_failure(self, cmd, no_output=False, chk_err=True):
+        self.fwupd_commands.append(cmd)
+        if cmd == 'sudo apt-get purge -y fwupd':
+            return 100, 'E: Could not get lock /var/lib/dpkg/lock-frontend'
+        return self.original_run_command_output(cmd, no_output, chk_err)
+
+    def mock_log_warning_to_track_fwupd_purge_failure(self, message):
+        self.fwupd_warnings.append(message)
+        self.original_log_warning(message)
 
     def mock_run_command_output_uptime_above_threshold(self, cmd, no_output=False, chk_err=True):
         self.assertGreater(cmd.find(self.runtime.package_manager.get_uptime_seconds_cmd), -1)
@@ -207,9 +286,31 @@ class TestAptitudePackageManager(unittest.TestCase):
         """Mock __run_cert_shell_command to track step names"""
         self.shell_calls_tracking.append(step_name)
 
-    def mock_run_cert_apt_command_to_track_step_calls(self, command, step_name, raise_on_error=False):
-        """Mock __run_cert_apt_command to track step names"""
-        self.apt_calls_tracking.append(step_name)
+    def mock_run_command_output_to_track_fwupd_update(self, cmd, no_output=False, chk_err=True):
+        if cmd == self.track_update_manager.fwupd_update_cmd:
+            self.shell_calls_tracking.append("FwupdUpdate")
+        return self.track_update_original_run(cmd, no_output, chk_err)
+
+    def mock_run_command_output_for_snap_refresh_test(self, cmd, no_output=False, chk_err=True):
+        self.snap_test_commands.append(cmd)
+        if cmd == "sudo snap refresh snapd" and self.snap_test_refresh_fails:
+            return 1, "snap refresh failed"
+        if cmd in ("/snap/bin/fwupdmgr --version", "fwupdmgr --version"):
+            if "sudo snap install fwupd" in self.snap_test_commands or "sudo snap refresh fwupd" in self.snap_test_commands or "sudo apt-get install -y fwupd" in self.snap_test_commands:
+                return 0, "compile   org.freedesktop.fwupd         2.0.20"
+            if self.snap_test_initial_version != "":
+                return 0, "compile   org.freedesktop.fwupd         {0}".format(self.snap_test_initial_version)
+            return 1, ""
+        return self.snap_test_original_run(cmd, no_output, chk_err)
+
+    def mock_run_command_output_for_fwupd_update_failure(self, cmd, no_output=False, chk_err=True):
+        if cmd == self.fwupd_update_failure_manager.fwupd_update_cmd:
+            return 1, "failed to send FuFirmware firmware to snapd"
+        return self.fwupd_update_failure_original_run(cmd, no_output, chk_err)
+
+    def mock_fetch_current_certs_for_fwupd_update_failure(self, cert_type, get_cert_status_cmd, raise_on_exception=False):
+        latest = self.cert_results[cert_type]
+        return (0, "Microsoft UEFI CA 2023" if latest else "Microsoft UEFI CA 2011")
 
     def mock_try_install_mokutil_returns_false(self):
         """Mock try_install_mokutil to return False"""
@@ -235,6 +336,196 @@ class TestAptitudePackageManager(unittest.TestCase):
     def mock_ensure_mokutil_available_returns_false(self):
         """Mock ensure_mokutil_available_for_cert_checks to return False"""
         return False
+
+    def mock_run_command_output_apt_lock_held_by_holder_that_exits_after_sigterm(self, cmd, no_output=False, chk_err=True):
+        """ Orphaned older-version holder that exits on SIGTERM; the retried apt command then succeeds. """
+        if cmd.find("kill -") > -1:
+            self.signals_sent.append(cmd)
+            return 0, ""
+        if cmd.find("ps -p") > -1:
+            return (1, "") if len(self.signals_sent) > 0 else (0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp")
+        self.apt_command_attempts += 1
+        if self.apt_command_attempts > 1:
+            return 0, "Reading package lists..."
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_that_exits_after_sigterm_without_releasing_lock(self, cmd, no_output=False, chk_err=True):
+        """ Holder exits on SIGTERM, but the retried apt command still fails on the lock. """
+        if cmd.find("kill -") > -1:
+            self.signals_sent.append(cmd)
+            return 0, ""
+        if cmd.find("ps -p") > -1:
+            return (1, "") if len(self.signals_sent) > 0 else (0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp")
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_whose_pid_is_reused_after_sigterm(self, cmd, no_output=False, chk_err=True):
+        """ Holder exits on SIGTERM and its PID is immediately recycled by a different process. """
+        if cmd.find("kill -") > -1:
+            self.signals_sent.append(cmd)
+            return 0, ""
+        if cmd.find("ps -p") > -1:
+            return (0, "1 Tue Feb 2 10:00:00 2026 00:00:01 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp") if len(self.signals_sent) > 0 else (0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp")
+        self.apt_command_attempts += 1
+        if self.apt_command_attempts > 1:
+            return 0, "Reading package lists..."
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_whose_pid_is_reused_before_sigterm(self, cmd, no_output=False, chk_err=True):
+        """ Holder's PID is recycled (different start time) between inspection and termination. """
+        if cmd.find("ps -p") > -1:
+            self.lock_holder_ps_call_count += 1
+            return (0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp") if self.lock_holder_ps_call_count == 1 else (0, "1 Tue Feb 2 10:00:00 2026 00:00:02 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp")
+        self.apt_command_attempts += 1
+        if self.apt_command_attempts > 1:
+            return 0, "Reading package lists..."
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_that_ignores_signals(self, cmd, no_output=False, chk_err=True):
+        """ Orphaned older-version holder that never exits, even after SIGKILL. """
+        if cmd.find("kill -") > -1:
+            self.signals_sent.append(cmd)
+            return 0, ""
+        if cmd.find("ps -p") > -1:
+            return 0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_with_live_parent(self, cmd, no_output=False, chk_err=True):
+        """ Older-version holder whose parent process is still alive (ppid != 1). """
+        if cmd.find("ps -p") > -1:
+            return 0, "5000 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_that_is_not_old_enough(self, cmd, no_output=False, chk_err=True):
+        """ Orphaned older-version holder that is just under the minimum age. """
+        if cmd.find("ps -p") > -1:
+            return 0, "1 Mon Jan 1 00:00:00 2026 09-23:59:59 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_with_unparseable_age(self, cmd, no_output=False, chk_err=True):
+        """ Orphaned older-version holder whose etime cannot be parsed. """
+        if cmd.find("ps -p") > -1:
+            return 0, "1 Mon Jan 1 00:00:00 2026 unknown apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_from_current_extension_version(self, cmd, no_output=False, chk_err=True):
+        """ Orphaned holder launched by the current extension version. """
+        if cmd.find("ps -p") > -1:
+            return 0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.71/tmp"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_that_is_not_an_apt_process(self, cmd, no_output=False, chk_err=True):
+        """ Orphaned older-version holder that is the core process, not apt/dpkg. """
+        if cmd.find("ps -p") > -1:
+            return 0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50 /usr/bin/python3 /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/MsftLinuxPatchCore.py"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_without_command_line(self, cmd, no_output=False, chk_err=True):
+        """ ps returns only 7 fields (no command line) for the holder. """
+        if cmd.find("ps -p") > -1:
+            return 0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_holder_that_cannot_be_signalled(self, cmd, no_output=False, chk_err=True):
+        """ Orphaned older-version holder that kill fails to signal. """
+        if cmd.find("kill -") > -1:
+            return 1, "sudo: a password is required"
+        if cmd.find("ps -p") > -1:
+            return 0, "1 Mon Jan 1 00:00:00 2026 78-00:14:50 apt-get -q update -oDir::Etc::SourceParts=/var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/tmp"
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_by_non_extension_process(self, cmd, no_output=False, chk_err=True):
+        """ Simulates apt-get failing on a held lock, with the holder being an unrelated (non-extension) process. """
+        if cmd.find("ps -p") > -1:
+            return 0, "1 Mon Jan 1 00:00:00 2026 01:02:03 apt-get -q update"   # no LinuxPatchExtension path
+        return 100, "E: Could not get lock /var/lib/apt/lists/lock. It is held by process 2324709 (apt-get)"
+
+    def mock_run_command_output_apt_lock_held_without_pid(self, cmd, no_output=False, chk_err=True):
+        """ apt reports a lock error but with no resolvable holder PID. """
+        return 100, "Reading package lists...\nE: Could not get lock /var/lib/apt/lists/lock\nE: Unable to lock directory /var/lib/apt/lists/"
+
+    def mock_run_command_output_apt_lock_holder_inspection_raises(self, cmd, no_output=False, chk_err=True):
+        """ Forces an exception during holder inspection to exercise the best-effort guard. """
+        if cmd.find("ps -p") > -1:
+            raise Exception("simulated ps failure")
+        return 100, "Reading package lists...\nE: Could not get lock /var/lib/apt/lists/lock. It is held by process 123 (apt-get)\nE: Unable to lock directory /var/lib/apt/lists/"
+
+    @staticmethod
+    def __ps_line(ppid, cmd):
+        """ 'ps -p <pid> -o ppid=,lstart=,etime=,cmd=' output for a 78 day old process """
+        return 0, "{0} Mon Jan 1 00:00:00 2026 78-00:14:50 {1}".format(ppid, cmd)
+
+    def __apt_command_fails_on_lock_then_succeeds(self):
+        self.apt_command_attempts += 1
+        return (0, "Reading package lists...") if self.apt_command_attempts > 1 else (100, self.apt_lock_error)
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_orphaned_sudo_and_sh_wrappers(self, cmd, no_output=False, chk_err=True):
+        """ Core died, so only the top sh wrapper was adopted by PID 1 (apt-get <- sudo <- sh <- 1); the holder exits on SIGTERM. """
+        if cmd.find("kill -") > -1:
+            self.signals_sent.append(cmd)
+            return 0, ""
+        if cmd.find("ps -p 2324709") > -1:
+            return (1, "") if len(self.signals_sent) > 0 else self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p 2324708") > -1:
+            return self.__ps_line(2324707, self.sudo_wrapper_cmd)
+        if cmd.find("ps -p 2324707") > -1:
+            return self.__ps_line(1, self.sh_wrapper_cmd)
+        return self.__apt_command_fails_on_lock_then_succeeds()
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_live_core(self, cmd, no_output=False, chk_err=True):
+        """ Holder's wrappers are still owned by a live core process (apt-get <- sudo <- sh <- MsftLinuxPatchCore.py). """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p 2324708") > -1:
+            return self.__ps_line(2324707, self.sudo_wrapper_cmd)
+        if cmd.find("ps -p 2324707") > -1:
+            return self.__ps_line(2324706, self.sh_wrapper_cmd)
+        if cmd.find("ps -p 2324706") > -1:
+            return self.__ps_line(1, "/usr/bin/python3 /var/lib/waagent/Microsoft.CPlat.Core.LinuxPatchExtension-1.6.64/MsftLinuxPatchCore.py")
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_waagent(self, cmd, no_output=False, chk_err=True):
+        """ Holder's wrapper is owned by the guest agent (apt-get <- sudo <- waagent). """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p 2324708") > -1:
+            return self.__ps_line(2324700, self.sudo_wrapper_cmd)
+        if cmd.find("ps -p 2324700") > -1:
+            return self.__ps_line(1, "python3 -u /usr/sbin/waagent -run-exthandlers")
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_wrapper_from_different_extension_version(self, cmd, no_output=False, chk_err=True):
+        """ Holder is from 1.6.6 but its sudo wrapper is from 1.6.64 (a version that 1.6.6 is a prefix of). """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd.replace("LinuxPatchExtension-1.6.64", "LinuxPatchExtension-1.6.6"))
+        if cmd.find("ps -p 2324708") > -1:
+            return self.__ps_line(1, self.sudo_wrapper_cmd)
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_under_too_many_wrappers(self, cmd, no_output=False, chk_err=True):
+        """ Every ancestor of the holder is another sh wrapper, so PID 1 is never reached within the max depth. """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p") > -1:
+            pid = int(cmd.split("ps -p ")[1].split()[0])
+            return self.__ps_line(pid - 1, self.sh_wrapper_cmd)
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_with_unreadable_parent(self, cmd, no_output=False, chk_err=True):
+        """ Holder's parent cannot be read by ps. """
+        if cmd.find("ps -p 2324709") > -1:
+            return self.__ps_line(2324708, self.holder_cmd)
+        if cmd.find("ps -p") > -1:
+            return 1, ""
+        return 100, self.apt_lock_error
+
+    def mock_run_command_output_apt_lock_held_by_holder_that_already_exited(self, cmd, no_output=False, chk_err=True):
+        """ Holder exited between apt reporting it and ps inspecting it; the retried apt command then succeeds. """
+        if cmd.find("kill -") > -1:
+            self.signals_sent.append(cmd)
+            return 0, ""
+        if cmd.find("ps -p") > -1:
+            return 1, ""
+        return self.__apt_command_fails_on_lock_then_succeeds()
     # endregion Mocks
 
     # region Utility Functions
@@ -285,6 +576,7 @@ class TestAptitudePackageManager(unittest.TestCase):
             self.assertTrue(unattended_upgrade_value_expected in reverted_os_patch_configuration_settings)
         else:
             self.assertFalse(os.path.exists(package_manager.os_patch_configuration_settings_file_path))
+
     # endregion
 
     def test_package_manager_no_updates(self):
@@ -299,6 +591,118 @@ class TestAptitudePackageManager(unittest.TestCase):
         available_updates, package_versions = package_manager.get_available_updates(package_filter)
         self.assertEqual(len(available_updates), 0)
         self.assertEqual(len(package_versions), 0)
+
+    def test_fwupd_installation_uses_snap_only_on_older_ubuntu(self):
+        original_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        cases = [
+            (self.mock_linux_distribution_to_return_ubuntu_focal, True, "sudo snap install fwupd"),
+            (self.mock_linux_distribution_to_return_ubuntu_jammy, False, "sudo apt-get install -y fwupd"),
+            (self.mock_linux_distribution_to_return_ubuntu_oracular, False, "sudo apt-get install -y fwupd"),
+            (self.mock_linux_distribution_to_return_debian_bookworm, False, "sudo apt-get install -y fwupd")
+        ]
+        try:
+            for distribution, requires_snap, install_command in cases:
+                self.runtime.stop()
+                LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = distribution
+                self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
+                self.container = self.runtime.container
+                manager = self.container.get('package_manager')
+                self.original_run_command_output = self.runtime.env_layer.run_command_output
+                self.runtime.env_layer.run_command_output = self.mock_run_command_output_to_track_fwupd_commands
+                self.fwupd_commands = []
+                manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+                manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+                self.assertTrue(manager.try_update_certs())
+                if requires_snap:
+                    self.assertIn('sudo snap install fwupd', self.fwupd_commands)
+                    self.assertIn('/snap/bin/fwupdmgr --version', self.fwupd_commands)
+                    self.assertIn('sudo /snap/bin/fwupdmgr refresh --force', self.fwupd_commands)
+                    self.assertIn('sudo /snap/bin/fwupdmgr update -y', self.fwupd_commands)
+                else:
+                    self.assertIn(install_command, self.fwupd_commands)
+                    self.assertIn('fwupdmgr --version', self.fwupd_commands)
+                    self.assertIn('sudo fwupdmgr refresh --force', self.fwupd_commands)
+                    self.assertIn('sudo fwupdmgr update -y', self.fwupd_commands)
+        finally:
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = original_distribution
+
+    def test_fwupd_installation_uses_apt_when_distribution_detection_raises(self):
+        original_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+
+        try:
+            self.runtime.stop()
+            self.linux_distribution_calls = 0
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_raise_during_fwupd_detection
+            self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
+            manager = self.runtime.container.get('package_manager')
+            self.original_run_command_output = self.runtime.env_layer.run_command_output
+            self.runtime.env_layer.run_command_output = self.mock_run_command_output_to_track_fwupd_commands
+            self.fwupd_commands = []
+            manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+            manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+            self.assertTrue(manager.try_update_certs())
+            self.assertIn('sudo apt-get install -y fwupd', self.fwupd_commands)
+            self.assertNotIn('sudo snap install fwupd', self.fwupd_commands)
+            self.assertNotIn('sudo snap refresh fwupd', self.fwupd_commands)
+        finally:
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = original_distribution
+
+    def test_fwupd_snap_probe_exception_falls_back_to_snap_install(self):
+        original_legacy_runner = LegacyEnvLayerExtensions.run_command_output
+        self.original_legacy_runner = self.runtime.legacy_env_layer_extensions.run_command_output
+        self.snap_probe_raised = False
+        try:
+            self.runtime.stop()
+            LegacyEnvLayerExtensions.run_command_output = self.mock_run_command_output_with_snap_probe_exception
+            self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
+            self.container = self.runtime.container
+            manager = self.container.get('package_manager')
+            self.assertTrue(self.snap_probe_raised)
+        finally:
+            LegacyEnvLayerExtensions.run_command_output = original_legacy_runner
+
+        self.original_run_command_output = self.runtime.legacy_env_layer_extensions.run_command_output
+        original_add_error = self.runtime.status_handler.add_error_to_status
+        self.fwupd_commands = []
+        self.captured_errors_tracking = []
+        try:
+            self.runtime.env_layer.run_command_output = self.mock_run_command_output_to_track_fwupd_commands
+            self.runtime.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+            manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+            manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+
+            self.assertTrue(manager.try_update_certs())
+            self.assertIn('sudo snap install fwupd', self.fwupd_commands)
+            self.assertNotIn('sudo snap refresh fwupd', self.fwupd_commands)
+            self.assertNotIn('fwupdmgr --version', self.fwupd_commands)
+            self.assertIn('sudo /snap/bin/fwupdmgr refresh --force', self.fwupd_commands)
+            self.assertIn('sudo /snap/bin/fwupdmgr update -y', self.fwupd_commands)
+            self.assertEqual(self.captured_errors_tracking, [])
+        finally:
+            self.runtime.env_layer.run_command_output = self.original_run_command_output
+            self.runtime.status_handler.add_error_to_status = original_add_error
+
+    def test_fwupd_commands_use_snap_path_when_snap_is_already_installed(self):
+        original_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        try:
+            self.runtime.stop()
+            self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT, fwupd_snap_installed=True, fwupd_snap_version='2.0.1')
+            self.container = self.runtime.container
+            manager = self.container.get('package_manager')
+            self.original_run_command_output = self.runtime.env_layer.run_command_output
+            self.runtime.env_layer.run_command_output = self.mock_run_command_output_to_track_fwupd_commands
+            self.fwupd_commands = []
+            manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+            manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+            self.assertTrue(manager.try_update_certs())
+            self.assertIn('sudo snap refresh fwupd', self.fwupd_commands)
+            self.assertNotIn('sudo snap install fwupd', self.fwupd_commands)
+            self.assertLess(self.fwupd_commands.index('sudo snap refresh snapd'), self.fwupd_commands.index('sudo snap refresh fwupd'))
+            self.assertIn('/snap/bin/fwupdmgr --version', self.fwupd_commands)
+            self.assertIn('sudo /snap/bin/fwupdmgr refresh --force', self.fwupd_commands)
+            self.assertIn('sudo /snap/bin/fwupdmgr update -y', self.fwupd_commands)
+        finally:
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = original_distribution
 
     def test_package_manager(self):
         """Unit test for apt package manager"""
@@ -1335,26 +1739,23 @@ class TestAptitudePackageManager(unittest.TestCase):
         package_manager = self.container.get('package_manager')
 
         backup_are_latest_certs_present = package_manager.are_latest_certs_present
-        backup_ensure_fwupd_installation = package_manager._AptitudePackageManager__ensure_fwupd_installation
-        backup_run_cert_shell_command = package_manager._AptitudePackageManager__run_cert_shell_command
-        backup_run_cert_apt_command = package_manager._AptitudePackageManager__run_cert_apt_command
+        backup_min_fwupd_version = package_manager.min_fwupd_version
+        backup_run_command_output = package_manager.env_layer.run_command_output
 
         try:
             self.shell_calls_tracking = []
-            self.apt_calls_tracking = []
             package_manager.are_latest_certs_present = self.mock_are_latest_certs_present_return_true
-            package_manager._AptitudePackageManager__ensure_fwupd_installation = self.mock_ensure_fwupd_installation_returns_true
-            package_manager._AptitudePackageManager__run_cert_shell_command = self.mock_run_cert_shell_command_to_track_step_calls
-            package_manager._AptitudePackageManager__run_cert_apt_command = self.mock_run_cert_apt_command_to_track_step_calls
+            package_manager.min_fwupd_version = "2.0.2"
+            self.track_update_manager = package_manager
+            self.track_update_original_run = backup_run_command_output
+            package_manager.env_layer.run_command_output = self.mock_run_command_output_to_track_fwupd_update
 
             self.assertTrue(package_manager.try_update_certs())
-            self.assertEqual(self.shell_calls_tracking, ["FwupdRefresh", "FwupdUpdate"])
-            self.assertEqual(self.apt_calls_tracking, ["AptUpdate"])
+            self.assertEqual(self.shell_calls_tracking, ["FwupdUpdate"])
         finally:
             package_manager.are_latest_certs_present = backup_are_latest_certs_present
-            package_manager._AptitudePackageManager__ensure_fwupd_installation = backup_ensure_fwupd_installation
-            package_manager._AptitudePackageManager__run_cert_shell_command = backup_run_cert_shell_command
-            package_manager._AptitudePackageManager__run_cert_apt_command = backup_run_cert_apt_command
+            package_manager.min_fwupd_version = backup_min_fwupd_version
+            package_manager.env_layer.run_command_output = backup_run_command_output
 
     def test_should_reboot_before_cert_update__with_various_use_cases(self):
         package_manager = self.container.get('package_manager')
@@ -1564,6 +1965,299 @@ class TestAptitudePackageManager(unittest.TestCase):
         finally:
             package_manager.env_layer.run_command_output = backup_run_command_output
 
+    def test_try_update_certs_fwupd_exit_code_handling__with_various_use_cases(self):
+        """fwupd refresh errors are ignored; update errors require verified KEK and db."""
+        package_manager = self.container.get('package_manager')
+
+        backup_run_command_output = package_manager.env_layer.run_command_output
+        backup_add_error_to_status = package_manager.status_handler.add_error_to_status
+        backup_are_latest_certs_present_with_mokutil_check = package_manager.are_latest_certs_present_with_mokutil_check
+        backup_is_reboot_pending = package_manager.is_reboot_pending
+
+        use_cases = [
+            {
+                "name": "fwupd_refresh_returns_code_2_is_treated_as_success",
+                "fwupd_refresh_code": 2,
+                "fwupd_update_code": 0,
+                "expected_result": True,
+                "expected_error_count": 0
+            },
+            {
+                "name": "fwupd_refresh_returns_code_1_is_ignored_and_treated_as_success",
+                "fwupd_refresh_code": 1,
+                "fwupd_update_code": 0,
+                "expected_result": True,
+                "expected_error_count": 0
+            },
+            {
+                "name": "fwupd_refresh_returns_code_3_is_ignored_and_treated_as_success",
+                "fwupd_refresh_code": 3,
+                "fwupd_update_code": 0,
+                "expected_result": True,
+                "expected_error_count": 0
+            },
+            {
+                "name": "fwupd_update_returns_code_2_but_certs_verified",
+                "fwupd_refresh_code": 0,
+                "fwupd_update_code": 2,
+                "fwupd_update_certs_verified": True,
+                "expected_result": True,
+                "expected_error_count": 0
+            },
+            {
+                "name": "fwupd_update_fails_and_certs_are_not_verified",
+                "fwupd_refresh_code": 0,
+                "fwupd_update_code": 1,
+                "fwupd_update_certs_verified": False,
+                "expected_result": False,
+                "expected_error_count": 1
+            },
+            {
+                "name": "all_fwupd_commands_succeed",
+                "fwupd_refresh_code": 0,
+                "fwupd_update_code": 0,
+                "expected_result": True,
+                "expected_error_count": 0
+            }
+        ]
+
+        try:
+            # These cases cover the supported fwupd exit-code combinations around the refresh/update flow.
+            # A refresh failure is treated as non-fatal, while an update failure only blocks success when the
+            # cert state cannot be verified. The cases above intentionally exercise both tolerated and fatal
+            # combinations so the behavior stays aligned with the certificate-validation contract.
+            self.legacy_run_command_output = backup_run_command_output
+            package_manager.env_layer.run_command_output = self.mock_run_command_output_with_fwupd_exit_code_overrides
+            package_manager.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+            package_manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_for_fwupd_update_result
+            package_manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+
+            for use_case in use_cases:
+                self.captured_errors_tracking = []
+                self.fwupd_refresh_code = use_case["fwupd_refresh_code"]
+                self.fwupd_update_code = use_case["fwupd_update_code"]
+                self.fwupd_update_certs_verified = use_case.get("fwupd_update_certs_verified", True)
+
+                self.assertEqual(package_manager.try_update_certs(), use_case["expected_result"], "Failed use case: {0}".format(use_case["name"]))
+                self.assertEqual(len(self.captured_errors_tracking), use_case["expected_error_count"], "Failed use case: {0}".format(use_case["name"]))
+
+                if use_case["expected_error_count"] > 0:
+                    self.assertIn("Shell step failed", self.captured_errors_tracking[0][0], "Failed use case: {0}".format(use_case["name"]))
+                    self.assertEqual(self.captured_errors_tracking[0][1], Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE, "Failed use case: {0}".format(use_case["name"]))
+                else:
+                    self.assertEqual(package_manager.status_handler.is_reboot_pending, False, "Failed use case: {0}".format(use_case["name"]))
+        finally:
+            package_manager.env_layer.run_command_output = backup_run_command_output
+            package_manager.status_handler.add_error_to_status = backup_add_error_to_status
+            package_manager.are_latest_certs_present_with_mokutil_check = backup_are_latest_certs_present_with_mokutil_check
+            package_manager.is_reboot_pending = backup_is_reboot_pending
+
+    def test_try_update_certs_reports_snap_fwupd_install_failure(self):
+        """The public UEFI flow reports a failed snap fwupd installation."""
+        manager = self.container.get('package_manager')
+        original_invoke = manager.invoke_package_manager_advanced
+        original_run = manager.env_layer.run_command_output
+        original_add_error = manager.status_handler.add_error_to_status
+        self.snap_install_commands = []
+        self.snap_install_original_invoke = original_invoke
+        self.snap_install_original_run = original_run
+
+        try:
+            self.captured_errors_tracking = []
+            manager.invoke_package_manager_advanced = self.mock_invoke_package_manager_advanced_with_failed_snap_install
+            manager.env_layer.run_command_output = self.mock_run_command_output_with_fwupd_not_installed
+            manager.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+
+            self.assertFalse(manager.try_update_certs())
+            self.assertIn('sudo snap install fwupd', self.snap_install_commands)
+            self.assertEqual(len(self.captured_errors_tracking), 1)
+            message, code = self.captured_errors_tracking[0]
+            self.assertIn("Apt step failed", message)
+            self.assertIn("Step=InstallFwupd", message)
+            self.assertIn("Command=sudo snap install fwupd", message)
+            self.assertIn("Output=snap fwupd installation failed", message)
+            self.assertEqual(code, Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+        finally:
+            manager.invoke_package_manager_advanced = original_invoke
+            manager.env_layer.run_command_output = original_run
+            manager.status_handler.add_error_to_status = original_add_error
+
+    def test_try_update_certs_ignores_fwupd_metadata_refresh_failure(self):
+        """A failed fwupdmgr metadata refresh must not prevent certificate verification."""
+        manager = self.container.get('package_manager')
+        self.original_run_command_output = self.runtime.env_layer.run_command_output
+        original_add_error = self.runtime.status_handler.add_error_to_status
+        try:
+            self.fwupd_commands = []
+            self.captured_errors_tracking = []
+            self.runtime.env_layer.run_command_output = self.mock_run_command_output_with_fwupd_force_refresh_failure
+            self.runtime.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+            manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+            manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+            self.assertTrue(manager.try_update_certs())
+            self.assertIn('sudo /snap/bin/fwupdmgr refresh --force', self.fwupd_commands)
+            self.assertIn('sudo /snap/bin/fwupdmgr update -y', self.fwupd_commands)
+            self.assertEqual(self.captured_errors_tracking, [])
+        finally:
+            self.runtime.env_layer.run_command_output = self.original_run_command_output
+            self.runtime.status_handler.add_error_to_status = original_add_error
+
+    def test_snap_fwupd_purge_failure_is_warning_only_when_certs_are_verified(self):
+        # This scenario validates the non-fatal purge path: a failed apt purge should only log a warning
+        # when the certs are already confirmed valid; it must not turn into a certificate-update failure.
+        for snap_installed, expected_command in ((False, 'sudo snap install fwupd'), (True, 'sudo snap refresh fwupd')):
+            self.runtime.stop()
+            self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT, fwupd_snap_installed=snap_installed, fwupd_snap_version='2.0.1')
+            self.container = self.runtime.container
+            manager = self.container.get('package_manager')
+            self.original_run_command_output = self.runtime.env_layer.run_command_output
+            self.original_log_warning = self.runtime.composite_logger.log_warning
+            original_add_error = self.runtime.status_handler.add_error_to_status
+            self.fwupd_commands = []
+            self.fwupd_warnings = []
+            self.captured_errors_tracking = []
+            try:
+                self.runtime.env_layer.run_command_output = self.mock_run_command_output_with_fwupd_purge_failure
+                self.runtime.composite_logger.log_warning = self.mock_log_warning_to_track_fwupd_purge_failure
+                self.runtime.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+                manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+                manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+
+                self.assertTrue(manager.try_update_certs())
+                self.assertEqual(self.captured_errors_tracking, [])
+                self.assertEqual(self.fwupd_commands.count('sudo apt-get purge -y fwupd'), 1)
+                self.assertLess(self.fwupd_commands.index('sudo apt-get purge -y fwupd'), self.fwupd_commands.index('sudo snap refresh snapd'))
+                self.assertLess(self.fwupd_commands.index('sudo snap refresh snapd'), self.fwupd_commands.index(expected_command))
+                self.assertIn('sudo /snap/bin/fwupdmgr refresh --force', self.fwupd_commands)
+                self.assertIn('sudo /snap/bin/fwupdmgr update -y', self.fwupd_commands)
+                self.assertEqual(len(self.fwupd_warnings), 1)
+                self.assertIn('Apt fwupd purge failed; continuing', self.fwupd_warnings[0])
+                self.assertIn('Code=100', self.fwupd_warnings[0])
+            finally:
+                self.runtime.env_layer.run_command_output = self.original_run_command_output
+                self.runtime.composite_logger.log_warning = self.original_log_warning
+                self.runtime.status_handler.add_error_to_status = original_add_error
+
+    def test_snap_refresh_before_fwupd_installation(self):
+        # This matrix exercises the older snap-based path before Jammy. The initial version and Refresh result
+        # are intentionally varied to cover the dependency ordering rules: purge old apt fwupd before snap refresh,
+        # then install refreshed snap fwupd only when the snap requirement isn't already satisfied.
+        self.snap_test_original_run = self.runtime.env_layer.run_command_output
+        original_add_error = self.runtime.status_handler.add_error_to_status
+        try:
+            for should_fail, version in ((False, ""), (False, "2.0.1"), (False, "2.0.20"), (True, "")):
+                self.snap_test_refresh_fails = should_fail
+                self.snap_test_initial_version = version
+                self.runtime.stop()
+                self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
+                self.container = self.runtime.container
+                manager = self.container.get('package_manager')
+                self.snap_test_original_run = self.runtime.env_layer.run_command_output
+                original_add_error = self.runtime.status_handler.add_error_to_status
+                self.runtime.env_layer.run_command_output = self.mock_run_command_output_for_snap_refresh_test
+                self.runtime.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+                manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+                manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+                self.captured_errors_tracking = []
+                self.snap_test_commands = []
+                self.assertTrue(manager.try_update_certs())
+                self.assertEqual(len(self.captured_errors_tracking), 0)
+                self.assertNotIn("fwupdmgr --version", self.snap_test_commands)
+                self.assertIn("/snap/bin/fwupdmgr --version", self.snap_test_commands)
+                if version == "":
+                    # The apt binary may be recent, but it must not satisfy the snap requirement.
+                    self.assertEqual(self.runtime.legacy_env_layer_extensions.run_command_output("fwupdmgr --version", False, False)[0], 0)
+                    self.assertIn('sudo snap install fwupd', self.snap_test_commands)
+                    self.assertEqual(self.snap_test_commands.count("/snap/bin/fwupdmgr --version"), 2)
+                if version == "2.0.20":
+                    self.assertNotIn("sudo snap refresh snapd", self.snap_test_commands)
+                    self.assertNotIn('sudo apt-get purge -y fwupd', self.snap_test_commands)
+                else:
+                    self.assertEqual(self.snap_test_commands.count('sudo apt-get purge -y fwupd'), 1)
+                    self.assertLess(self.snap_test_commands.index('sudo apt-get purge -y fwupd'), self.snap_test_commands.index("sudo snap refresh snapd"))
+                    self.assertLess(self.snap_test_commands.index("sudo snap refresh snapd"), self.snap_test_commands.index('sudo snap install fwupd'))
+                    self.assertIn('sudo /snap/bin/fwupdmgr refresh --force', self.snap_test_commands)
+                    self.assertIn('sudo /snap/bin/fwupdmgr update -y', self.snap_test_commands)
+
+        finally:
+            self.runtime.env_layer.run_command_output = self.snap_test_original_run
+            self.runtime.status_handler.add_error_to_status = original_add_error
+
+    def test_fwupd_apt_installation_skips_snap_refresh(self):
+        original_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        self.snap_test_original_run = self.runtime.env_layer.run_command_output
+        original_add_error = self.runtime.status_handler.add_error_to_status
+
+        try:
+            self.runtime.stop()
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux_distribution_to_return_ubuntu_jammy
+            self.runtime = RuntimeCompositor(self.argument_composer, True, Constants.APT)
+            self.container = self.runtime.container
+            manager = self.container.get('package_manager')
+            self.snap_test_original_run = self.runtime.env_layer.run_command_output
+            original_add_error = self.runtime.status_handler.add_error_to_status
+            self.snap_test_refresh_fails = False
+            self.runtime.env_layer.run_command_output = self.mock_run_command_output_for_snap_refresh_test
+            self.runtime.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+            manager.are_latest_certs_present_with_mokutil_check = self.mock_are_latest_certs_present_return_true
+            manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+
+            # On Ubuntu Jammy and newer, fwupd is installed via apt, not the snap path.
+            # The values below cover the two relevant apt-install cases:
+            #  - "" : fwupd is not installed yet, so we should just install it.
+            #  - "2.0.1" : fwupd is installed but below minimum version, so we purge then reinstall it.
+            # The "2.0.20" case is intentionally excluded here because it exercises the older snap-based
+            # flow on releases < 22.04, which is covered by test_snap_refresh_before_fwupd_installation().
+            for initial_version in ("", "2.0.1"):
+                self.snap_test_initial_version = initial_version
+                self.snap_test_commands = []
+                self.captured_errors_tracking = []
+
+                self.assertTrue(manager.try_update_certs())
+                self.assertEqual(self.captured_errors_tracking, [])
+                self.assertNotIn("sudo snap refresh snapd", self.snap_test_commands)
+                self.assertIn("sudo apt-get install -y fwupd", self.snap_test_commands)
+                self.assertIn("sudo fwupdmgr refresh --force", self.snap_test_commands)
+                self.assertIn("sudo fwupdmgr update -y", self.snap_test_commands)
+                if initial_version:
+                    self.assertEqual(self.snap_test_commands.count("sudo apt-get purge -y fwupd"), 1)
+                    self.assertLess(self.snap_test_commands.index("sudo apt-get purge -y fwupd"), self.snap_test_commands.index("sudo apt-get install -y fwupd"))
+                else:
+                    self.assertNotIn("sudo apt-get purge -y fwupd", self.snap_test_commands)
+        finally:
+            self.runtime.env_layer.run_command_output = self.snap_test_original_run
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = original_distribution
+            self.runtime.status_handler.add_error_to_status = original_add_error
+
+    def test_fwupd_update_failure_requires_both_latest_certs(self):
+        manager = self.container.get('package_manager')
+        original_run = manager.env_layer.run_command_output
+        original_fetch = manager.fetch_current_certs
+        original_add_error = manager.status_handler.add_error_to_status
+        original_reboot = manager.is_reboot_pending
+
+        try:
+            self.fwupd_update_failure_manager = manager
+            self.fwupd_update_failure_original_run = original_run
+            manager.env_layer.run_command_output = self.mock_run_command_output_for_fwupd_update_failure
+            manager.fetch_current_certs = self.mock_fetch_current_certs_for_fwupd_update_failure
+            manager.status_handler.add_error_to_status = self.mock_add_error_to_status_to_capture_errors
+            manager.is_reboot_pending = self.mock_is_reboot_pending_returns_bool_False
+            for kek_latest, db_latest in ((True, True), (False, True), (True, False), (False, False)):
+                self.cert_results = {Constants.Certificates.KEK: kek_latest, Constants.Certificates.DB: db_latest}
+                self.captured_errors_tracking = []
+                self.assertEqual(manager.try_update_certs(), kek_latest and db_latest)
+                self.assertEqual(len(self.captured_errors_tracking), 0 if kek_latest and db_latest else 1)
+                if not (kek_latest and db_latest):
+                    self.assertIn("Shell step failed", self.captured_errors_tracking[0][0])
+                    self.assertIn("failed to send FuFirmware firmware to snapd", self.captured_errors_tracking[0][0])
+                    self.assertEqual(self.captured_errors_tracking[0][1], Constants.PatchOperationErrorCodes.CERTIFICATE_UPDATE)
+        finally:
+            manager.env_layer.run_command_output = original_run
+            manager.fetch_current_certs = original_fetch
+            manager.status_handler.add_error_to_status = original_add_error
+            manager.is_reboot_pending = original_reboot
+
     def test_is_hibernation_enabled_for_cert_update__with_various_use_cases(self):
         """Test is_hibernation_enabled_for_cert_update with various hibernation states"""
         package_manager = self.container.get('package_manager')
@@ -1647,6 +2341,348 @@ class TestAptitudePackageManager(unittest.TestCase):
             package_manager.execution_config.enable_uefi_cert_update_for_all_patching = backup_enable_all
     # endregion
 
+    #Lock detection and stale holder recovery
+    def test_stale_lock_holder_is_terminated_and_operation_proceeds(self):
+        # every safety gate passes: orphaned (ppid 1), 78 days old, older extension version
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_that_exits_after_sigterm
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            result = package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Clearing an abandoned LinuxPatchExtension process")
+        self.__assert_std_io(captured_output, "The abandoned lock holder has exited")
+        self.__assert_std_io(captured_output, "LastSignalSent=SIGTERM")
+        self.__assert_std_io(captured_output, "Retrying the command once after clearing the stale lock holder")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])   # terminates the process, not the lock file
+        self.assertEqual(result, "Reading package lists...")   # output of the retried command
+
+    def test_stale_lock_holder_is_escalated_to_sigkill_when_sigterm_is_ignored(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_that_ignores_signals
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Could not clear the abandoned lock holder")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709", "sudo kill -KILL 2324709"])
+
+    def test_lock_holder_with_live_parent_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_with_live_parent
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Detected package manager lock held by a LinuxPatchExtension process")
+        self.__assert_std_io(captured_output, "HolderPid=2324709")
+        self.__assert_std_io(captured_output, "HolderVersion=1.6.64")
+        self.__assert_std_io(captured_output, "CurrentVersion=1.6.71")
+        self.__assert_std_io(captured_output, "IsOlderVersion=True")
+        self.__assert_std_io(captured_output, "it is not confidently an abandoned extension apt process")
+        self.__assert_std_io(captured_output, "Ppid=5000")
+
+    def test_lock_holder_that_is_not_old_enough_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_that_is_not_old_enough
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "it is not old enough to be considered abandoned")
+
+    def test_lock_holder_with_unparseable_age_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_with_unparseable_age
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "its age could not be determined")
+
+    def test_lock_holder_from_same_or_newer_extension_version_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_from_current_extension_version
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "it is not confidently an abandoned extension apt process")
+        self.__assert_std_io(captured_output, "IsOlderVersion=False")
+
+    def test_lock_holder_that_is_not_an_apt_process_is_left_untouched(self):
+        # the extension launches many processes; only apt/dpkg holders are eligible
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_that_is_not_an_apt_process
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "it is not confidently an abandoned extension apt process")
+
+    def test_lock_holder_that_changes_identity_before_termination_is_not_signalled_and_retried(self):
+        # the PID could be recycled between inspection and termination, so identity is re-validated first
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_whose_pid_is_reused_before_sigterm   # different start time
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            result = package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "PID was reused by another process")
+        self.__assert_std_io(captured_output, "LastSignalSent=None")
+        self.assertEqual(result, "Reading package lists...")
+
+    def test_lock_holder_pid_reused_after_sigterm_is_not_sent_sigkill_and_command_is_retried(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_whose_pid_is_reused_after_sigterm
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            result = package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "PID was reused by another process")
+        self.__assert_std_io(captured_output, "LastSignalSent=SIGTERM")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])   # SIGKILL is never sent to the recycled PID
+        self.assertEqual(result, "Reading package lists...")
+
+    def test_lock_holder_signal_failure_is_logged(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_that_cannot_be_signalled
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Signalling the lock holder failed")
+        self.__assert_std_io(captured_output, "Signal=SIGTERM")
+        self.__assert_std_io(captured_output, "sudo: a password is required")
+
+    def test_lock_holder_termination_that_does_not_release_the_lock_still_fails_the_operation(self):
+        # terminating the holder is not assumed to be sufficient; the retried command is the proof
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_that_exits_after_sigterm_without_releasing_lock
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "error persists after clearing the stale lock holder")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])
+
+    def test_lock_holder_with_unparseable_current_extension_version_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_that_ignores_signals
+
+        Constants.EXT_VERSION = "unknown"
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "extension version could not be parsed")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_without_command_line_is_not_signalled_and_command_is_retried(self):
+        # ps output with only 7 fields (no cmd) cannot identify the holder safely, so it is never signalled; the retry decides the outcome
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_without_command_line
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "its details could not be read")
+        self.__assert_std_io(captured_output, "error persists after clearing the stale lock holder")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_that_is_not_an_extension_process_is_left_untouched(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_non_extension_process
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "held by a non-extension process")
+
+    def test_lock_held_but_holder_pid_not_determinable_is_logged(self):
+        # covers the "PID could not be determined" branch (no 'held by process N' in output)
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_without_pid
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "the holding process id could not be determined")
+
+    def test_lock_holder_inspection_failure_is_non_fatal(self):
+        # covers the best-effort except guard: an inspection failure must not change normal failure behavior
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_holder_inspection_raises
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Non-fatal: failed while inspecting package manager lock holder")
+        self.__assert_std_io(captured_output, "simulated ps failure")
+
+    def test_stale_lock_holder_under_sudo_and_sh_wrappers_is_terminated(self):
+        # core died, so only the top sh wrapper was adopted by PID 1; the holder's own parent is still sudo
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_orphaned_sudo_and_sh_wrappers
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            result = package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(sudo)<-2324707(sh)<-1")
+        self.__assert_std_io(captured_output, "Retrying the command once after clearing the stale lock holder")
+        self.assertEqual(self.signals_sent, ["sudo kill -TERM 2324709"])   # only the holder, never its wrappers
+        self.assertEqual(result, "Reading package lists...")
+
+    def test_lock_holder_under_live_core_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_live_core
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(sudo)<-2324707(sh)<-2324706(python3)]")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_under_waagent_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_waagent
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(sudo)<-2324700(python3)]")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_under_wrapper_from_different_extension_version_is_not_terminated(self):
+        # 1.6.6 is a prefix of 1.6.64, so this also verifies the version match is exact
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_wrapper_from_different_extension_version
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(sudo)]")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_chain_exceeding_max_depth_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_under_too_many_wrappers
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "<-(MaxDepthReached)")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_with_unreadable_parent_is_not_terminated(self):
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_with_unreadable_parent
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            with self.assertRaises(Exception):
+                package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "Ancestry=2324709(apt-get)<-2324708(Unreadable)]")
+        self.assertEqual(self.signals_sent, [])
+
+    def test_lock_holder_that_already_exited_is_not_signalled_and_command_is_retried(self):
+        # the lock is tied to the holder process, so once it is gone the retry succeeds without any termination
+        package_manager = self.container.get('package_manager')
+        self.runtime.env_layer.run_command_output = self.mock_run_command_output_apt_lock_held_by_holder_that_already_exited
+
+        captured_output, original_stdout = self.__capture_std_io()
+        try:
+            result = package_manager.invoke_package_manager("sudo apt-get -q update")
+        finally:
+            sys.stdout = original_stdout
+
+        self.__assert_std_io(captured_output, "it may have already exited). Retrying the command once.")
+        self.assertEqual(self.signals_sent, [])
+        self.assertEqual(result, "Reading package lists...")
+    #end region
 
 if __name__ == '__main__':
     unittest.main()

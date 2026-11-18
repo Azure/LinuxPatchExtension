@@ -24,6 +24,8 @@ class LegacyEnvLayerExtensions():
         self.legacy_package_manager_name = package_manager_name
         self.legacy_test_type = test_type
         self.temp_folder_path = ""
+        self.fwupd_snap_installed = False
+        self.fwupd_snap_version = "2.0.20"
 
     class LegacyPlatform(object):
         def linux_distribution(self):
@@ -545,6 +547,12 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find('apt-get install -y -qq mokutil') > -1:
                         code = 0
                         output = "Installed"
+                    elif cmd == "/snap/bin/fwupdmgr --version":
+                        if self.fwupd_snap_installed:
+                            output = "compile   org.freedesktop.fwupd         {0}".format(self.fwupd_snap_version)
+                        else:
+                            code = 1
+                            output = "/snap/bin/fwupdmgr: command not found"
                     elif cmd.find("fwupdmgr --version") > -1:
                         code = 0
                         output = ("compile    info.libusb                   1.0.25\n"
@@ -580,10 +588,21 @@ class LegacyEnvLayerExtensions():
                                   "Building dependency tree... Done"
                                   "Reading state information... Done "
                                   "2 upgraded, 7 newly installed, 0 to remove and 37 not upgraded")
-                    elif cmd.find("sudo fwupdmgr refresh") > -1:
+                    elif cmd.find("sudo snap refresh") > -1:
+                        code = 0
+                        output = "All snaps up to date."
+                        if cmd == "sudo snap refresh fwupd":
+                            self.fwupd_snap_installed = True
+                            self.fwupd_snap_version = "2.0.20"
+                    elif cmd.find("sudo snap install fwupd") > -1:
+                        code = 0
+                        output = "fwupd installed"
+                        self.fwupd_snap_installed = True
+                        self.fwupd_snap_version = "2.0.20"
+                    elif cmd.find("fwupdmgr refresh") > -1:
                         code = 0
                         output = "Success"
-                    elif cmd.find("sudo fwupdmgr update") > -1:
+                    elif cmd.find("fwupdmgr update") > -1:
                         code = 0
                         output = "Successfully installed firmware"
                 elif self.legacy_package_manager_name is Constants.TDNF:
@@ -688,9 +707,83 @@ class LegacyEnvLayerExtensions():
                                  "dracut                      x86_64             102-7.azl3              azurelinux-official-base  382.51k               258.06k\n\n" + \
                                  "hyperv-daemons-license      noarch             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
                                  "hypervvssd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  382.51k               258.06k\n\n" + \
-                                  "hypervkvpd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
-                                  "Total installed size:   1.20M\n" + \
-                                  "Total download size: 661.34k\n"
+                                 "hypervkvpd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n" + \
+                                 "Total installed size:   1.20M\n" + \
+                                 "Total download size: 661.34k\n"
+                elif self.legacy_package_manager_name is Constants.DNF:
+                    if cmd.find("check-update") > -1:
+                        code = 100
+                        output = (
+                            "Updating Subscription Management repositories.\n"
+                            "Last metadata expiration check: 2:44:12 ago on Tue Jun 30 17:24:19 2026.\n"
+                            "\n"
+                            "dracut.x86_64                                                    107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
+                            "dracut-config-generic.x86_64                                     107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
+                            "dracut-network.x86_64                                            107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
+                            "dracut-squash.x86_64                                             107-8.el10_2                                     rhel-10-baseos-rhui-rpms\n"
+                        )
+                    elif cmd.find("dnf -y upgrade") > -1:
+                        code = 0
+                        output = "Complete!\n"
+                    elif "needs-restarting" in cmd:
+                        code = 1
+                        output = (
+                            "Updating Subscription Management repositories.\n"
+                            "Core libraries or services have been updated since boot-up:\n"
+                            "  * glibc\n\n"
+                            "Reboot is required to fully utilize these updates.\n")
+                    elif cmd.find("dnf list --available python3") > -1:
+                        code = 0
+                        output = (
+                            "Updating Subscription Management repositories.\n"
+                            "Available Packages\n"
+                            "python3.x86_64    3.12.13-2.el10_2    rhel-10-baseos-rhui-rpms\n")
+                    elif cmd.find("dnf upgrade --assumeno --skip-broken") > -1 and "hyperv-daemons" in cmd:
+                        code = 1
+                        output = (
+                            "Updating Subscription Management repositories.\n"
+                            "Dependencies resolved.\n"
+                            "==================================================================================================================\n"
+                            " Package                      Architecture Version                        Repository                         Size\n"
+                            "==================================================================================================================\n"
+                            "Installing:\n"
+                            " hyperv-daemons               x86_64       0-0.50.20220731git.el10        rhel-10-appstream-rhui-rpms       6.6 k\n"
+                            "Installing dependencies:\n"
+                            " hyperv-daemons-license       noarch       0-0.50.20220731git.el10        rhel-10-appstream-rhui-rpms        18 k\n"
+                            " hypervfcopyd                 x86_64       0-0.50.20220731git.el10        rhel-10-appstream-rhui-rpms        19 k\n"
+                            " hypervkvpd                   x86_64       0-0.50.20220731git.el10        rhel-10-appstream-rhui-rpms        28 k\n"
+                            " hypervvssd                   x86_64       0-0.50.20220731git.el10        rhel-10-appstream-rhui-rpms        19 k\n"
+                            "\nTransaction Summary\n"
+                            "==================================================================================================================\n"
+                            "Install  5 Packages\n"
+                            "\nTotal download size: 91 k\n" 
+                            "Installed size: 94 k\n"
+                            "Operation aborted.\n")
+                    elif cmd.find("systemctl is-enabled ") > -1:
+                        code = 0
+                        output = "disabled"
+
+                    elif cmd.find("systemctl disable ") > -1:
+                        code = 0
+                        output = "Removed /etc/systemd/system/multi-user.target.wants/dnf-automatic.service."
+
+                    elif cmd.find("rpm -qa") > -1:
+                        code = 0
+                        output = (
+                            "dnf-automatic\n"
+                            "hypervkvpd                  x86_64             6.6.78.1-1.azl3         azurelinux-official-base  847.91k               403.29k\n"
+                            "Total installed size:   1.20M\n"
+                            "Total download size: 661.34k\n")
+                    elif cmd.find("dnf list --installed") > -1:
+                        code = 0
+                        package = cmd.replace('sudo dnf list --installed ','').strip()
+                        whitelisted_versions = ['107-8.el10_2','8.12.1-4.el10', '9.0.1-3.el10','2.39-124.el10_2'  ]
+                        output = ("Updating Subscription Management repositories.\n""Installed Packages\n")
+                        template = "<PACKAGE> <VERSION> @System\n"
+                        for version in whitelisted_versions:
+                            entry = template.replace('<PACKAGE>', package)
+                            entry = entry.replace('<VERSION>', version)
+                            output += entry
                 elif self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("check-update") > -1:
                         code = 100
@@ -823,6 +916,12 @@ class LegacyEnvLayerExtensions():
                         output = ''
                     else:
                         code = 0
+                elif self.legacy_package_manager_name is Constants.DNF:
+                    if cmd.find("systemctl enable --now dnf-automatic.timer") > -1:
+                        code = 1
+                        output = ''
+                    else:
+                        code = 0
                 elif cmd.find("systemctl") > -1:
                     code = 1
                     output = ''
@@ -892,6 +991,25 @@ class LegacyEnvLayerExtensions():
                     elif cmd.find("systemctl is-enabled ") > -1:
                         code = 0
                         output = 'enabled'
+                if self.legacy_package_manager_name is Constants.DNF:
+                    if "systemctl is-enabled" in cmd:
+                        code = 0
+                        output = 'enabled'
+                    elif cmd.find("rpm -qa") > -1:
+                        code = 0
+                        output = 'dnf-automatic-4.20.0-22.el10_2.noarch'
+                    elif "systemctl enable --nows dnf-automatic.timer" in cmd:
+                        code = 1
+                        output = 'systemctl: unrecognized option --nows'
+                    elif cmd.find("dnf upgrade --assumeno") > -1 and "openssl-999.999" in cmd:
+                        code = 1
+                        output = (
+                            "Updating and loading repositories:\n"
+                            "Repositories loaded.\n"
+                            "Failed to resolve the transaction:\n"
+                            "No match for argument: openssl-999.999\n"
+                            "You can try to add to command line:\n"
+                            "  --skip-unavailable to skip unavailable packages\n")
                 if self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("systemctl cat dnf5-automatic.service") > -1:
                         code = 0
@@ -1090,6 +1208,34 @@ class LegacyEnvLayerExtensions():
                         code = 0
                         output = "Loaded plugin: tdnfrepogpgcheck\n" + \
                                  "hyperv-daemons-license.noarch                     6.6.78.1-1.azl3                     @System\n"
+                elif self.legacy_package_manager_name is Constants.DNF:
+                    if "rubygem-json" in cmd and "--assumeno" in cmd:
+                        code = 1
+                        output = ("Updating Subscription Management repositories.\n"
+                                "Dependencies resolved.\n"
+                                "=============================================================================\n"
+                                "Installing:\n"
+                                " rubygem-json x86_64 2.7.2-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                "Installing dependencies:\n"
+                                " ruby x86_64 3.3.10-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                " ruby-default-gems noarch 3.3.10-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                " ruby-libs x86_64 3.3.10-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                " rubygem-io-console x86_64 0.7.1-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                " rubygem-psych x86_64 5.1.2-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                " rubygems noarch 3.5.22-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                "Installing weak dependencies:\n"
+                                " rubygem-bigdecimal x86_64 3.1.5-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                " rubygem-bundler noarch 2.5.22-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                " rubygem-rdoc noarch 6.6.3.1-12.el10_1 rhel-10-appstream-rhui-rpms\n"
+                                "\nTransaction Summary\n"
+                                "=============================================================================\n"
+                                "Install  10 Packages\n"
+                                "\nOperation aborted.\n")
+                    elif cmd.find("dnf list --installed rubygem-json.x86_64") > -1:
+                        code = 0
+                        output = (
+                            "Installed Packages\n"
+                            "rubygem-json.x86_64 2.7.2-12.el10_1 @rhel-10-appstream-rhui-rpms\n")
                 elif self.legacy_package_manager_name is Constants.DNF5:
                     if "rubygem-json" in cmd and "--assumeno" in cmd:
                             code = 0
@@ -1098,25 +1244,27 @@ class LegacyEnvLayerExtensions():
                                 'Repositories loaded.\n'
                                 'Package "rubygem-json-2.13.2-2.azl4~20260501.x86_64" is already installed.\n\n'
                                 'Nothing to do.\n')
-                    elif "hyperv-daemons" in cmd and "--assumeno" in cmd:
-                        code = 1
-                        output = (
-                            "Updating and loading repositories:\n"
-                            "Repositories loaded.\n"
-                            "Package                                                  Arch          Version                                                  Repository                          Size\n"
-                            "Installing:\n"
-                            " hyperv-daemons                                           x86_64        6.10-3.azl4~20260501                                     azurelinux-base                     20.08k\n\n"
-                            "Installing dependencies:\n"
-                            " hyperv-daemons-license                                   noarch        6.10-3.azl4~20260501                                     azurelinux-base                     18.3 KiB\n\n"
-                            "Transaction Summary:\n"
-                            " Installing:         2 packages\n\n"
-                            "Total download size: 135.09k\n"
-                            "Operation aborted by the user.\n")
                     elif "dnf5 list --installed rubygem-json" in cmd:
                         code = 0
                         output = (
                             "Installed packages\n"
                             "rubygem-json.x86_64 2.13.2-2.azl4~20260501 azurelinux-base\n")
+                    elif cmd.find("sudo dnf5 upgrade --assumeno openssl") > -1:
+                        code = 0
+                        output = "Updating and loading repositories:\n" + \
+                                 "Repositories loaded.\n" + \
+                                 "Package                                   Arch    Version                                   Repository                                Size\n" + \
+                                 "Upgrading:\n" + \
+                                 " openssl                                  x86_64  1:3.5.4-7.azl4                            azurelinux-base                        1.8 MiB\n" + \
+                                 "   replacing openssl                      x86_64  1:3.5.4-4.azl4                            64806a6b30824b51aafe6d2d87587286       1.8 MiB\n" + \
+                                 " openssl-libs                             x86_64  1:3.5.4-7.azl4                            azurelinux-base                        6.5 MiB\n" + \
+                                 "   replacing openssl-libs                 x86_64  1:3.5.4-4.azl4                            64806a6b30824b51aafe6d2d87587286       6.5 MiB\n" + \
+                                 "Transaction Summary:\n" + \
+                                 " Upgrading:          2 packages\n" + \
+                                 " Replacing:          2 packages\n\n" + \
+                                 "Total size of inbound packages is 3 MiB. Need to download 3 MiB.\n" + \
+                                 "After this operation, 32 B extra will be used (install 8 MiB, remove 8 MiB).\n" + \
+                                 "Operation aborted by the user."
             elif self.legacy_test_type == 'FailInstallPath':
                 if cmd.find("cat /proc/cpuinfo | grep name") > -1:
                     code = 0
@@ -1279,6 +1427,21 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("simulate-install") > -1 or cmd.find("sudo tdnf install --assumeno --skip-broken hyperv-daemons-license") > -1:
                         code = 100
                         output = "Failed to install package"
+                elif self.legacy_package_manager_name is Constants.DNF:
+                    if cmd.find("simulate-install") > -1 or cmd.find("dnf upgrade --assumeno --skip-broken hyperv-daemons-license") > -1:
+                        code = 1
+                        output = (
+                            "Updating Subscription Management repositories.\n"
+                            "Dependencies resolved.\n"
+                            "=============================================================================================\n"
+                            " Package                 Arch    Version                  Repository                    Size\n"
+                            "=============================================================================================\n"
+                            "Installing:\n"
+                            " hyperv-daemons-license  noarch  0-0.50.20220731git.el10  rhel-10-appstream-rhui-rpms   18 k\n"
+                            "\nTransaction Summary\n"
+                            "=============================================================================================\n"
+                            "Install  1 Package\n"
+                            "\nOperation aborted.\n")
                 elif self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("simulate-install") > -1 or cmd.find("sudo dnf5 upgrade --assumeno hyperv-daemons-license") > -1:
                         code = 1
@@ -1598,6 +1761,13 @@ class LegacyEnvLayerExtensions():
                                  "python3.x86_64                3.12.9-1.azl3                   azurelinux-official-base\n" + \
                                  "Obsoleting:\n" + \
                                  "python.x86_64                 2.7.9-1.azl3                    azurelinux-official-base\n"
+                elif self.legacy_package_manager_name is Constants.DNF:
+                    if cmd.find("dnf list --available kernel") > -1:
+                        code = 0
+                        output = "Updating Subscription Management repositories.\n" + \
+                                 "Last metadata expiration check: 0:43:21 ago on Mon Jun 29 14:49:21 2026.\n" + \
+                                 "Available Packages\n" + \
+                                 "kernel.x86_64                   6.12.0-211.28.1.el10_2                   rhel-10-baseos-rhui-rpms\n"
                 elif self.legacy_package_manager_name is Constants.DNF5:
                     if cmd.find("dnf5 list --available python3") > -1:
                         code = 0
@@ -1710,6 +1880,10 @@ class LegacyEnvLayerExtensions():
                     if cmd.find("systemctl list-unit-files --type=service | grep dnf-automatic.service") > -1:
                         code = 0
                         output = 'Auto update service installed'
+                elif self.legacy_package_manager_name is Constants.DNF:
+                    if "rpm -qa | grep dnf-automatic" in cmd:
+                        code = 0
+                        output = 'dnf-automatic'
                 elif self.legacy_package_manager_name is Constants.DNF5:
                     if "rpm -qa | grep dnf5-plugin-automatic" in cmd:
                         code = 0

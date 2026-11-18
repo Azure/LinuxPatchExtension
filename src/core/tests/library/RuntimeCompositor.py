@@ -41,7 +41,7 @@ except ImportError:
 
 
 class RuntimeCompositor(object):
-    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE, test_type="HappyPath"):
+    def __init__(self, argv=Constants.DEFAULT_UNSPECIFIED_VALUE, legacy_mode=False, package_manager_name=Constants.APT, vm_cloud_type=Constants.VMCloudType.AZURE, test_type="HappyPath", fwupd_snap_installed=False, fwupd_snap_version="2.0.20"):
         # Init data
         self.original_rm_start_reboot = None
         self.current_env = Constants.DEV
@@ -80,6 +80,8 @@ class RuntimeCompositor(object):
         self.env_layer = self.bootstrapper.env_layer
         if legacy_mode:
             self.legacy_env_layer_extensions = LegacyEnvLayerExtensions(package_manager_name, test_type)
+            self.legacy_env_layer_extensions.fwupd_snap_installed = fwupd_snap_installed
+            self.legacy_env_layer_extensions.fwupd_snap_version = fwupd_snap_version
             self.reconfigure_env_layer_to_legacy_mode()
 
         # Overriding check_sudo_status to always true

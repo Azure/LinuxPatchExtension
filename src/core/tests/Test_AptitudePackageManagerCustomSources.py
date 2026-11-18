@@ -33,6 +33,15 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
     def tearDown(self):
         self.runtime.stop()
 
+    # region Mocks
+    def mock_invoke_package_manager_advanced_to_track_commands(self, command, raise_on_exception=True):
+        self.tracked_commands.append(command)
+        return str(), 0
+
+    def mock_ubuntu_pro_client_get_security_updates_returns_failure(self):
+        return False, [], []
+    # endregion
+
     def test_custom_source_invocation_for_security(self):
         def get_custom_sources_to_spec_for_sec(max_patch_published_date=str(), base_classification=str()):
             assert max_patch_published_date is str()
@@ -69,6 +78,61 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
         self.__adapt_package_manager_for_mock_sources(package_manager, mock_sources_path)
         package_manager._AptitudePackageManager__read_one_line_style_list_format = None
         package_manager._AptitudePackageManager__get_consolidated_source_parts_content("some-date", "security")
+
+    def test_default_refresh_invalidates_snapshot_sources_cache(self):
+        # A default-sources refresh deletes snapshot lists on disk, so the next snapshot-sourced call must refresh again
+        package_manager, mock_sources_path, commands = self.__get_package_manager_with_command_tracking()
+        package_manager.set_max_patch_publish_date("20240401T160000Z")
+
+        package_manager._AptitudePackageManager__get_custom_sources_to_spec("20240401T160000Z", "Security")
+        self.assertEqual(self.__count_custom_source_refreshes(commands), 1)
+        self.assertEqual(package_manager.current_source_formula, "20240401T160000Z-security")
+        package_manager._AptitudePackageManager__get_custom_sources_to_spec("20240401T160000Z", "Security")
+        self.assertEqual(self.__count_custom_source_refreshes(commands), 1)     # cache hit, no refresh
+
+        package_manager.refresh_repo()      # default sources refresh
+        self.assertIsNone(package_manager.current_source_formula)
+
+        package_manager._AptitudePackageManager__get_custom_sources_to_spec("20240401T160000Z", "Security")
+        self.assertEqual(self.__count_custom_source_refreshes(commands), 2)     # snapshot lists re-fetched
+        self.assertEqual(package_manager.current_source_formula, "20240401T160000Z-security")
+        self.__clear_mock_sources_path(mock_sources_path)
+
+    def test_default_refresh_retains_sources_cache_without_snapshot_date(self):
+        # Without a snapshot date, custom sources point to the same repos as default sources, so lists survive and caching is retained
+        package_manager, mock_sources_path, commands = self.__get_package_manager_with_command_tracking()
+
+        package_manager._AptitudePackageManager__get_custom_sources_to_spec(str(), "Security")
+        self.assertEqual(self.__count_custom_source_refreshes(commands), 1)
+
+        package_manager.refresh_repo()
+        self.assertEqual(package_manager.current_source_formula, "any-security")
+
+        package_manager._AptitudePackageManager__get_custom_sources_to_spec(str(), "Security")
+        self.assertEqual(self.__count_custom_source_refreshes(commands), 1)     # cache hit, no refresh
+        self.__clear_mock_sources_path(mock_sources_path)
+
+    def test_strict_sdp_install_refetches_snapshot_lists_after_pro_client_refresh(self):
+        # Reproduces the strict SDP sequence: snapshot security discovery -> pro client default refresh -> snapshot security install
+        package_manager, mock_sources_path, commands = self.__get_package_manager_with_command_tracking()
+        package_manager.set_max_patch_publish_date("20240401T160000Z")
+        package_manager._AptitudePackageManager__pro_client_prereq_met = True
+        package_manager.ubuntu_pro_client.get_security_updates = self.mock_ubuntu_pro_client_get_security_updates_returns_failure
+
+        package_manager.get_security_updates()
+        code, out = package_manager.install_security_updates_azgps_coordinated()
+        self.assertEqual(code, 0)
+
+        install_commands = [i for i, cmd in enumerate(commands) if "dist-upgrade" in cmd and "-s dist-upgrade" not in cmd]
+        default_refreshes = [i for i, cmd in enumerate(commands) if "apt-get -q update" in cmd and "SourceParts" not in cmd]
+        snapshot_refreshes = [i for i, cmd in enumerate(commands) if "apt-get -q update" in cmd and "SourceParts" in cmd]
+        self.assertEqual(len(install_commands), 1)
+        self.assertEqual(len(default_refreshes), 1)     # pro client prerequisite refresh
+        self.assertEqual(len(snapshot_refreshes), 2)    # discovery + re-fetch before install
+        self.assertLess(default_refreshes[0], snapshot_refreshes[-1])       # snapshot lists refreshed after default refresh...
+        self.assertLess(snapshot_refreshes[-1], install_commands[0])        # ...and before install
+        self.assertIn("20240401T160000Z-security", commands[install_commands[0]])
+        self.__clear_mock_sources_path(mock_sources_path)
 
     def test_sources_list_and_parts_combinations(self):
         # Tests 32 combinations of source configuration on disk and desired manipulations + caching
@@ -198,6 +262,22 @@ class TestAptitudePackageManagerCustomSources(unittest.TestCase):
         # Modifies the package manager internals to the mock input data sources
         package_manager.APT_SOURCES_LIST_PATH = os.path.join(mock_sources_path, "sources.list")
         package_manager.APT_SOURCES_DIR_PATH = os.path.join(mock_sources_path, "sources.list.d")
+
+    def __get_package_manager_with_command_tracking(self):
+        # type: () -> (object, str, list)
+        # Returns a package manager wired to mock sources, with every package manager command captured instead of executed
+        self.tracked_commands = []
+        mock_sources_path = self.__prep_scratch_with_sources(include_sources_list=True, include_source_parts_list=False, include_source_parts_debstyle=True)
+        package_manager = AptitudePackageManager.AptitudePackageManager(self.runtime.env_layer, self.runtime.execution_config, self.runtime.composite_logger, self.runtime.telemetry_writer, self.runtime.status_handler)
+        self.__adapt_package_manager_for_mock_sources(package_manager, mock_sources_path)
+        package_manager.invoke_package_manager_advanced = self.mock_invoke_package_manager_advanced_to_track_commands
+        return package_manager, mock_sources_path, self.tracked_commands
+
+    @staticmethod
+    def __count_custom_source_refreshes(commands):
+        # type: (list) -> int
+        # Counts repo refreshes that were scoped to custom (snapshot) sources
+        return len([cmd for cmd in commands if "apt-get -q update" in cmd and "SourceParts" in cmd])
 
     @staticmethod
     def __get_sources_data_one_line_style_def():

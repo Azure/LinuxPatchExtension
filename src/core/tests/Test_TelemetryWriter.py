@@ -450,6 +450,15 @@ class TestTelemetryWriter(unittest.TestCase):
         self.assertEqual(event_files_count, 1)
         self._validate_sanitized_event(expected_message, task_name="Test Task")
 
+    def test_sanitize_credentials_in_package_info_payload(self):
+        """ Test sanitization of dict payloads written by write_package_info """
+        output = "Get:1 https://user1:secret123@repo.example.com/ubuntu jammy/main pkg 1.0"
+        expected_message = str({'package_name': "pkg", 'package_version': "1.0", 'package_size': "1 MB", 'install_duration': "5", 'install_result': "Installed",
+                                'code_path': "Default", 'install_cmd': "sudo apt-get install -y pkg", 'output': "Get:1 https://user1@repo.example.com/ubuntu jammy/main pkg 1.0"})
+
+        self.runtime.telemetry_writer.write_package_info("pkg", "1.0", "1 MB", 5, "Installed", "Default", "sudo apt-get install -y pkg", output)
+        self._validate_sanitized_event(expected_message)
+
     def test_sanitize_credentials_exception_handling(self):
         """ Test exception handling: passing None should return the input unchanged """
         result = self.runtime.telemetry_writer.credential_sanitizer.sanitize(None)
