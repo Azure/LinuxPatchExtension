@@ -47,6 +47,13 @@ class EnvLayer(object):
     def is_distro_azure_linux(distro_name):
         return any(x in distro_name for x in Constants.AZURE_LINUX)
 
+    def is_distro_rhel(self):
+        # type: () -> bool
+        """ Check if image is RHEL return true else false """
+        distro_info = self.platform.linux_distribution()
+        # linux_distribution() returns (os_offer, os_version, os_code), and os_offer is the first element.
+        return distro_info is not None and Constants.RED_HAT in distro_info[0]
+
     @staticmethod
     def __try_get_major_version():
         # type: () -> str or None

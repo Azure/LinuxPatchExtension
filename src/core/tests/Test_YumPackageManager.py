@@ -33,6 +33,7 @@ class TestYumPackageManager(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.YUM)
         self.container = self.runtime.container
+        self.runtime.env_layer.platform.linux_distribution = self.mock_linux7_distribution_to_return_redhat
 
     def tearDown(self):
         self.runtime.stop()
@@ -49,6 +50,9 @@ class TestYumPackageManager(unittest.TestCase):
 
     def mock_linux8_distribution_to_return_redhat(self):
         return ['Red Hat Enterprise Linux Server', '8', 'Ootpa']
+
+    def mock_ubuntu_distribution(self):
+        return ['Ubuntu', '20.04', 'Focal Fossa']
     #endregion Mocks
 
     # region Utility Functions
@@ -596,6 +600,67 @@ class TestYumPackageManager(unittest.TestCase):
         self.assertTrue(package_manager)
 
         self.assertRaises(Exception, package_manager.invoke_package_manager, package_manager.yum_check)
+
+    def test_apply_fix_ssl_cert_issue_rhel_image_success(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType1HappyPathAfterFix')
+        original_linux_distribution = self.runtime.env_layer.platform.linux_distribution
+        self.runtime.env_layer.platform.linux_distribution = self.mock_linux7_distribution_to_return_redhat
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+        try:
+            package_manager = self.container.get('package_manager')
+            package_manager.fix_ssl_certificate_issue()
+        finally:
+            sys.stdout = original_stdout
+            self.runtime.env_layer.platform.linux_distribution = original_linux_distribution
+
+        output = captured_output.getvalue()
+        self.assertIn("[YPM][Customer-environment-error] Updating client package", output)
+        self.assertIn("Client package update complete", output)
+
+    def test_apply_fix_ssl_cert_issue_rhel_image_404_refreshes_cache_and_retries(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType1Http404HappyPathAfterCacheRefresh')
+        captured_output = StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+        try:
+            package_manager = self.container.get('package_manager')
+            package_manager.fix_ssl_certificate_issue()
+        finally:
+            sys.stdout = original_stdout
+
+        output = captured_output.getvalue()
+        self.assertIn("404 encountered while updating client package", output)
+        self.assertIn("Client package update complete", output)
+
+    def test_apply_fix_ssl_cert_issue_rhel_image_failed(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType1SadPathAfterFix')
+        original_linux_distribution = self.runtime.env_layer.platform.linux_distribution
+        self.runtime.env_layer.platform.linux_distribution = self.mock_linux7_distribution_to_return_redhat
+        try:
+            package_manager = self.container.get('package_manager')
+            with self.assertRaises(Exception) as context:
+                package_manager.fix_ssl_certificate_issue()
+        finally:
+            self.runtime.env_layer.platform.linux_distribution = original_linux_distribution
+
+        self.assertIn('Customer environment error (expired SSL certs)', str(context.exception))
+        self.assertIn("sudo yum update -y --disablerepo='*' --enablerepo='*microsoft-azure*'", str(context.exception))
+
+    def test_apply_fix_ssl_cert_issue_non_rhel_image_failed(self):
+        self.runtime.set_legacy_test_type('SSLCertificateIssueType1HappyPathAfterFix')
+        original_linux_distribution = self.runtime.env_layer.platform.linux_distribution
+        self.runtime.env_layer.platform.linux_distribution = self.mock_ubuntu_distribution
+        try:
+            package_manager = self.container.get('package_manager')
+            with self.assertRaises(Exception) as context:
+                package_manager.fix_ssl_certificate_issue()
+        finally:
+            self.runtime.env_layer.platform.linux_distribution = original_linux_distribution
+
+        self.assertIn('Customer environment error (expired SSL certs)', str(context.exception))
+        self.assertNotIn('yum update', str(context.exception))
 
     def test_auto_issue_mitigation_should_raise_exception_if_error_repeats(self):
         self.runtime.set_legacy_test_type('IssueMitigationRetryExitAfterMultipleAttempts')
