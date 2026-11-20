@@ -44,8 +44,8 @@ class YumPackageManager(PackageManager):
         self.all_but_excluded_upgrade_cmd = 'sudo yum -y update --exclude='
 
         # Support to refresh yum cache and update the RHUI client package (used when mitigating known issues)
-        self.yum_clean_all = 'sudo yum clean all'
-        self.yum_makecache = 'sudo yum makecache'
+        self.yum_clean_all = "sudo yum clean all --disablerepo='*' --enablerepo='*microsoft-azure*'"
+        self.yum_makecache = "sudo yum makecache --disablerepo='*' --enablerepo='*microsoft-azure*'"
         self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft-azure*'"
 
         # Package manager exit code(s)

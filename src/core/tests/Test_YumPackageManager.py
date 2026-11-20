@@ -33,10 +33,15 @@ class TestYumPackageManager(unittest.TestCase):
     def setUp(self):
         self.runtime = RuntimeCompositor(ArgumentComposer().get_composed_arguments(), True, Constants.YUM)
         self.container = self.runtime.container
-        self.runtime.env_layer.platform.linux_distribution = self.mock_linux7_distribution_to_return_redhat
+        self.original_linux_distribution = LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution
+        LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.mock_linux7_distribution_to_return_redhat
 
     def tearDown(self):
         self.runtime.stop()
+        try:
+            self.runtime.stop()
+        finally:
+            LegacyEnvLayerExtensions.LegacyPlatform.linux_distribution = self.original_linux_distribution
 
     #region Mocks
     def mock_do_processes_require_restart(self):
@@ -53,6 +58,10 @@ class TestYumPackageManager(unittest.TestCase):
 
     def mock_ubuntu_distribution(self):
         return ['Ubuntu', '20.04', 'Focal Fossa']
+
+    def mock_record_run_command_output_for_ssl_fix(self, command, no_output=False, chk_err=True):
+        self.commands.append(command)
+        return self.original_run_command_output(command, no_output, chk_err)
     #endregion Mocks
 
     # region Utility Functions
@@ -621,6 +630,10 @@ class TestYumPackageManager(unittest.TestCase):
 
     def test_apply_fix_ssl_cert_issue_rhel_image_404_refreshes_cache_and_retries(self):
         self.runtime.set_legacy_test_type('SSLCertificateIssueType1Http404HappyPathAfterCacheRefresh')
+        self.commands = []
+        self.original_run_command_output = self.runtime.env_layer.run_command_output
+        self.runtime.env_layer.run_command_output = self.mock_record_run_command_output_for_ssl_fix
+
         captured_output = StringIO()
         original_stdout = sys.stdout
         sys.stdout = captured_output
@@ -629,10 +642,17 @@ class TestYumPackageManager(unittest.TestCase):
             package_manager.fix_ssl_certificate_issue()
         finally:
             sys.stdout = original_stdout
+            self.runtime.env_layer.run_command_output = self.original_run_command_output
 
         output = captured_output.getvalue()
         self.assertIn("404 encountered while updating client package", output)
         self.assertIn("Client package update complete", output)
+        self.assertEqual(self.commands, [
+            package_manager.yum_update_client_package,
+            package_manager.yum_clean_all,
+            package_manager.yum_makecache,
+            package_manager.yum_update_client_package
+        ])
 
     def test_apply_fix_ssl_cert_issue_rhel_image_failed(self):
         self.runtime.set_legacy_test_type('SSLCertificateIssueType1SadPathAfterFix')
