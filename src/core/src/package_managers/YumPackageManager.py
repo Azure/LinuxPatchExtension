@@ -43,6 +43,11 @@ class YumPackageManager(PackageManager):
         self.single_package_upgrade_cmd = 'sudo yum -y install --skip-broken '
         self.all_but_excluded_upgrade_cmd = 'sudo yum -y update --exclude='
 
+        # Support to refresh yum cache and update the RHUI client package (used when mitigating known issues)
+        self.yum_clean_all = "sudo yum clean all --disablerepo='*' --enablerepo='*microsoft-azure*'"
+        self.yum_makecache = "sudo yum makecache --disablerepo='*' --enablerepo='*microsoft-azure*'"
+        self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft-azure*'"
+
         # Package manager exit code(s)
         self.yum_exitcode_no_applicable_packages = 0
         self.yum_exitcode_ok = 1
@@ -96,8 +101,6 @@ class YumPackageManager(PackageManager):
         self.known_errors_and_fixes = {"SSL peer rejected your certificate as expired": self.fix_ssl_certificate_issue,
                                        "Error: Cannot retrieve repository metadata (repomd.xml) for repository": self.fix_ssl_certificate_issue,
                                        "Error: Failed to download metadata for repo":  self.fix_ssl_certificate_issue}
-
-        self.yum_update_client_package = "sudo yum update -y --disablerepo='*' --enablerepo='*microsoft*'"
 
         self.package_install_expected_avg_time_in_seconds = 90  # As per telemetry data, the average time to install package is around 90 seconds for yum.
 
@@ -981,11 +984,26 @@ class YumPackageManager(PackageManager):
         return False
 
     def fix_ssl_certificate_issue(self):
+        # type: () -> None
+        """ Attempt to fix the SSL certificate issue by updating the client package """
+        if not self.env_layer.is_distro_rhel():
+            error_msg = '[YPM] Customer environment error (expired SSL certs)'
+            self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
+            raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
+
         command = self.yum_update_client_package
-        self.composite_logger.log_debug("[Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
+        self.composite_logger.log_debug("[YPM][Customer-environment-error] Updating client package to avoid errors from older certificates using command: [Command={0}]".format(str(command)))
         code, out = self.env_layer.run_command_output(command, False, False)
+
+        # Per RHUI troubleshooting guidance, a 404 is addressed by refreshing the yum cache and retrying
+        if code != self.yum_exitcode_no_applicable_packages and "404" in out:
+            self.composite_logger.log_debug("[YPM] 404 encountered while updating client package. Refreshing yum cache and retrying. [Out={0}]".format(out))
+            self.env_layer.run_command_output(self.yum_clean_all, False, False)
+            self.env_layer.run_command_output(self.yum_makecache, False, False)
+            code, out = self.env_layer.run_command_output(command, False, False)
+
         if code != self.yum_exitcode_no_applicable_packages:
-            error_msg = 'Customer environment error (expired SSL certs):  [Command={0}][Code={1}]'.format(command,str(code))
+            error_msg = 'Customer environment error (expired SSL certs):  [Command={0}][Code={1}]'.format(command, str(code))
             self.composite_logger.log_error("{0}[Out={1}]".format(error_msg, out))
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
@@ -997,7 +1015,7 @@ class YumPackageManager(PackageManager):
     def log_error_mitigation_failure(self, output, raise_on_exception=True):
         self.composite_logger.log_error("[YPM] Customer Environment Error: Unable to auto-mitigate known issue. Please investigate and address. [Out={0}]".format(output))
         if raise_on_exception:
-            error_msg = 'Customer environment error (Unable to auto-mitigate known issue):  [Out={0}]'.format(output)
+            error_msg = '[YPM] Customer environment error (Unable to auto-mitigate known issue):  [Out={0}]'.format(output)
             self.status_handler.add_error_to_status(error_msg, Constants.PatchOperationErrorCodes.PACKAGE_MANAGER_FAILURE)
             raise Exception(error_msg, "[{0}]".format(Constants.ERROR_ADDED_TO_STATUS))
     # endregion
